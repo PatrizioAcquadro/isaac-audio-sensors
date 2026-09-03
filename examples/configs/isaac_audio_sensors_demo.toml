@@ -8,7 +8,6 @@ speed_of_sound_mps = 343.0
 default_backend = "analytic_acoustics"
 write_waveforms = false
 default_array_layout = "quad_front"
-doa_estimator = "tdoa_least_squares"
 
 [[sources]]
 source_id = "speaker_front_right"

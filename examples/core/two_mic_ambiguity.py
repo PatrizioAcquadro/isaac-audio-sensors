@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core import AudioPerceptionPipeline
 from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
@@ -34,7 +35,7 @@ scene = AudioSceneSnapshot(
     arrays=(array,),
     environment=free_field_environment(environment_id="ambiguity_free_field"),
 )
-frame = AnalyticAcoustics().simulate(
+block = AnalyticAcoustics().propagate(
     scene,
     array.array_id,
     AudioTimeWindow(
@@ -43,4 +44,15 @@ frame = AnalyticAcoustics().simulate(
         frame_index=0,
     ),
 )
-print(frame.detections[0].doa)
+frame = AudioPerceptionPipeline().process(
+    block,
+    array,
+    frame_id="two_mic_ambiguity_example_000000",
+)
+print(
+    {
+        "producer": frame.producer_id,
+        "observations": len(frame.observations),
+        "note": "No detector is configured before Phase 03.",
+    }
+)

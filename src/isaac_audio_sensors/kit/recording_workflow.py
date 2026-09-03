@@ -284,8 +284,8 @@ class RecordingWorkflow(ControllerService):
         return {
             "latest_frame_id": self.state.latest_frame_id,
             "latest_timestamp_ms": self.state.latest_timestamp_ms,
-            "detection_count": self.state.latest_detection_count,
-            "backend": self.state.latest_backend or self.state.backend,
+            "observation_count": self.state.latest_observation_count,
+            "producer_id": self.state.latest_producer or self.state.backend,
             "capability_generation": (
                 None if capability is None else capability.captured_at_generation
             ),

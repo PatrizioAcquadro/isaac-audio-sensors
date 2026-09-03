@@ -23,9 +23,10 @@ from isaac_audio_sensors_omni.graph_node import (  # noqa: E402
 )
 
 from isaac_audio_sensors.core.types import (  # noqa: E402
-    AudioDetection,
+    AudioObservation,
     AudioSensorFrame,
     DoaEstimate,
+    ObservationOrigin,
 )
 from isaac_audio_sensors.isaac import frame_registry  # noqa: E402
 
@@ -33,27 +34,24 @@ from isaac_audio_sensors.isaac import frame_registry  # noqa: E402
 def _frame(frame_id: str = "frame_001", bearing: float = 90.0) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=frame_id,
-        backend_id="tdoa_synthetic",
+        producer_id="analytic_acoustics",
         array_id="rig_front",
+        channel_validity={"front": True, "left": True},
         start_time_s=1.5,
         end_time_s=1.6,
         sample_rate_hz=48_000,
         frame_index=0,
         aggregate_per_mic_rms={"front": 0.2, "left": 0.1},
-        detections=(
-            AudioDetection(
-                detection_id="det_0",
-                source_id="speaker_a",
-                class_label="Speech",
-                detection_mode="scheduled_known_source",
-                ground_truth_bearing_deg=bearing,
-                source_distance_m=2.0,
+        observations=(
+            AudioObservation(
+                observation_id="observation_0",
+                origin=ObservationOrigin.SIGNAL_DERIVED,
+                detector_id="fake_activity",
                 doa=DoaEstimate(
                     estimated_bearing_deg=bearing,
                     bearing_sector="right",
                     bearing_confidence=0.8,
                 ),
-                occluded=False,
             ),
         ),
     )
@@ -82,18 +80,17 @@ def test_frame_output_values_maps_frame_and_none():
     values = frame_output_values(_frame())
     assert values["outputs:frameId"] == "frame_001"
     assert values["outputs:timestampMs"] == 1500
-    assert values["outputs:detectionCount"] == 1
+    assert values["outputs:observationCount"] == 1
     assert values["outputs:bearingDeg"] == 90.0
     assert values["outputs:sector"] == "right"
     assert values["outputs:micIds"] == ["front", "left"]
     assert values["outputs:micRms"] == [0.2, 0.1]
-    assert values["outputs:occluded"] is False
     payload = json.loads(values["outputs:frameJson"])
     assert payload["frame_id"] == "frame_001"
 
     empty = frame_output_values(None)
     assert empty["outputs:frameId"] == ""
-    assert empty["outputs:detectionCount"] == 0
+    assert empty["outputs:observationCount"] == 0
     assert math.isnan(empty["outputs:bearingDeg"])
     assert empty["outputs:frameJson"] == ""
 
@@ -131,7 +128,7 @@ def test_compute_reads_registry_and_sets_outputs():
     keyed = _FakeNode({"inputs:arrayKey": "/World/Missing"})
     assert OgnIsaacAudioSensorFrame.compute(None, keyed) is True
     assert keyed.get_attribute("outputs:frameId").value == ""
-    assert keyed.get_attribute("outputs:detectionCount").value == 0
+    assert keyed.get_attribute("outputs:observationCount").value == 0
 
 
 class _FakeNodeType:
@@ -154,12 +151,11 @@ def test_initialize_type_declares_all_attributes():
     assert {
         "outputs:frameId",
         "outputs:timestampMs",
-        "outputs:detectionCount",
+        "outputs:observationCount",
         "outputs:bearingDeg",
         "outputs:sector",
         "outputs:micIds",
         "outputs:micRms",
-        "outputs:occluded",
         "outputs:frameJson",
     } <= output_names
 

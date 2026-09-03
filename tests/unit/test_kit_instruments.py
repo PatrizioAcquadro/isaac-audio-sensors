@@ -9,13 +9,13 @@ from isaac_audio_sensors.kit.instruments import (
     COLOR_CLEAR,
     COLOR_OCCLUDED,
     COLOR_UNKNOWN,
-    DETECTION_HISTORY_LIMIT,
-    append_detection_history,
+    OBSERVATION_HISTORY_LIMIT,
+    append_observation_history,
     compass_unit_xy,
     compass_view_model,
     meter_fraction,
     meter_view_models,
-    record_detection_events,
+    record_observation_events,
     render_compass_rgba,
     rms_db,
     timeline_rows,
@@ -108,33 +108,34 @@ def test_meter_view_models_order_and_text():
 
 
 def _frame(
-    detections,
+    observations,
     frame_id="frame_001",
-    backend_id="tdoa_synthetic",
+    producer_id="analytic_acoustics",
     timestamp_ms=1000,
 ):
     return SimpleNamespace(
         frame_id=frame_id,
-        backend_id=backend_id,
+        producer_id=producer_id,
         timestamp_ms=timestamp_ms,
-        detections=tuple(detections),
+        observations=tuple(observations),
     )
 
 
-def _detection(
+def _observation(
     *,
-    source_id="speaker_a",
-    class_label="speech_generic",
+    observation_id="observation_a",
+    origin="signal_derived",
+    detector_id="fake_activity",
+    detection_score=2.0,
     bearing=90.0,
     sector="right",
     confidence=0.8,
-    occluded=False,
 ):
     return SimpleNamespace(
-        source_id=source_id,
-        class_label=class_label,
-        occluded=occluded,
-        source_distance_m=2.0,
+        observation_id=observation_id,
+        origin=origin,
+        detector_id=detector_id,
+        detection_score=detection_score,
         doa=SimpleNamespace(
             estimated_bearing_deg=bearing,
             bearing_sector=sector,
@@ -143,56 +144,52 @@ def _detection(
     )
 
 
-def test_record_detection_events_flattens_frame_detections():
-    events = record_detection_events(_frame([_detection(), _detection(occluded=True)]))
+def test_record_observation_events_flattens_frame_observations():
+    events = record_observation_events(
+        _frame([_observation(), _observation(observation_id="observation_b")])
+    )
     assert len(events) == 2
     assert events[0]["frame_id"] == "frame_001"
-    assert events[0]["backend"] == "tdoa_synthetic"
+    assert events[0]["producer_id"] == "analytic_acoustics"
+    assert events[0]["detector_id"] == "fake_activity"
     assert events[0]["bearing_deg"] == 90.0
     assert events[0]["sector"] == "right"
-    assert events[0]["occluded"] is False
-    assert events[1]["occluded"] is True
 
 
-def test_append_detection_history_trims_to_limit():
+def test_append_observation_history_trims_to_limit():
     history: list[dict] = []
-    for index in range(DETECTION_HISTORY_LIMIT + 10):
-        append_detection_history(
+    for index in range(OBSERVATION_HISTORY_LIMIT + 10):
+        append_observation_history(
             history,
-            _frame([_detection()], frame_id=f"frame_{index}", timestamp_ms=index),
+            _frame([_observation()], frame_id=f"frame_{index}", timestamp_ms=index),
         )
-    assert len(history) == DETECTION_HISTORY_LIMIT
-    assert history[-1]["frame_id"] == f"frame_{DETECTION_HISTORY_LIMIT + 9}"
+    assert len(history) == OBSERVATION_HISTORY_LIMIT
+    assert history[-1]["frame_id"] == f"frame_{OBSERVATION_HISTORY_LIMIT + 9}"
     assert history[0]["frame_id"] == "frame_10"
 
 
-def test_timeline_rows_newest_first_with_occlusion_marker():
+def test_timeline_rows_newest_first():
     history = [
         {
             "timestamp_ms": 1000,
-            "class_label": "speech_generic",
+            "detector_id": "speech_activity",
             "bearing_deg": 90.0,
             "sector": "right",
-            "occluded": False,
         },
         {
             "timestamp_ms": 2000,
-            "class_label": None,
-            "source_id": "oven",
+            "detector_id": "appliance_activity",
             "bearing_deg": None,
             "sector": None,
-            "occluded": True,
         },
     ]
     rows = timeline_rows(history, max_rows=12)
     assert len(rows) == 2
-    assert "oven" in rows[0].text
+    assert "appliance_activity" in rows[0].text
     assert "ambiguous" in rows[0].text
-    assert "occluded" in rows[0].text
-    assert rows[0].occluded is True
-    assert "speech_generic" in rows[1].text
+    assert rows[0].occluded is False
+    assert "speech_activity" in rows[1].text
     assert "90.0 deg" in rows[1].text
-    assert "clear" in rows[1].text
 
     assert len(timeline_rows(history, max_rows=1)) == 1
     assert timeline_rows([], max_rows=12) == ()

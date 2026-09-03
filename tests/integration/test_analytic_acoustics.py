@@ -151,7 +151,7 @@ def test_propagate_emits_only_the_exact_final_microphone_mixture() -> None:
         rtol=1e-6,
         atol=1e-7,
     )
-    assert frame.detections
+    assert frame.observations == ()
 
 
 def test_propagate_supports_silent_and_mono_signal_windows() -> None:
@@ -176,8 +176,9 @@ def test_propagate_supports_silent_and_mono_signal_windows() -> None:
     assert block.microphone_ids == ("center",)
     assert block.channel_validity == (True,)
     assert np.all(block.samples == 0.0)
-    with pytest.raises(ValueError, match="at least two microphones"):
-        backend.simulate(scene, "rig", WINDOW)
+    frame = backend.simulate(scene, "rig", WINDOW)
+    assert frame.observations == ()
+    assert frame.channel_validity == {"center": True}
 
 
 def test_propagate_combines_sources_without_exposing_a_source_axis() -> None:
@@ -237,7 +238,7 @@ def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
     second = backend.simulate(scene, "rig", WINDOW)
 
     assert first == second
-    assert first.backend_id == "analytic_acoustics"
+    assert first.producer_id == "analytic_acoustics"
     assert first.provenance == "synthetic/core"
     assert first.diagnostics["analytic_solver"] == {
         "solver_id": "free_field_direct",
@@ -248,9 +249,7 @@ def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:
     assert first.waveform_paths == (f"stub://{first.frame_id}.wav",)
     assert sink.calls[0]["mixture"].shape[0] == 4
     assert sink.calls[0]["window_sample_count"] == scene.arrays[0].sample_rate_hz // 10
-    assert first.detections[0].diagnostics["analytic_solver"] == (
-        first.diagnostics["analytic_solver"]
-    )
+    assert first.observations == ()
     assert all(value > 0.0 for value in first.aggregate_per_mic_rms.values())
 
 
@@ -279,11 +278,7 @@ def test_half_space_uses_rotated_local_plane_and_one_floor_reflection() -> None:
     assert reflected.aggregate_per_mic_rms["front"] > (
         direct.aggregate_per_mic_rms["front"]
     )
-    direct_delay = direct.detections[0].diagnostics["direct_path_delay_s"]["front"]
-    reflected_delay = reflected.detections[0].diagnostics[
-        "direct_path_delay_s"
-    ]["front"]
-    assert reflected_delay == pytest.approx(direct_delay)
+    assert direct.observations == reflected.observations == ()
 
 
 def test_half_space_material_and_containment_are_fail_closed() -> None:
@@ -370,13 +365,7 @@ def test_free_field_occlusion_attenuates_direct_path_once() -> None:
     occluded_frame, occluded = _waveform(AnalyticAcoustics(), occluded_scene)
 
     np.testing.assert_allclose(occluded, baseline * 0.1, rtol=0.0, atol=1e-15)
-    assert occluded_frame.detections[0].occluded is True
-    mic_ids = tuple(microphone.mic_id for microphone in array.microphones)
-    assert occluded_frame.detections[0].diagnostics["occlusion"] == {
-        "occlusion_factor": 1.0,
-        "per_mic_blocked": {mic_id: True for mic_id in mic_ids},
-        "per_mic_attenuation_db": {mic_id: 20.0 for mic_id in mic_ids},
-    }
+    assert occluded_frame.observations == ()
 
 
 def test_half_space_occlusion_recombines_attenuated_direct_and_reflection() -> None:
@@ -650,10 +639,8 @@ def test_concave_polygon_routes_through_from_corners_and_checks_containment(
     assert frame.diagnostics["analytic_solver"]["solver_id"] == (
         "pyroom_polygon_prism"
     )
-    assert frame.detections[0].doa.estimated_bearing_deg == pytest.approx(
-        0.0,
-        abs=20.0,
-    )
+    assert frame.observations == ()
+    assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     room = module.Room.instances[-1]
     assert room.extruded_height == 3.0
     assert len(room.kwargs["materials"]) == 5

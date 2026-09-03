@@ -155,9 +155,8 @@ class ExtensionUiState:
     device_id: str = "isaac_sim"
     compute_device: str = "cpu"
     calibration_profile_path: str = ""
-    doa_estimator: str = "tdoa_least_squares"
     update_period_s: float = 0.05
-    max_detections: int = 8
+    max_observations: int = 8
     debug_overlay_enabled: bool = True
     occlusion_enabled: bool = False
     trace_enabled: bool = True
@@ -201,8 +200,8 @@ class ExtensionUiState:
 
     sensor_running: bool = False
     latest_frame_id: str | None = None
-    latest_detection_count: int = 0
-    latest_backend: str | None = None
+    latest_observation_count: int = 0
+    latest_producer: str | None = None
     latest_source_prim_path: str | None = None
     latest_source_position_m: tuple[float, float, float] | None = None
     latest_bearing_deg: float | None = None
@@ -218,7 +217,7 @@ class ExtensionUiState:
         default_factory=dict
     )
     latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
-    detection_history: list[dict[str, Any]] = field(default_factory=list)
+    observation_history: list[dict[str, Any]] = field(default_factory=list)
     latest_waveform_paths: tuple[str, ...] = ()
     audition_status: str = "Sensor WAV audition idle."
     kit_listener_prim_path: str | None = None

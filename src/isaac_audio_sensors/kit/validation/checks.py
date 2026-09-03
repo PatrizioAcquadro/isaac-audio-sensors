@@ -14,7 +14,6 @@ from collections.abc import Iterable
 from typing import Protocol
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
-from isaac_audio_sensors.core.constants import DOA_ESTIMATOR_IDS
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     resolve_directivity_pattern,
@@ -38,9 +37,8 @@ class ValidationState(Protocol):
     """Structural subset of ``ExtensionUiState`` consumed by the checks."""
 
     backend: str
-    doa_estimator: str
     update_period_s: float
-    max_detections: int
+    max_observations: int
     analytic_max_order: int
     analytic_air_absorption: bool
     analytic_ray_tracing: bool
@@ -124,23 +122,17 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             f"Backend {state.backend!r} is not an implemented v1 backend.",
             "backend",
         )
-    if state.doa_estimator not in DOA_ESTIMATOR_IDS:
-        return _error(
-            "doa_estimator_supported",
-            f"DOA estimator {state.doa_estimator!r} is not supported.",
-            "doa_estimator",
-        )
     if state.update_period_s <= 0.0 or not math.isfinite(state.update_period_s):
         return _error(
             "update_period_positive_finite",
             "update_period_s must be positive and finite.",
             "update_period_s",
         )
-    if state.max_detections < 0:
+    if state.max_observations < 0:
         return _error(
-            "max_detections_non_negative",
-            "max_detections must be non-negative.",
-            "max_detections",
+            "max_observations_non_negative",
+            "max_observations must be non-negative.",
+            "max_observations",
         )
     environment_findings = check_environment_resolution(
         state.environment_resolution_mode,

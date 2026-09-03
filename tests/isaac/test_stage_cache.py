@@ -105,8 +105,9 @@ def test_steady_state_updates_reuse_discovery_cache(discovered):
         frame = sensor.update(sim_time_s=tick * 0.2)
     assert stage.traverse_count == warm_count
 
-    assert first.detections[0].source_pose.position_m == (5.0, 0.0, 0.0)
-    assert frame.detections[0].source_pose.position_m == (0.0, 5.0, 0.0)
+    assert first.observations == frame.observations == ()
+    assert frame.aggregate_per_mic_rms != first.aggregate_per_mic_rms
+    assert sensor.latest_scene.sources[0].position_world == (0.0, 5.0, 0.0)
     assert first.diagnostics["stage_snapshot"]["discovery_cache"]["hit"] is False
     cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
     assert cache_diag["hit"] is True
@@ -146,7 +147,7 @@ def test_removed_cached_prim_falls_back_to_full_rediscovery():
     frame = sensor.update(sim_time_s=0.2)
 
     assert stage.traverse_count == warm_count + 1
-    assert frame.detections == ()
+    assert frame.observations == ()
     cache_diag = frame.diagnostics["stage_snapshot"]["discovery_cache"]
     assert cache_diag["hit"] is False
     assert any(
@@ -173,13 +174,15 @@ def test_rediscover_picks_up_new_prims_after_explicit_invalidation():
     )
 
     stale = sensor.update(sim_time_s=0.2)
-    assert len(stale.detections) == 1
+    assert stale.observations == ()
+    assert len(sensor.latest_scene.sources) == 1
     assert stage.traverse_count == warm_count
 
     sensor.rediscover()
     refreshed = sensor.update(sim_time_s=0.4)
     assert stage.traverse_count == warm_count + 1
-    assert len(refreshed.detections) == 2
+    assert refreshed.observations == ()
+    assert len(sensor.latest_scene.sources) == 2
     sensor.close()
 
 
@@ -226,7 +229,8 @@ def test_capture_with_different_source_path_changes_cache_key():
         source_prim_path="/World/Sources/SpeakerB",
     )
     assert stage.traverse_count == warm_count + 1
-    assert [det.source_id for det in narrowed.detections] == ["speaker_b"]
+    assert narrowed.observations == ()
+    assert [source.source_id for source in sensor.latest_scene.sources] == ["speaker_b"]
     sensor.close()
 
 
@@ -279,7 +283,8 @@ def test_info_only_discovery_attr_change_invalidates_cache():
 
     refreshed = sensor.update(sim_time_s=0.2)
     assert stage.traverse_count == warm_count + 1
-    assert len(refreshed.detections) == 2
+    assert refreshed.observations == ()
+    assert len(sensor.latest_scene.sources) == 2
     assert "usd_info_only_discovery_attr" in cache.invalidation_reasons
     sensor.close()
 
@@ -316,7 +321,7 @@ def test_native_loop_and_aural_mode_changes_refresh_source_semantics():
     frame = sensor.update(sim_time_s=0.4)
 
     assert stage.traverse_count == warm_count + 2
-    assert frame.detections == ()
+    assert frame.observations == ()
     assert sensor.latest_scene is not None
     assert sensor.latest_scene.sources == ()
     rejection = frame.diagnostics["stage_snapshot"]["source_rejections"][source.path]

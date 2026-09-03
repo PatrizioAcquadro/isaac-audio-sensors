@@ -27,7 +27,7 @@ EXPECTED_PACKAGE_FILES = {
     f"{SCHEMA_ROOT}/__init__.py",
     f"{SCHEMA_ROOT}/audio_calibration_profile.v1.schema.json",
     f"{SCHEMA_ROOT}/audio_dataset_manifest.v1.schema.json",
-    f"{SCHEMA_ROOT}/audio_sensor_frame.v2.schema.json",
+    f"{SCHEMA_ROOT}/audio_sensor_frame.v3.schema.json",
 }
 
 
@@ -41,7 +41,7 @@ def _wheel(wheel_bytes, extra_entries: dict[str, bytes | str] | None = None) -> 
         f"{SCHEMA_ROOT}/__init__.py": "",
         f"{SCHEMA_ROOT}/audio_calibration_profile.v1.schema.json": "{}\n",
         f"{SCHEMA_ROOT}/audio_dataset_manifest.v1.schema.json": "{}\n",
-        f"{SCHEMA_ROOT}/audio_sensor_frame.v2.schema.json": "{}\n",
+        f"{SCHEMA_ROOT}/audio_sensor_frame.v3.schema.json": "{}\n",
         f"{DIST_INFO}/entry_points.txt": (
             "[console_scripts]\nisaac-audio-sensors = isaac_audio_sensors.cli:main\n"
         ),
@@ -109,7 +109,7 @@ def _write_sdist(
         "schemas/__init__.py": b"",
         "schemas/audio_calibration_profile.v1.schema.json": b"{}\n",
         "schemas/audio_dataset_manifest.v1.schema.json": b"{}\n",
-        "schemas/audio_sensor_frame.v2.schema.json": b"{}\n",
+        "schemas/audio_sensor_frame.v3.schema.json": b"{}\n",
     }
     egg_info = f"src/{PACKAGE}.egg-info"
     metadata = (
@@ -262,7 +262,7 @@ def test_python_wheel_audit_rejects_unexpected_content(tmp_path, wheel_bytes):
     (
         f"{DIST_INFO}/METADATA",
         f"{DIST_INFO}/licenses/LICENSE",
-        f"{SCHEMA_ROOT}/audio_sensor_frame.v2.schema.json",
+        f"{SCHEMA_ROOT}/audio_sensor_frame.v3.schema.json",
     ),
 )
 def test_python_wheel_audit_requires_metadata_licenses_and_schemas(

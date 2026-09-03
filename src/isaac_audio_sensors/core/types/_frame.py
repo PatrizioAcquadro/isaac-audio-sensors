@@ -1,13 +1,13 @@
-"""Direction, detection, and sensor-frame contracts."""
+"""Direction, observation, and sensor-frame contracts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DETECTION_MODES,
     FRAME_PROVENANCE_VALUES,
     FRAME_SCHEMA_VERSION,
     FRAME_UNITS,
@@ -23,6 +23,13 @@ from isaac_audio_sensors.core.types._validation import (
     require_non_empty,
     require_probability,
 )
+
+
+class ObservationOrigin(str, Enum):
+    """Evidence path that produced one audio observation."""
+
+    SIGNAL_DERIVED = "signal_derived"
+    EXTERNAL_SYSTEM = "external_system"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -91,76 +98,47 @@ class DoaEstimate:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AudioDetection:
-    """One detected, scheduled, or externally described sound event."""
+class AudioObservation:
+    """One signal-derived or external observation without source truth."""
 
-    detection_id: str
-    source_id: str | None
-    class_label: str | None
-    detection_mode: str
-    ground_truth_bearing_deg: float | None
-    source_distance_m: float | None
-    doa: DoaEstimate
-    ground_truth_elevation_deg: float | None = None
-    source_pose: Pose3D | None = None
-    per_mic_delay_s: dict[str, float] = field(default_factory=dict)
-    per_mic_rms: dict[str, float] = field(default_factory=dict)
-    audio_asset_path: str | None = None
-    occluded: bool = False
+    observation_id: str
+    origin: ObservationOrigin
+    detector_id: str
+    detection_score: float | None = None
+    doa: DoaEstimate | None = None
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        require_non_empty(self.detection_id, "AudioDetection.detection_id")
-        if self.source_id is not None:
-            require_non_empty(self.source_id, "AudioDetection.source_id")
-        if self.class_label is not None:
-            require_non_empty(self.class_label, "AudioDetection.class_label")
-        if self.detection_mode not in DETECTION_MODES:
-            raise ValueError(
-                "AudioDetection.detection_mode must be one of "
-                f"{sorted(DETECTION_MODES)}."
-            )
-        if self.ground_truth_bearing_deg is not None:
-            require_finite(
-                self.ground_truth_bearing_deg,
-                "AudioDetection.ground_truth_bearing_deg",
-            )
-            object.__setattr__(
-                self,
-                "ground_truth_bearing_deg",
-                normalize_bearing_deg(self.ground_truth_bearing_deg),
-            )
-        if self.ground_truth_elevation_deg is not None:
-            _require_elevation_deg(
-                self.ground_truth_elevation_deg,
-                "AudioDetection.ground_truth_elevation_deg",
-            )
-            object.__setattr__(
-                self,
-                "ground_truth_elevation_deg",
-                float(self.ground_truth_elevation_deg),
-            )
-        if self.source_distance_m is not None:
-            require_finite(self.source_distance_m, "AudioDetection.source_distance_m")
-            if self.source_distance_m < 0.0:
+        require_non_empty(
+            self.observation_id,
+            "AudioObservation.observation_id",
+        )
+        if not isinstance(self.origin, ObservationOrigin):
+            try:
+                origin = ObservationOrigin(self.origin)
+            except (TypeError, ValueError) as exc:
                 raise ValueError(
-                    "AudioDetection.source_distance_m must be non-negative."
+                    "AudioObservation.origin must be 'signal_derived' or "
+                    "'external_system'."
+                ) from exc
+            object.__setattr__(self, "origin", origin)
+        require_non_empty(self.detector_id, "AudioObservation.detector_id")
+        if self.detection_score is not None:
+            if isinstance(self.detection_score, bool):
+                raise ValueError(
+                    "AudioObservation.detection_score must be a finite number."
                 )
-        object.__setattr__(
-            self,
-            "per_mic_delay_s",
-            coerce_float_dict(self.per_mic_delay_s, "AudioDetection.per_mic_delay_s"),
-        )
-        object.__setattr__(
-            self,
-            "per_mic_rms",
-            coerce_float_dict(
-                self.per_mic_rms,
-                "AudioDetection.per_mic_rms",
-                non_negative=True,
-            ),
-        )
-        object.__setattr__(self, "occluded", bool(self.occluded))
+            require_finite(
+                self.detection_score,
+                "AudioObservation.detection_score",
+            )
+            object.__setattr__(
+                self,
+                "detection_score",
+                float(self.detection_score),
+            )
+        if self.doa is not None and not isinstance(self.doa, DoaEstimate):
+            raise TypeError("AudioObservation.doa must be a DoaEstimate or None.")
         object.__setattr__(self, "diagnostics", dict(self.diagnostics))
 
 
@@ -169,8 +147,9 @@ class AudioSensorFrame:
     """One microphone-array observation window."""
 
     frame_id: str
-    backend_id: str
+    producer_id: str
     array_id: str
+    channel_validity: dict[str, bool]
     start_time_s: float
     end_time_s: float
     sample_rate_hz: int
@@ -182,15 +161,15 @@ class AudioSensorFrame:
     coordinate_convention: str = COORDINATE_CONVENTION
     units: dict[str, str] = field(default_factory=lambda: dict(FRAME_UNITS))
     provenance: str = "synthetic/core"
-    max_detections: int | None = None
-    detections: tuple[AudioDetection, ...] = field(default_factory=tuple)
+    max_observations: int | None = None
+    observations: tuple[AudioObservation, ...] = field(default_factory=tuple)
     aggregate_per_mic_rms: dict[str, float] = field(default_factory=dict)
     waveform_paths: tuple[str, ...] = field(default_factory=tuple)
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         require_non_empty(self.frame_id, "AudioSensorFrame.frame_id")
-        require_non_empty(self.backend_id, "AudioSensorFrame.backend_id")
+        require_non_empty(self.producer_id, "AudioSensorFrame.producer_id")
         require_non_empty(self.array_id, "AudioSensorFrame.array_id")
         require_non_empty(self.schema_version, "AudioSensorFrame.schema_version")
         if self.frame_name is None:
@@ -228,11 +207,27 @@ class AudioSensorFrame:
             raise ValueError(
                 "AudioSensorFrame.frame_index must be a non-negative integer."
             )
-        if self.max_detections is not None and (
-            type(self.max_detections) is not int or self.max_detections < 0
+        channel_validity: dict[str, bool] = {}
+        for microphone_id, valid in self.channel_validity.items():
+            require_non_empty(
+                microphone_id,
+                "AudioSensorFrame.channel_validity key",
+            )
+            if type(valid) is not bool:
+                raise ValueError(
+                    "AudioSensorFrame.channel_validity values must be booleans."
+                )
+            channel_validity[microphone_id] = valid
+        if not channel_validity:
+            raise ValueError(
+                "AudioSensorFrame.channel_validity must not be empty."
+            )
+        object.__setattr__(self, "channel_validity", channel_validity)
+        if self.max_observations is not None and (
+            type(self.max_observations) is not int or self.max_observations < 0
         ):
             raise ValueError(
-                "AudioSensorFrame.max_detections must be a non-negative integer."
+                "AudioSensorFrame.max_observations must be a non-negative integer."
             )
         units = {str(key): str(value) for key, value in self.units.items()}
         missing_units = set(FRAME_UNITS) - set(units) - set(OPTIONAL_FRAME_UNIT_KEYS)
@@ -251,13 +246,24 @@ class AudioSensorFrame:
                 f"AudioSensorFrame.units changed stable unit values {changed_units!r}."
             )
         object.__setattr__(self, "units", units)
-        detections = tuple(self.detections)
-        if self.max_detections is not None and len(detections) > self.max_detections:
-            raise ValueError(
-                "AudioSensorFrame.detections exceeds max_detections; producers "
-                "must apply the output limit after localization."
+        observations = tuple(self.observations)
+        if not all(isinstance(item, AudioObservation) for item in observations):
+            raise TypeError(
+                "AudioSensorFrame.observations must contain AudioObservation values."
             )
-        object.__setattr__(self, "detections", detections)
+        observation_ids = [item.observation_id for item in observations]
+        if len(set(observation_ids)) != len(observation_ids):
+            raise ValueError(
+                "AudioSensorFrame.observations must have unique observation_id values."
+            )
+        if self.max_observations is not None and (
+            len(observations) > self.max_observations
+        ):
+            raise ValueError(
+                "AudioSensorFrame.observations exceeds max_observations; producers "
+                "must apply the output limit after perception."
+            )
+        object.__setattr__(self, "observations", observations)
         object.__setattr__(
             self,
             "aggregate_per_mic_rms",

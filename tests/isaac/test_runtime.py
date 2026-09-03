@@ -29,12 +29,6 @@ from isaac_audio_sensors.lab import (
     EntityBindingCfg,
     SourceEntityCfg,
 )
-from isaac_audio_sensors.lab.batched_backend import (
-    BatchedObservations,
-    analytic_free_field_observations,
-    compact_active_events,
-    precompute_tdoa_operator,
-)
 from isaac_audio_sensors.lab.entity_binding import EntityBinding
 from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
 
@@ -94,7 +88,7 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
 
     reference = ReferenceBackend(
         backend_id="analytic_acoustics",
-        max_detections=8,
+        max_observations=8,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(snapshot,),
         array_ids=("selected",),
@@ -114,7 +108,7 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
     with pytest.raises(KeyError, match="AudioSceneSnapshot has no array 'missing'"):
         ReferenceBackend(
             backend_id="analytic_acoustics",
-            max_detections=8,
+            max_observations=8,
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
             snapshots=(_snapshot(array, ()),),
             array_ids=("missing",),
@@ -127,11 +121,11 @@ def test_runtime_uses_real_isaac_lab_bases():
 
 
 def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
-    cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_detections=2)
+    cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_observations=2)
     cfg.validate()
 
     data = AudioArraySensorData.allocate(
-        num_envs=2, max_detections=2, num_mics=4, device="cpu"
+        num_envs=2, max_observations=2, num_mics=4, device="cpu"
     )
     assert [field.name for field in fields(data)] == [
         "event_presence",
@@ -160,7 +154,7 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
     with pytest.raises(ValueError, match="Unknown backend"):
         AudioArraySensorCfg(prim_path="/World/Audio", backend="unknown").validate()
     with pytest.raises(TypeError, match="integer"):
-        AudioArraySensorCfg(prim_path="/World/Audio", max_detections=1.5).validate()
+        AudioArraySensorCfg(prim_path="/World/Audio", max_observations=1.5).validate()
     with pytest.raises(ValueError, match="finite"):
         AudioArraySensorCfg(
             prim_path="/World/Audio", update_period=float("nan")
@@ -209,39 +203,9 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     )
 
 
-def test_analytic_entity_and_reference_paths_match_with_rms_selection():
+def test_reference_path_emits_zero_observations_until_phase_03():
     backend_id = "analytic_acoustics"
-    robot_state = _root_state(((0.0, 0.0, 0.0),))
-    front_state = _root_state(((4.0, 0.0, 0.0),))
-    right_state = _root_state(((0.0, 4.0, 0.0),))
-    scene = _Scene(
-        robot=_entity(robot_state),
-        front=_entity(front_state),
-        right=_entity(right_state),
-    )
-    cfg = EntityBindingCfg(
-        environment=free_field_environment(environment_id="entity_parity"),
-        source_entities=(
-            SourceEntityCfg(entity_name="right", source_id="b", start_time_s=0.5),
-            SourceEntityCfg(entity_name="front", source_id="a", start_time_s=0.0),
-        )
-    )
-    binding = EntityBinding(scene, cfg)
     env_ids = torch.tensor([0])
-    batch = binding.pose_batch(env_ids, device="cpu")
-    solve, baseline, determinant = precompute_tdoa_operator(
-        binding.static.mic_offsets_local
-    )
-    assert determinant > 0.0
-    source_observations = analytic_free_field_observations(
-        batch, solve_operator=solve, baseline_matrix=baseline
-    )
-    active = (binding.static.source_start_s.unsqueeze(0) < 0.6) & (
-        binding.static.source_end_s.unsqueeze(0) > 0.5
-    )
-    entity_result = compact_active_events(
-        source_observations, active_mask=active, max_detections=1
-    )
 
     array = create_microphone_array(
         array_id="array", prim_path="/World/Array", layout_name="quad_front"
@@ -272,7 +236,7 @@ def test_analytic_entity_and_reference_paths_match_with_rms_selection():
     )
     reference = ReferenceBackend(
         backend_id=backend_id,
-        max_detections=1,
+        max_observations=1,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio", backend=backend_id
         ).effects,
@@ -287,79 +251,18 @@ def test_analytic_entity_and_reference_paths_match_with_rms_selection():
         device="cpu",
     )
 
-    for item in fields(entity_result):
-        if item.name == "per_mic_rms":
-            entity_rms = entity_result.per_mic_rms[0, 0]
-            reference_rms = reference_result.per_mic_rms[0, 0]
-            torch.testing.assert_close(
-                entity_rms / entity_rms[0],
-                reference_rms / reference_rms[0],
-                atol=1e-3,
-                rtol=1e-3,
-            )
-            continue
-        torch.testing.assert_close(
-            getattr(entity_result, item.name),
-            getattr(reference_result, item.name),
-            equal_nan=True,
-            atol=1e-3,
-            rtol=1e-3,
-        )
-
-    padded_result = reference.observations(
-        env_ids=env_ids,
-        timestamps_s=torch.tensor([2.0]),
-        frame_indices=torch.tensor([1]),
-        update_period=0.1,
-        device="cpu",
-    )
     expected_padding = AudioArraySensorData.allocate(
         num_envs=1,
-        max_detections=1,
+        max_observations=1,
         num_mics=4,
         device="cpu",
     )
     for item in fields(expected_padding):
         torch.testing.assert_close(
-            getattr(padded_result, item.name),
+            getattr(reference_result, item.name),
             getattr(expected_padding, item.name),
             equal_nan=True,
         )
-
-
-def test_tensor_detection_selection_uses_rms_and_preserves_fixed_shape():
-    observations = BatchedObservations(
-        bearing_deg=torch.tensor(((0.0, 90.0, 180.0),)),
-        confidence=torch.tensor(((0.1, 0.9, 0.5),)),
-        ambiguity=torch.tensor(((False, False, True),)),
-        per_mic_rms=torch.tensor(
-            (((0.1, 0.1), (0.9, 0.9), (0.5, 0.5)),)
-        ),
-    )
-    active = torch.tensor(((True, True, True),))
-
-    selected = compact_active_events(
-        observations,
-        active_mask=active,
-        max_detections=2,
-    )
-    padded = compact_active_events(
-        observations,
-        active_mask=active,
-        max_detections=5,
-    )
-    zero = compact_active_events(
-        observations,
-        active_mask=active,
-        max_detections=0,
-    )
-
-    torch.testing.assert_close(selected.bearing_deg, torch.tensor(((90.0, 180.0),)))
-    assert selected.event_presence.tolist() == [[True, True]]
-    assert padded.event_presence.tolist() == [[True, True, True, False, False]]
-    assert padded.bearing_deg.shape == (1, 5)
-    assert zero.event_presence.shape == (1, 0)
-    assert zero.per_mic_rms.shape == (1, 0, 2)
 
 
 def test_entity_binding_rejects_bad_shapes_dtypes_and_layouts():
@@ -433,7 +336,6 @@ def test_entity_binding_rejects_non_free_field_analytic_environment() -> None:
         _reference_backend=None,
         cfg=SimpleNamespace(
             backend="analytic_acoustics",
-            doa_estimator="tdoa_least_squares",
             analytic_max_order=0,
             analytic_air_absorption=False,
             analytic_ray_tracing=False,
@@ -445,64 +347,6 @@ def test_entity_binding_rejects_non_free_field_analytic_environment() -> None:
 
     with pytest.raises(ValueError, match="explicit free_field"):
         AudioArraySensor._validate_bound_runtime(sensor)
-
-
-@pytest.mark.parametrize("backend_id", ["analytic_acoustics"])
-@pytest.mark.parametrize(
-    ("gain_target", "gain_db", "expected_ratio"),
-    (
-        ("source", DB_DOUBLE, 2.0),
-        ("source", -DB_DOUBLE, 0.5),
-        ("microphone", DB_DOUBLE, 2.0),
-        ("microphone", -DB_DOUBLE, 0.5),
-    ),
-)
-def test_entity_modes_apply_source_and_microphone_gain_once(
-    backend_id: str,
-    gain_target: str,
-    gain_db: float,
-    expected_ratio: float,
-) -> None:
-    baseline = _entity_mode_rms(backend_id)
-    changed = _entity_mode_rms(
-        backend_id,
-        source_gain_db=gain_db if gain_target == "source" else 0.0,
-        microphone_gain_db=gain_db if gain_target == "microphone" else 0.0,
-    )
-
-    assert changed / baseline == pytest.approx(expected_ratio, rel=1e-5)
-
-
-@pytest.mark.parametrize(
-    "backend_id",
-    [
-        "analytic_acoustics",
-    ],
-)
-@pytest.mark.parametrize(
-    ("gain_target", "gain_db", "expected_ratio"),
-    (
-        ("source", DB_DOUBLE, 2.0),
-        ("source", -DB_DOUBLE, 0.5),
-        ("microphone", DB_DOUBLE, 2.0),
-        ("microphone", -DB_DOUBLE, 0.5),
-    ),
-)
-def test_reference_mode_preserves_relative_gain_ratios(
-    monkeypatch,
-    backend_id: str,
-    gain_target: str,
-    gain_db: float,
-    expected_ratio: float,
-) -> None:
-    baseline = _reference_mode_rms(backend_id)
-    changed = _reference_mode_rms(
-        backend_id,
-        source_gain_db=gain_db if gain_target == "source" else 0.0,
-        microphone_gain_db=gain_db if gain_target == "microphone" else 0.0,
-    )
-
-    assert changed / baseline == pytest.approx(expected_ratio, rel=1e-5)
 
 
 def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() -> None:
@@ -545,96 +389,3 @@ def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() 
         binding.static.source_directivity_coefficient,
         torch.tensor([0.0]),
     )
-
-
-def _entity_mode_rms(
-    backend_id: str,
-    *,
-    source_gain_db: float = 0.0,
-    microphone_gain_db: float = 0.0,
-) -> float:
-    robot = _root_state(((0.0, 0.0, 0.0),))
-    source = _root_state(((4.0, 0.0, 0.0),))
-    microphones = tuple(
-        replace(microphone, gain_db=microphone_gain_db)
-        for microphone in microphone_layout("quad_front")
-    )
-    binding = EntityBinding(
-        _Scene(robot=_entity(robot), speaker=_entity(source)),
-        EntityBindingCfg(
-            environment=free_field_environment(environment_id="entity_gain"),
-            microphone_layout=None,
-            microphones=microphones,
-            source_entities=(
-                SourceEntityCfg(entity_name="speaker", gain_db=source_gain_db),
-            ),
-        ),
-    )
-    batch = binding.pose_batch(torch.tensor([0]), device="cpu")
-    solve, baseline, determinant = precompute_tdoa_operator(
-        binding.static.mic_offsets_local
-    )
-    assert determinant > 0.0
-    observations = analytic_free_field_observations(
-        batch,
-        solve_operator=solve,
-        baseline_matrix=baseline,
-    )
-    return float(observations.per_mic_rms[0, 0, 0].item())
-
-
-def _reference_mode_rms(
-    backend_id: str,
-    *,
-    source_gain_db: float = 0.0,
-    microphone_gain_db: float = 0.0,
-) -> float:
-    array = create_microphone_array(
-        array_id="array",
-        prim_path="/World/Array",
-        layout_name="quad_front",
-    )
-    array = replace(
-        array,
-        microphones=tuple(
-            replace(microphone, gain_db=microphone_gain_db)
-            for microphone in array.microphones
-        ),
-    )
-    source = AudioSourceSpec(
-        source_id="speaker",
-        prim_path="/World/Speaker",
-        class_label="Speech",
-        audio_asset_path="generated://impulse",
-        position_world=(4.0, 0.0, 0.0),
-        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
-        start_time_s=0.0,
-        duration_s=1.0,
-        gain_db=source_gain_db,
-    )
-    environment = None
-    if backend_id.startswith("room_acoustics"):
-        environment = shoebox_environment(
-            environment_id="room",
-            dimensions_m=(20.0, 20.0, 20.0),
-            position_world=(-10.0, -10.0, -10.0),
-            absorption=0.2,
-        )
-    reference = ReferenceBackend(
-        backend_id=backend_id,
-        max_detections=1,
-        effects=AudioArraySensorCfg(
-            prim_path="/World/Audio",
-            backend=backend_id,
-        ).effects,
-        snapshots=(_snapshot(array, (source,), environment=environment),),
-        array_ids=(array.array_id,),
-    )
-    result = reference.observations(
-        env_ids=torch.tensor([0]),
-        timestamps_s=torch.tensor([0.0]),
-        frame_indices=torch.tensor([0]),
-        update_period=0.05,
-        device="cpu",
-    )
-    return float(result.per_mic_rms[0, 0, 0].item())

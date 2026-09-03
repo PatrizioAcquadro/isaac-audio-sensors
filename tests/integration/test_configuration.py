@@ -407,7 +407,8 @@ def test_extension_controller_object_local_offset_and_config_roundtrip(tmp_path)
     assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
     frame = controller.update_sensor()
     assert frame is not None
-    assert frame.detections[0].source_pose.position_m == (1.0, 1.0, 0.25)
+    assert frame.observations == ()
+    assert frame.aggregate_per_mic_rms
 
     path = controller.export_config_summary()
     assert path == tmp_path / "binding.json"

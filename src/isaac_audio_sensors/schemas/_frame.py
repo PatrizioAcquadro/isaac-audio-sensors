@@ -6,21 +6,21 @@ from typing import Any
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
-    DETECTION_FIELDS,
     DOA_FIELDS,
     FRAME_PROVENANCE_VALUES,
     FRAME_SCHEMA_VERSION,
     FRAME_TOP_LEVEL_FIELDS,
     FRAME_UNITS,
-    OPTIONAL_DETECTION_FIELDS,
+    OBSERVATION_FIELDS,
     OPTIONAL_DOA_FIELDS,
     OPTIONAL_FRAME_UNIT_KEYS,
+    OPTIONAL_OBSERVATION_FIELDS,
     POSE3D_FIELDS,
 )
 
 
 def audio_sensor_frame_json_schema() -> dict[str, Any]:
-    """Return the v2 ``AudioSensorFrame`` JSON Schema."""
+    """Return the v3 ``AudioSensorFrame`` JSON Schema."""
 
     pose_schema: dict[str, Any] = {
         "type": "object",
@@ -64,20 +64,20 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
-            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v2.schema.json"
+            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v3.schema.json"
         ),
-        "title": "Isaac Audio Sensors AudioSensorFrame v2",
+        "title": "Isaac Audio Sensors AudioSensorFrame v3",
         "description": (
-            "AudioSensorFrame v2 trace contract. timestamp_ms is derived from "
+            "Observed-only AudioSensorFrame v3 contract. timestamp_ms is derived from "
             "start_time_s, sample_rate_hz records the selected array rate, and "
-            "max_detections limits only the detection output."
+            "max_observations limits only the perception output."
         ),
         "type": "object",
         "additionalProperties": False,
         "required": list(FRAME_TOP_LEVEL_FIELDS),
         "properties": {
             "schema_version": {
-                "description": "Frame schema id for the breaking v2 contract.",
+                "description": "Frame schema id for the breaking v3 contract.",
                 "const": FRAME_SCHEMA_VERSION,
             },
             "frame_id": {
@@ -114,18 +114,21 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "description": "Non-negative producer frame index.",
                 "minimum": 0,
             },
-            "backend_id": {
+            "producer_id": {
                 "type": "string",
-                "description": (
-                    "Public backend identifier such as geometry_only, "
-                    "tdoa_synthetic, room_acoustics, or room_acoustics_srp."
-                ),
+                "description": "Identifier of the frame's signal producer.",
                 "minLength": 1,
             },
             "array_id": {
                 "type": "string",
                 "description": "Microphone-array identifier.",
                 "minLength": 1,
+            },
+            "channel_validity": {
+                "type": "object",
+                "description": "Per-microphone validity for the observed signal block.",
+                "minProperties": 1,
+                "additionalProperties": {"type": "boolean"},
             },
             "array_pose": {"oneOf": [{"type": "null"}, pose_schema]},
             "coordinate_convention": {
@@ -147,130 +150,107 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                 "description": "Stable producer provenance namespace.",
                 "enum": sorted(FRAME_PROVENANCE_VALUES),
             },
-            "max_detections": {
+            "max_observations": {
                 "type": ["integer", "null"],
-                "description": "Output-only detection cap; null means unlimited.",
+                "description": "Output-only observation cap; null means unlimited.",
                 "minimum": 0,
             },
-            "detections": {
+            "observations": {
                 "type": "array",
-                "description": "Detected, scheduled, or externally described events.",
+                "description": "Signal-derived or typed external observations.",
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
                     "required": [
                         name
-                        for name in DETECTION_FIELDS
-                        if name not in OPTIONAL_DETECTION_FIELDS
+                        for name in OBSERVATION_FIELDS
+                        if name not in OPTIONAL_OBSERVATION_FIELDS
                     ],
                     "properties": {
-                        "detection_id": {"type": "string", "minLength": 1},
-                        "source_id": {"type": ["string", "null"]},
-                        "class_label": {"type": ["string", "null"]},
-                        "detection_mode": {"type": "string", "minLength": 1},
-                        "ground_truth_bearing_deg": {"type": ["number", "null"]},
-                        "ground_truth_elevation_deg": {
-                            "type": ["number", "null"],
-                            "minimum": -90.0,
+                        "observation_id": {"type": "string", "minLength": 1},
+                        "origin": {
+                            "type": "string",
+                            "enum": ["external_system", "signal_derived"],
+                        },
+                        "detector_id": {"type": "string", "minLength": 1},
+                        "detection_score": {"type": ["number", "null"]},
+                        "doa": {
+                            "oneOf": [
+                                {"type": "null"},
+                                {
+                                    "type": "object",
+                                    "description": (
+                                        "Direction-of-arrival estimate with explicit "
+                                        "candidate and ambiguity representation."
+                                    ),
+                                    "additionalProperties": False,
+                                    "required": [
+                                        name
+                                        for name in DOA_FIELDS
+                                        if name not in OPTIONAL_DOA_FIELDS
+                                    ],
+                                    "properties": {
+                                        "estimated_bearing_deg": {
+                                            "type": ["number", "null"]
+                                        },
+                                        "candidate_bearing_deg": {
+                            "type": "array",
+                            "description": (
+                                "Candidate bearings in degrees "
+                                "clockwise from array forward."
+                                            ),
+                                            "items": {"type": "number"},
+                                        },
+                                        "bearing_sector": {
+                            "type": ["string", "null"],
+                            "description": (
+                                "Canonical 8-sector label using "
+                                "corrected half-open v1 sector semantics."
+                                            ),
+                                        },
+                                        "bearing_confidence": {
+                                            "type": "number",
+                                            "minimum": 0.0,
+                                            "maximum": 1.0,
+                                        },
+                                        "ambiguity_class": {
+                                            "type": ["string", "null"],
+                                            "description": (
+                                                "Stable ambiguity class namespace when "
+                                                "a bearing is not unique."
+                                            ),
+                                        },
+                                        "ambiguity_reason": {
+                                            "type": ["string", "null"],
+                                            "description": (
+                                                "Human-readable explanation for "
+                                                "ambiguity_class."
+                                            ),
+                                        },
+                                        "estimated_elevation_deg": {
+                                            "type": ["number", "null"],
+                                            "minimum": -90.0,
                             "maximum": 90.0,
                             "description": (
-                                "Oracle source elevation in degrees up from the "
-                                "array's forward/right plane."
-                            ),
-                        },
-                        "source_distance_m": {"type": ["number", "null"]},
-                        "doa": {
-                            "type": "object",
-                            "description": (
-                                "Direction-of-arrival estimate with explicit "
-                                "candidate and ambiguity representation."
-                            ),
-                            "additionalProperties": False,
-                            "required": [
-                                name
-                                for name in DOA_FIELDS
-                                if name not in OPTIONAL_DOA_FIELDS
-                            ],
-                            "properties": {
-                                "estimated_bearing_deg": {"type": ["number", "null"]},
-                                "candidate_bearing_deg": {
-                                    "type": "array",
-                                    "description": (
-                                        "Candidate bearings in degrees clockwise "
-                                        "from array forward."
-                                    ),
-                                    "items": {"type": "number"},
-                                },
-                                "bearing_sector": {
-                                    "type": ["string", "null"],
-                                    "description": (
-                                        "Canonical 8-sector label using corrected "
-                                        "half-open v1 sector semantics."
-                                    ),
-                                },
-                                "bearing_confidence": {
-                                    "type": "number",
-                                    "minimum": 0.0,
-                                    "maximum": 1.0,
-                                },
-                                "ambiguity_class": {
-                                    "type": ["string", "null"],
-                                    "description": (
-                                        "Stable ambiguity class namespace when "
-                                        "a bearing is not unique."
-                                    ),
-                                },
-                                "ambiguity_reason": {
-                                    "type": ["string", "null"],
-                                    "description": (
-                                        "Human-readable explanation for "
-                                        "ambiguity_class."
-                                    ),
-                                },
-                                "estimated_elevation_deg": {
-                                    "type": ["number", "null"],
-                                    "minimum": -90.0,
-                                    "maximum": 90.0,
-                                    "description": (
-                                        "Elevation "
-                                        "in degrees up from the array's "
-                                        "forward/right plane when the producer "
-                                        "can resolve it (rank-3 layouts)."
-                                    ),
-                                },
-                                "candidate_elevation_deg": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "number",
-                                        "minimum": -90.0,
-                                        "maximum": 90.0,
-                                    },
-                                    "description": (
-                                        "Candidate "
-                                        "elevations in degrees up from the "
-                                        "array's forward/right plane."
-                                    ),
-                                },
+                                "Elevation in degrees up from the "
+                                "array's forward/right plane when resolvable."
+                                            ),
+                                        },
+                                        "candidate_elevation_deg": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "number",
+                                                "minimum": -90.0,
+                                                "maximum": 90.0,
                             },
-                        },
-                        "source_pose": {"oneOf": [{"type": "null"}, pose_schema]},
-                        "per_mic_delay_s": {
-                            "type": "object",
-                            "additionalProperties": {"type": "number"},
-                        },
-                        "per_mic_rms": {
-                            "type": "object",
-                            "additionalProperties": {"type": "number"},
-                        },
-                        "audio_asset_path": {"type": ["string", "null"]},
-                        "occluded": {
-                            "type": "boolean",
                             "description": (
-                                "True when the "
-                                "producer determined the direct source-to-"
-                                "array path is occluded (e.g. Isaac raycast "
-                                "occlusion)."
-                            ),
+                                "Candidate elevations in degrees up "
+                                "from the array's forward/right plane."
+                                            ),
+                                        },
+                                    },
+                                },
+                            ],
                         },
                         "diagnostics": {"type": "object"},
                     },

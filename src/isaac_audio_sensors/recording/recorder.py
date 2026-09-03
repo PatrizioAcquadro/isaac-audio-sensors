@@ -522,8 +522,8 @@ class SessionRecorder:
             assert isinstance(payload, dict)
             if payload["timestamp_ms"] != int(timestamp_ms):
                 raise ValueError("timestamp_ms disagrees with frame.timestamp_ms")
-            if payload["backend_id"] != self.configuration["backend_id"]:
-                raise ValueError("frame.backend_id disagrees with configuration")
+            if payload["producer_id"] != self.configuration["backend_id"]:
+                raise ValueError("frame.producer_id disagrees with configuration")
             if payload.get("sample_rate_hz") not in (None, self.sample_rate_hz):
                 raise ValueError("frame.sample_rate_hz disagrees with configuration")
             episode = self._current_episode

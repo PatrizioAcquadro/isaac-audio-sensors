@@ -8,10 +8,7 @@ from isaaclab.sensors import SensorBaseCfg
 from isaaclab.utils.configclass import configclass
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
-from isaac_audio_sensors.core.constants import (
-    DEFAULT_SPEED_OF_SOUND_MPS,
-    DOA_ESTIMATOR_IDS,
-)
+from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
 
@@ -22,9 +19,8 @@ class AudioArraySensorCfg(SensorBaseCfg):
 
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
-    max_detections: int = 8
+    max_observations: int = 8
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
-    doa_estimator: str = "tdoa_least_squares"
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
     analytic_ray_tracing: bool = False
@@ -37,19 +33,17 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise ValueError("update_period must be finite and non-negative.")
         if self.backend not in registered_backend_ids():
             raise ValueError(f"Unknown backend {self.backend!r}.")
-        if isinstance(self.max_detections, bool) or not isinstance(
-            self.max_detections, int
+        if isinstance(self.max_observations, bool) or not isinstance(
+            self.max_observations, int
         ):
-            raise TypeError("max_detections must be an integer.")
-        if self.max_detections < 0:
-            raise ValueError("max_detections must be non-negative.")
+            raise TypeError("max_observations must be an integer.")
+        if self.max_observations < 0:
+            raise ValueError("max_observations must be non-negative.")
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0
         ):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
-        if self.doa_estimator not in DOA_ESTIMATOR_IDS:
-            raise ValueError(f"Unknown DOA estimator {self.doa_estimator!r}.")
         if (
             isinstance(self.analytic_max_order, bool)
             or not isinstance(self.analytic_max_order, int)

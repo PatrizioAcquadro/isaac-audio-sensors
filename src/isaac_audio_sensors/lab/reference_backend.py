@@ -10,8 +10,7 @@ from isaac_audio_sensors.core.backends.base import (
     _simulate_legacy_frame,
     get_backend,
 )
-from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, SECTOR_ORDER
-from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
+from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -28,11 +27,10 @@ class ReferenceBackend:
         *,
         backend_id: str,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        doa_estimator: str = "tdoa_least_squares",
         analytic_max_order: int = 0,
         analytic_air_absorption: bool = False,
         analytic_ray_tracing: bool = False,
-        max_detections: int,
+        max_observations: int,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -57,15 +55,14 @@ class ReferenceBackend:
                 "All reference arrays must have the same microphone count."
             )
         self.num_mics = mic_counts.pop()
-        self.max_detections = max_detections
+        self.max_observations = max_observations
         kwargs: dict[str, object] = {
             "effects": effects,
             "speed_of_sound_mps": speed_of_sound_mps,
-            "doa_estimator": doa_estimator,
             "max_order": analytic_max_order,
             "air_absorption": analytic_air_absorption,
             "ray_tracing": analytic_ray_tracing,
-            "max_detections": max_detections,
+            "max_observations": max_observations,
         }
         self._backend = get_backend(backend_id, **kwargs)
 
@@ -85,19 +82,17 @@ class ReferenceBackend:
         count = int(env_ids.numel())
         result = AudioArraySensorData.allocate(
             num_envs=count,
-            max_detections=self.max_detections,
+            max_observations=self.max_observations,
             num_mics=self.num_mics,
             device=device,
         )
-        sector_indices = {name: index for index, name in enumerate(SECTOR_ORDER)}
         window_s = max(float(update_period), 1e-3)
         for row in range(count):
             env_id = int(env_ids[row].item())
             start_s = float(timestamps_s[row].item())
             snapshot = self.snapshots[env_id]
             array_id = self.array_ids[env_id]
-            spec = snapshot.array_by_id(array_id)
-            frame = _simulate_legacy_frame(
+            _simulate_legacy_frame(
                 self._backend,
                 snapshot,
                 array_id,
@@ -107,23 +102,4 @@ class ReferenceBackend:
                     frame_index=int(frame_indices[row].item()),
                 ),
             )
-            for event_index, detection in enumerate(frame.detections):
-                result.event_presence[row, event_index] = True
-                bearing = detection.doa.estimated_bearing_deg
-                if bearing is not None:
-                    result.bearing_deg[row, event_index] = float(bearing)
-                    sector = detection.doa.bearing_sector
-                    if sector is None:
-                        sector = bearing_deg_to_sector_name(float(bearing))
-                    result.sector_onehot[row, event_index, sector_indices[sector]] = 1.0
-                result.confidence[row, event_index] = float(
-                    detection.doa.bearing_confidence
-                )
-                result.ambiguity_mask[row, event_index] = (
-                    detection.doa.ambiguity_class is not None
-                )
-                for mic_index, microphone in enumerate(spec.microphones):
-                    result.per_mic_rms[row, event_index, mic_index] = float(
-                        detection.per_mic_rms.get(microphone.mic_id, 0.0)
-                    )
         return result

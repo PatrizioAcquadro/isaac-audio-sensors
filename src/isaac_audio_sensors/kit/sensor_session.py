@@ -46,7 +46,7 @@ from .formatting import (
     _aggregate_rms_from_frame,
     _frame_is_new,
 )
-from .instruments import append_detection_history
+from .instruments import append_observation_history
 from .paths import _resolve_gui_output_path
 from .stage_context import (
     _stage_has_prim,
@@ -87,7 +87,7 @@ class SensorSession(ControllerService):
         array_prim_path: str | None = None,
         backend: str | None = None,
         update_period_s: float | None = None,
-        max_detections: int | None = None,
+        max_observations: int | None = None,
         debug_draw: bool | None = None,
         occlusion: bool | None = None,
         writer_path: str | Path | None = None,
@@ -101,8 +101,8 @@ class SensorSession(ControllerService):
                 self.state.backend = str(backend)
             if update_period_s is not None:
                 self.state.update_period_s = float(update_period_s)
-            if max_detections is not None:
-                self.state.max_detections = int(max_detections)
+            if max_observations is not None:
+                self.state.max_observations = int(max_observations)
             if debug_draw is not None:
                 self.state.debug_overlay_enabled = bool(debug_draw)
             if occlusion is not None:
@@ -426,8 +426,7 @@ class SensorSession(ControllerService):
                 robot_base_prim_path=state.robot_base_prim_path or None,
                 backend=state.backend,
                 update_period_s=state.update_period_s,
-                max_detections=state.max_detections,
-                doa_estimator=state.doa_estimator,
+                max_observations=state.max_observations,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
@@ -450,8 +449,7 @@ class SensorSession(ControllerService):
                 binding_cfg=binding_cfg,
                 backend=state.backend,
                 update_period_s=state.update_period_s,
-                max_detections=state.max_detections,
-                doa_estimator=state.doa_estimator,
+                max_observations=state.max_observations,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
@@ -483,35 +481,30 @@ class SensorSession(ControllerService):
         }
 
     def _record_latest_frame(self, frame: Any) -> None:
-        detections = tuple(frame.detections)
-        first = detections[0] if detections else None
+        observations = tuple(frame.observations)
+        first = observations[0] if observations else None
+        doa = None if first is None else first.doa
         self.state.latest_frame_id = frame.frame_id
-        self.state.latest_detection_count = len(detections)
-        self.state.latest_backend = frame.backend_id
-        self.state.latest_source_prim_path = self._latest_source_prim_path(first)
-        self.state.latest_source_position_m = (
-            None
-            if first is None or first.source_pose is None
-            else vec3_from_any(first.source_pose.position_m)
-        )
+        self.state.latest_observation_count = len(observations)
+        self.state.latest_producer = frame.producer_id
+        self.state.latest_source_prim_path = None
+        self.state.latest_source_position_m = None
         self.state.latest_bearing_deg = (
-            None if first is None else first.doa.estimated_bearing_deg
+            None if doa is None else doa.estimated_bearing_deg
         )
-        self.state.latest_sector = None if first is None else first.doa.bearing_sector
+        self.state.latest_sector = None if doa is None else doa.bearing_sector
         self.state.latest_bearing_confidence = (
-            None if first is None else first.doa.bearing_confidence
+            None if doa is None else doa.bearing_confidence
         )
         self.state.latest_candidate_bearings = (
-            () if first is None else tuple(first.doa.candidate_bearing_deg)
+            () if doa is None else tuple(doa.candidate_bearing_deg)
         )
-        self.state.latest_occluded = (
-            None if first is None else bool(getattr(first, "occluded", False))
-        )
+        self.state.latest_occluded = None
         self.state.latest_timestamp_ms = getattr(frame, "timestamp_ms", None)
         self.state.latest_waveform_paths = tuple(
             str(path) for path in (getattr(frame, "waveform_paths", ()) or ())
         )
-        append_detection_history(self.state.detection_history, frame)
+        append_observation_history(self.state.observation_history, frame)
         array_pose = getattr(frame, "array_pose", None)
         self.state.latest_array_prim_path = (
             None
@@ -556,7 +549,7 @@ class SensorSession(ControllerService):
                 workflow.observe_run_frame(getattr(frame, "timestamp_ms", None))
             self._host._recording._guided_record_frame(frame)
         self._set_status(
-            f"Updated {frame.frame_id}: {len(detections)} detection(s), "
+            f"Updated {frame.frame_id}: {len(observations)} observation(s), "
             f"{len(primitives)} overlay primitive(s)."
         )
 
@@ -570,16 +563,6 @@ class SensorSession(ControllerService):
             return dict(microphone_world_positions(sensor_spec))
         except Exception:
             return {}
-
-    def _latest_source_prim_path(self, detection: Any | None) -> str | None:
-        if detection is None:
-            return None
-        scene = None if self.sensor is None else self.sensor.latest_scene
-        if scene is not None and detection.source_id is not None:
-            for source in scene.sources:
-                if source.source_id == detection.source_id and source.prim_path:
-                    return source.prim_path
-        return self.state.source_prim_path or None
 
     def _record_overlay_status(self) -> None:
         if self.sensor is None or self.sensor.debug_drawer is None:

@@ -112,23 +112,22 @@ def test_analytic_backend_applies_per_mic_attenuation_independently():
         _scene(occlusion=(_record(),)), array.array_id, time_window()
     )
 
-    baseline_rms = baseline.detections[0].per_mic_rms
-    attenuated_rms = attenuated.detections[0].per_mic_rms
+    baseline_rms = baseline.aggregate_per_mic_rms
+    attenuated_rms = attenuated.aggregate_per_mic_rms
     assert attenuated_rms["front"] == pytest.approx(0.1 * baseline_rms["front"])
     for mic_id in set(baseline_rms) - {"front"}:
         assert attenuated_rms[mic_id] == pytest.approx(baseline_rms[mic_id])
 
 
-def test_analytic_backend_attenuates_rms_without_changing_delays_or_bearing():
+def test_analytic_backend_attenuates_rms_without_oracle_observations():
     array = quad_array()
     backend = AnalyticAcoustics()
-    baseline = backend.simulate(_scene(), array.array_id, time_window()).detections[0]
+    baseline = backend.simulate(_scene(), array.array_id, time_window())
     attenuated = backend.simulate(
         _scene(occlusion=(_record(),)), array.array_id, time_window()
-    ).detections[0]
-
-    assert attenuated.per_mic_rms["front"] == pytest.approx(
-        0.1 * baseline.per_mic_rms["front"]
     )
-    assert attenuated.per_mic_delay_s == baseline.per_mic_delay_s
-    assert attenuated.doa.estimated_bearing_deg == baseline.doa.estimated_bearing_deg
+
+    assert attenuated.aggregate_per_mic_rms["front"] == pytest.approx(
+        0.1 * baseline.aggregate_per_mic_rms["front"]
+    )
+    assert baseline.observations == attenuated.observations == ()

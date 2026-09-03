@@ -24,7 +24,6 @@ from isaac_audio_sensors.core.constants import (
     DEFAULT_RUNTIME_PROFILE,
     DEFAULT_SAMPLE_RATE_HZ,
     DEFAULT_SPEED_OF_SOUND_MPS,
-    DOA_ESTIMATOR_IDS,
     RUNTIME_PROFILES,
 )
 from isaac_audio_sensors.core.effects.config import (
@@ -36,7 +35,6 @@ from isaac_audio_sensors.core.effects.validation import (
     validate_effects_config,
 )
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
-from isaac_audio_sensors.core.microphone_array import layout_rank_xy
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AcousticSurfaceSpec,
@@ -58,7 +56,6 @@ class AudioSensorConfig:
     speed_of_sound_mps: float
     write_waveforms: bool
     waveform_dir: str | None
-    doa_estimator: str = "tdoa_least_squares"
     sources: tuple[AudioSourceSpec, ...]
     arrays: dict[str, MicrophoneArraySpec]
     environment: AcousticEnvironmentSpec
@@ -101,6 +98,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 "audio.tdoa_ambiguity_policy was removed; contextual DOA "
                 "disambiguation belongs in downstream consumers."
             )
+        if "doa_estimator" in audio:
+            raise ConfigValidationError(
+                "audio.doa_estimator was removed by Plan 02.2; DOA belongs to "
+                "AudioPerceptionPipeline."
+            )
         scene_id = _required_str(scene, "scene_id", table="scene")
         stage_units = str(scene.get("stage_units", "meters"))
         up_axis = str(scene.get("up_axis", "z")).lower()
@@ -132,12 +134,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
         )
         if speed_of_sound <= 0.0:
             raise ConfigValidationError("audio.speed_of_sound_mps must be positive.")
-        doa_estimator = str(audio.get("doa_estimator", "tdoa_least_squares"))
-        if doa_estimator not in DOA_ESTIMATOR_IDS:
-            raise ConfigValidationError(
-                f"audio.doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
-            )
-
         sources = _parse_sources(raw.get("sources"))
         arrays = _parse_arrays(raw.get("arrays", {}))
         effects = parse_effects_config(audio.get("effects"))
@@ -177,8 +173,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             analytic_ray_tracing,
         ) = _parse_analytic_acoustics_options(audio.get("analytic_acoustics"))
         _validate_backend_requirements(
-            arrays=arrays,
-            doa_estimator=doa_estimator,
             environment=environment,
             max_order=analytic_max_order,
             air_absorption=analytic_air_absorption,
@@ -196,7 +190,6 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
                 if audio.get("waveform_dir") is None
                 else str(audio["waveform_dir"])
             ),
-            doa_estimator=doa_estimator,
             sources=sources,
             arrays=arrays,
             environment=environment,
@@ -492,31 +485,11 @@ def _parse_analytic_acoustics_options(raw_options: Any) -> tuple[int, bool, bool
 
 def _validate_backend_requirements(
     *,
-    arrays: dict[str, MicrophoneArraySpec],
-    doa_estimator: str,
     environment: AcousticEnvironmentSpec,
     max_order: int,
     air_absorption: bool,
     ray_tracing: bool,
 ) -> None:
-    for array in arrays.values():
-        minimum = 3 if doa_estimator == "srp_phat" else 2
-        if len(array.microphones) < minimum:
-            raise ConfigValidationError(
-                f"{doa_estimator} requires at least {minimum} microphones "
-                f"for array {array.array_id!r}."
-            )
-        rank_xy = layout_rank_xy(array)
-        if len(array.microphones) == 2 and rank_xy < 1:
-            raise ConfigValidationError(
-                f"Two-microphone array {array.array_id!r} requires distinct "
-                "microphone positions in local XY."
-            )
-        if len(array.microphones) >= 3 and rank_xy < 2:
-            raise ConfigValidationError(
-                f"{doa_estimator} requires at least three non-collinear "
-                f"microphones in local XY for array {array.array_id!r}."
-            )
     if environment.kind == "surface_set":
         raise ConfigValidationError(
             "analytic_acoustics does not support environment.kind='surface_set' "

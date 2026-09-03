@@ -23,7 +23,7 @@ __all__ = [
 _SCHEMAS = {
     "frame": (
         audio_sensor_frame_json_schema,
-        "audio_sensor_frame.v2.schema.json",
+        "audio_sensor_frame.v3.schema.json",
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,

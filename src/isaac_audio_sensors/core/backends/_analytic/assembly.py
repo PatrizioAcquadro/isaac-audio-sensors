@@ -19,24 +19,21 @@ from isaac_audio_sensors.core.motion import (
     motion_segment_diagnostics,
 )
 from isaac_audio_sensors.core.scene import deterministic_frame_name
-from isaac_audio_sensors.core.types import AudioDetection, AudioSensorFrame, Pose3D
+from isaac_audio_sensors.core.types import AudioSensorFrame, Pose3D
 
 
 def assemble_frame(
     prepared: PreparedRoomFrame,
     rendered: RenderedRoom,
-    detections: list[AudioDetection],
-    per_source_rir_summary: dict[str, dict[str, object]],
     *,
     backend_id: str,
     speed_of_sound_mps: float,
-    doa_estimator: str,
     waveform_writer: WaveformSink | None,
     window_motion: WindowMotionPlan | None,
-    max_detections: int | None,
+    max_observations: int | None,
     provenance: str = "room_acoustics",
 ) -> AudioSensorFrame:
-    """Assemble the public frame after rendering and localization complete."""
+    """Assemble one temporary observed-only frame from a rendered mixture."""
 
     aggregate_per_mic_rms = rms_by_channel(
         {
@@ -48,8 +45,6 @@ def assemble_frame(
     assert environment is not None
     frame_diagnostics: dict[str, Any] = {
         "backend": backend_id,
-        "active_source_count": len(prepared.active),
-        "scheduled_source_ids": tuple(source.source_id for source in prepared.active),
         "physical_waveform": True,
         "environment_id": environment.environment_id,
         "environment_config": prepared.environment_config,
@@ -65,18 +60,12 @@ def assemble_frame(
         ),
         "speed_of_sound_mps": speed_of_sound_mps,
         "sample_rate_hz": prepared.sample_rate_hz,
-        "max_detections": max_detections,
+        "max_observations": max_observations,
         "time_window_s": (
             prepared.time_window.start_time_s,
             prepared.time_window.end_time_s,
         ),
         "window_sample_count": prepared.window_sample_count,
-        "doa_estimator": doa_estimator,
-        "per_source_rir_summary": per_source_rir_summary,
-        "per_source_rir_length_samples": {
-            source_id: summary["rir_length_samples"]
-            for source_id, summary in per_source_rir_summary.items()
-        },
     }
     if any(isinstance(surface.absorption, str) for surface in environment.surfaces):
         environment_resolution = _environment_material_resolution(environment)
@@ -124,8 +113,9 @@ def assemble_frame(
             start_time_s=prepared.time_window.start_time_s,
             frame_index=prepared.time_window.frame_index,
         ),
-        backend_id=backend_id,
+        producer_id=backend_id,
         array_id=prepared.sensor.array_id,
+        channel_validity={mic_id: True for mic_id in prepared.mic_ids},
         array_pose=Pose3D.from_array(prepared.sensor),
         start_time_s=prepared.time_window.start_time_s,
         end_time_s=prepared.time_window.end_time_s,
@@ -133,8 +123,8 @@ def assemble_frame(
         frame_index=prepared.time_window.frame_index,
         coordinate_convention=prepared.sensor.coordinate_convention,
         provenance=provenance,
-        max_detections=max_detections,
-        detections=tuple(detections),
+        max_observations=max_observations,
+        observations=(),
         aggregate_per_mic_rms=aggregate_per_mic_rms,
         waveform_paths=waveform_paths,
         diagnostics=frame_diagnostics,

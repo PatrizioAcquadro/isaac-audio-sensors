@@ -238,7 +238,7 @@ def test_empty_source_scene_enriches_selected_array_and_backend_emits_no_detecti
             frame_index=0,
         ),
     )
-    assert frame.detections == ()
+    assert frame.observations == ()
 
 
 def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history():
@@ -260,7 +260,7 @@ def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history
         "rig": "none:first_sample",
     }
     assert "motion" not in first.diagnostics["stage_snapshot"]
-    assert first.detections[0].diagnostics["doppler_factor"] == 1.0
+    assert first.observations == ()
 
     source_prim.attributes["ias:position_world"] = (1.1, 0.0, 0.0)
     second = sensor.update(sim_time_s=1.05)

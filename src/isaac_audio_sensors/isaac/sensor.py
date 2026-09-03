@@ -11,10 +11,7 @@ from isaac_audio_sensors.core.backends.base import (
     _simulate_legacy_frame,
     get_backend,
 )
-from isaac_audio_sensors.core.constants import (
-    DEFAULT_SPEED_OF_SOUND_MPS,
-    DOA_ESTIMATOR_IDS,
-)
+from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import (
     UnsupportedEffectError,
@@ -91,9 +88,8 @@ class IsaacAudioArraySensor:
     usd_time_code_scale: float | None = None
     usd_time_code_offset: float = 0.0
     update_period_s: float = 0.05
-    max_detections: int | None = None
+    max_observations: int | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
-    doa_estimator: str = "tdoa_least_squares"
     waveform_sink: WaveformSink | None = None
     debug_draw_enabled: bool = False
     debug_drawer: IsaacDebugDrawer | None = None
@@ -148,10 +144,6 @@ class IsaacAudioArraySensor:
                 "IsaacAudioArraySensor.backend must be 'analytic_acoustics'; "
                 f"received {self.backend!r}."
             )
-        if self.doa_estimator not in DOA_ESTIMATOR_IDS:
-            raise ConfigValidationError(
-                f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
-            )
         if (
             isinstance(self.analytic_max_order, bool)
             or not isinstance(self.analytic_max_order, int)
@@ -193,10 +185,10 @@ class IsaacAudioArraySensor:
             self._pose_history_stage = self.stage
         if self.update_period_s <= 0.0:
             raise ValueError("update_period_s must be positive.")
-        if self.max_detections is not None and (
-            type(self.max_detections) is not int or self.max_detections < 0
+        if self.max_observations is not None and (
+            type(self.max_observations) is not int or self.max_observations < 0
         ):
-            raise ValueError("max_detections must be a non-negative integer.")
+            raise ValueError("max_observations must be a non-negative integer.")
         if self.usd_time_code_scale is not None and not math.isfinite(
             float(self.usd_time_code_scale)
         ):
@@ -247,9 +239,8 @@ class IsaacAudioArraySensor:
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
-        max_detections: int | None = None,
+        max_observations: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
         analytic_air_absorption: bool = False,
@@ -294,9 +285,8 @@ class IsaacAudioArraySensor:
             usd_time_code_scale=usd_time_code_scale,
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
-            max_detections=max_detections,
+            max_observations=max_observations,
             speed_of_sound_mps=speed_of_sound_mps,
-            doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
             unknown_material_loss_db=unknown_material_loss_db,
@@ -318,9 +308,8 @@ class IsaacAudioArraySensor:
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
-        max_detections: int | None = None,
+        max_observations: int | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        doa_estimator: str = "tdoa_least_squares",
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
         analytic_air_absorption: bool = False,
@@ -372,9 +361,8 @@ class IsaacAudioArraySensor:
             usd_time_code_scale=usd_time_code_scale,
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
-            max_detections=max_detections,
+            max_observations=max_observations,
             speed_of_sound_mps=speed_of_sound_mps,
-            doa_estimator=doa_estimator,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
             unknown_material_loss_db=unknown_material_loss_db,
@@ -613,11 +601,10 @@ class IsaacAudioArraySensor:
             window_motion = self._build_window_motion(scene, sensor, time_window)
         kwargs: dict[str, Any] = {
             "speed_of_sound_mps": self.speed_of_sound_mps,
-            "doa_estimator": self.doa_estimator,
             "max_order": self.analytic_max_order,
             "air_absorption": self.analytic_air_absorption,
             "ray_tracing": self.analytic_ray_tracing,
-            "max_detections": self.max_detections,
+            "max_observations": self.max_observations,
         }
         if self.waveform_sink is not None:
             kwargs["waveform_writer"] = self.waveform_sink

@@ -32,9 +32,6 @@ from isaac_audio_sensors.isaac.occlusion import (
 )
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.viz.overlays import (
-    CLEAR_BEARING_RAY_COLOR,
-    OCCLUDED_BEARING_RAY_COLOR,
-    PARTIAL_OCCLUSION_BEARING_RAY_COLOR,
     build_debug_primitives,
     debug_primitives_to_dicts,
 )
@@ -231,27 +228,9 @@ def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
     assert len(raycaster.casts) == 2
 
 
-@pytest.mark.parametrize(
-    ("record", "expected_color", "expected_factor"),
-    [
-        (None, CLEAR_BEARING_RAY_COLOR, None),
-        (
-            _occlusion_record(factor=0.25, attenuation_db=5.0),
-            PARTIAL_OCCLUSION_BEARING_RAY_COLOR,
-            0.25,
-        ),
-        (_occlusion_record(), OCCLUDED_BEARING_RAY_COLOR, 1.0),
-    ],
-    ids=["clear", "partial", "occluded"],
-)
-def test_debug_primitives_color_bearing_rays_by_occlusion(
-    record, expected_color, expected_factor
-):
+def test_default_frame_does_not_draw_oracle_bearing_rays():
     array = _quad_array()
-    scene = _scene(
-        arrays=(array,),
-        occlusion=None if record is None else (record,),
-    )
+    scene = _scene(arrays=(array,), occlusion=(_occlusion_record(),))
     frame = AnalyticAcoustics().simulate(scene, "rig_front", _window())
     primitives = build_debug_primitives(
         frame=frame,
@@ -259,8 +238,8 @@ def test_debug_primitives_color_bearing_rays_by_occlusion(
         sensor=array,
     )
     rays = [primitive for primitive in primitives if primitive.kind == "bearing_ray"]
-    assert rays[0].color_rgba == expected_color
-    assert rays[0].metadata["occlusion_factor"] == expected_factor
+    assert rays == []
+    assert frame.observations == ()
 
 
 def _fake_stage() -> FakeUsdStage:
@@ -324,7 +303,7 @@ def _live_sensor(
     ).start()
 
 
-def test_live_sensor_occlusion_attenuates_flags_and_reports_diagnostics():
+def test_live_sensor_occlusion_attenuates_and_reports_diagnostics():
     sensor = _live_sensor(
         _fake_stage(),
         occlusion_enabled=True,
@@ -332,13 +311,7 @@ def test_live_sensor_occlusion_attenuates_flags_and_reports_diagnostics():
     )
     frame = sensor.update(sim_time_s=0.0)
 
-    detection = frame.detections[0]
-    assert detection.occluded is True
-    assert set(detection.diagnostics["occlusion"]) == {
-        "occlusion_factor",
-        "per_mic_blocked",
-        "per_mic_attenuation_db",
-    }
+    assert frame.observations == ()
     state = frame.diagnostics["acoustics_state"]["occlusion"]
     assert state["model"] == "raycast_transmission_v1"
     assert state["unknown_material_loss_db"] == 20.0
@@ -394,7 +367,7 @@ def test_live_sensor_debug_draw_adds_transient_occlusion_primitives_only():
         primitive for primitive in serialized if primitive["kind"] == "occlusion_ray"
     )
     assert serialized_ray["metadata"] == ray.metadata
-    assert WALL_PRIM_PATH not in str(frame.detections[0].diagnostics)
+    assert frame.observations == ()
     sensor.close()
 
 
@@ -411,15 +384,9 @@ def test_live_analytic_sensor_tracks_blocked_to_clear_transition() -> None:
     raycaster.walls = ()
     clear = sensor.update(sim_time_s=0.1)
 
-    assert blocked.backend_id == "analytic_acoustics"
-    assert blocked.detections[0].occluded is True
-    assert blocked.detections[0].diagnostics["occlusion"][
-        "occlusion_factor"
-    ] == 1.0
-    assert clear.detections[0].occluded is False
-    assert clear.detections[0].diagnostics["occlusion"][
-        "occlusion_factor"
-    ] == 0.0
+    assert blocked.producer_id == "analytic_acoustics"
+    assert blocked.observations == clear.observations == ()
+    assert blocked.aggregate_per_mic_rms != clear.aggregate_per_mic_rms
     sensor.close()
 
 
@@ -427,8 +394,7 @@ def test_live_sensor_occlusion_disabled_by_default():
     sensor = _live_sensor(_fake_stage())
     frame = sensor.update(sim_time_s=0.0)
 
-    assert frame.detections[0].occluded is False
-    assert "occlusion" not in frame.detections[0].diagnostics
+    assert frame.observations == ()
     assert "occlusion" not in frame.diagnostics["stage_snapshot"]
     sensor.close()
 
@@ -441,7 +407,7 @@ def test_live_sensor_degrades_gracefully_when_raycaster_unavailable():
     )
     frame = sensor.update(sim_time_s=0.0)
 
-    assert frame.detections[0].occluded is False
+    assert frame.observations == ()
     occlusion_diag = frame.diagnostics["stage_snapshot"]["occlusion"]
     assert occlusion_diag["status"] == "unavailable"
     assert "PhysX" in occlusion_diag["error"]
@@ -659,24 +625,8 @@ def test_occlusion_diagnostics_round_trip_new_fields():
     )
 
     restored = frame_from_trace_dict(frame_to_trace_dict(frame))
-    diagnostics = restored.detections[0].diagnostics["occlusion"]
-    assert diagnostics["per_mic_attenuation_db"] == {"front": 20.0, "right": 0.0}
-    assert diagnostics["per_mic_band_attenuation_db"]["front"] == [
-        1.0,
-        2.0,
-        3.0,
-        4.0,
-        5.0,
-        6.0,
-    ]
-    assert diagnostics["band_centers_hz"] == list(OCCLUSION_BAND_CENTERS_HZ)
-    assert set(diagnostics) == {
-        "occlusion_factor",
-        "per_mic_blocked",
-        "per_mic_attenuation_db",
-        "per_mic_band_attenuation_db",
-        "band_centers_hz",
-    }
+    assert restored.observations == ()
+    assert restored.aggregate_per_mic_rms == frame.aggregate_per_mic_rms
 
 
 class _RepeatingHitRaycaster:

@@ -234,14 +234,10 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
 
     assert first_frame is not None
     assert moved_frame is not None
-    first_detection = first_frame.detections[0]
-    moved_detection = moved_frame.detections[0]
-    assert first_detection.source_id == "oven_source"
-    assert first_detection.class_label == "Appliance"
-    assert first_detection.audio_asset_path == "generated://pulse"
-    assert first_detection.source_pose.position_m == (2.0, 0.0, 0.0)
-    assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
-    assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
+    assert first_frame.observations == moved_frame.observations == ()
+    assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
+    assert source.attributes["ias:source_id"] == "oven_source"
+    assert controller.state.latest_source_prim_path is None
 
 
 def test_extension_controller_source_position_read_apply_presets_and_drag_update(
@@ -294,29 +290,20 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
     front_frame = controller.update_sensor()
     assert front_frame is not None
-    front_detection = front_frame.detections[0]
-    assert front_detection.source_pose.position_m == (2.0, 0.0, 0.0)
-    assert abs(front_detection.doa.estimated_bearing_deg) <= 1e-6
-    assert front_detection.doa.bearing_sector == "straight"
+    assert front_frame.observations == ()
 
     assert controller.apply_source_position_preset("right", stage=stage) is not None
     right_frame = controller.update_sensor()
     assert right_frame is not None
-    right_detection = right_frame.detections[0]
-    assert right_detection.source_pose.position_m == (0.0, 2.0, 0.0)
-    assert right_detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=0.5)
-    assert right_detection.doa.bearing_sector == "right"
+    assert right_frame.observations == ()
 
     source.attributes["xformOp:translate"] = (0.0, -2.0, 0.0)
     moved_frame = controller.update_sensor()
     assert moved_frame is not None
-    moved_detection = moved_frame.detections[0]
-    assert moved_detection.source_pose.position_m == (0.0, -2.0, 0.0)
-    assert moved_detection.doa.estimated_bearing_deg != (
-        right_detection.doa.estimated_bearing_deg
-    )
-    assert moved_detection.doa.bearing_sector == "left"
-    assert controller.state.latest_source_position_m == (0.0, -2.0, 0.0)
+    assert moved_frame.observations == ()
+    assert moved_frame.aggregate_per_mic_rms != right_frame.aggregate_per_mic_rms
+    assert source.attributes["xformOp:translate"] == (0.0, -2.0, 0.0)
+    assert controller.state.latest_source_position_m is None
 
 
 def test_extension_controller_attaches_source_to_object_and_motion_updates_frame(
@@ -369,16 +356,10 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
 
     assert first_frame is not None
     assert moved_frame is not None
-    first_detection = first_frame.detections[0]
-    moved_detection = moved_frame.detections[0]
-    assert first_detection.source_pose.position_m == (2.0, 0.0, 0.0)
-    assert first_detection.doa.bearing_sector == "straight"
-    assert moved_detection.source_pose.position_m == (0.0, 2.0, 0.0)
-    assert moved_detection.doa.estimated_bearing_deg == pytest.approx(90.0, abs=0.5)
-    assert moved_detection.doa.bearing_sector == "right"
+    assert first_frame.observations == moved_frame.observations == ()
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
-    assert controller.state.latest_source_prim_path == "/World/Oven/SpeakerA"
-    assert controller.state.latest_source_position_m == (0.0, 2.0, 0.0)
+    assert controller.state.latest_source_prim_path is None
+    assert controller.state.latest_source_position_m is None
     assert controller.state.latest_aggregate_rms == moved_frame.aggregate_per_mic_rms
 
     detached = controller.detach_source_from_object(stage=stage)
@@ -393,11 +374,8 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     oven.attributes["xformOp:translate"] = (5.0, 0.0, 0.0)
     after_detach_frame = controller.update_sensor()
     assert after_detach_frame is not None
-    assert after_detach_frame.detections[0].source_pose.position_m == (
-        0.0,
-        2.0,
-        0.0,
-    )
+    assert after_detach_frame.observations == ()
+    assert detached_source.attributes["xformOp:translate"] == (0.0, 2.0, 0.0)
 
 
 def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
@@ -429,9 +407,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
     assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
     front_frame = controller.update_sensor()
     assert front_frame is not None
-    front_detection = front_frame.detections[0]
-    assert abs(front_detection.doa.estimated_bearing_deg) <= 1e-6
-    assert front_detection.doa.bearing_sector == "straight"
+    assert front_frame.observations == ()
     assert controller.state.latest_array_position_m == (0.0, 0.0, 0.0)
     front_mics = dict(controller.state.latest_mic_world_positions)
     assert front_mics["front"] == pytest.approx((0.08, 0.0, 0.0))
@@ -448,11 +424,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
 
     rotated_frame = controller.update_sensor()
     assert rotated_frame is not None
-    rotated_detection = rotated_frame.detections[0]
-    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(
-        270.0, abs=0.5
-    )
-    assert rotated_detection.doa.bearing_sector == "left"
+    assert rotated_frame.observations == ()
     assert rotated_frame.aggregate_per_mic_rms != front_frame.aggregate_per_mic_rms
     assert rotated_frame.array_pose is not None
     assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(expected_quat)
@@ -471,9 +443,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
     assert dragged_frame is not None
     assert dragged_frame.array_pose is not None
     assert dragged_frame.array_pose.position_m == (1.0, 1.0, 0.0)
-    dragged_detection = dragged_frame.detections[0]
-    assert dragged_detection.doa.estimated_bearing_deg == pytest.approx(315.0)
-    assert dragged_detection.doa.bearing_sector == "straight_left"
+    assert dragged_frame.observations == ()
     assert array_prim.attributes["ias:position_world"] == (0.0, 0.0, 0.0)
     assert controller.state.latest_array_position_m == (1.0, 1.0, 0.0)
     assert controller.state.latest_mic_world_positions["front"] == pytest.approx(
@@ -557,8 +527,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert first_frame is not None
     assert first_frame.array_pose is not None
     assert first_frame.array_pose.position_m == pytest.approx((0.0, 0.0, 1.1))
-    first_detection = first_frame.detections[0]
-    assert first_detection.doa.bearing_sector == "straight"
+    assert first_frame.observations == ()
     first_mics = dict(controller.state.latest_mic_world_positions)
     assert first_mics["front"] == pytest.approx((0.08, 0.0, 1.1))
 
@@ -567,9 +536,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert moved_frame is not None
     assert moved_frame.array_pose is not None
     assert moved_frame.array_pose.position_m == pytest.approx((0.0, 2.0, 1.1))
-    moved_detection = moved_frame.detections[0]
-    assert moved_detection.doa.estimated_bearing_deg == pytest.approx(315.0)
-    assert moved_detection.doa.bearing_sector == "straight_left"
+    assert moved_frame.observations == ()
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert controller.state.latest_array_position_m == pytest.approx((0.0, 2.0, 1.1))
     assert controller.state.latest_mic_world_positions != first_mics
@@ -584,9 +551,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(
         quaternion_from_yaw_deg(90.0)
     )
-    rotated_detection = rotated_frame.detections[0]
-    assert rotated_detection.doa.estimated_bearing_deg == pytest.approx(225.0)
-    assert rotated_detection.doa.bearing_sector == "behind_left"
+    assert rotated_frame.observations == ()
 
     detached = controller.detach_array_from_object(stage=stage)
     assert detached is not None

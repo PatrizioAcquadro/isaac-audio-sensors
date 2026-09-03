@@ -6,11 +6,9 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
-from isaac_audio_sensors.core.constants import DOA_ESTIMATOR_IDS
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 
 BACKEND_CHOICES = registered_backend_ids()
-DOA_ESTIMATOR_CHOICES = tuple(sorted(DOA_ESTIMATOR_IDS))
 DIRECTIVITY_CHOICES = tuple(pattern.value for pattern in DirectivityPattern)
 LAYOUT_CHOICES = (
     "quad_front",

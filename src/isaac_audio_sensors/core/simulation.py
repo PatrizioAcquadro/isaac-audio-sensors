@@ -19,7 +19,7 @@ def simulate_from_config(
     array_id: str | None = None,
     start_time_s: float = 0.0,
     end_time_s: float = 1.0,
-    max_detections: int | None = None,
+    max_observations: int | None = None,
 ) -> AudioSensorFrame:
     """Simulate one frame from a validated audio configuration."""
 
@@ -35,11 +35,10 @@ def simulate_from_config(
     backend_kwargs: dict[str, object] = {
         "effects": config.effects,
         "runtime_profile": config.runtime_profile,
-        "max_detections": max_detections,
+        "max_observations": max_observations,
     }
     backend_kwargs.update(
         speed_of_sound_mps=config.speed_of_sound_mps,
-        doa_estimator=config.doa_estimator,
         max_order=config.analytic_max_order,
         air_absorption=config.analytic_air_absorption,
         ray_tracing=config.analytic_ray_tracing,

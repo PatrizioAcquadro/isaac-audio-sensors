@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 from .constants import (
     BACKEND_CHOICES,
     DIRECTIVITY_CHOICES,
-    DOA_ESTIMATOR_CHOICES,
     ENVIRONMENT_MODE_CHOICES,
     LAYOUT_CHOICES,
     SOURCE_POSITION_PRESETS,
@@ -375,8 +374,8 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             "Frame: "
             f"{summary['latest_frame_id'] or 'none'} | "
             f"timestamp={summary['latest_timestamp_ms']} | "
-            f"detections={summary['detection_count']} | "
-            f"backend={summary['backend']} | "
+            f"observations={summary['observation_count']} | "
+            f"producer={summary['producer_id']} | "
             f"capabilities={summary['capability_generation']}",
         )
         compass = compass_view_model(
@@ -513,7 +512,7 @@ def build_live_monitor_section(window: OmniReferenceWindow) -> None:
         for label, key in (
             ("Backend", "live_backend"),
             ("Last frame", "live_frame"),
-            ("Detections", "live_detections"),
+            ("Observations", "live_observations"),
             ("Waveform", "live_waveform"),
         ):
             with ui.HStack(spacing=8, height=0):
@@ -722,9 +721,8 @@ def build_control_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
     with window._subsection("Sensor Settings & Debug"):
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
-        window._combo_row("DOA Estimator", "doa_estimator", DOA_ESTIMATOR_CHOICES)
         window._float_row("Period s", "update_period_s")
-        window._int_row("Max Detections", "max_detections")
+        window._int_row("Max Observations", "max_observations")
         window._bool_row("Overlay", "debug_overlay_enabled")
         window._bool_row("Occlusion", "occlusion_enabled")
         window._bool_row("USD Debug", "usd_debug_enabled")
@@ -891,7 +889,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                     )
         empty_label = ui.Label("", word_wrap=True)
         ui.Spacer(height=7)
-        ui.Label("Recent detections")
+        ui.Label("Recent observations")
         timeline_labels: list[object] = []
 
         def _build_timeline_rows() -> None:
@@ -902,7 +900,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
 
         with ui.VStack(spacing=1, height=0) as timeline_container:
             _build_timeline_rows()
-        detection_empty_label = ui.Label("No recent detections.")
+        observation_empty_label = ui.Label("No recent observations.")
     window._instruments = {
         "compass": compass_image,
         "compass_provider": provider,
@@ -911,7 +909,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
         "meters": meter_rows,
         "timeline": timeline_labels,
         "timeline_container": timeline_container,
-        "detection_empty": detection_empty_label,
+        "observation_empty": observation_empty_label,
         "empty": empty_label,
     }
 

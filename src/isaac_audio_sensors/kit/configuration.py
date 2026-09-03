@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.constants import DOA_ESTIMATOR_IDS
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     resolve_directivity_pattern,
@@ -290,8 +289,7 @@ class ConfigurationService(ControllerService):
                 },
                 "lifecycle": {
                     "update_period_s": state.update_period_s,
-                    "max_detections": state.max_detections,
-                    "doa_estimator": state.doa_estimator,
+                    "max_observations": state.max_observations,
                     "debug_overlay_enabled": state.debug_overlay_enabled,
                     "occlusion_enabled": state.occlusion_enabled,
                     "writer_enabled": state.trace_enabled,
@@ -319,8 +317,8 @@ class ConfigurationService(ControllerService):
                 "authored_metadata": state.authored_metadata,
                 "latest_frame": {
                     "frame_id": state.latest_frame_id,
-                    "backend": state.latest_backend,
-                    "detection_count": state.latest_detection_count,
+                    "producer_id": state.latest_producer,
+                    "observation_count": state.latest_observation_count,
                     "source_prim_path": state.latest_source_prim_path,
                     "source_position_m": state.latest_source_position_m,
                     "bearing_deg": state.latest_bearing_deg,
@@ -582,11 +580,8 @@ class ConfigurationService(ControllerService):
         self.state.update_period_s = float(
             lifecycle.get("update_period_s", self.state.update_period_s)
         )
-        self.state.max_detections = int(
-            lifecycle.get("max_detections", self.state.max_detections)
-        )
-        self.state.doa_estimator = str(
-            lifecycle.get("doa_estimator", self.state.doa_estimator)
+        self.state.max_observations = int(
+            lifecycle.get("max_observations", self.state.max_observations)
         )
         self.state.debug_overlay_enabled = bool(
             lifecycle.get(
@@ -730,8 +725,10 @@ class ConfigurationService(ControllerService):
         )
         latest_frame = dict(payload.get("latest_frame", {}))
         self.state.latest_frame_id = latest_frame.get("frame_id")
-        self.state.latest_backend = latest_frame.get("backend")
-        self.state.latest_detection_count = int(latest_frame.get("detection_count", 0))
+        self.state.latest_producer = latest_frame.get("producer_id")
+        self.state.latest_observation_count = int(
+            latest_frame.get("observation_count", 0)
+        )
         self.state.latest_source_prim_path = latest_frame.get("source_prim_path")
         source_position = latest_frame.get("source_position_m")
         self.state.latest_source_position_m = (
@@ -792,11 +789,11 @@ class ConfigurationService(ControllerService):
             raise ValueError(
                 "Binding v5 removed room_acoustics; use analytic_acoustics."
             )
-        doa_estimator = lifecycle.get("doa_estimator")
-        if doa_estimator not in DOA_ESTIMATOR_IDS:
+        removed_keys = {"doa_estimator", "max_detections"}.intersection(lifecycle)
+        if removed_keys:
             raise ValueError(
-                "lifecycle.doa_estimator must be one of "
-                f"{sorted(DOA_ESTIMATOR_IDS)}."
+                "Binding v5 rejects removed perception lifecycle keys: "
+                f"{sorted(removed_keys)!r}."
             )
         environment = payload.get("environment")
         if not isinstance(environment, Mapping):

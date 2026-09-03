@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from isaac_audio_sensors.core import AudioPerceptionPipeline
 from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
@@ -43,7 +44,7 @@ scene = AudioSceneSnapshot(
     ),
 )
 try:
-    frame = AnalyticAcoustics(max_order=2).simulate(
+    block = AnalyticAcoustics(max_order=2).propagate(
         scene,
         array.array_id,
         AudioTimeWindow(
@@ -55,13 +56,16 @@ try:
 except OptionalDependencyUnavailable as exc:
     print(f"analytic_acoustics closed-room solver skipped: {exc}")
 else:
+    frame = AudioPerceptionPipeline().process(
+        block,
+        array,
+        frame_id="analytic_acoustics_example_000000",
+    )
     print(
         {
-            "backend": frame.backend_id,
-            "active_source_count": frame.diagnostics["active_source_count"],
-            "pyroomacoustics_version": frame.diagnostics["pyroomacoustics_version"],
-            "environment_config": frame.diagnostics["environment_config"],
-            "rir_summary": frame.diagnostics["per_source_rir_summary"],
+            "producer": frame.producer_id,
+            "observations": len(frame.observations),
+            "aggregate_per_mic_rms": frame.aggregate_per_mic_rms,
+            "solver": block.diagnostics["analytic_solver"],
         }
     )
-    print(frame.detections[0].diagnostics["estimated_tdoa_matrix_s"])

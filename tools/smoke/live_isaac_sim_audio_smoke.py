@@ -272,7 +272,7 @@ def _run_backend_smoke(
         usd_time_code=0.0,
         usd_time_code_scale=1.0,
         update_period_s=0.05,
-        max_detections=1,
+        max_observations=1,
         environment=resolved_environment,
         debug_draw=True,
         occlusion_enabled=backend_id == "analytic_acoustics",
@@ -347,10 +347,10 @@ def _augment_live_frame(
                 ),
             },
             "backend_diagnostics": {
-                "backend_id": frame.backend_id,
+                "producer_id": frame.producer_id,
                 "frame_backend": diagnostics.get("backend"),
                 "active_source_count": diagnostics.get("active_source_count"),
-                "detection_count": len(frame.detections),
+                "observation_count": len(frame.observations),
             },
             "movement": _movement_diagnostics(
                 phase=phase,
@@ -358,7 +358,7 @@ def _augment_live_frame(
                 reference_frame=reference_frame,
             ),
             "writer": {
-                "format": "AudioSensorFrame v1 JSONL",
+                "format": "AudioSensorFrame v3 JSONL",
                 "jsonl_path": str(frame_trace_path),
                 "config_path": str(config_path),
                 "record_index": record_index,
@@ -377,12 +377,6 @@ def _summarize_backend(
     before = frames["before"]
     moved = frames["moved"]
     inactive = frames["inactive"]
-    before_detection = _first_detection(before)
-    moved_detection = _first_detection(moved)
-    before_bearing = _bearing(before)
-    moved_bearing = _bearing(moved)
-    before_source_pose = _first_source_pose(before)
-    moved_source_pose = _first_source_pose(moved)
     before_array_pose = _array_pose(before)
     moved_array_pose = _array_pose(moved)
     before_debug_primitives = debug_primitives.get("before", [])
@@ -415,16 +409,10 @@ def _summarize_backend(
             phase: frame.diagnostics.get("stage_snapshot", {}).get("time_code")
             for phase, frame in frames.items()
         },
-        "before_source_pose": before_source_pose,
-        "after_source_pose": moved_source_pose,
         "before_array_pose": before_array_pose,
         "after_array_pose": moved_array_pose,
-        "before_bearing_deg": before_bearing,
-        "after_bearing_deg": moved_bearing,
-        "movement_changed_bearing": _changed_scalar(before_bearing, moved_bearing),
-        "movement_changed_source_pose": _changed_pose(
-            before_source_pose,
-            moved_source_pose,
+        "movement_changed_rms": (
+            before.aggregate_per_mic_rms != moved.aggregate_per_mic_rms
         ),
         "movement_changed_array_pose": _changed_pose(
             before_array_pose,
@@ -434,12 +422,10 @@ def _summarize_backend(
             before.diagnostics.get("stage_snapshot", {}).get("time_code")
             != moved.diagnostics.get("stage_snapshot", {}).get("time_code")
         ),
-        "backend_diagnostics_changed": (
-            None
-            if before_detection is None or moved_detection is None
-            else before_detection.diagnostics != moved_detection.diagnostics
-        ),
-        "inactive_detection_count": len(inactive.detections),
+        "observation_counts": {
+            phase: len(frame.observations) for phase, frame in frames.items()
+        },
+        "inactive_observation_count": len(inactive.observations),
         "debug_primitive_count": len(moved_debug_primitives),
         "debug_primitive_kinds": moved_kinds,
         "debug_primitive_labels": moved_labels,
@@ -450,19 +436,8 @@ def _summarize_backend(
             for phase, frame in frames.items()
         },
     }
-    if backend_id == "analytic_acoustics" and moved_detection is not None:
-        result["analytic_solver"] = moved_detection.diagnostics.get("analytic_solver")
-        before_occlusion = (
-            {} if before_detection is None else before_detection.diagnostics
-        ).get("occlusion", {})
-        moved_occlusion = moved_detection.diagnostics.get("occlusion", {})
-        result["occlusion_transition"] = {
-            "raycaster": "deterministic_live_lifecycle_fixture",
-            "before_occluded": bool(before_detection and before_detection.occluded),
-            "before_factor": before_occlusion.get("occlusion_factor"),
-            "moved_occluded": moved_detection.occluded,
-            "moved_factor": moved_occlusion.get("occlusion_factor"),
-        }
+    if backend_id == "analytic_acoustics":
+        result["analytic_solver"] = moved.diagnostics.get("analytic_solver")
         result["occlusion_debug_trace"] = {
             "before_has_hit": any(
                 item.get("kind") == "occlusion_hit"
@@ -472,10 +447,7 @@ def _summarize_backend(
                 item.get("kind") == "occlusion_ray"
                 for item in moved_debug_primitives
             ),
-            "detection_diagnostics_are_geometry_free": (
-                "prim_path" not in str(moved_detection.diagnostics)
-                and "hit_point" not in str(moved_detection.diagnostics)
-            ),
+            "observations_are_empty": before.observations == moved.observations == (),
         }
     return result
 
@@ -485,8 +457,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     if result.get("status") != "passed":
         raise RuntimeError(f"{backend_id} did not pass the live smoke.")
     required_true = (
-        "movement_changed_bearing",
-        "movement_changed_source_pose",
+        "movement_changed_rms",
         "movement_changed_array_pose",
         "movement_changed_stage_time_code",
     )
@@ -495,12 +466,12 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             f"{backend_id} did not prove live movement changes: {missing}."
         )
-    if result.get("inactive_detection_count") != 0:
-        raise RuntimeError(f"{backend_id} emitted detections for an inactive source.")
+    if any(result.get("observation_counts", {}).values()):
+        raise RuntimeError(f"{backend_id} emitted oracle observations in Phase 02.2.")
     if int(result.get("debug_primitive_count", 0)) <= 0:
         raise RuntimeError(f"{backend_id} did not produce debug primitives.")
     debug_kinds = set(result.get("debug_primitive_kinds", ()))
-    required_debug_kinds = {"microphone", "source", "bearing_ray", "sector_wedge"}
+    required_debug_kinds = {"microphone"}
     missing_debug_kinds = sorted(required_debug_kinds - debug_kinds)
     if missing_debug_kinds:
         raise RuntimeError(
@@ -512,7 +483,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     )
     if not debug_labels:
         raise RuntimeError(f"{backend_id} did not record debug primitive labels.")
-    required_label_prefixes = ("mic:", "source:", "bearing:", "sector:")
+    required_label_prefixes = ("mic:",)
     missing_label_prefixes = [
         prefix
         for prefix in required_label_prefixes
@@ -531,23 +502,12 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             "analytic_acoustics did not expose the free-field solver diagnostic."
         )
-    if backend_id == "analytic_acoustics" and result.get("occlusion_transition") != {
-        "raycaster": "deterministic_live_lifecycle_fixture",
-        "before_occluded": True,
-        "before_factor": 1.0,
-        "moved_occluded": False,
-        "moved_factor": 0.0,
-    }:
-        raise RuntimeError(
-            "analytic_acoustics did not prove the live blocked-to-clear "
-            "occlusion transition."
-        )
     if backend_id == "analytic_acoustics" and result.get(
         "occlusion_debug_trace"
     ) != {
         "before_has_hit": True,
         "moved_has_ray": True,
-        "detection_diagnostics_are_geometry_free": True,
+        "observations_are_empty": True,
     }:
         raise RuntimeError(
             "analytic_acoustics did not prove the transient occlusion debug trace."
@@ -562,7 +522,9 @@ def _validate_jsonl_frames(path: Path) -> dict[str, Any]:
     diagnostics_namespaces: set[str] = set()
     for line in lines:
         frame = frame_from_trace_dict(json.loads(line))
-        backend_counts[frame.backend_id] = backend_counts.get(frame.backend_id, 0) + 1
+        backend_counts[frame.producer_id] = (
+            backend_counts.get(frame.producer_id, 0) + 1
+        )
         diagnostics_namespaces.update(frame.diagnostics)
         for key in (
             "stage_snapshot",
@@ -863,30 +825,24 @@ def _movement_diagnostics(
     frame: AudioSensorFrame,
     reference_frame: AudioSensorFrame | None,
 ) -> dict[str, Any]:
-    source_pose = _first_source_pose(frame)
     array_pose = _array_pose(frame)
-    bearing = _bearing(frame)
     return {
         "phase": phase,
         "timestamp_ms": frame.timestamp_ms,
         "frame_index": frame.frame_index,
-        "source_pose": source_pose,
         "array_pose": array_pose,
-        "bearing_deg": bearing,
-        "source_pose_changed_from_reference": (
-            False
-            if reference_frame is None
-            else _changed_pose(_first_source_pose(reference_frame), source_pose)
-        ),
+        "aggregate_per_mic_rms": frame.aggregate_per_mic_rms,
+        "observation_count": len(frame.observations),
         "array_pose_changed_from_reference": (
             False
             if reference_frame is None
             else _changed_pose(_array_pose(reference_frame), array_pose)
         ),
-        "bearing_changed_from_reference": (
+        "rms_changed_from_reference": (
             False
             if reference_frame is None
-            else _changed_scalar(_bearing(reference_frame), bearing)
+            else reference_frame.aggregate_per_mic_rms
+            != frame.aggregate_per_mic_rms
         ),
     }
 
@@ -899,29 +855,6 @@ def _array_pose(frame: AudioSensorFrame) -> dict[str, Any] | None:
         "orientation_xyzw": frame.array_pose.orientation_xyzw,
         "frame": frame.array_pose.frame,
     }
-
-
-def _first_source_pose(frame: AudioSensorFrame) -> dict[str, Any] | None:
-    detection = _first_detection(frame)
-    if detection is None or detection.source_pose is None:
-        return None
-    pose = detection.source_pose
-    return {
-        "position_m": pose.position_m,
-        "orientation_xyzw": pose.orientation_xyzw,
-        "frame": pose.frame,
-    }
-
-
-def _first_detection(frame: AudioSensorFrame) -> Any | None:
-    return None if not frame.detections else frame.detections[0]
-
-
-def _bearing(frame: AudioSensorFrame) -> float | None:
-    detection = _first_detection(frame)
-    if detection is None:
-        return None
-    return detection.doa.estimated_bearing_deg
 
 
 def _changed_pose(left: dict[str, Any] | None, right: dict[str, Any] | None) -> bool:
@@ -938,14 +871,6 @@ def _changed_sequence(left: Any, right: Any) -> bool:
     return any(
         abs(float(a) - float(b)) > 1e-6 for a, b in zip(left, right, strict=True)
     )
-
-
-def _changed_scalar(left: float | None, right: float | None) -> bool:
-    if left is None or right is None:
-        return left != right
-    return abs(float(left) - float(right)) > 1e-6
-
-
 def _record_isaacsim_preflight(evidence: dict[str, Any]) -> None:
     spec = importlib.util.find_spec("isaacsim")
     if spec is None or spec.origin is None:
@@ -1093,7 +1018,7 @@ def _write_config(
             "optional_backends": list(OPTIONAL_BACKENDS),
             "usd_time_code_scale": 1.0,
             "update_period_s": 0.05,
-            "max_detections": 1,
+            "max_observations": 1,
             "debug_draw": True,
         },
         "environment": {

@@ -62,15 +62,3 @@ def deterministic_frame_name(
 
     timestamp_ms = timestamp_ms_from_start_time(start_time_s)
     return f"{stage_id}/{array_id}/{backend_id}/frame{frame_index}_t{timestamp_ms}ms"
-
-
-def deterministic_detection_id(
-    *,
-    frame_id: str,
-    source_id: str | None,
-    index: int,
-) -> str:
-    """Create a stable detection id inside a frame."""
-
-    source_component = source_id or "unknown_source"
-    return f"{frame_id}_{source_component}_{index:02d}"

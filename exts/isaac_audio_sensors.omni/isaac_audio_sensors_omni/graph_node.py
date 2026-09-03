@@ -9,18 +9,17 @@ if TYPE_CHECKING:
     from isaac_audio_sensors.core.types import AudioSensorFrame
 
 NODE_TYPE_NAME = "isaac_audio_sensors.omni.IsaacAudioSensorFrame"
-NODE_TYPE_VERSION = 1
+NODE_TYPE_VERSION = 2
 
 _NODE_INPUTS = (("inputs:arrayKey", "token"),)
 _NODE_OUTPUTS = (
     ("outputs:frameId", "token"),
     ("outputs:timestampMs", "int64"),
-    ("outputs:detectionCount", "int"),
+    ("outputs:observationCount", "int"),
     ("outputs:bearingDeg", "double"),
     ("outputs:sector", "token"),
     ("outputs:micIds", "token[]"),
     ("outputs:micRms", "double[]"),
-    ("outputs:occluded", "bool"),
     ("outputs:frameJson", "token"),
 )
 
@@ -32,16 +31,15 @@ def frame_output_values(frame: AudioSensorFrame | None) -> dict[str, Any]:
         return {
             "outputs:frameId": "",
             "outputs:timestampMs": 0,
-            "outputs:detectionCount": 0,
+            "outputs:observationCount": 0,
             "outputs:bearingDeg": float("nan"),
             "outputs:sector": "",
             "outputs:micIds": [],
             "outputs:micRms": [],
-            "outputs:occluded": False,
             "outputs:frameJson": "",
         }
-    detections = frame.detections
-    first = detections[0] if detections else None
+    observations = frame.observations
+    first = observations[0] if observations else None
     doa = first.doa if first is not None else None
     bearing = doa.estimated_bearing_deg if doa is not None else None
     aggregate_rms = frame.aggregate_per_mic_rms
@@ -55,12 +53,11 @@ def frame_output_values(frame: AudioSensorFrame | None) -> dict[str, Any]:
     return {
         "outputs:frameId": frame.frame_id,
         "outputs:timestampMs": frame.timestamp_ms,
-        "outputs:detectionCount": len(detections),
+        "outputs:observationCount": len(observations),
         "outputs:bearingDeg": (float(bearing) if bearing is not None else float("nan")),
         "outputs:sector": "" if doa is None else str(doa.bearing_sector or ""),
         "outputs:micIds": mic_ids,
         "outputs:micRms": [float(aggregate_rms[mic_id]) for mic_id in mic_ids],
-        "outputs:occluded": False if first is None else first.occluded,
         "outputs:frameJson": frame_json,
     }
 

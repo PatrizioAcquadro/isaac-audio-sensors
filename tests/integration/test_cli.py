@@ -43,7 +43,8 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     )
     assert json.loads(capsys.readouterr().out) == json.loads(trace_path.read_text())
     frame = json.loads(trace_path.read_text())
-    assert frame["backend_id"] == "analytic_acoustics"
+    assert frame["producer_id"] == "analytic_acoustics"
+    assert frame["observations"] == []
     assert frame["diagnostics"]["analytic_solver"] == {
         "solver_id": "free_field_direct",
         "provider": "core",
@@ -54,7 +55,7 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert main(["export-schema", "--out", str(schema_path)]) == 0
     assert json.loads(capsys.readouterr().out) == {"wrote": str(schema_path)}
     packaged = files("isaac_audio_sensors.schemas").joinpath(
-        "audio_sensor_frame.v2.schema.json"
+        "audio_sensor_frame.v3.schema.json"
     )
     assert schema_path.read_bytes() == packaged.read_bytes()
 
@@ -69,16 +70,12 @@ def test_simulate_rejects_removed_cli_arguments(removed):
         main(["simulate", str(CONFIG), removed, "0"])
 
 
-def test_zero_detection_cap_keeps_active_soundscape(capsys):
-    assert main(["simulate", str(CONFIG), "--max-detections", "0"]) == 0
+def test_zero_observation_cap_keeps_active_soundscape(capsys):
+    assert main(["simulate", str(CONFIG), "--max-observations", "0"]) == 0
     frame = json.loads(capsys.readouterr().out)
 
-    assert frame["detections"] == []
-    assert frame["diagnostics"]["active_source_count"] == 2
-    assert frame["diagnostics"]["scheduled_source_ids"] == [
-        "speaker_front_right",
-        "speaker_left",
-    ]
+    assert frame["observations"] == []
+    assert any(value > 0.0 for value in frame["aggregate_per_mic_rms"].values())
 
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):
     assert main(["dataset", "validate", str(REFERENCE), "--json", "-"]) == 0

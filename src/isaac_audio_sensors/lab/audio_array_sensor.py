@@ -9,15 +9,9 @@ import torch
 import warp as wp
 from isaaclab.sensors import SensorBase
 
-from isaac_audio_sensors.core.constants import EPSILON
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.core.types import AudioSceneSnapshot
 from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
-from isaac_audio_sensors.lab.batched_backend import (
-    analytic_free_field_observations,
-    compact_active_events,
-    precompute_tdoa_operator,
-)
 from isaac_audio_sensors.lab.entity_binding import EntityBinding, EntityBindingCfg
 from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
 
@@ -33,7 +27,6 @@ class AudioArraySensor(SensorBase):
         self._entity_binding: EntityBinding | None = None
         self._reference_backend: ReferenceBackend | None = None
         self._reference_frame_indices: torch.Tensor | None = None
-        self._analytic_tdoa_operator: tuple[torch.Tensor, torch.Tensor] | None = None
         super().__init__(cfg)
 
     @property
@@ -70,17 +63,15 @@ class AudioArraySensor(SensorBase):
         self._reference_backend = ReferenceBackend(
             backend_id=self.cfg.backend,
             speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
-            doa_estimator=self.cfg.doa_estimator,
             analytic_max_order=int(self.cfg.analytic_max_order),
             analytic_air_absorption=bool(self.cfg.analytic_air_absorption),
             analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
-            max_detections=int(self.cfg.max_detections),
+            max_observations=int(self.cfg.max_observations),
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,
         )
         self._entity_binding = None
-        self._analytic_tdoa_operator = None
         self._validate_bound_runtime()
         return self
 
@@ -103,7 +94,7 @@ class AudioArraySensor(SensorBase):
         num_mics = self._bound_num_mics()
         self._data = AudioArraySensorData.allocate(
             num_envs=self._num_envs,
-            max_detections=int(self.cfg.max_detections),
+            max_observations=int(self.cfg.max_observations),
             num_mics=num_mics,
             device=self.device,
         )
@@ -111,16 +102,6 @@ class AudioArraySensor(SensorBase):
             self._reference_frame_indices = torch.zeros(
                 self._num_envs, dtype=torch.long, device=self.device
             )
-        else:
-            assert self._entity_binding is not None
-            solve, baseline, determinant = precompute_tdoa_operator(
-                self._entity_binding.static.mic_offsets_local
-            )
-            if abs(determinant) <= EPSILON:
-                raise ValueError(
-                    "analytic_acoustics requires non-degenerate least-squares geometry."
-                )
-            self._analytic_tdoa_operator = (solve, baseline)
 
     def _update_buffers_impl(self, env_mask: wp.array) -> None:
         if self._data is None:
@@ -151,23 +132,12 @@ class AudioArraySensor(SensorBase):
         self, env_ids: torch.Tensor, timestamps: torch.Tensor
     ) -> AudioArraySensorData:
         assert self._entity_binding is not None
-        batch = self._entity_binding.pose_batch(env_ids, device=self.device)
-        static = batch.static
-        end_time = timestamps + max(float(self.cfg.update_period), 1e-3)
-        active = (static.source_start_s.unsqueeze(0) < end_time.unsqueeze(1)) & (
-            static.source_end_s.unsqueeze(0) > timestamps.unsqueeze(1)
-        )
-        assert self._analytic_tdoa_operator is not None
-        source_observations = analytic_free_field_observations(
-            batch,
-            solve_operator=self._analytic_tdoa_operator[0],
-            baseline_matrix=self._analytic_tdoa_operator[1],
-            speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
-        )
-        return compact_active_events(
-            source_observations,
-            active_mask=active,
-            max_detections=int(self.cfg.max_detections),
+        del timestamps
+        return AudioArraySensorData.allocate(
+            num_envs=int(env_ids.numel()),
+            max_observations=int(self.cfg.max_observations),
+            num_mics=self._bound_num_mics(),
+            device=self.device,
         )
 
     def _validate_bound_runtime(self, *, runtime_ready: bool = False) -> None:
@@ -189,10 +159,6 @@ class AudioArraySensor(SensorBase):
                 )
             if self.cfg.effects != EffectsConfig():
                 raise ValueError("Entity binding requires effects to be disabled.")
-            if self.cfg.doa_estimator != "tdoa_least_squares":
-                raise ValueError(
-                    "Entity binding supports only doa_estimator='tdoa_least_squares'."
-                )
             if (
                 self.cfg.analytic_max_order != 0
                 or self.cfg.analytic_air_absorption
@@ -201,10 +167,6 @@ class AudioArraySensor(SensorBase):
                 raise ValueError(
                     "Entity-bound free_field analytic_acoustics requires max_order=0 "
                     "with air absorption and ray tracing disabled."
-                )
-            if self._bound_num_mics() < 3:
-                raise ValueError(
-                    "Entity-bound analytic_acoustics requires at least 3 microphones."
                 )
         if runtime_ready or self.is_initialized:
             if self._bound_num_envs() != self._num_envs:

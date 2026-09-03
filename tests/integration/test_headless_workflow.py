@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from isaac_audio_sensors.core.types import (
-    AudioDetection,
-    AudioSensorFrame,
-    DoaEstimate,
-    Pose3D,
-)
+from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.kit.controller import ExtensionController
 from isaac_audio_sensors.kit.headless import HeadlessGuidedSession
 from isaac_audio_sensors.kit.state import CurrentStageContext
@@ -60,29 +55,13 @@ class _FakeSensor:
 def _frame(index: int) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
-        backend_id="analytic_acoustics",
+        producer_id="analytic_acoustics",
         array_id="minimal_array",
+        channel_validity={"center": True},
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.001,
         sample_rate_hz=8_000,
         frame_index=index,
-        detections=(
-            AudioDetection(
-                detection_id=f"detection_{index:03d}",
-                source_id="source",
-                class_label="Speech",
-                detection_mode="scheduled_known_source",
-                ground_truth_bearing_deg=0.0,
-                source_distance_m=2.0,
-                doa=DoaEstimate(
-                    estimated_bearing_deg=0.0,
-                    candidate_bearing_deg=(0.0,),
-                    bearing_confidence=1.0,
-                ),
-                source_pose=Pose3D(position_m=(2.0, 0.0, 0.0)),
-                per_mic_rms={"center": 0.5},
-            ),
-        ),
         aggregate_per_mic_rms={"center": 0.5},
         diagnostics={"window_sample_count": 8},
     )

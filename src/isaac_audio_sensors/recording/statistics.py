@@ -21,7 +21,7 @@ class Statistics:
     episode_count: int
     shard_count: int
     frame_count: int
-    detection_count: int
+    observation_count: int
     audio_sample_count: int
     attributed_audio_sample_count: int
     tail_audio_sample_count: int
@@ -32,13 +32,11 @@ class Statistics:
     label_counts: tuple[tuple[str, int], ...]
     audio_ranges_nonempty: int
     audio_ranges_empty: int
-    frames_with_detections: int
+    frames_with_observations: int
     frames_with_waveform_paths: int
     waveform_path_count: int
     visual_sync_count: int
-    detections_without_source_id: int
-    detections_without_class_label: int
-    frames_without_detections: int
+    frames_without_observations: int
     channel_count: int
     sample_rate_hz: int
     observed_channel_counts: tuple[int, ...]
@@ -59,7 +57,7 @@ class Statistics:
             episode_count=0,
             shard_count=0,
             frame_count=0,
-            detection_count=0,
+            observation_count=0,
             audio_sample_count=0,
             attributed_audio_sample_count=0,
             tail_audio_sample_count=0,
@@ -70,13 +68,11 @@ class Statistics:
             label_counts=(),
             audio_ranges_nonempty=0,
             audio_ranges_empty=0,
-            frames_with_detections=0,
+            frames_with_observations=0,
             frames_with_waveform_paths=0,
             waveform_path_count=0,
             visual_sync_count=0,
-            detections_without_source_id=0,
-            detections_without_class_label=0,
-            frames_without_detections=0,
+            frames_without_observations=0,
             channel_count=0,
             sample_rate_hz=0,
             observed_channel_counts=(),
@@ -111,7 +107,7 @@ class Statistics:
                 "sample_rate_hz": self.sample_rate_hz,
             },
             "counts": {
-                "detections": self.detection_count,
+                "observations": self.observation_count,
                 "episodes": self.episode_count,
                 "frames": self.frame_count,
                 "shards": self.shard_count,
@@ -133,15 +129,13 @@ class Statistics:
             },
             "labels": dict(self.label_counts),
             "missingness": {
-                "detections_without_class_label": (self.detections_without_class_label),
-                "detections_without_source_id": self.detections_without_source_id,
                 "frames_with_empty_audio_range": self.audio_ranges_empty,
-                "frames_without_detections": self.frames_without_detections,
+                "frames_without_observations": self.frames_without_observations,
             },
             "modalities": {
                 "audio_ranges_empty": self.audio_ranges_empty,
                 "audio_ranges_nonempty": self.audio_ranges_nonempty,
-                "frames_with_detections": self.frames_with_detections,
+                "frames_with_observations": self.frames_with_observations,
                 "frames_with_waveform_paths": self.frames_with_waveform_paths,
                 "visual_sync_count": self.visual_sync_count,
                 "waveform_path_count": self.waveform_path_count,
@@ -155,7 +149,7 @@ class StatisticsBuilder:
     def __init__(self, manifest: AudioDatasetManifest) -> None:
         self._manifest = manifest
         self._frame_count = 0
-        self._detection_count = 0
+        self._observation_count = 0
         self._audio_sample_count = 0
         self._attributed_audio_sample_count = 0
         self._tail_audio_sample_count = 0
@@ -166,13 +160,11 @@ class StatisticsBuilder:
         self._labels: Counter[str] = Counter()
         self._audio_ranges_nonempty = 0
         self._audio_ranges_empty = 0
-        self._frames_with_detections = 0
+        self._frames_with_observations = 0
         self._frames_with_waveform_paths = 0
         self._waveform_path_count = 0
         self._visual_sync_count = 0
-        self._detections_without_source_id = 0
-        self._detections_without_class_label = 0
-        self._frames_without_detections = 0
+        self._frames_without_observations = 0
         self._observed_channel_counts: set[int] = set()
         self._observed_sample_rates: set[int] = set()
         self._dropped_frame_count = 0
@@ -230,19 +222,12 @@ class StatisticsBuilder:
         if waveform_count:
             self._frames_with_waveform_paths += 1
             self._waveform_path_count += waveform_count
-        detections = frame.detections
-        if detections:
-            self._frames_with_detections += 1
+        observations = frame.observations
+        if observations:
+            self._frames_with_observations += 1
         else:
-            self._frames_without_detections += 1
-        self._detection_count += len(detections)
-        for detection in detections:
-            if detection.source_id is None:
-                self._detections_without_source_id += 1
-            if detection.class_label is None:
-                self._detections_without_class_label += 1
-            else:
-                self._labels[detection.class_label] += 1
+            self._frames_without_observations += 1
+        self._observation_count += len(observations)
 
     def finish(self) -> Statistics:
         """Freeze the accumulator into deterministic sorted tuples."""
@@ -268,7 +253,7 @@ class StatisticsBuilder:
             episode_count=len(self._manifest.episodes),
             shard_count=len(self._manifest.shards),
             frame_count=self._frame_count,
-            detection_count=self._detection_count,
+            observation_count=self._observation_count,
             audio_sample_count=self._audio_sample_count,
             attributed_audio_sample_count=self._attributed_audio_sample_count,
             tail_audio_sample_count=self._tail_audio_sample_count,
@@ -281,13 +266,11 @@ class StatisticsBuilder:
             label_counts=tuple(sorted(self._labels.items())),
             audio_ranges_nonempty=self._audio_ranges_nonempty,
             audio_ranges_empty=self._audio_ranges_empty,
-            frames_with_detections=self._frames_with_detections,
+            frames_with_observations=self._frames_with_observations,
             frames_with_waveform_paths=self._frames_with_waveform_paths,
             waveform_path_count=self._waveform_path_count,
             visual_sync_count=self._visual_sync_count,
-            detections_without_source_id=self._detections_without_source_id,
-            detections_without_class_label=self._detections_without_class_label,
-            frames_without_detections=self._frames_without_detections,
+            frames_without_observations=self._frames_without_observations,
             channel_count=channel_count,
             sample_rate_hz=sample_rate,
             observed_channel_counts=observed_channels,

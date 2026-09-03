@@ -1,7 +1,7 @@
 """Pure view-models and rasters for the GUI instruments.
 
 Everything in this module is plain Python + numpy so the compass, per-mic
-meters, and detection timeline can be unit-tested without ``omni.ui``. The
+meters, and observation timeline can be unit-tested without ``omni.ui``. The
 window layer maps these view-models onto widgets and degrades to text labels
 when a widget class is unavailable.
 """
@@ -17,7 +17,7 @@ import numpy as np
 
 from isaac_audio_sensors.core.constants import SECTOR_ORDER
 
-DETECTION_HISTORY_LIMIT = 50
+OBSERVATION_HISTORY_LIMIT = 50
 RMS_METER_FLOOR_DB = -60.0
 MIC_DISPLAY_ORDER = {"front": 0, "right": 1, "rear": 2, "left": 3}
 COMPASS_IMAGE_SIZE = 192
@@ -67,7 +67,7 @@ class MeterViewModel:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TimelineRow:
-    """One rendered detection-timeline row (newest first)."""
+    """One rendered observation-timeline row (newest first)."""
 
     text: str
     occluded: bool
@@ -191,41 +191,44 @@ def meter_view_models(
     return tuple(rows)
 
 
-def record_detection_events(frame: Any) -> list[dict[str, Any]]:
-    """Flatten one frame's detections into JSON-friendly history entries."""
+def record_observation_events(frame: Any) -> list[dict[str, Any]]:
+    """Flatten one frame's observations into JSON-friendly history entries."""
 
     events: list[dict[str, Any]] = []
     frame_id = getattr(frame, "frame_id", None)
-    backend_id = getattr(frame, "backend_id", None)
+    producer_id = getattr(frame, "producer_id", None)
     timestamp_ms = getattr(frame, "timestamp_ms", None)
-    for detection in getattr(frame, "detections", ()) or ():
-        doa = getattr(detection, "doa", None)
+    for observation in getattr(frame, "observations", ()) or ():
+        doa = getattr(observation, "doa", None)
+        origin = getattr(observation, "origin", None)
         events.append(
             {
                 "frame_id": frame_id,
-                "backend": backend_id,
+                "producer_id": producer_id,
                 "timestamp_ms": timestamp_ms,
-                "source_id": getattr(detection, "source_id", None),
-                "class_label": getattr(detection, "class_label", None),
+                "observation_id": getattr(observation, "observation_id", None),
+                "origin": getattr(origin, "value", origin),
+                "detector_id": getattr(observation, "detector_id", None),
+                "detection_score": getattr(
+                    observation, "detection_score", None
+                ),
                 "bearing_deg": getattr(doa, "estimated_bearing_deg", None),
                 "sector": getattr(doa, "bearing_sector", None),
                 "confidence": getattr(doa, "bearing_confidence", None),
-                "occluded": bool(getattr(detection, "occluded", False)),
-                "distance_m": getattr(detection, "source_distance_m", None),
             }
         )
     return events
 
 
-def append_detection_history(
+def append_observation_history(
     history: list[dict[str, Any]],
     frame: Any,
     *,
-    limit: int = DETECTION_HISTORY_LIMIT,
+    limit: int = OBSERVATION_HISTORY_LIMIT,
 ) -> None:
-    """Append one frame's detections to ``history`` and trim to ``limit``."""
+    """Append one frame's observations to ``history`` and trim to ``limit``."""
 
-    history.extend(record_detection_events(frame))
+    history.extend(record_observation_events(frame))
     overflow = len(history) - int(limit)
     if overflow > 0:
         del history[:overflow]
@@ -236,7 +239,7 @@ def timeline_rows(
     *,
     max_rows: int = 12,
 ) -> tuple[TimelineRow, ...]:
-    """Render the most recent detection events, newest first."""
+    """Render the most recent observation events, newest first."""
 
     rows: list[TimelineRow] = []
     for event in reversed(history[-int(max_rows) :]):
@@ -246,19 +249,18 @@ def timeline_rows(
             if isinstance(timestamp_ms, (int, float))
             else "       ?"
         )
-        source = event.get("class_label") or event.get("source_id") or "unknown"
+        source = event.get("detector_id") or event.get("origin") or "unknown"
         bearing = event.get("bearing_deg")
         bearing_text = (
             f"{float(bearing):6.1f} deg"
             if isinstance(bearing, (int, float))
             else "ambiguous"
         )
-        occluded = bool(event.get("occluded", False))
+        occluded = False
         sector = event.get("sector") or "none"
-        marker = "occluded" if occluded else "clear"
         rows.append(
             TimelineRow(
-                text=f"{time_text}  {source}  {bearing_text}  {sector}  {marker}",
+                text=f"{time_text}  {source}  {bearing_text}  {sector}",
                 occluded=occluded,
             )
         )

@@ -81,7 +81,7 @@ def build_dataset_frame_record(
     session_root: str | Path | None = None,
     location: str = "dataset frame record",
 ) -> DatasetFrameRecord:
-    """Build a record around an unmodified canonical frame-v1 trace dict."""
+    """Build a record around an unmodified canonical frame-v3 trace dict."""
 
     frame_dict = (
         frame_to_trace_dict(frame) if isinstance(frame, AudioSensorFrame) else frame
@@ -284,26 +284,18 @@ def validate_trace_projection(
             session_root=root,
             location=f"{location}.waveform_paths[{index}]",
         )
-    detections = payload.get("detections", [])
-    for index, detection in enumerate(detections):
-        value = detection.get("audio_asset_path")
-        if value is not None and not (isinstance(value, str) and _URI_RE.match(value)):
-            _validate_session_path(
-                value,
-                session_root=root,
-                location=f"{location}.detections[{index}].audio_asset_path",
-            )
+    observations = payload.get("observations", [])
     warnings: list[LayoutWarning] = []
     warnings.extend(
         _diagnostic_path_warnings(
             payload.get("diagnostics", {}), f"{location}.diagnostics"
         )
     )
-    for index, detection in enumerate(detections):
+    for index, observation in enumerate(observations):
         warnings.extend(
             _diagnostic_path_warnings(
-                detection.get("diagnostics", {}),
-                f"{location}.detections[{index}].diagnostics",
+                observation.get("diagnostics", {}),
+                f"{location}.observations[{index}].diagnostics",
             )
         )
     return tuple(warnings)

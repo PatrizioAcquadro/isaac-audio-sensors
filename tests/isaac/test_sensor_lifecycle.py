@@ -129,7 +129,8 @@ def test_live_sensor_recognizes_analytic_core_backend() -> None:
 
     frame = sensor.capture()
 
-    assert frame.backend_id == "analytic_acoustics"
+    assert frame.producer_id == "analytic_acoustics"
+    assert frame.observations == ()
     assert frame.provenance == "isaac_live"
     assert frame.diagnostics["analytic_solver"] == {
         "solver_id": "free_field_direct",

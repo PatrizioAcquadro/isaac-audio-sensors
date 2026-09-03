@@ -53,8 +53,9 @@ def _frame(episode: int, index: int, timestamp_ms: int) -> AudioSensorFrame:
         end_time_s=timestamp_ms / 1_000.0 + WINDOW_SAMPLE_COUNT / SAMPLE_RATE_HZ,
         sample_rate_hz=SAMPLE_RATE_HZ,
         frame_index=index,
-        backend_id="tdoa_synthetic",
+        producer_id="tdoa_synthetic",
         array_id="xvf3800_reference",
+        channel_validity={channel: True for channel in CHANNEL_ORDER},
         provenance="synthetic/core",
         aggregate_per_mic_rms={channel: 0.125 for channel in CHANNEL_ORDER},
         diagnostics={

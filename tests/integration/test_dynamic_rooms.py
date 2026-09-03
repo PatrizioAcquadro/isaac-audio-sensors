@@ -283,9 +283,9 @@ def test_clear_blocked_partial_and_material_swap_consistency(fake_room):
     )
     for mic_id in ("front", "rear", "left"):
         assert max(abs(value) for value in partial_losses[mic_id]) <= 0.05
-    assert clear_frame.detections[0].occluded is False
-    assert blocked_frame.detections[0].occluded is True
-    assert partial_frame.detections[0].occluded is False
+    assert clear_frame.observations == ()
+    assert blocked_frame.observations == ()
+    assert partial_frame.observations == ()
     assert not np.array_equal(blocked, glass_wave)
     assert blocked_frame.aggregate_per_mic_rms != glass_frame.aggregate_per_mic_rms
 
@@ -299,10 +299,8 @@ def test_five_frame_moving_wall_sequence_is_fresh_and_deterministic(fake_room):
         frames.append(frame)
         mixtures.append(mixture)
     assert mixtures[0].tobytes() == mixtures[4].tobytes()
-    assert (
-        frame_to_trace_dict(frames[0])["detections"][0]["diagnostics"]["occlusion"]
-        == frame_to_trace_dict(frames[4])["detections"][0]["diagnostics"]["occlusion"]
-    )
+    assert frame_to_trace_dict(frames[0])["observations"] == []
+    assert frame_to_trace_dict(frames[4])["observations"] == []
     assert mixtures[1][1].tobytes() != mixtures[0][1].tobytes()
     assert mixtures[1][0].tobytes() == mixtures[0][0].tobytes()
     assert mixtures[3][3].tobytes() != mixtures[0][3].tobytes()
@@ -377,10 +375,10 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
         _window(),
     )
     assert array_frame.array_pose.position_m == (0.0, 0.25, 1.0)
-    assert source_frame.detections[0].source_pose.position_m == (3.5, 0.0, 1.0)
+    assert source_frame.observations == ()
     assert array_sink.mixtures[0].tobytes() != base_wave.tobytes()
     assert source_sink.mixtures[0].tobytes() != base_wave.tobytes()
-    assert base_frame.detections[0].source_pose.position_m == (4.0, 0.0, 1.0)
+    assert base_frame.observations == ()
 
 
 class _Prim:
@@ -591,8 +589,7 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
     assert state["refresh_reasons"] == ["occluder_moved"]
     assert state["changed_occlusion_pairs"] == ["rig_front:tone"]
     assert sensor._stage_cache.full_discovery_count == full_before
-    assert first.detections[0].occluded is False
-    assert second.detections[0].occluded is True
+    assert first.observations == second.observations == ()
     stage.prims[ENVIRONMENT_PATH].attributes["ias:environment_min_world"] = (
         -0.75,
         -3.0,

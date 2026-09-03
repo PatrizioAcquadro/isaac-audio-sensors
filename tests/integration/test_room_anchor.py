@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from isaac_audio_sensors.core.acoustics import (
@@ -101,26 +99,21 @@ def test_world_aligned_environment_preserves_stage_distances(monkeypatch) -> Non
 
     shoebox = FakeShoeBox.instances[-1]
     assert tuple(shoebox.dimensions) == (6.0, 4.0, 3.0)
-    detection = frame.detections[0]
-    mic_local = detection.diagnostics["environment_microphone_positions_m"]
-    for mic_id, world in microphone_world_positions(array).items():
+    assert frame.observations == ()
+    mic_local = shoebox.mic_array.R.T
+    for mic_index, world in enumerate(microphone_world_positions(array).values()):
         for axis in range(3):
-            local_position = mic_local[mic_id][axis]
+            local_position = mic_local[mic_index][axis]
             assert local_position == pytest.approx(
                 world[axis] - ENVIRONMENT_MIN_WORLD[axis]
             )
             assert environment.dimensions_m[axis] - local_position == pytest.approx(
                 ENVIRONMENT_MAX_WORLD[axis] - world[axis]
             )
-    source_local = detection.diagnostics["environment_source_position_m"]
+    source_local = shoebox.sources[0][0]
     for axis in range(3):
         assert source_local[axis] == pytest.approx(
             SOURCE_POSITION[axis] - ENVIRONMENT_MIN_WORLD[axis]
-        )
-    for mic_id, world in microphone_world_positions(array).items():
-        expected_delay = math.dist(SOURCE_POSITION, world) / 343.0
-        assert detection.diagnostics["direct_path_delay_s"][mic_id] == pytest.approx(
-            expected_delay
         )
     assert frame.diagnostics["environment_config"]["position_world"] == (
         ENVIRONMENT_MIN_WORLD
@@ -156,18 +149,19 @@ def test_rotated_and_inclined_shoebox_uses_environment_local_coordinates(
         _window(),
     )
 
-    detection = frame.detections[0]
-    assert detection.diagnostics["environment_source_position_m"] == pytest.approx(
-        source_local
-    )
+    assert frame.observations == ()
+    shoebox = FakeShoeBox.instances[-1]
+    assert shoebox.sources[0][0] == pytest.approx(source_local)
     expected_mics = {
         mic_id: world_to_environment_point(environment, position)
         for mic_id, position in microphone_world_positions(array).items()
     }
-    actual_mics = detection.diagnostics["environment_microphone_positions_m"]
-    for mic_id, expected in expected_mics.items():
-        assert actual_mics[mic_id] == pytest.approx(expected)
-    assert tuple(FakeShoeBox.instances[-1].sources[0][0]) == pytest.approx(source_local)
+    for actual, expected in zip(
+        shoebox.mic_array.R.T,
+        expected_mics.values(),
+        strict=True,
+    ):
+        assert actual == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(

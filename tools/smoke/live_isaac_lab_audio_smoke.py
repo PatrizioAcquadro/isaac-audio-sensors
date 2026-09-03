@@ -80,7 +80,7 @@ def main() -> int:
                 AudioArraySensorCfg(
                     prim_path="/World/parity/env_.*/AudioSensor",
                     backend=backend_id,
-                    max_detections=2,
+                    max_observations=2,
                 )
             ).bind_entities(
                 parity_scene,
@@ -95,7 +95,7 @@ def main() -> int:
                 AudioArraySensorCfg(
                     prim_path="/World/parity/env_.*/AudioSensor",
                     backend=backend_id,
-                    max_detections=2,
+                    max_observations=2,
                 )
             ).bind_reference(snapshots, array_ids)
             parity_sensors.append((backend_id, entity_sensor, reference_sensor))
@@ -109,7 +109,7 @@ def main() -> int:
             AudioArraySensorCfg(
                 prim_path="/World/perf/env_.*/AudioSensor",
                 backend="analytic_acoustics",
-                max_detections=1,
+                max_observations=1,
             )
         ).bind_entities(
             perf_scene,
@@ -130,7 +130,7 @@ def main() -> int:
             reference_sensor.update(0.0, force_recompute=True)
             entity_data = entity_sensor.data
             reference_data = reference_sensor.data
-            _assert_contract(entity_data, num_envs=2, max_detections=2, num_mics=4)
+            _assert_contract(entity_data, num_envs=2, max_observations=2, num_mics=4)
             _assert_parity(torch, entity_data, reference_data)
             parity[backend_id] = True
 
@@ -163,7 +163,7 @@ def main() -> int:
         _assert_contract(
             perf_sensor.data,
             num_envs=args.perf_envs,
-            max_detections=1,
+            max_observations=1,
             num_mics=4,
         )
         if mean_ms >= args.perf_budget_ms:
@@ -216,39 +216,13 @@ def _write_evidence(path: Path, evidence: dict[str, object]) -> None:
 
 
 def _assert_parity(torch, entity_data, reference_data) -> None:
-    for name in ("event_presence", "sector_onehot", "ambiguity_mask"):
+    for name in entity_data.__dataclass_fields__:
         torch.testing.assert_close(
             getattr(entity_data, name),
             getattr(reference_data, name),
             equal_nan=True,
             msg=name,
         )
-    torch.testing.assert_close(
-        entity_data.bearing_deg,
-        reference_data.bearing_deg,
-        equal_nan=True,
-        atol=0.05,
-        rtol=1e-3,
-        msg="bearing_deg",
-    )
-    torch.testing.assert_close(
-        entity_data.confidence,
-        reference_data.confidence,
-        equal_nan=True,
-        atol=1e-2,
-        rtol=1e-2,
-        msg="confidence",
-    )
-    entity_rms = entity_data.per_mic_rms / entity_data.per_mic_rms[..., :1]
-    reference_rms = reference_data.per_mic_rms / reference_data.per_mic_rms[..., :1]
-    torch.testing.assert_close(
-        entity_rms,
-        reference_rms,
-        equal_nan=True,
-        atol=1e-2,
-        rtol=1e-2,
-        msg="per_mic_rms ratios",
-    )
 
 
 def _create_env_prims(sim_utils, root: str, count: int) -> None:
@@ -314,18 +288,18 @@ def _assert_contract(
     data,
     *,
     num_envs: int,
-    max_detections: int,
+    max_observations: int,
     num_mics: int,
 ) -> None:
     import torch
 
     expected = {
-        "event_presence": ((num_envs, max_detections), torch.bool),
-        "bearing_deg": ((num_envs, max_detections), torch.float32),
-        "confidence": ((num_envs, max_detections), torch.float32),
-        "sector_onehot": ((num_envs, max_detections, 8), torch.float32),
-        "per_mic_rms": ((num_envs, max_detections, num_mics), torch.float32),
-        "ambiguity_mask": ((num_envs, max_detections), torch.bool),
+        "event_presence": ((num_envs, max_observations), torch.bool),
+        "bearing_deg": ((num_envs, max_observations), torch.float32),
+        "confidence": ((num_envs, max_observations), torch.float32),
+        "sector_onehot": ((num_envs, max_observations, 8), torch.float32),
+        "per_mic_rms": ((num_envs, max_observations, num_mics), torch.float32),
+        "ambiguity_mask": ((num_envs, max_observations), torch.bool),
     }
     for name, (shape, dtype) in expected.items():
         value = getattr(data, name)
@@ -333,6 +307,12 @@ def _assert_contract(
             raise RuntimeError(f"Invalid {name} contract.")
         if value.device.type != "cuda":
             raise RuntimeError(f"{name} is not on the sensor CUDA device.")
+    if data.event_presence.any():
+        raise RuntimeError("Phase 02.2 Lab output must contain zero observations.")
+    if data.confidence.any() or data.per_mic_rms.any() or data.sector_onehot.any():
+        raise RuntimeError("Phase 02.2 Lab observation payload must be zero-filled.")
+    if not torch.isnan(data.bearing_deg).all():
+        raise RuntimeError("Phase 02.2 Lab bearing padding must remain NaN.")
 
 
 if __name__ == "__main__":

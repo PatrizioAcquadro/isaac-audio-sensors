@@ -19,10 +19,6 @@ from isaac_audio_sensors.core.acoustics.materials import (
 )
 from isaac_audio_sensors.core.backends._analytic.assembly import assemble_frame
 from isaac_audio_sensors.core.backends._analytic.block import assemble_signal_block
-from isaac_audio_sensors.core.backends._analytic.detections import (
-    assemble_detections,
-    prioritize_detections,
-)
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
     prepare_room_frame,
@@ -38,11 +34,7 @@ from isaac_audio_sensors.core.backends._analytic.signals import (
     _doppler_resampled_signal,
     _scheduled_window_signal,
 )
-from isaac_audio_sensors.core.constants import (
-    DEFAULT_SPEED_OF_SOUND_MPS,
-    DOA_ESTIMATOR_IDS,
-    EPSILON,
-)
+from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
 from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
@@ -50,16 +42,13 @@ from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import norm, subtract
-from isaac_audio_sensors.core.microphone_array import validate_tdoa_array
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
-    AudioDetection,
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioTimeWindow,
-    MicrophoneArraySpec,
     MicrophoneSignalBlock,
 )
 
@@ -82,23 +71,17 @@ class AnalyticAcoustics:
         self,
         *,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
-        gcc_phat_interp: int = 8,
         waveform_writer: WaveformSink | None = None,
-        doa_estimator: str = "tdoa_least_squares",
         max_order: int = 0,
         air_absorption: bool = False,
         ray_tracing: bool = False,
         effects: EffectsConfig | None = None,
         runtime_profile: str = "waveform_fidelity",
         window_motion: WindowMotionPlan | None = None,
-        max_detections: int | None = None,
+        max_observations: int | None = None,
     ) -> None:
         if speed_of_sound_mps <= 0.0 or not math.isfinite(speed_of_sound_mps):
             raise ValueError("speed_of_sound_mps must be positive and finite.")
-        if doa_estimator not in DOA_ESTIMATOR_IDS:
-            raise ValueError(
-                f"doa_estimator must be one of {sorted(DOA_ESTIMATOR_IDS)}."
-            )
         if isinstance(max_order, bool) or not isinstance(max_order, int):
             raise TypeError("max_order must be an integer.")
         if max_order < 0:
@@ -107,21 +90,19 @@ class AnalyticAcoustics:
             raise TypeError("air_absorption must be a boolean.")
         if not isinstance(ray_tracing, bool):
             raise TypeError("ray_tracing must be a boolean.")
-        if max_detections is not None and (
-            type(max_detections) is not int or max_detections < 0
+        if max_observations is not None and (
+            type(max_observations) is not int or max_observations < 0
         ):
-            raise ValueError("max_detections must be a non-negative integer.")
+            raise ValueError("max_observations must be a non-negative integer.")
         self.speed_of_sound_mps = float(speed_of_sound_mps)
-        self.gcc_phat_interp = int(gcc_phat_interp)
         self.waveform_writer = waveform_writer
-        self.doa_estimator = doa_estimator
         self.max_order = max_order
         self.air_absorption = air_absorption
         self.ray_tracing = ray_tracing
         self.effects = EffectsConfig() if effects is None else effects
         self.runtime_profile = runtime_profile
         self.window_motion = window_motion
-        self.max_detections = max_detections
+        self.max_observations = max_observations
         self.effects_chain = ChannelEffectsChain(self.effects)
 
     @staticmethod
@@ -152,7 +133,6 @@ class AnalyticAcoustics:
             scene,
             array_id,
             time_window,
-            require_perception_geometry=False,
         )
         return assemble_signal_block(
             prepared,
@@ -174,31 +154,15 @@ class AnalyticAcoustics:
             scene,
             array_id,
             time_window,
-            require_perception_geometry=True,
-        )
-        detections, per_source_rir_summary = assemble_detections(
-            prepared,
-            rendered,
-            backend_id=self.backend_id,
-            speed_of_sound_mps=self.speed_of_sound_mps,
-            gcc_phat_interp=self.gcc_phat_interp,
-            doa_estimator=self.doa_estimator,
-        )
-        detections = prioritize_detections(
-            detections,
-            max_detections=self.max_detections,
         )
         frame = assemble_frame(
             prepared,
             rendered,
-            detections,
-            per_source_rir_summary,
             backend_id=self.backend_id,
             speed_of_sound_mps=self.speed_of_sound_mps,
-            doa_estimator=self.doa_estimator,
             waveform_writer=self.waveform_writer,
             window_motion=self.window_motion,
-            max_detections=self.max_detections,
+            max_observations=self.max_observations,
             provenance=(
                 "synthetic/core" if solver_id in _CORE_SOLVERS else "room_acoustics"
             ),
@@ -210,8 +174,6 @@ class AnalyticAcoustics:
         scene: AudioSceneSnapshot,
         array_id: str,
         time_window: AudioTimeWindow,
-        *,
-        require_perception_geometry: bool,
     ) -> tuple[PreparedRoomFrame, RenderedRoom, str]:
         """Render and effect one mixture without constructing public observations."""
 
@@ -231,8 +193,6 @@ class AnalyticAcoustics:
                 "R8.1 Core analytic solvers do not support "
                 "audio.effects.motion.segments_per_window>1."
             )
-        if require_perception_geometry:
-            self._validate_legacy_perception_geometry(sensor)
         provider_factory = (
             (lambda: _CORE_PROVIDER)
             if solver_id in _CORE_SOLVERS
@@ -278,17 +238,6 @@ class AnalyticAcoustics:
             runtime_profile=self.runtime_profile,
         )
         return prepared, rendered, solver_id
-
-    def _validate_legacy_perception_geometry(
-        self,
-        sensor: MicrophoneArraySpec,
-    ) -> None:
-        if self.doa_estimator == "srp_phat" and len(sensor.microphones) < 3:
-            raise UnsupportedEffectError(
-                f"{self.backend_id} requires at least three microphones for an "
-                "unambiguous localization claim"
-            )
-        validate_tdoa_array(sensor)
 
     def _solver_for(self, environment: AcousticEnvironmentSpec) -> str:
         if environment.kind == "surface_set":
@@ -634,16 +583,8 @@ def _with_solver_diagnostics(
     frame_diagnostics["analytic_solver"] = solver
     if provider == "core":
         frame_diagnostics.pop("pyroomacoustics_version", None)
-    detections: list[AudioDetection] = []
-    for detection in frame.detections:
-        diagnostics = dict(detection.diagnostics)
-        diagnostics["analytic_solver"] = solver
-        if provider == "core":
-            diagnostics.pop("pyroomacoustics_version", None)
-        detections.append(replace(detection, diagnostics=diagnostics))
     return replace(
         frame,
-        detections=tuple(detections),
         diagnostics=frame_diagnostics,
     )
 

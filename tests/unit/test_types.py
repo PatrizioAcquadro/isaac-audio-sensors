@@ -6,12 +6,13 @@ import pytest
 
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.types import (
-    AudioDetection,
+    AudioObservation,
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioSourceSpec,
     AudioTimeWindow,
     DoaEstimate,
+    ObservationOrigin,
 )
 
 
@@ -89,7 +90,7 @@ def test_capture_contract_has_one_authority_per_value():
     with pytest.raises(TypeError, match="timestamp_ms"):
         AudioSceneSnapshot(stage_id="scene", sources=(), arrays=(), timestamp_ms=0)
     with pytest.raises(TypeError, match="timestamp_ms"):
-        _detection(timestamp_ms=0)
+        _observation(timestamp_ms=0)
 
 
 @pytest.mark.parametrize(
@@ -148,19 +149,6 @@ def test_doa_estimate_validates_optional_elevation_fields():
         )
 
 
-def test_audio_detection_validates_ground_truth_elevation():
-    detection = _detection(ground_truth_elevation_deg=-45.0)
-    assert detection.ground_truth_elevation_deg == pytest.approx(-45.0)
-
-    with pytest.raises(ValueError, match="ground_truth_elevation_deg"):
-        _detection(ground_truth_elevation_deg=91.0)
-
-
-def test_detection_mode_rejects_unknown_value():
-    with pytest.raises(ValueError, match="detection_mode"):
-        _detection(detection_mode="learned_detector")
-
-
 def _source(
     *,
     source_id: str = "mover",
@@ -183,15 +171,11 @@ def _source(
     )
 
 
-def _detection(**overrides) -> AudioDetection:
+def _observation(**overrides) -> AudioObservation:
     values = {
-        "detection_id": "det",
-        "source_id": "src",
-        "class_label": "Speech",
-        "detection_mode": "scheduled_known_source",
-        "ground_truth_bearing_deg": 0.0,
-        "source_distance_m": 1.0,
-        "doa": DoaEstimate(estimated_bearing_deg=None, bearing_confidence=0.0),
+        "observation_id": "obs",
+        "origin": ObservationOrigin.SIGNAL_DERIVED,
+        "detector_id": "fake",
     }
     values.update(overrides)
-    return AudioDetection(**values)
+    return AudioObservation(**values)

@@ -149,7 +149,7 @@ def _exercise_analytic_rooms() -> list[str]:
         )
         solver_ids.append(str(frame.diagnostics["analytic_solver"]["solver_id"]))
         assert direct_frame.diagnostics["speed_of_sound_mps"] == 330.0
-        assert frame.detections
+        assert frame.observations == ()
         assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     return solver_ids
 

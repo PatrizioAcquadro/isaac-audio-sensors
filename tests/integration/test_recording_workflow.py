@@ -93,8 +93,14 @@ def _frame(
 ) -> AudioSensorFrame:
     return AudioSensorFrame(
         frame_id=f"guided_frame_{index:03d}",
-        backend_id="analytic_acoustics",
+        producer_id="analytic_acoustics",
         array_id="rig_front",
+        channel_validity={
+            "front": True,
+            "right": True,
+            "rear": True,
+            "left": True,
+        },
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.001,
         sample_rate_hz=sample_rate_hz,
@@ -321,8 +327,8 @@ def test_guided_inspect_gates_summarizes_and_requires_user_mark(
     assert summary == {
         "latest_frame_id": "guided_frame_000",
         "latest_timestamp_ms": 0,
-        "detection_count": 0,
-        "backend": "analytic_acoustics",
+        "observation_count": 0,
+        "producer_id": "analytic_acoustics",
         "capability_generation": 2,
     }
     assert controller.guided_workflow.status(GuidedStage.INSPECT) is (

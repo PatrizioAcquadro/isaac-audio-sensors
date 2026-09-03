@@ -53,7 +53,7 @@ def test_analytic_off_state_matches_pristine_reference(monkeypatch) -> None:
     assert "effects" not in disabled.diagnostics
 
 
-def test_analytic_effected_premix_drives_detection_aggregate_and_export(
+def test_analytic_effected_premix_drives_frame_aggregate_and_export(
     monkeypatch,
 ) -> None:
     install_fake_pyroom(monkeypatch)
@@ -82,16 +82,15 @@ def test_analytic_effected_premix_drives_detection_aggregate_and_export(
     assert effected_sink.calls == []
     effected = effected_backend.simulate(scene, array.array_id, time_window())
 
-    baseline_detection = baseline.detections[0]
-    effected_detection = effected.detections[0]
     observed_db = 20.0 * math.log10(
-        effected_detection.per_mic_rms["front"]
-        / baseline_detection.per_mic_rms["front"]
+        effected.aggregate_per_mic_rms["front"]
+        / baseline.aggregate_per_mic_rms["front"]
     )
     assert observed_db == pytest.approx(-6.0, abs=0.05)
-    assert effected_detection.per_mic_rms["right"] == pytest.approx(
-        baseline_detection.per_mic_rms["right"]
+    assert effected.aggregate_per_mic_rms["right"] == pytest.approx(
+        baseline.aggregate_per_mic_rms["right"]
     )
+    assert effected.observations == ()
     mixture = effected_sink.calls[0]["mixture"]
     np.testing.assert_allclose(
         signal_block.samples,
@@ -108,4 +107,3 @@ def test_analytic_effected_premix_drives_detection_aggregate_and_export(
         "delay_s": {},
         "polarity": {},
     }
-    assert "effects" not in effected_detection.diagnostics

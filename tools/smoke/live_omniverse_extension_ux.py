@@ -63,7 +63,7 @@ EXPECTED_UI_SECTIONS = (
 EXPECTED_INSTRUMENT_KEYS = (
     "compass",
     "compass_provider",
-    "detection_empty",
+    "observation_empty",
     "empty",
     "meters",
     "sensor_button",
@@ -158,7 +158,7 @@ EXPECTED_FLOAT_FIELDS = (
     "source_start_time_s",
     "update_period_s",
 )
-EXPECTED_INT_FIELDS = ("max_detections", "sample_rate_hz", "source_loop_count")
+EXPECTED_INT_FIELDS = ("max_observations", "sample_rate_hz", "source_loop_count")
 EXPECTED_BOOL_FIELDS = (
     "author_child_microphones",
     "debug_overlay_enabled",
@@ -720,7 +720,7 @@ def _run_object_attach_scenario(
         f"{label}_update_sensor_before_parent_move",
         controller.update_sensor,
     )
-    result["frame_before_parent_move"] = _frame_source_summary(before_frame)
+    result["frame_before_parent_move"] = _frame_signal_summary(before_frame)
 
     _set_translate(object_prim, parent_position_after)
     result["parent_transform_move_command"] = {
@@ -740,7 +740,7 @@ def _run_object_attach_scenario(
         stage,
         attached_source_path,
     )
-    result["frame_after_parent_move"] = _frame_source_summary(after_move_frame)
+    result["frame_after_parent_move"] = _frame_signal_summary(after_move_frame)
     result["object_move_changed_frame"] = _source_frame_changed(
         before_frame,
         after_move_frame,
@@ -769,7 +769,7 @@ def _run_object_attach_scenario(
         stage,
         attached_source_path,
     )
-    result["frame_after_local_offset_change"] = _frame_source_summary(
+    result["frame_after_local_offset_change"] = _frame_signal_summary(
         after_offset_frame
     )
     result["local_offset_changed_frame"] = _source_frame_changed(
@@ -1056,7 +1056,7 @@ def _probe_import_update_after_config(
             imported.state.source_local_offset_z_m,
         ],
         "frame_after_import_update": (
-            None if frame is None else _frame_source_summary(frame)
+            None if frame is None else _frame_signal_summary(frame)
         ),
         "status_message": imported.state.status_message,
         "error_message": imported.state.error_message,
@@ -1778,35 +1778,29 @@ def _source_profile_state(
     }
 
 
-def _frame_source_summary(frame: Any) -> dict[str, Any]:
-    detections = tuple(getattr(frame, "detections", ()))
-    detection = detections[0] if detections else None
-    source_pose = None if detection is None else detection.source_pose
+def _frame_signal_summary(frame: Any) -> dict[str, Any]:
+    observations = tuple(getattr(frame, "observations", ()))
     return {
         "frame_id": getattr(frame, "frame_id", None),
         "frame_index": getattr(frame, "frame_index", None),
-        "detection_count": len(detections),
-        "source_id": None if detection is None else detection.source_id,
-        "class_label": None if detection is None else detection.class_label,
-        "audio_asset_path": None if detection is None else detection.audio_asset_path,
-        "source_position_m": (
-            None if source_pose is None else list(source_pose.position_m)
+        "observation_count": len(observations),
+        "aggregate_per_mic_rms": dict(
+            getattr(frame, "aggregate_per_mic_rms", {})
         ),
-        "bearing_deg": (
-            None if detection is None else detection.doa.estimated_bearing_deg
-        ),
-        "sector": None if detection is None else detection.doa.bearing_sector,
     }
 
 
 def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
-    before_summary = _frame_source_summary(before)
-    after_summary = _frame_source_summary(after)
+    before_summary = _frame_signal_summary(before)
+    after_summary = _frame_signal_summary(after)
     return {
         "status": (
             "passed"
-            if before_summary["source_position_m"] != after_summary["source_position_m"]
-            and before_summary["bearing_deg"] != after_summary["bearing_deg"]
+            if before_summary["aggregate_per_mic_rms"]
+            != after_summary["aggregate_per_mic_rms"]
+            and before_summary["observation_count"]
+            == after_summary["observation_count"]
+            == 0
             else "failed"
         ),
         "before": before_summary,
@@ -1870,7 +1864,7 @@ def _frame_array_summary(
     controller: ExtensionController,
     frame: Any,
 ) -> dict[str, Any]:
-    summary = _frame_source_summary(frame)
+    summary = _frame_signal_summary(frame)
     array_pose = getattr(frame, "array_pose", None)
     summary["array_position_m"] = (
         None
@@ -1909,20 +1903,18 @@ def _array_rotation_changed(
         "mic_world_positions_changed": (
             before.get("mic_world_positions") != after.get("mic_world_positions")
         ),
-        "bearing_changed": before.get("bearing_deg") != after.get("bearing_deg"),
-        "sector_changed": before.get("sector") != after.get("sector"),
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
-        "source_position_unchanged": (
-            before.get("source_position_m") == after.get("source_position_m")
+        "observations_remain_empty": (
+            before.get("observation_count") == after.get("observation_count") == 0
         ),
     }
     passed = (
         checks["orientation_changed"]
         and checks["mic_world_positions_changed"]
-        and checks["bearing_changed"]
-        and checks["source_position_unchanged"]
+        and checks["rms_changed"]
+        and checks["observations_remain_empty"]
     )
     return {
         "status": "passed" if passed else "failed",
@@ -1943,20 +1935,18 @@ def _array_move_changed(
         "mic_world_positions_changed": (
             before.get("mic_world_positions") != after.get("mic_world_positions")
         ),
-        "bearing_changed": before.get("bearing_deg") != after.get("bearing_deg"),
-        "sector_changed": before.get("sector") != after.get("sector"),
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
+        ),
+        "observations_remain_empty": (
+            before.get("observation_count") == after.get("observation_count") == 0
         ),
     }
     passed = (
         checks["array_position_changed"]
         and checks["mic_world_positions_changed"]
-        and (
-            checks["bearing_changed"]
-            or checks["sector_changed"]
-            or checks["rms_changed"]
-        )
+        and checks["rms_changed"]
+        and checks["observations_remain_empty"]
     )
     return {
         "status": "passed" if passed else "failed",
@@ -2430,11 +2420,11 @@ def _collect_instruments_evidence(
         occluded=state.latest_occluded,
     )
     meters = meter_view_models(state.latest_aggregate_rms)
-    rows = timeline_rows(state.detection_history)
+    rows = timeline_rows(state.observation_history)
     record: dict[str, Any] = {
         "frame_id": state.latest_frame_id,
-        "detection_count": state.latest_detection_count,
-        "history_count": len(state.detection_history),
+        "observation_count": state.latest_observation_count,
+        "history_count": len(state.observation_history),
         "compass": {
             "bearing_deg": state.latest_bearing_deg,
             "sector": state.latest_sector,
@@ -2457,6 +2447,7 @@ def _collect_instruments_evidence(
         instruments = getattr(window, "_instruments", {}) or {}
         meter_rows = instruments.get("meters") or []
         timeline_labels = instruments.get("timeline") or []
+        observation_empty = instruments.get("observation_empty")
         compass_label = window._labels.get("compass")
         widget_record = {
             "available": True,
@@ -2467,6 +2458,9 @@ def _collect_instruments_evidence(
             ),
             "visible_timeline_rows": sum(
                 1 for label in timeline_labels if getattr(label, "visible", False)
+            ),
+            "observation_empty_visible": bool(
+                getattr(observation_empty, "visible", False)
             ),
         }
     record["widgets"] = widget_record
@@ -2487,13 +2481,16 @@ def _collect_instruments_evidence(
         )
     record["app_screenshot"] = _capture_app_screenshot(screenshot_path)
     passed = (
-        bool(view_model.needles)
+        not view_model.needles
         and bool(record["meters"])
-        and record["timeline_row_count"] > 0
+        and record["observation_count"] == 0
+        and record["history_count"] == 0
+        and record["timeline_row_count"] == 0
         and widget_record.get("available") is True
         and widget_record.get("compass_image") is True
         and int(widget_record.get("visible_meter_rows", 0)) > 0
-        and int(widget_record.get("visible_timeline_rows", 0)) > 0
+        and int(widget_record.get("visible_timeline_rows", 0)) == 0
+        and widget_record.get("observation_empty_visible") is True
         and record["app_screenshot"].get("status") == "captured"
     )
     record["status"] = "passed" if passed else "failed"
@@ -3268,16 +3265,8 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} parent move did not change frame: {object_move}")
     before = result.get("frame_before_parent_move", {})
     after = result.get("frame_after_parent_move", {})
-    if before.get("class_label") != profile_application.get("class_label"):
-        raise RuntimeError(f"{name} frame class label did not use profile metadata.")
-    if before.get("audio_asset_path") != profile_application.get("audio_asset_path"):
-        raise RuntimeError(f"{name} frame audio asset did not use profile metadata.")
-    if before.get("sector") == after.get("sector"):
-        raise RuntimeError(f"{name} parent move did not change bearing sector.")
-    if before.get("bearing_deg") == after.get("bearing_deg"):
-        raise RuntimeError(f"{name} parent move did not change bearing.")
-    if before.get("source_position_m") == after.get("source_position_m"):
-        raise RuntimeError(f"{name} parent move did not change source pose.")
+    if before.get("observation_count") != 0 or after.get("observation_count") != 0:
+        raise RuntimeError(f"{name} emitted oracle observations in Phase 02.2.")
     offset_before = result.get("source_transform_before_local_offset_change", {})
     offset_after = result.get("source_transform_after_local_offset_change", {})
     if offset_before.get("position_world") == offset_after.get("position_world"):

@@ -1,30 +1,8 @@
-"""Occlusion attenuation, flags, and diagnostics shared by audio backends."""
+"""Occlusion attenuation shared by audio backends."""
 
 from __future__ import annotations
 
-from typing import Any
-
 from isaac_audio_sensors.core.types import SourceOcclusion
-
-# A detection is flagged occluded once at least half of the direct
-# source-to-microphone rays are blocked.
-OCCLUDED_FACTOR_THRESHOLD = 0.5
-
-
-def _occlusion_factor(occlusion: SourceOcclusion | None) -> float:
-    if occlusion is None:
-        return 0.0
-    blocked = tuple(occlusion.per_mic_blocked.values())
-    return sum(blocked) / len(blocked)
-
-
-def occlusion_flag(occlusion: SourceOcclusion | None) -> bool:
-    """Detection ``occluded`` flag for one occlusion record."""
-
-    return (
-        occlusion is not None
-        and _occlusion_factor(occlusion) >= OCCLUDED_FACTOR_THRESHOLD
-    )
 
 
 def occlusion_per_mic_extra_gain_db(
@@ -64,33 +42,7 @@ def occlusion_band_attenuation_db(
         occlusion.band_centers_hz,
         occlusion.per_mic_band_attenuation_db[mic_id],
     )
-
-
-def occlusion_detection_diagnostics(
-    occlusion: SourceOcclusion | None,
-) -> dict[str, Any]:
-    """Additive per-detection diagnostics; empty when occlusion is absent."""
-
-    if occlusion is None:
-        return {}
-    diagnostics: dict[str, Any] = {
-        "occlusion_factor": _occlusion_factor(occlusion),
-        "per_mic_blocked": dict(occlusion.per_mic_blocked),
-        "per_mic_attenuation_db": dict(occlusion.per_mic_attenuation_db),
-    }
-    if occlusion.per_mic_band_attenuation_db:
-        diagnostics["per_mic_band_attenuation_db"] = {
-            mic_id: list(bands)
-            for mic_id, bands in occlusion.per_mic_band_attenuation_db.items()
-        }
-        diagnostics["band_centers_hz"] = list(occlusion.band_centers_hz)
-    return {"occlusion": diagnostics}
-
-
 __all__ = [
-    "OCCLUDED_FACTOR_THRESHOLD",
     "occlusion_band_attenuation_db",
-    "occlusion_detection_diagnostics",
-    "occlusion_flag",
     "occlusion_per_mic_extra_gain_db",
 ]

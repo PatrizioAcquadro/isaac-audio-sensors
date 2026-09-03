@@ -24,7 +24,7 @@ CALIBRATION_PROFILE_UNITS = {
 # room backend's per-band attenuation filter.
 OCCLUSION_BAND_CENTERS_HZ = (125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0)
 EPSILON = 1e-9
-FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v2"
+FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v3"
 
 FRAME_UNITS = {
     "position": "m",
@@ -50,37 +50,30 @@ FRAME_TOP_LEVEL_FIELDS = (
     "end_time_s",
     "sample_rate_hz",
     "frame_index",
-    "backend_id",
+    "producer_id",
     "array_id",
+    "channel_validity",
     "array_pose",
     "coordinate_convention",
     "units",
     "provenance",
-    "max_detections",
-    "detections",
+    "max_observations",
+    "observations",
     "aggregate_per_mic_rms",
     "waveform_paths",
     "diagnostics",
 )
 
-DETECTION_FIELDS = (
-    "detection_id",
-    "source_id",
-    "class_label",
-    "detection_mode",
-    "ground_truth_bearing_deg",
-    "source_distance_m",
+OBSERVATION_FIELDS = (
+    "observation_id",
+    "origin",
+    "detector_id",
+    "detection_score",
     "doa",
-    "ground_truth_elevation_deg",
-    "source_pose",
-    "per_mic_delay_s",
-    "per_mic_rms",
-    "audio_asset_path",
-    "occluded",
     "diagnostics",
 )
 
-OPTIONAL_DETECTION_FIELDS: tuple[str, ...] = ()
+OPTIONAL_OBSERVATION_FIELDS: tuple[str, ...] = ()
 
 DOA_FIELDS = (
     "estimated_bearing_deg",
@@ -108,15 +101,6 @@ FRAME_PROVENANCE_VALUES = frozenset(
         "room_acoustics",
         "isaac_live",
         "replay/trace",
-    }
-)
-
-DETECTION_MODES = frozenset(
-    {
-        "scheduled_known_source",
-        "external_metadata",
-        "signal_energy",
-        "manual_annotation",
     }
 )
 

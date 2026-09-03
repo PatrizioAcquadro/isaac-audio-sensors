@@ -92,8 +92,7 @@ class SafePreset:
             },
             "lifecycle": {
                 "update_period_s": values["update_period_s"],
-                "max_detections": values["max_detections"],
-                "doa_estimator": values["doa_estimator"],
+                "max_observations": values["max_observations"],
             },
         }
 
@@ -128,8 +127,7 @@ SAFE_PRESETS = (
             "source_loop_count": 0,
             "source_directivity": "omni",
             "update_period_s": 0.05,
-            "max_detections": 8,
-            "doa_estimator": "tdoa_least_squares",
+            "max_observations": 8,
         },
     ),
     SafePreset(
@@ -159,8 +157,7 @@ SAFE_PRESETS = (
             "source_loop_count": 0,
             "source_directivity": "omni",
             "update_period_s": 0.05,
-            "max_detections": 8,
-            "doa_estimator": "tdoa_least_squares",
+            "max_observations": 8,
         },
     ),
 )

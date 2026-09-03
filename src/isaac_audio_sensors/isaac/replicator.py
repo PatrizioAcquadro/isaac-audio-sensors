@@ -327,7 +327,7 @@ def audio_sensor_frame_replicator_payload(
     """Return the full recoverable payload written by the Replicator writer."""
 
     frame_payload = frame_to_trace_dict(frame)
-    detections = frame_payload.get("detections", [])
+    observations = frame_payload.get("observations", [])
     return {
         "schema_version": PAYLOAD_SCHEMA_VERSION,
         "record_index": int(record_index),
@@ -339,19 +339,19 @@ def audio_sensor_frame_replicator_payload(
         "summary": {
             "frame_id": frame.frame_id,
             "timestamp_ms": frame.timestamp_ms,
-            "backend_id": frame.backend_id,
+            "producer_id": frame.producer_id,
             "array_id": frame.array_id,
-            "detection_count": len(frame.detections),
-            "source_ids": [
-                item.get("source_id")
-                for item in detections
-                if item.get("source_id") is not None
+            "observation_count": len(frame.observations),
+            "observation_ids": [
+                item["observation_id"] for item in observations
             ],
             "bearing_deg": [
-                item.get("doa", {}).get("estimated_bearing_deg") for item in detections
+                (item.get("doa") or {}).get("estimated_bearing_deg")
+                for item in observations
             ],
             "bearing_sectors": [
-                item.get("doa", {}).get("bearing_sector") for item in detections
+                (item.get("doa") or {}).get("bearing_sector")
+                for item in observations
             ],
             "diagnostics_namespaces": sorted(frame.diagnostics),
         },

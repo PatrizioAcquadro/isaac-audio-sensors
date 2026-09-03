@@ -13,15 +13,13 @@ from isaac_audio_sensors.core.math_utils import add, basis_from_quaternion, scal
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
-    AudioDetection,
+    AudioObservation,
     AudioSceneSnapshot,
     AudioSensorFrame,
     MicrophoneArraySpec,
 )
 
-CLEAR_BEARING_RAY_COLOR = (0.05, 0.9, 0.35, 1.0)
-PARTIAL_OCCLUSION_BEARING_RAY_COLOR = (1.0, 0.65, 0.05, 1.0)
-OCCLUDED_BEARING_RAY_COLOR = (0.95, 0.15, 0.1, 1.0)
+BEARING_RAY_COLOR = (0.05, 0.9, 0.35, 1.0)
 ENVIRONMENT_OUTLINE_COLOR = (0.95, 0.85, 0.1, 1.0)
 
 
@@ -61,51 +59,34 @@ def build_debug_primitives(
             )
         )
 
-    source_by_id = {source.source_id: source for source in scene.sources}
-    for detection in frame.detections:
-        source_position = None
-        if detection.source_pose is not None:
-            source_position = detection.source_pose.position_m
-        elif detection.source_id in source_by_id:
-            source_position = source_by_id[detection.source_id].position_world
-        if source_position is not None:
-            primitives.append(
-                DebugPrimitive(
-                    kind="source",
-                    label=f"source:{detection.source_id or detection.detection_id}",
-                    points_world=(source_position,),
-                    color_rgba=(1.0, 0.6, 0.05, 1.0),
-                    radius_m=0.06,
-                    metadata={"detection_id": detection.detection_id},
-                )
-            )
-
-        bearing = detection.doa.estimated_bearing_deg
+    for observation in frame.observations:
+        if observation.doa is None:
+            continue
+        bearing = observation.doa.estimated_bearing_deg
         if bearing is None:
             continue
         ray_start = sensor.position_world
-        ray_length = detection.source_distance_m or bearing_length_m
-        ray_end = _bearing_endpoint(sensor, bearing, ray_length)
+        ray_end = _bearing_endpoint(sensor, bearing, bearing_length_m)
         primitives.append(
             DebugPrimitive(
                 kind="bearing_ray",
-                label=f"bearing:{detection.detection_id}",
+                label=f"bearing:{observation.observation_id}",
                 points_world=(ray_start, ray_end),
-                color_rgba=bearing_ray_color(detection),
+                color_rgba=bearing_ray_color(observation),
                 radius_m=0.015,
                 metadata={
                     "bearing_deg": bearing,
-                    "confidence": detection.doa.bearing_confidence,
-                    "sector": detection.doa.bearing_sector,
-                    "occluded": detection.occluded,
-                    "occlusion_factor": _occlusion_factor(detection),
+                    "confidence": observation.doa.bearing_confidence,
+                    "sector": observation.doa.bearing_sector,
+                    "origin": observation.origin.value,
+                    "detector_id": observation.detector_id,
                 },
             )
         )
         primitives.append(
             DebugPrimitive(
                 kind="sector_wedge",
-                label=f"sector:{detection.doa.bearing_sector or 'unknown'}",
+                label=f"sector:{observation.doa.bearing_sector or 'unknown'}",
                 points_world=(
                     ray_start,
                     _bearing_endpoint(sensor, bearing - 22.5, bearing_length_m),
@@ -115,7 +96,7 @@ def build_debug_primitives(
                 radius_m=0.01,
                 metadata={
                     "bearing_deg": bearing,
-                    "sector": detection.doa.bearing_sector,
+                    "sector": observation.doa.bearing_sector,
                 },
             )
         )
@@ -246,24 +227,12 @@ def debug_primitives_to_dicts(
 
 
 def bearing_ray_color(
-    detection: AudioDetection,
+    observation: AudioObservation,
 ) -> tuple[float, float, float, float]:
-    """Bearing-ray color by occlusion state: green, amber, or red."""
+    """Return the neutral observed-bearing color."""
 
-    if detection.occluded:
-        return OCCLUDED_BEARING_RAY_COLOR
-    factor = _occlusion_factor(detection)
-    if factor is not None and factor > 0.0:
-        return PARTIAL_OCCLUSION_BEARING_RAY_COLOR
-    return CLEAR_BEARING_RAY_COLOR
-
-
-def _occlusion_factor(detection: AudioDetection) -> float | None:
-    occlusion = detection.diagnostics.get("occlusion")
-    if not isinstance(occlusion, dict):
-        return None
-    factor = occlusion.get("occlusion_factor")
-    return None if factor is None else float(factor)
+    del observation
+    return BEARING_RAY_COLOR
 
 
 def _bearing_endpoint(

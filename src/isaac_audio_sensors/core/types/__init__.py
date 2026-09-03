@@ -1,13 +1,14 @@
-"""Public dataclasses for audio scenes, signals, detections, and frames."""
+"""Public dataclasses for audio scenes, signals, observations, and frames."""
 
 from isaac_audio_sensors.core.types._environment import (
     AcousticEnvironmentSpec,
     AcousticSurfaceSpec,
 )
 from isaac_audio_sensors.core.types._frame import (
-    AudioDetection,
+    AudioObservation,
     AudioSensorFrame,
     DoaEstimate,
+    ObservationOrigin,
 )
 from isaac_audio_sensors.core.types._scene import (
     AudioSourceSpec,
@@ -25,7 +26,7 @@ from isaac_audio_sensors.core.types._snapshot import (
 __all__ = [
     "AcousticEnvironmentSpec",
     "AcousticSurfaceSpec",
-    "AudioDetection",
+    "AudioObservation",
     "AudioSceneSnapshot",
     "AudioSensorFrame",
     "AudioSourceSpec",
@@ -34,6 +35,7 @@ __all__ = [
     "MicrophoneArraySpec",
     "MicrophoneSignalBlock",
     "MicrophoneSpec",
+    "ObservationOrigin",
     "Pose3D",
     "SourceOcclusion",
 ]

@@ -62,7 +62,7 @@ validate-fixture:
 	PYTHONPATH=$(SOURCE_PYTHONPATH) $(PYTHON) -m isaac_audio_sensors dataset validate tests/fixtures/recording/session
 
 export-schema:
-	PYTHONPATH=$(SOURCE_PYTHONPATH) $(PYTHON) -m isaac_audio_sensors export-schema --out $(SCHEMA_OUT)/audio_sensor_frame.v2.schema.json
+	PYTHONPATH=$(SOURCE_PYTHONPATH) $(PYTHON) -m isaac_audio_sensors export-schema --out $(SCHEMA_OUT)/audio_sensor_frame.v3.schema.json
 	PYTHONPATH=$(SOURCE_PYTHONPATH) $(PYTHON) -m isaac_audio_sensors export-schema --schema dataset-manifest --out $(SCHEMA_OUT)/audio_dataset_manifest.v1.schema.json
 	PYTHONPATH=$(SOURCE_PYTHONPATH) $(PYTHON) -m isaac_audio_sensors export-schema --schema calibration-profile --out $(SCHEMA_OUT)/audio_calibration_profile.v1.schema.json
 

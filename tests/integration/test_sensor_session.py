@@ -43,14 +43,13 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert {item.id for item in discovered} == {"rig_front", "speaker_a"}
     assert sensor is not None
     assert frame is not None
-    assert controller.state.latest_detection_count == 1
-    assert controller.state.latest_bearing_deg is not None
-    assert abs(controller.state.latest_bearing_deg) <= 1e-6
-    assert controller.state.latest_sector is not None
+    assert controller.state.latest_observation_count == 0
+    assert controller.state.latest_bearing_deg is None
+    assert controller.state.latest_sector is None
     assert controller.state.latest_overlay_primitive_count >= 4
     assert latest_path == tmp_path / "latest.json"
     assert config_path == tmp_path / "binding.json"
-    assert json.loads(latest_path.read_text(encoding="utf-8"))["backend_id"] == (
+    assert json.loads(latest_path.read_text(encoding="utf-8"))["producer_id"] == (
         "analytic_acoustics"
     )
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
@@ -62,8 +61,9 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
     assert summary["source"]["prim_path"] == "/World/Sources/SpeakerA"
     assert summary["source"]["position_world"] == [2.0, 0.0, 0.0]
-    assert summary["latest_frame"]["source_prim_path"] == "/World/Sources/SpeakerA"
-    assert summary["latest_frame"]["source_position_m"] == [2.0, 0.0, 0.0]
+    assert summary["latest_frame"]["source_prim_path"] is None
+    assert summary["latest_frame"]["source_position_m"] is None
+    assert summary["latest_frame"]["observation_count"] == 0
     assert summary["lifecycle"]["writer_path"].endswith("frames.jsonl")
     assert summary["recording"]["package_jsonl"]["path"].endswith("frames.jsonl")
     assert summary["recording"]["replicator"]["enabled"] is False
@@ -123,13 +123,14 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     oven.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
     stream.trigger()
 
-    assert first_position == (2.0, 0.0, 0.0)
-    assert first_sector == "straight"
-    assert controller.state.latest_source_position_m == (0.0, 2.0, 0.0)
-    assert controller.state.latest_bearing_deg != first_bearing
-    assert controller.state.latest_sector == "right"
+    assert first_position is None
+    assert first_bearing is None
+    assert first_sector is None
+    assert controller.state.latest_source_position_m is None
+    assert controller.state.latest_bearing_deg is None
+    assert controller.state.latest_sector is None
     assert controller.state.latest_aggregate_rms != first_rms
-    assert controller.state.detection_history
+    assert controller.state.observation_history == []
 
 
 def test_extension_controller_attached_source_outside_world_is_captured(tmp_path):
@@ -167,8 +168,8 @@ def test_extension_controller_attached_source_outside_world_is_captured(tmp_path
     frame = controller.update_sensor()
 
     assert frame is not None
-    assert frame.detections[0].source_id == "speaker_a"
-    assert frame.detections[0].source_pose.position_m == (2.0, 0.0, 0.0)
+    assert frame.observations == ()
+    assert frame.aggregate_per_mic_rms
 
 
 def test_extension_controller_authors_persistent_usd_debug_geometry(tmp_path):
@@ -193,7 +194,7 @@ def test_extension_controller_authors_persistent_usd_debug_geometry(tmp_path):
     assert all(path.startswith("/World/IasAudioDebug/") for path in paths)
     kinds = {stage.GetPrimAtPath(path).type_name for path in paths}
     assert "Sphere" in kinds
-    assert "BasisCurves" in kinds
+    assert "BasisCurves" not in kinds
     assert stage.GetPrimAtPath("/World/IasAudioDebug") is not None
 
     controller.state.usd_debug_enabled = False

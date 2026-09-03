@@ -1,0 +1,363 @@
+{
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v3.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Observed-only AudioSensorFrame v3 contract. timestamp_ms is derived from start_time_s, sample_rate_hz records the selected array rate, and max_observations limits only the perception output.",
+  "properties": {
+    "aggregate_per_mic_rms": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Per-microphone aggregate RMS values in linear units.",
+      "type": "object"
+    },
+    "array_id": {
+      "description": "Microphone-array identifier.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "array_pose": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "description": "World-frame pose using x_forward_y_right_z_up_clockwise_bearing.",
+          "properties": {
+            "coordinate_convention": {
+              "const": "x_forward_y_right_z_up_clockwise_bearing",
+              "description": "Stable coordinate and bearing convention.",
+              "type": "string"
+            },
+            "frame": {
+              "description": "Coordinate frame name; current examples use world.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "orientation_xyzw": {
+              "description": "Quaternion orientation in x, y, z, w order.",
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "type": "array"
+                }
+              ]
+            },
+            "position_m": {
+              "description": "Position in meters.",
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [
+            "position_m",
+            "orientation_xyzw",
+            "frame",
+            "coordinate_convention"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "channel_validity": {
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "Per-microphone validity for the observed signal block.",
+      "minProperties": 1,
+      "type": "object"
+    },
+    "coordinate_convention": {
+      "const": "x_forward_y_right_z_up_clockwise_bearing",
+      "description": "Stable coordinate and bearing convention.",
+      "type": "string"
+    },
+    "diagnostics": {
+      "description": "Open-ended additive diagnostics; stable namespaces keep their documented meanings.",
+      "type": "object"
+    },
+    "end_time_s": {
+      "description": "Exclusive frame-window end time in seconds.",
+      "type": "number"
+    },
+    "frame_id": {
+      "description": "Stable machine-readable frame identifier.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "frame_index": {
+      "description": "Non-negative producer frame index.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "frame_name": {
+      "description": "Human-readable frame name; defaults to frame_id.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "max_observations": {
+      "description": "Output-only observation cap; null means unlimited.",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "observations": {
+      "description": "Signal-derived or typed external observations.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "detection_score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "detector_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "diagnostics": {
+            "type": "object"
+          },
+          "doa": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "additionalProperties": false,
+                "description": "Direction-of-arrival estimate with explicit candidate and ambiguity representation.",
+                "properties": {
+                  "ambiguity_class": {
+                    "description": "Stable ambiguity class namespace when a bearing is not unique.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "ambiguity_reason": {
+                    "description": "Human-readable explanation for ambiguity_class.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "bearing_confidence": {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  "bearing_sector": {
+                    "description": "Canonical 8-sector label using corrected half-open v1 sector semantics.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "candidate_bearing_deg": {
+                    "description": "Candidate bearings in degrees clockwise from array forward.",
+                    "items": {
+                      "type": "number"
+                    },
+                    "type": "array"
+                  },
+                  "candidate_elevation_deg": {
+                    "description": "Candidate elevations in degrees up from the array's forward/right plane.",
+                    "items": {
+                      "maximum": 90.0,
+                      "minimum": -90.0,
+                      "type": "number"
+                    },
+                    "type": "array"
+                  },
+                  "estimated_bearing_deg": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "estimated_elevation_deg": {
+                    "description": "Elevation in degrees up from the array's forward/right plane when resolvable.",
+                    "maximum": 90.0,
+                    "minimum": -90.0,
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "estimated_bearing_deg",
+                  "candidate_bearing_deg",
+                  "bearing_sector",
+                  "bearing_confidence",
+                  "ambiguity_class",
+                  "ambiguity_reason",
+                  "estimated_elevation_deg",
+                  "candidate_elevation_deg"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "observation_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "external_system",
+              "signal_derived"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "observation_id",
+          "origin",
+          "detector_id",
+          "detection_score",
+          "doa",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "producer_id": {
+      "description": "Identifier of the frame's signal producer.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "provenance": {
+      "description": "Stable producer provenance namespace.",
+      "enum": [
+        "isaac_live",
+        "replay/trace",
+        "room_acoustics",
+        "synthetic/core"
+      ]
+    },
+    "sample_rate_hz": {
+      "description": "Sample rate copied from the selected array.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "ias.audio_sensor_frame.v3",
+      "description": "Frame schema id for the breaking v3 contract."
+    },
+    "start_time_s": {
+      "description": "Inclusive frame-window start time in seconds.",
+      "type": "number"
+    },
+    "timestamp_ms": {
+      "description": "Derived frame timestamp: round(start_time_s * 1000).",
+      "type": "integer"
+    },
+    "units": {
+      "additionalProperties": false,
+      "description": "Stable unit names and meanings for frame fields.",
+      "properties": {
+        "bearing": {
+          "const": "deg_clockwise_from_array_forward",
+          "type": "string"
+        },
+        "distance": {
+          "const": "m",
+          "type": "string"
+        },
+        "elevation": {
+          "const": "deg_up_from_array_horizontal",
+          "type": "string"
+        },
+        "gain": {
+          "const": "dB",
+          "type": "string"
+        },
+        "orientation": {
+          "const": "quaternion_xyzw",
+          "type": "string"
+        },
+        "position": {
+          "const": "m",
+          "type": "string"
+        },
+        "rms": {
+          "const": "linear",
+          "type": "string"
+        },
+        "sample_rate": {
+          "const": "Hz",
+          "type": "string"
+        },
+        "time": {
+          "const": "s",
+          "type": "string"
+        },
+        "timestamp": {
+          "const": "ms",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bearing",
+        "distance",
+        "elevation",
+        "gain",
+        "orientation",
+        "position",
+        "rms",
+        "sample_rate",
+        "time",
+        "timestamp"
+      ],
+      "type": "object"
+    },
+    "waveform_paths": {
+      "description": "Optional producer artifact paths.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "frame_id",
+    "frame_name",
+    "timestamp_ms",
+    "start_time_s",
+    "end_time_s",
+    "sample_rate_hz",
+    "frame_index",
+    "producer_id",
+    "array_id",
+    "channel_validity",
+    "array_pose",
+    "coordinate_convention",
+    "units",
+    "provenance",
+    "max_observations",
+    "observations",
+    "aggregate_per_mic_rms",
+    "waveform_paths",
+    "diagnostics"
+  ],
+  "title": "Isaac Audio Sensors AudioSensorFrame v3",
+  "type": "object"
+}

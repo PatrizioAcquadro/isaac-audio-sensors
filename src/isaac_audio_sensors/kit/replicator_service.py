@@ -134,7 +134,7 @@ class ReplicatorService(ControllerService):
                     "discovery_roots": self._host._authoring._discovery_roots(),
                     "selected_prim_paths": self.state.selected_prim_paths,
                     "update_period_s": self.state.update_period_s,
-                    "max_detections": self.state.max_detections,
+                    "max_observations": self.state.max_observations,
                     "debug_overlay_enabled": self.state.debug_overlay_enabled,
                     "occlusion_enabled": self.state.occlusion_enabled,
                 },
@@ -156,7 +156,7 @@ class ReplicatorService(ControllerService):
                 },
                 "frame": {
                     "frame_id": frame.frame_id,
-                    "backend_id": frame.backend_id,
+                    "producer_id": frame.producer_id,
                     "array_id": frame.array_id,
                     "timestamp_ms": frame.timestamp_ms,
                 },

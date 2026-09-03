@@ -296,8 +296,8 @@ class OmniReferenceWindow:
             "Frame: "
             f"{state.latest_frame_id or 'none'} | "
             f"timestamp={state.latest_timestamp_ms} | "
-            f"detections={state.latest_detection_count} | "
-            f"backend={state.latest_backend or state.backend} | "
+            f"observations={state.latest_observation_count} | "
+            f"producer={state.latest_producer or state.backend} | "
             f"source={state.latest_source_prim_path or state.source_prim_path} | "
             f"pos={_optional_vec3_text(state.latest_source_position_m)}",
         )
@@ -305,12 +305,12 @@ class OmniReferenceWindow:
             "live_status",
             "Active" if state.sensor_running else "Stopped",
         )
-        self._set_label("live_backend", state.latest_backend or state.backend)
+        self._set_label("live_backend", state.latest_producer or state.backend)
         self._set_label(
             "live_frame",
             self._frame_freshness_text(),
         )
-        self._set_label("live_detections", str(state.latest_detection_count))
+        self._set_label("live_observations", str(state.latest_observation_count))
         self._set_label(
             "live_waveform",
             "Available" if state.latest_waveform_paths else "None yet",
@@ -450,7 +450,7 @@ class OmniReferenceWindow:
                 fill.width = _ui_fraction(self.ui, meter.fraction)
             if remaining is not None:
                 remaining.width = _ui_fraction(self.ui, 1.0 - meter.fraction)
-        rows = timeline_rows(state.detection_history, max_rows=3)
+        rows = timeline_rows(state.observation_history, max_rows=3)
         for index, label in enumerate(self._instruments.get("timeline", ())):
             visible = index < len(rows)
             label.visible = visible
@@ -462,9 +462,9 @@ class OmniReferenceWindow:
                 empty,
                 "No sensor frame yet. Start the sensor to monitor audio.",
             )
-        detection_empty = self._instruments.get("detection_empty")
-        if detection_empty is not None:
-            detection_empty.visible = bool(state.latest_frame_id) and not bool(rows)
+        observation_empty = self._instruments.get("observation_empty")
+        if observation_empty is not None:
+            observation_empty.visible = bool(state.latest_frame_id) and not bool(rows)
 
     def refresh_audio_panel(self) -> None:
         """Refresh the waveform/spectrogram preview for the latest WAV."""
@@ -724,7 +724,7 @@ class OmniReferenceWindow:
 
         if state.sensor_running:
             age_s = self._frame_age_s()
-            backend = state.latest_backend or state.backend
+            backend = state.latest_producer or state.backend
             if age_s is None:
                 return (
                     "WARNING",

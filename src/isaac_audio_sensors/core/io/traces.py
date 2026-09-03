@@ -9,16 +9,17 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
-    DETECTION_FIELDS,
     DOA_FIELDS,
     FRAME_SCHEMA_VERSION,
     FRAME_TOP_LEVEL_FIELDS,
+    OBSERVATION_FIELDS,
     POSE3D_FIELDS,
 )
 from isaac_audio_sensors.core.types import (
-    AudioDetection,
+    AudioObservation,
     AudioSensorFrame,
     DoaEstimate,
+    ObservationOrigin,
     Pose3D,
 )
 
@@ -66,11 +67,14 @@ def frame_from_trace_dict(payload: dict[str, Any]) -> AudioSensorFrame:
             f"AudioSensorFrame.schema_version must be {FRAME_SCHEMA_VERSION!r}."
         )
     _require_exact_fields(payload, FRAME_TOP_LEVEL_FIELDS, "AudioSensorFrame")
-    detections = tuple(_detection_from_dict(item) for item in payload["detections"])
+    observations = tuple(
+        _observation_from_dict(item) for item in payload["observations"]
+    )
     frame = AudioSensorFrame(
         frame_id=str(payload["frame_id"]),
-        backend_id=str(payload["backend_id"]),
+        producer_id=str(payload["producer_id"]),
         array_id=str(payload["array_id"]),
+        channel_validity=dict(payload["channel_validity"]),
         start_time_s=float(payload["start_time_s"]),
         end_time_s=float(payload["end_time_s"]),
         sample_rate_hz=int(payload["sample_rate_hz"]),
@@ -81,8 +85,8 @@ def frame_from_trace_dict(payload: dict[str, Any]) -> AudioSensorFrame:
         coordinate_convention=str(payload["coordinate_convention"]),
         units=dict(payload["units"]),
         provenance=str(payload["provenance"]),
-        max_detections=_optional_int(payload["max_detections"]),
-        detections=detections,
+        max_observations=_optional_int(payload["max_observations"]),
+        observations=observations,
         aggregate_per_mic_rms=dict(payload["aggregate_per_mic_rms"]),
         waveform_paths=tuple(payload["waveform_paths"]),
         diagnostics=dict(payload["diagnostics"]),
@@ -117,23 +121,14 @@ def _serialize(value: Any) -> Any:
     return value
 
 
-def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
-    _require_exact_fields(payload, DETECTION_FIELDS, "AudioDetection")
-    doa_payload = dict(payload["doa"])
-    _require_exact_fields(doa_payload, DOA_FIELDS, "DoaEstimate")
-    return AudioDetection(
-        detection_id=str(payload["detection_id"]),
-        source_id=payload["source_id"],
-        class_label=payload["class_label"],
-        detection_mode=str(payload["detection_mode"]),
-        ground_truth_bearing_deg=_optional_float(
-            payload["ground_truth_bearing_deg"]
-        ),
-        ground_truth_elevation_deg=_optional_float(
-            payload["ground_truth_elevation_deg"]
-        ),
-        source_distance_m=_optional_float(payload["source_distance_m"]),
-        doa=DoaEstimate(
+def _observation_from_dict(payload: dict[str, Any]) -> AudioObservation:
+    _require_exact_fields(payload, OBSERVATION_FIELDS, "AudioObservation")
+    doa_payload = payload["doa"]
+    doa = None
+    if doa_payload is not None:
+        doa_payload = dict(doa_payload)
+        _require_exact_fields(doa_payload, DOA_FIELDS, "DoaEstimate")
+        doa = DoaEstimate(
             estimated_bearing_deg=_optional_float(
                 doa_payload["estimated_bearing_deg"]
             ),
@@ -151,12 +146,13 @@ def _detection_from_dict(payload: dict[str, Any]) -> AudioDetection:
                 float(value)
                 for value in doa_payload["candidate_elevation_deg"]
             ),
-        ),
-        source_pose=_pose_from_dict(payload["source_pose"]),
-        per_mic_delay_s=dict(payload["per_mic_delay_s"]),
-        per_mic_rms=dict(payload["per_mic_rms"]),
-        audio_asset_path=payload["audio_asset_path"],
-        occluded=bool(payload["occluded"]),
+        )
+    return AudioObservation(
+        observation_id=str(payload["observation_id"]),
+        origin=ObservationOrigin(str(payload["origin"])),
+        detector_id=str(payload["detector_id"]),
+        detection_score=_optional_float(payload["detection_score"]),
+        doa=doa,
         diagnostics=dict(payload["diagnostics"]),
     )
 

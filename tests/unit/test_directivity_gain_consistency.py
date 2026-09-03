@@ -115,8 +115,8 @@ def test_analytic_source_and_microphone_gain_ratios(
     baseline_array = _array()
     source_baseline = _source()
     source_changed = replace(source_baseline, gain_db=gain_db)
-    assert _detection_rms(AnalyticAcoustics(), source_changed, baseline_array) / (
-        _detection_rms(AnalyticAcoustics(), source_baseline, baseline_array)
+    assert _frame_rms(AnalyticAcoustics(), source_changed, baseline_array) / (
+        _frame_rms(AnalyticAcoustics(), source_baseline, baseline_array)
     ) == pytest.approx(expected)
 
     changed_array = replace(
@@ -128,8 +128,8 @@ def test_analytic_source_and_microphone_gain_ratios(
             for microphone in baseline_array.microphones
         ),
     )
-    assert _detection_rms(AnalyticAcoustics(), source_baseline, changed_array) / (
-        _detection_rms(AnalyticAcoustics(), source_baseline, baseline_array)
+    assert _frame_rms(AnalyticAcoustics(), source_baseline, changed_array) / (
+        _frame_rms(AnalyticAcoustics(), source_baseline, baseline_array)
     ) == pytest.approx(expected)
 
 
@@ -168,10 +168,10 @@ def test_room_waveform_keeps_signed_directivity_while_rms_uses_magnitude(
         assert directional_waveforms[index] == pytest.approx(
             omni_waveforms[index] * factor
         )
-        assert directional_frame.detections[0].per_mic_rms[
+        assert directional_frame.aggregate_per_mic_rms[
             microphone.mic_id
         ] == pytest.approx(
-            omni_frame.detections[0].per_mic_rms[microphone.mic_id] * abs(factor)
+            omni_frame.aggregate_per_mic_rms[microphone.mic_id] * abs(factor)
         )
 
 
@@ -285,7 +285,6 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
         array.array_id,
         _window(),
     )
-    detection = frame.detections[0]
     baseline_scene = replace(
         _scene(_source(), base_array),
         environment=free_field_environment(environment_id="gain_free_field"),
@@ -302,18 +301,11 @@ def test_nominal_and_delta_gains_combine_once_with_distinct_diagnostics(
         * 10.0 ** (-3.0 / 20.0)
     )
     observed_ratio = (
-        detection.per_mic_rms["front"]
-        / baseline.detections[0].per_mic_rms["front"]
+        frame.aggregate_per_mic_rms["front"]
+        / baseline.aggregate_per_mic_rms["front"]
     )
     assert observed_ratio == pytest.approx(expected_ratio)
-    assert detection.diagnostics["source_nominal_gain_db"] == pytest.approx(DB_DOUBLE)
-    assert detection.diagnostics["microphone_nominal_gain_db"][
-        "front"
-    ] == pytest.approx(DB_DOUBLE)
-    assert detection.diagnostics["occlusion"]["per_mic_attenuation_db"][
-        "front"
-    ] == pytest.approx(4.0)
-    assert "applied_gain_delta_db" not in detection.diagnostics["occlusion"]
+    assert frame.observations == ()
     assert frame.diagnostics["effects"]["channel_response"]["gain_delta_db"] == {
         "front": -3.0,
     }
@@ -378,9 +370,7 @@ def _window() -> AudioTimeWindow:
     )
 
 
-def _detection_rms(backend, source: AudioSourceSpec, array: MicrophoneArraySpec):
-    return (
-        backend.simulate(_scene(source, array), array.array_id, _window())
-        .detections[0]
-        .per_mic_rms["front"]
-    )
+def _frame_rms(backend, source: AudioSourceSpec, array: MicrophoneArraySpec):
+    return backend.simulate(
+        _scene(source, array), array.array_id, _window()
+    ).aggregate_per_mic_rms["front"]

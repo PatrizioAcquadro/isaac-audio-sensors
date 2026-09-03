@@ -224,12 +224,11 @@ def test_config_rejects_boolean_nominal_gain(entity: str) -> None:
         validate_audio_config(raw)
 
 
-def test_tdoa_config_requires_two_microphones():
+def test_signal_config_accepts_one_microphone_without_perception():
     raw = _raw_config()
     raw["arrays"]["rig"]["microphones"] = raw["arrays"]["rig"]["microphones"][:1]
 
-    with pytest.raises(ValueError, match="requires at least 2 microphones"):
-        validate_audio_config(raw)
+    assert len(validate_audio_config(raw).arrays["rig"].microphones) == 1
 
 
 def test_two_microphone_tdoa_config_needs_no_contextual_policy():
@@ -249,27 +248,21 @@ def test_removed_tdoa_ambiguity_policy_fails_explicitly():
         validate_audio_config(raw)
 
 
-def test_unique_azimuth_config_rejects_collinear_three_mic_array():
+def test_signal_config_accepts_collinear_three_mic_array():
     raw = _raw_config()
     raw["arrays"]["rig"]["microphones"].append(
         {"mic_id": "far_right", "relative_position_m": [0.0, 0.16, 0.0]}
     )
 
-    with pytest.raises(ConfigValidationError, match="non-collinear"):
-        validate_audio_config(raw)
+    assert len(validate_audio_config(raw).arrays["rig"].microphones) == 3
 
 
-def test_srp_config_requires_three_non_collinear_microphones():
+def test_config_rejects_removed_doa_estimator_selection():
     raw = _raw_config()
     raw["audio"]["doa_estimator"] = "srp_phat"
 
-    with pytest.raises(ConfigValidationError, match="at least 3 microphones"):
+    with pytest.raises(ConfigValidationError, match="removed by Plan 02.2"):
         validate_audio_config(raw)
-
-    raw["arrays"]["rig"]["microphones"].append(
-        {"mic_id": "front", "relative_position_m": [0.08, 0.0, 0.0]}
-    )
-    assert validate_audio_config(raw).doa_estimator == "srp_phat"
 
 
 def test_runtime_profile_defaults_to_waveform_fidelity():

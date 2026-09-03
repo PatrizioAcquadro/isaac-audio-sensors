@@ -1,0 +1,77 @@
+{
+  "aggregate_per_mic_rms": {
+    "front": 0.1,
+    "right": 0.09
+  },
+  "array_id": "rig_front",
+  "array_pose": {
+    "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+    "frame": "world",
+    "orientation_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "position_m": [
+      1.0,
+      0.0,
+      0.5
+    ]
+  },
+  "channel_validity": {
+    "front": true,
+    "right": true
+  },
+  "coordinate_convention": "x_forward_y_right_z_up_clockwise_bearing",
+  "diagnostics": {
+    "fixture": "frame v3 observed-only contract"
+  },
+  "end_time_s": 0.02,
+  "frame_id": "resolved",
+  "frame_index": 0,
+  "frame_name": "resolved/frame0",
+  "max_observations": 2,
+  "observations": [
+    {
+      "detection_score": 2.5,
+      "detector_id": "fake_activity",
+      "diagnostics": {
+        "window_energy": 2.5
+      },
+      "doa": {
+        "ambiguity_class": null,
+        "ambiguity_reason": null,
+        "bearing_confidence": 0.75,
+        "bearing_sector": "straight_right",
+        "candidate_bearing_deg": [
+          45.0
+        ],
+        "candidate_elevation_deg": [],
+        "estimated_bearing_deg": 45.0,
+        "estimated_elevation_deg": null
+      },
+      "observation_id": "resolved_fake_activity_00",
+      "origin": "signal_derived"
+    }
+  ],
+  "producer_id": "analytic_acoustics",
+  "provenance": "synthetic/core",
+  "sample_rate_hz": 48000,
+  "schema_version": "ias.audio_sensor_frame.v3",
+  "start_time_s": 0.0,
+  "timestamp_ms": 0,
+  "units": {
+    "bearing": "deg_clockwise_from_array_forward",
+    "distance": "m",
+    "elevation": "deg_up_from_array_horizontal",
+    "gain": "dB",
+    "orientation": "quaternion_xyzw",
+    "position": "m",
+    "rms": "linear",
+    "sample_rate": "Hz",
+    "time": "s",
+    "timestamp": "ms"
+  },
+  "waveform_paths": []
+}

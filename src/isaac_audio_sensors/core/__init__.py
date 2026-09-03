@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from isaac_audio_sensors.core.directivity import DirectivityPattern
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
     AcousticSurfaceSpec,
-    AudioDetection,
+    AudioObservation,
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioSourceSpec,
@@ -15,6 +16,7 @@ from isaac_audio_sensors.core.types import (
     MicrophoneArraySpec,
     MicrophoneSignalBlock,
     MicrophoneSpec,
+    ObservationOrigin,
     Pose3D,
     SourceOcclusion,
 )
@@ -22,7 +24,8 @@ from isaac_audio_sensors.core.types import (
 __all__ = [
     "AcousticEnvironmentSpec",
     "AcousticSurfaceSpec",
-    "AudioDetection",
+    "AudioObservation",
+    "AudioPerceptionPipeline",
     "AudioSceneSnapshot",
     "AudioSensorFrame",
     "AudioSourceSpec",
@@ -32,6 +35,7 @@ __all__ = [
     "MicrophoneArraySpec",
     "MicrophoneSignalBlock",
     "MicrophoneSpec",
+    "ObservationOrigin",
     "Pose3D",
     "SourceOcclusion",
 ]
