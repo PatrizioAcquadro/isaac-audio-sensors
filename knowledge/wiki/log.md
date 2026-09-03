@@ -525,3 +525,18 @@ Superseded the original local qualification reports with separate rev2 artifacts
 ## 2026-09-03 — lint: Corrected R9.2 Steam Audio qualification
 
 Verified 36 focused tests, the complete deterministic host `make check` gate, 23 Steam fixtures and 115 repetitions in the Isaac interpreter, valid rev2 reports and evidence origins, explicitly reused RTX evidence, the non-ranking summary, canonical wiki links, Ruff, and whitespace.
+
+## 2026-09-03 — update: R9.3 Steam Audio provider selection
+
+Selected Steam Audio 4.8.1 as the primary provider for future passive Geometry
+Acoustics integration, preserved its explicit minimal IAS bridge and full-R10
+transmission limitation, removed unselected RTX and two-candidate tooling, and
+left public backend integration to R10 after the common signal boundary.
+
+## 2026-09-03 — lint: R9.3 Steam Audio provider selection
+
+Verified 33 focused tests, 516 unit/contract tests, 207 integration tests, 57
+release tests, the retained Steam runner import, exact outcomes from both
+preserved rev2 reports, unchanged hashes for all 95 local R9 evidence files,
+Ruff, version synchronization, documentation boundaries, internal wikilinks,
+and whitespace.

@@ -52,7 +52,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
 - R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
 - R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
-- R9.1 internal fail-closed `GeometryAcoustics` provider qualification, revised as `r9.1-rev2`, with exact core/full/diagnostic profiles, typed evidence origins, independently derived core-integration and full-R10 outcomes, and non-blocking path-diagnostic limitations. R9.1.2 closes the sensor-side DOA ambiguity cleanup. Corrected R9.2 evidence qualifies Steam Audio `4.8.1` for core integration through an explicit minimal IAS delay/grouping bridge, rejects its full-R10 profile on sequential-partition transmission, and rejects NVIDIA RTX Acoustic `3.0.0` for the passive-microphone role using explicitly reused evidence. No provider is selected or registered.
+- R9 selects Steam Audio `4.8.1` as the primary provider for future passive Geometry Acoustics integration. Its corrected core profile is `qualified` through an explicit minimal IAS delay/grouping bridge; its full-R10 profile remains `rejected` on sequential-partition transmission. NVIDIA RTX Acoustic `3.0.0` remains rejected for the passive-microphone role and has no maintained candidate tooling. No geometry backend is registered yet.
 
 ## Documentation State
 
@@ -168,6 +168,13 @@ profiles. Rev2 reports, measurements, NPZ data, logs, provenance, and the
 non-ranking summary remain local and ignored under `build/validation/r9/rev2/`;
 the superseded artifacts remain unchanged.
 
+The R9.3 cleanup gate passes 33 focused contract and selected-provider tests,
+516 unit/contract tests, 207 integration tests, and 57 release tests. Version
+synchronization, Ruff, the retained Steam runner import, exact outcome
+derivation for both preserved rev2 reports, internal wikilinks, documentation
+boundaries, and whitespace pass. All 95 pre-existing R9 evidence files retain
+their baseline SHA-256 hashes.
+
 Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -191,16 +198,20 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- R9.2 added only temporary qualification tooling. Steam Audio passes the core profile only with the explicit IAS geometric-delay and assembly-grouping bridge; its sequential-partition transmission fails full R10, and native path diagnostics remain blocked. RTX Acoustic still fails the passive-microphone role. No Geometry Acoustics provider, public microphone-signal API, or provider selection exists yet.
+- Steam Audio is selected but not yet integrated. It passes the core profile only with the explicit IAS geometric-delay and assembly-grouping bridge; its sequential-partition transmission fails full R10, and native path diagnostics remain blocked. R10 must prefer whole-assembly transmission curves and must not add IAS attenuation compensation. No public Geometry Acoustics backend or microphone-signal API exists yet.
 
 ## Next Work
 
-R9.1, R9.1.1, R9.1.2, and corrected R9.2 are complete. [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] now proceeds to canonical R9.3. Only R9.3 may compare Steam's qualified core profile and rejected full-R10 profile against the rejected RTX evidence and make a provider or explicit no-provider decision; R9.2 made no selection. The [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 phase page]] alone owns the requirements, evidence, decisions, and acceptance semantics.
+R9 and [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] are complete. Steam Audio `4.8.1` is selected for future R10 integration with its full-R10 transmission limitation preserved. Work now proceeds to [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]]; the common signal and observed-perception boundary must exist before the selected geometry provider is integrated.
 
 The subsequent plans deliberately separate final microphone-signal production from observed perception and replace source-conditioned detections with a compact `AudioObservation`. Its two-value `origin` distinguishes `signal_derived` from `external_system`, while `detector_id` identifies the concrete producer; scheduled source information and manual annotations move to dataset truth and annotation provenance. The sequence qualifies Auditok activity detection and mixture-only PyRoom DOA, removes detection and estimator surfaces without a distinct maintained role, keeps learning truth in aligned dataset records, reuses perception across simulation and hardware, migrates Isaac Lab to observed semantics, and integrates the selected Geometry Acoustics provider only after the common signal boundary exists.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
-The plan structure is intentionally compact: Plan 01 references the two remaining R9 subphases, while Plans 02–11 use three coherent outcomes each. Cleanup is part of the final functional outcome rather than a separate administrative phase; implementation agents may still use smaller internal tasks and atomic commits.
+The plan structure is intentionally compact: Plan 01 records the two completed
+R9 subphases, while Plans 02–11 use three coherent outcomes each. Cleanup is
+part of the final functional outcome rather than a separate administrative
+phase; implementation agents may still use smaller internal tasks and atomic
+commits.
 
 These pages are plans, not implemented behavior. Current executable truth remains the verified capability and limit sections above. Publication of `3.0.0` remains a separate future action, and the published `2.0.0` Community Registry crawler closeout remains separate historical release work.

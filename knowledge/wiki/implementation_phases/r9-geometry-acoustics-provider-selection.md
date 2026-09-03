@@ -1,8 +1,13 @@
 # Phase R9 — Geometry Acoustics Provider Selection
 
-Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on 2026-09-02; R9.2 corrected on 2026-09-03; R9.3 is planned.
+Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on
+2026-09-02; corrected R9.2 and R9.3 completed on 2026-09-03.
 
-The remaining R9.2/R9.3 execution order is referenced by [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]]. That plan adds no technical requirements: this page is the sole authority for provider qualification, comparison, selection, evidence, limitations, and acceptance semantics.
+The completed R9.2/R9.3 execution order is referenced by
+[[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
+That plan adds no technical requirements: this page is the sole authority for
+provider qualification, comparison, selection, evidence, limitations, and
+acceptance semantics.
 
 ## Objective
 
@@ -229,37 +234,77 @@ audible microphone PCM. Its installed proprietary extension does not satisfy
 the source-build packaging or open-source redistribution path, and the reused
 evidence cannot qualify the advanced rev2 criteria that were never exercised.
 
-The qualification adapters remain temporary pending R9.3. Full source, binary,
-measurement, NPZ, log, crash/build-failure, and provenance evidence is local
-and ignored under `build/`; it is not a release artifact and can be removed by
-`make clean`. Simulation evidence does not establish physical calibration or
-sim-to-real validity.
+The Steam adapter remains internal requalification tooling after R9.3. The
+NVIDIA adapter and comparison/reclassification tooling were removed after the
+decision. Full source, binary, measurement, NPZ, log, crash/build-failure, and
+provenance evidence remains local and ignored under `build/`; it is not a
+release artifact and can be removed by `make clean`. Simulation evidence does
+not establish physical calibration or sim-to-real validity.
 
 ## Subphase R9.3 — Candidate Decision
 
 #### Implementation
 
-Treat Steam Audio as the principal existing-engine candidate for passive geometry-aware propagation. Evaluate NVIDIA RTX Acoustic in the installed Isaac runtime, but select it for this role only if it supports arbitrary audible source content and raw per-microphone output rather than only active chirp or ultrasonic operation.
+Steam Audio `4.8.1` is selected as the primary existing engine for future
+passive geometry-aware propagation. It is the only candidate that satisfies
+the blocking core-integration contract: arbitrary audible PCM, separate
+phase-coherent microphone signals through the explicit minimal IAS bridge,
+dynamic geometry, direct and indirect propagation, relative amplitude, Isaac
+runtime execution, source-build packaging, licensing, and complete-block
+performance all pass.
 
-PyRoom remains the analytic provider and is not treated as the general arbitrary-geometry engine. Active acoustics, if added later, remains a separate backend.
+The selected version is the qualified official tag `v4.8.1` at commit
+`0da18255cca520771f363ee01f100572b39a308e`, built as a Release shared library
+with Embree enabled and covered by Apache-2.0. Native Steam direct,
+transmission, occlusion, reflection, and dynamic-scene behavior minimizes the
+repository-owned algorithm surface. Complete four-microphone block p95 remains
+0.30 ms for one environment and 1.15 ms for four; acoustic-refresh p95 remains
+11.40 ms and 42.44 ms respectively.
 
-Temporary candidate adapters may coexist during qualification, but the phase concludes with one documented primary provider or an explicit no-provider result. It must not leave multiple redundant experimental backends as permanent public surface.
+NVIDIA RTX Acoustic `3.0.0` is not selected for this role. Its measured active
+`CHIRP`/`AM` transmitter-receiver output does not supply arbitrary passive PCM
+or raw physical-microphone channels, and its installed proprietary extension
+does not satisfy the required source-build redistribution and licensing gates.
+Runtime availability and ecosystem proximity therefore do not make it eligible
+for the weighted provider decision.
 
-Compare only candidates that satisfy the blocking contract. The decision weighs measured behavior, native capability coverage, maintenance burden, distribution viability, licensing, and intended-runtime performance against the practical-realism objective. Ecosystem preference or a successful availability probe is not sufficient evidence for selection.
+The unselected NVIDIA adapter, GMO helpers, evidence-reclassification runner,
+two-candidate summary builder, and their tests were removed. Historical R9.2
+reports and the non-ranking summary remain unchanged under `build/`. The
+contract, common fixtures, metrics, report writer, selected Steam adapter, and
+Steam runner remain only as internal requalification tooling.
 
-After the decision, remove unselected candidate code and its unused configuration, dependencies, tests, and packaging surfaces. Preserve reports and only the tooling needed to revalidate the selected provider; comparison or test convenience does not justify candidate production code.
+R9.3 registers no public backend and starts no R10 integration. PyRoom remains
+the analytic provider rather than an arbitrary-geometry engine. Any future
+active-acoustics backend remains a separate role.
 
 #### Key Decisions
 
-- Provider research and provider integration are separate phases.
-- The selected engine owns the mathematically complex propagation algorithms; the repository does not recreate them.
-- One maintainable primary geometry provider is preferred to several partial permanent backends.
-- The selected provider supplies microphone signals; it does not own activity detection, DOA semantics, observations, or learning labels.
-- Selection follows complete qualification evidence and is not predetermined by ecosystem preference.
+- Steam Audio `4.8.1` is the selected primary passive geometry provider for R10.
+- A different Steam version requires requalification before replacing the
+  selected baseline.
+- Steam owns the complex propagation algorithms; the IAS bridge is limited to
+  geometric source-to-microphone delay, a shared input timeline, and acoustic
+  assembly grouping.
+- The selected provider supplies microphone signals; it does not own activity
+  detection, DOA semantics, observations, or learning labels.
+- Provider research and R10 product integration remain separate phases.
+- PyRoom retains its distinct analytic role, and active acoustics remains out of
+  scope.
 
 #### Problems / Limitations
 
-If no candidate meets passive, per-microphone, dynamic-geometry, and distribution requirements, R10 remains blocked rather than weakening the sensor semantics. A qualified provider may also remain unsuitable for mass-parallel Isaac Lab execution; high-fidelity geometry propagation and scalable policy training are intentionally separate operating regimes.
+Steam's `full_r10_outcome` remains `rejected` solely because two sequential
+12 dB partitions measured 18 dB instead of the expected 24 dB. R10 must prefer
+one authored whole-assembly transmission curve, must not add IAS attenuation
+compensation, and must not claim additive sequential-partition behavior unless
+a future qualification passes it. Native path/ray diagnostics also remain
+unqualified.
+
+The selection targets one or a few high-fidelity Isaac environments, not
+mass-parallel Isaac Lab execution. R8's analytic path remains responsible for
+scalable policy training. Simulation evidence does not establish physical
+calibration or sim-to-real validity.
 
 ## Artifacts
 
@@ -274,9 +319,11 @@ bundles live under
 `build/validation/r9/rev2/{steam_audio,nvidia_rtx_acoustic}/`, each containing
 the `r9.1-rev2` report, derived evaluation, measurements, NPZ signals, run log,
 and provenance. `build/validation/r9/rev2/summary.json` records valid
-two-candidate coverage without ranking or selection. The Steam source/build
-remains under `build/qualification/r9/steam-audio`. No provider decision exists
-yet.
+two-candidate coverage without ranking or selection and is preserved as
+historical evidence; no maintained generator remains. The selected Steam
+source/build remains under `build/qualification/r9/steam-audio`, and its
+internal adapter and runner remain available for requalification. No public
+geometry backend or R10 integration exists yet.
 
 ## Files
 

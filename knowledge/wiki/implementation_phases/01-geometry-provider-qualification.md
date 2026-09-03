@@ -1,10 +1,16 @@
 # Implementation Plan 01 — Geometry Provider Qualification
 
-Status: 01.1 corrected on 2026-09-03; 01.2 is next.
+Status: 01.1 corrected and 01.2 completed on 2026-09-03.
 
 ## Objective
 
-Record the execution order of the remaining R9 provider work. This page is a sequence reference only; [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] is the sole authority for requirements, decisions, limitations, evidence, acceptance semantics, and application of the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision.
+Record the completed execution order of the R9 provider work. This page is a
+sequence reference only;
+[[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] is the
+sole authority for requirements, decisions, limitations, evidence, acceptance
+semantics, and application of the
+[[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]
+decision.
 
 ## Subphase 01.1 — Implement R9.2
 
@@ -24,11 +30,15 @@ This reference adds no requirements beyond R9.2.
 
 #### Implementation
 
-After R9.2 is complete, implement [[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.3 — Candidate Decision|R9.3 Candidate Decision]].
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Subphase R9.3 — Candidate Decision|R9.3 Candidate Decision]]
+is complete. Steam Audio `4.8.1` is selected for future passive geometry
+integration; NVIDIA RTX Acoustic remains historical qualification evidence and
+has no maintained candidate tooling.
 
 #### Key Decisions
 
-- This plan defines only that R9.3 follows R9.2; R9.3 remains authoritative for its execution.
+- This plan defines only that R9.3 follows R9.2; R9.3 remains authoritative for
+  the provider decision and its limitations.
 
 #### Problems / Limitations
 
