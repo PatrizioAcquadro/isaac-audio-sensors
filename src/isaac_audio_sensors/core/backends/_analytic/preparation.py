@@ -18,7 +18,6 @@ from isaac_audio_sensors.core.effects.validation import (
 from isaac_audio_sensors.core.math_utils import Quaternion, Vector3
 from isaac_audio_sensors.core.microphone_array import (
     microphone_world_positions,
-    validate_tdoa_array,
 )
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.scene import (
@@ -74,16 +73,9 @@ def prepare_room_frame(
     import_pyroomacoustics: Callable[[], Any],
     allowed_environment_kinds: tuple[str, ...] = ("shoebox",),
     per_surface_materials: bool = False,
-    require_three_mics: bool = False,
 ) -> PreparedRoomFrame:
     """Validate one capture window and normalize its shared frame state."""
 
-    if require_three_mics and len(sensor.microphones) < 3:
-        raise UnsupportedEffectError(
-            f"{backend_id} requires at least three microphones for an "
-            "unambiguous localization claim"
-        )
-    validate_tdoa_array(sensor)
     if scene.environment is None:
         raise ValueError(
             f"{backend_id} requires scene.environment to be configured."

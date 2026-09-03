@@ -8,25 +8,25 @@ import numpy as np
 
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
-    AudioSensorFrame,
     AudioTimeWindow,
     DoaEstimate,
+    MicrophoneSignalBlock,
 )
 
 
 @runtime_checkable
 class PropagationBackend(Protocol):
-    """Scene-to-frame propagation contract implemented by every backend."""
+    """Scene-to-microphone-signal contract implemented by every backend."""
 
     backend_id: str
 
-    def simulate(
+    def propagate(
         self,
         scene: AudioSceneSnapshot,
         array_id: str,
         time_window: AudioTimeWindow,
-    ) -> AudioSensorFrame:
-        """Simulate one snapshot-owned microphone-array observation frame."""
+    ) -> MicrophoneSignalBlock:
+        """Produce one snapshot-owned microphone-array signal block."""
 
 
 @runtime_checkable

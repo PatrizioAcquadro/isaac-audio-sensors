@@ -6,7 +6,10 @@ from collections.abc import Sequence
 
 import torch
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import (
+    _simulate_legacy_frame,
+    get_backend,
+)
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, SECTOR_ORDER
 from isaac_audio_sensors.core.doa.sector_mapping import bearing_deg_to_sector_name
 from isaac_audio_sensors.core.effects import EffectsConfig
@@ -94,7 +97,8 @@ class ReferenceBackend:
             snapshot = self.snapshots[env_id]
             array_id = self.array_ids[env_id]
             spec = snapshot.array_by_id(array_id)
-            frame = self._backend.simulate(
+            frame = _simulate_legacy_frame(
+                self._backend,
                 snapshot,
                 array_id,
                 AudioTimeWindow(

@@ -24,6 +24,7 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
     AudioTimeWindow,
+    MicrophoneSignalBlock,
     SourceOcclusion,
 )
 from tests.helpers import CaptureSink, FakeMaterial, FakeMicrophoneArray, FakeShoeBox
@@ -113,6 +114,112 @@ def _pad_samples(waveform: np.ndarray, sample_count: int) -> np.ndarray:
     padded = np.zeros((waveform.shape[0], sample_count), dtype=waveform.dtype)
     padded[:, : waveform.shape[1]] = waveform
     return padded
+
+
+def test_propagate_emits_only_the_exact_final_microphone_mixture() -> None:
+    scene = _scene(free_field_environment(environment_id="free"))
+    sink = CaptureSink()
+    backend = AnalyticAcoustics(waveform_writer=sink)
+
+    block = backend.propagate(scene, "rig", WINDOW)
+
+    assert isinstance(block, MicrophoneSignalBlock)
+    assert block.samples.shape == (4, 4_800)
+    assert block.microphone_ids == ("front", "right", "rear", "left")
+    assert block.array_id == "rig"
+    assert block.sample_rate_hz == SAMPLE_RATE_HZ
+    assert block.time_window is WINDOW
+    assert block.channel_validity == (True, True, True, True)
+    assert block.producer_id == "analytic_acoustics"
+    assert block.provenance == "synthetic/core"
+    assert block.diagnostics["analytic_solver"] == {
+        "solver_id": "free_field_direct",
+        "provider": "core",
+        "provider_version": "core",
+        "environment_kind": "free_field",
+    }
+    assert sink.calls == []
+    assert block.samples.ndim == 2
+    assert not hasattr(block, "detections")
+    assert not hasattr(block, "waveform_paths")
+
+    frame = backend.simulate(scene, "rig", WINDOW)
+    legacy_mixture = np.asarray(sink.calls[0]["mixture"])
+    np.testing.assert_allclose(
+        block.samples,
+        legacy_mixture[:, : block.samples.shape[1]],
+        rtol=1e-6,
+        atol=1e-7,
+    )
+    assert frame.detections
+
+
+def test_propagate_supports_silent_and_mono_signal_windows() -> None:
+    array = create_microphone_array(
+        array_id="rig",
+        prim_path="/World/Rig",
+        layout_name="mono",
+        position_world=(0.0, 0.0, 1.0),
+        sample_rate_hz=SAMPLE_RATE_HZ,
+    )
+    scene = AudioSceneSnapshot(
+        stage_id="mono",
+        sources=(),
+        arrays=(array,),
+        environment=free_field_environment(environment_id="free"),
+    )
+    backend = AnalyticAcoustics()
+
+    block = backend.propagate(scene, "rig", WINDOW)
+
+    assert block.samples.shape == (1, 4_800)
+    assert block.microphone_ids == ("center",)
+    assert block.channel_validity == (True,)
+    assert np.all(block.samples == 0.0)
+    with pytest.raises(ValueError, match="at least two microphones"):
+        backend.simulate(scene, "rig", WINDOW)
+
+
+def test_propagate_combines_sources_without_exposing_a_source_axis() -> None:
+    environment = free_field_environment(environment_id="free")
+    array = _array()
+    first = _source()
+    second = replace(
+        first,
+        source_id="speaker_two",
+        prim_path="/World/SpeakerTwo",
+        position_world=(0.0, 2.0, 1.0),
+    )
+    backend = AnalyticAcoustics()
+
+    first_block = backend.propagate(
+        _scene(environment, array=array, source=first),
+        "rig",
+        WINDOW,
+    )
+    second_block = backend.propagate(
+        _scene(environment, array=array, source=second),
+        "rig",
+        WINDOW,
+    )
+    combined = backend.propagate(
+        AudioSceneSnapshot(
+            stage_id="analytic_test",
+            sources=(first, second),
+            arrays=(array,),
+            environment=environment,
+        ),
+        "rig",
+        WINDOW,
+    )
+
+    assert combined.samples.ndim == 2
+    np.testing.assert_allclose(
+        combined.samples,
+        first_block.samples + second_block.samples,
+        rtol=1e-6,
+        atol=1e-7,
+    )
 
 
 def test_free_field_uses_core_without_importing_pyroom(monkeypatch) -> None:

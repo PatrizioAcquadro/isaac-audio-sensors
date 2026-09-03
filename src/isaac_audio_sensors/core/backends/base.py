@@ -6,6 +6,11 @@ from typing import cast
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.plugins.protocols import PropagationBackend
+from isaac_audio_sensors.core.types import (
+    AudioSceneSnapshot,
+    AudioSensorFrame,
+    AudioTimeWindow,
+)
 
 
 def get_backend(backend_id: str, **kwargs: object) -> PropagationBackend:
@@ -43,6 +48,26 @@ def registered_backend_ids() -> tuple[str, ...]:
             key=lambda item: (item.fidelity_level or "", item.plugin_id),
         )
     )
+
+
+def _simulate_legacy_frame(
+    backend: PropagationBackend,
+    scene: AudioSceneSnapshot,
+    array_id: str,
+    time_window: AudioTimeWindow,
+) -> AudioSensorFrame:
+    """Run the temporary pre-02.1 scene-to-frame backend bridge."""
+
+    simulate = getattr(backend, "simulate", None)
+    if not callable(simulate):
+        raise TypeError(
+            "The selected propagation backend does not implement the temporary "
+            "legacy frame bridge."
+        )
+    frame = simulate(scene, array_id, time_window)
+    if not isinstance(frame, AudioSensorFrame):
+        raise TypeError("The legacy backend bridge must return AudioSensorFrame.")
+    return frame
 
 
 __all__ = ["get_backend", "registered_backend_ids"]

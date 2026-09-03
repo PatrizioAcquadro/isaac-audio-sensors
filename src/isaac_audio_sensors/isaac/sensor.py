@@ -7,7 +7,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import (
+    _simulate_legacy_frame,
+    get_backend,
+)
 from isaac_audio_sensors.core.constants import (
     DEFAULT_SPEED_OF_SOUND_MPS,
     DOA_ESTIMATOR_IDS,
@@ -623,7 +626,7 @@ class IsaacAudioArraySensor:
         if window_motion is not None:
             kwargs["window_motion"] = window_motion
         backend = get_backend(self.backend, **kwargs)
-        frame = backend.simulate(scene, self.array_id, time_window)
+        frame = _simulate_legacy_frame(backend, scene, self.array_id, time_window)
         frame = self._merge_acoustics_state(frame)
         stage_diagnostics = dict(self._latest_stage_diagnostics or {})
         motion_diagnostics = stage_diagnostics.pop("motion", None)

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from isaac_audio_sensors.core.backends.base import get_backend
+from isaac_audio_sensors.core.backends.base import (
+    _simulate_legacy_frame,
+    get_backend,
+)
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.types import AudioSensorFrame, AudioTimeWindow
 
@@ -42,7 +45,7 @@ def simulate_from_config(
         ray_tracing=config.analytic_ray_tracing,
     )
     backend = get_backend(selected_backend, **backend_kwargs)
-    return backend.simulate(scene, selected_array, time_window)
+    return _simulate_legacy_frame(backend, scene, selected_array, time_window)
 
 
 __all__ = ["simulate_from_config"]

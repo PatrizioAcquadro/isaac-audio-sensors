@@ -70,10 +70,17 @@ def test_analytic_effected_premix_drives_detection_aggregate_and_export(
             microphones={"front": ChannelResponseMicConfig(gain_db=-6.0)},
         )
     )
-    effected = AnalyticAcoustics(
+    effected_backend = AnalyticAcoustics(
         waveform_writer=effected_sink,
         effects=effects,
-    ).simulate(scene, array.array_id, time_window())
+    )
+    signal_block = effected_backend.propagate(
+        scene,
+        array.array_id,
+        time_window(),
+    )
+    assert effected_sink.calls == []
+    effected = effected_backend.simulate(scene, array.array_id, time_window())
 
     baseline_detection = baseline.detections[0]
     effected_detection = effected.detections[0]
@@ -86,6 +93,11 @@ def test_analytic_effected_premix_drives_detection_aggregate_and_export(
         baseline_detection.per_mic_rms["right"]
     )
     mixture = effected_sink.calls[0]["mixture"]
+    np.testing.assert_allclose(
+        signal_block.samples,
+        mixture[:, : signal_block.samples.shape[1]],
+    )
+    assert "channel_response" in signal_block.diagnostics["effect_stages"]
     mic_ids = tuple(mic.mic_id for mic in array.microphones)
     for mic_index, mic_id in enumerate(mic_ids):
         expected_rms = float(np.sqrt(np.mean(mixture[mic_index] ** 2)))

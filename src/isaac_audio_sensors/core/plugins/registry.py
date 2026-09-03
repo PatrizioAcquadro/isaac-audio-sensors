@@ -250,7 +250,10 @@ def _lazy_analytic_backend(**kwargs: object) -> object:
 
 def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], ...]:
     both_profiles = ("training_features", "waveform_fidelity")
-    backend_contract = {"shape": "AudioSensorFrame", "dtype": "AudioSensorFrame"}
+    backend_contract = {
+        "shape": "MicrophoneSignalBlock",
+        "dtype": "MicrophoneSignalBlock",
+    }
     doa_contract = {"shape": (), "dtype": "DoaEstimate"}
     return (
         (

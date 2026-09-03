@@ -27,7 +27,7 @@ class _MeanFeatureExtractor:
 class _WrongBackend:
     backend_id = "different"
 
-    def simulate(self, scene, array_id, time_window):
+    def propagate(self, scene, array_id, time_window):
         del scene, array_id, time_window
 
 
@@ -60,7 +60,10 @@ def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
         supported_devices=("cpu",),
         supported_profiles=("waveform_fidelity",),
         deterministic=True,
-        output_contract={"shape": "AudioSensorFrame", "dtype": "AudioSensorFrame"},
+        output_contract={
+            "shape": "MicrophoneSignalBlock",
+            "dtype": "MicrophoneSignalBlock",
+        },
         description="Test propagation backend.",
         provenance="tests.contract.test_plugins",
     )
@@ -69,7 +72,7 @@ def _propagation_declaration(plugin_id: str) -> PluginDeclaration:
 def test_protocols_and_canonical_signature() -> None:
     assert isinstance(AnalyticAcoustics(), PropagationBackend)
     assert isinstance(_MeanFeatureExtractor(), AudioFeatureExtractor)
-    assert tuple(inspect.signature(AnalyticAcoustics.simulate).parameters) == (
+    assert tuple(inspect.signature(AnalyticAcoustics.propagate).parameters) == (
         "self",
         "scene",
         "array_id",
@@ -141,6 +144,10 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
     assert analytic.fidelity_level == "L2"
     assert analytic.required_dependencies == ()
     assert analytic.supported_profiles == ("waveform_fidelity",)
+    assert dict(analytic.output_contract) == {
+        "shape": "MicrophoneSignalBlock",
+        "dtype": "MicrophoneSignalBlock",
+    }
     assert registered_backend_ids() == ("analytic_acoustics",)
     assert isinstance(get_backend("analytic_acoustics"), AnalyticAcoustics)
 

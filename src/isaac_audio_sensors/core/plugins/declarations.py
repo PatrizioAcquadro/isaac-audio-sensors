@@ -27,7 +27,7 @@ class PluginDeclaration:
     """Fail-closed, immutable declaration of one plugin's capabilities.
 
     ``output_contract`` always documents ``shape`` and ``dtype``. Propagation
-    backends use the symbolic shape ``"AudioSensorFrame"``. DOA estimators use
+    backends use the symbolic shape ``"MicrophoneSignalBlock"``. DOA estimators use
     scalar shape ``()`` and dtype ``"DoaEstimate"``. Feature extractors use a
     tuple of non-negative dimensions and a NumPy-compatible dtype name.
     """
@@ -170,15 +170,15 @@ def _validate_output_contract(kind: str, contract: dict[str, object]) -> None:
             "PluginDeclaration.output_contract dtype must be a non-empty string."
         )
     if kind == "propagation_backend":
-        if shape != "AudioSensorFrame":
+        if shape != "MicrophoneSignalBlock":
             raise ConfigValidationError(
                 "Propagation backend output_contract shape must be "
-                "'AudioSensorFrame'."
+                "'MicrophoneSignalBlock'."
             )
-        if dtype != "AudioSensorFrame":
+        if dtype != "MicrophoneSignalBlock":
             raise ConfigValidationError(
                 "Propagation backend output_contract dtype must be "
-                "'AudioSensorFrame'."
+                "'MicrophoneSignalBlock'."
             )
     elif kind == "doa_estimator":
         if shape not in ((), []):

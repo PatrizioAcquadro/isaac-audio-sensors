@@ -18,6 +18,7 @@ from isaac_audio_sensors.core.acoustics.materials import (
     resolve_material_coefficients,
 )
 from isaac_audio_sensors.core.backends._analytic.assembly import assemble_frame
+from isaac_audio_sensors.core.backends._analytic.block import assemble_signal_block
 from isaac_audio_sensors.core.backends._analytic.detections import (
     assemble_detections,
     prioritize_detections,
@@ -49,6 +50,7 @@ from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.math_utils import norm, subtract
+from isaac_audio_sensors.core.microphone_array import validate_tdoa_array
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
@@ -57,6 +59,8 @@ from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSensorFrame,
     AudioTimeWindow,
+    MicrophoneArraySpec,
+    MicrophoneSignalBlock,
 )
 
 ANALYTIC_SOLVER_BY_ENVIRONMENT = {
@@ -136,72 +140,41 @@ class AnalyticAcoustics:
             return False
         return True
 
+    def propagate(
+        self,
+        scene: AudioSceneSnapshot,
+        array_id: str,
+        time_window: AudioTimeWindow,
+    ) -> MicrophoneSignalBlock:
+        """Produce the final observed microphone mixture for one time window."""
+
+        prepared, rendered, solver_id = self._render_signal(
+            scene,
+            array_id,
+            time_window,
+            require_perception_geometry=False,
+        )
+        return assemble_signal_block(
+            prepared,
+            rendered,
+            backend_id=self.backend_id,
+            solver_id=solver_id,
+            core_solver=solver_id in _CORE_SOLVERS,
+        )
+
     def simulate(
         self,
         scene: AudioSceneSnapshot,
         array_id: str,
         time_window: AudioTimeWindow,
     ) -> AudioSensorFrame:
-        sensor = scene.array_by_id(array_id)
-        environment = scene.environment
-        if environment is None:
-            raise ValueError(
-                "analytic_acoustics requires AudioSceneSnapshot.environment."
-            )
-        solver_id = self._solver_for(environment)
-        self._validate_solver_options(solver_id)
-        if (
-            solver_id in _CORE_SOLVERS
-            and self.effects.motion.segments_per_window > 1
-        ):
-            raise UnsupportedEffectError(
-                "R8.1 Core analytic solvers do not support "
-                "audio.effects.motion.segments_per_window>1."
-            )
-        provider_factory = (
-            (lambda: _CORE_PROVIDER)
-            if solver_id in _CORE_SOLVERS
-            else _import_pyroomacoustics
-        )
-        prepared = prepare_room_frame(
+        """Temporarily preserve the pre-02.1 scene-to-frame consumer path."""
+
+        prepared, rendered, solver_id = self._render_signal(
             scene,
-            sensor,
+            array_id,
             time_window,
-            backend_id=self.backend_id,
-            effects=self.effects,
-            runtime_profile=self.runtime_profile,
-            max_order=self.max_order,
-            air_absorption=self.air_absorption,
-            ray_tracing=self.ray_tracing,
-            window_motion=self.window_motion,
-            import_pyroomacoustics=provider_factory,
-            allowed_environment_kinds=tuple(ANALYTIC_SOLVER_BY_ENVIRONMENT),
-            per_surface_materials=True,
-            require_three_mics=self.doa_estimator == "srp_phat",
-        )
-        if solver_id in _CORE_SOLVERS:
-            rendered = _render_core(
-                prepared,
-                speed_of_sound_mps=self.speed_of_sound_mps,
-                force_doppler_diagnostics=(
-                    self.effects.motion.derive_velocity_from_poses
-                ),
-            )
-        else:
-            rendered = render_room(
-                prepared,
-                effects=self.effects,
-                speed_of_sound_mps=self.speed_of_sound_mps,
-                window_motion=self.window_motion,
-                split_stems=bool(scene.occlusion),
-            )
-        apply_room_effects(
-            prepared,
-            rendered,
-            effects=self.effects,
-            effects_chain=self.effects_chain,
-            backend_id=self.backend_id,
-            runtime_profile=self.runtime_profile,
+            require_perception_geometry=True,
         )
         detections, per_source_rir_summary = assemble_detections(
             prepared,
@@ -231,6 +204,91 @@ class AnalyticAcoustics:
             ),
         )
         return _with_solver_diagnostics(frame, solver_id=solver_id)
+
+    def _render_signal(
+        self,
+        scene: AudioSceneSnapshot,
+        array_id: str,
+        time_window: AudioTimeWindow,
+        *,
+        require_perception_geometry: bool,
+    ) -> tuple[PreparedRoomFrame, RenderedRoom, str]:
+        """Render and effect one mixture without constructing public observations."""
+
+        sensor = scene.array_by_id(array_id)
+        environment = scene.environment
+        if environment is None:
+            raise ValueError(
+                "analytic_acoustics requires AudioSceneSnapshot.environment."
+            )
+        solver_id = self._solver_for(environment)
+        self._validate_solver_options(solver_id)
+        if (
+            solver_id in _CORE_SOLVERS
+            and self.effects.motion.segments_per_window > 1
+        ):
+            raise UnsupportedEffectError(
+                "R8.1 Core analytic solvers do not support "
+                "audio.effects.motion.segments_per_window>1."
+            )
+        if require_perception_geometry:
+            self._validate_legacy_perception_geometry(sensor)
+        provider_factory = (
+            (lambda: _CORE_PROVIDER)
+            if solver_id in _CORE_SOLVERS
+            else _import_pyroomacoustics
+        )
+        prepared = prepare_room_frame(
+            scene,
+            sensor,
+            time_window,
+            backend_id=self.backend_id,
+            effects=self.effects,
+            runtime_profile=self.runtime_profile,
+            max_order=self.max_order,
+            air_absorption=self.air_absorption,
+            ray_tracing=self.ray_tracing,
+            window_motion=self.window_motion,
+            import_pyroomacoustics=provider_factory,
+            allowed_environment_kinds=tuple(ANALYTIC_SOLVER_BY_ENVIRONMENT),
+            per_surface_materials=True,
+        )
+        if solver_id in _CORE_SOLVERS:
+            rendered = _render_core(
+                prepared,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+                force_doppler_diagnostics=(
+                    self.effects.motion.derive_velocity_from_poses
+                ),
+            )
+        else:
+            rendered = render_room(
+                prepared,
+                effects=self.effects,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+                window_motion=self.window_motion,
+                split_stems=bool(scene.occlusion),
+            )
+        apply_room_effects(
+            prepared,
+            rendered,
+            effects=self.effects,
+            effects_chain=self.effects_chain,
+            backend_id=self.backend_id,
+            runtime_profile=self.runtime_profile,
+        )
+        return prepared, rendered, solver_id
+
+    def _validate_legacy_perception_geometry(
+        self,
+        sensor: MicrophoneArraySpec,
+    ) -> None:
+        if self.doa_estimator == "srp_phat" and len(sensor.microphones) < 3:
+            raise UnsupportedEffectError(
+                f"{self.backend_id} requires at least three microphones for an "
+                "unambiguous localization claim"
+            )
+        validate_tdoa_array(sensor)
 
     def _solver_for(self, environment: AcousticEnvironmentSpec) -> str:
         if environment.kind == "surface_set":
