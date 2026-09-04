@@ -424,7 +424,6 @@ retain their aggregate SHA-256 baseline; no R9.2 artifact was rewritten.
 - `src/isaac_audio_sensors/core/types/`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
 - `src/isaac_audio_sensors/core/doa/ambiguity.py`
-- `src/isaac_audio_sensors/core/doa/srp_phat.py`
 - `src/isaac_audio_sensors/lab/audio_array_sensor.py`
 - `src/isaac_audio_sensors/kit/configuration.py`
 - `src/isaac_audio_sensors/schemas/audio_sensor_frame.v2.schema.json`

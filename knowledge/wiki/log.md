@@ -748,3 +748,17 @@ synchronization, Ruff, and whitespace.
 Clarified PyRoom planar integration, the maintained generic two-microphone role,
 consumer-owned optional 3D qualification, and the requirement to expose temporal
 instability or abstain without broadening the nominal robustness claim.
+
+## 2026-09-04 — update: Complete Subphase 04.3 DOA integration
+
+Recorded explicit default-off geometry routing, causal rolling context, temporal
+instability abstention, internal SRP removal, Kit binding v7, Lab boundaries,
+and the passing two-run 20 Hz qualification without broadening robustness.
+
+## 2026-09-04 — lint: Subphase 04.3 implementation closeout
+
+Verified 579 unit/contract tests, 226 integration tests, 58 release tests, 99
+Isaac-runtime tests, optional audio, two identical rolling reports, all three
+RTX 4090 live smokes, version synchronization, Ruff, wiki links, raw
+preservation, and whitespace. The Isaac source runtime used isolated Auditok
+0.5.2 because that user-managed interpreter did not contain the Core dependency.

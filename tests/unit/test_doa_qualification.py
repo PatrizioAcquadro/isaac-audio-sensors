@@ -21,6 +21,32 @@ from tools.qualification.doa.phase_04_2 import (
     _select_reliability_threshold,
     run_qualification,
 )
+from tools.qualification.doa.phase_04_3 import (
+    MEASURED_TICKS,
+    RUN_COUNT,
+    WARMUP_TICKS,
+)
+from tools.qualification.doa.phase_04_3 import (
+    run_qualification as run_rolling_qualification,
+)
+
+
+def test_phase_04_3_rolling_gate_is_reproducible_and_within_budget() -> None:
+    report = run_rolling_qualification()
+    semantic = report["semantic"]
+
+    assert semantic["schema"] == "ias.doa.phase_04_3_rolling_qualification.v1"
+    assert semantic["status"] == "pass"
+    assert semantic["run_count"] == RUN_COUNT == 2
+    assert semantic["warmup_ticks_per_run"] == WARMUP_TICKS == 20
+    assert semantic["measured_ticks_per_run"] == MEASURED_TICKS == 200
+    assert semantic["semantics_identical"] is True
+    assert semantic["context_exact"] is True
+    assert semantic["no_future_lookahead"] is True
+    assert semantic["future_lookahead"] is False
+    for run in report["runtime"]["runs"]:
+        assert run["compute_p95_ms"] < 50.0
+        assert run["compute_max_ms"] < 250.0
 
 
 def test_quick_qualification_is_role_based_and_deterministic() -> None:

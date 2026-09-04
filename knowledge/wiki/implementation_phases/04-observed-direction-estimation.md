@@ -1,6 +1,6 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.2 complete on 2026-09-04. Subphase 04.3 is planned.
+Status: Subphases 04.1–04.3 complete on 2026-09-04.
 
 ## Objective
 
@@ -35,13 +35,13 @@ Mixtures, reverberation, low SNR, aliasing, clipping, and motion can destabilize
 
 `PyroomacousticsSrpEstimator` is the primary general-purpose planar estimator for arrays with at least three non-collinear microphones. It remains a public, lazy optional plugin under registry ID `pyroomacoustics_srp`, keeps the 04.1 signature unchanged, and performs a stateless Hann-windowed STFT over only the supplied mixture block. Its qualified settings are a causal 250 ms block, 512-point FFT, 256-sample hop, observed-energy bin selection within 300–6000 Hz, a 2-degree azimuth grid, and estimator-local minimum reliability `0.06`. PyRoom remains constrained to `>=0.10.1,<0.11`; importing Core or the plugin surface does not import it.
 
-The corrected `ias.doa.phase_04_2_qualification.v2` runner qualifies roles independently rather than ranking estimators. PyRoom alone owns the primary planar, robustness, planar-compute, and informational 3D evaluations. `tdoa_least_squares` is qualified separately for the physically distinct two-microphone role. Internal `srp_phat` and NormMUSIC are absent from all qualification gates; internal SRP remains present only until the planned 04.3 cleanup. Exact `pass`, `fail`, and `blocked` states distinguish observed gate violations from absent dependencies or insufficient evidence.
+The corrected `ias.doa.phase_04_2_qualification.v2` runner qualifies roles independently rather than ranking estimators. PyRoom alone owns the primary planar, robustness, planar-compute, and informational 3D evaluations. `tdoa_least_squares` is qualified separately for the physically distinct two-microphone role. Internal `srp_phat` and NormMUSIC are absent from all qualification gates; at 04.2 closeout, internal SRP remained only pending the 04.3 cleanup. Exact `pass`, `fail`, and `blocked` states distinguish observed gate violations from absent dependencies or insufficient evidence.
 
 The real evaluation replays each of the 35 hash-verified ReSpeaker takes from its start as sequential, non-overlapping 250 ms blocks through `AuditokActivityDetector -> AudioPerceptionPipeline -> PyRoom SRP`. Active takes are scored only inside their canonically hash-verified authorized reference interval, while complete official silence takes are scored. Eleven calibration takes select the highest eligible 0.5 dB Auditok grid point and the lowest eligible 0.01 PyRoom reliability grid point; the resulting values are `-40.5 dBFS` and `0.06`. Twenty-four other takes provide take-level validation within the same campaign. This partition tests separate recordings but is not leakage-group-independent, so it demonstrates within-campaign repeatability rather than generalization to a different session, environment, or array. The report records this scope plus per-take activity and resolved coverage, abstention, bearing median/p95/max, and per-take compute latency in the non-semantic performance section. No source audio or report is written into `evidence/`.
 
 Primary planar PyRoom passes: all 128 independent synthetic evaluation cases across both 10 and 20 dB SNR, all four bands, eight bearings, and three- and four-microphone geometries have 100% resolved coverage with 1-degree p95; every frequency-band p95 is at most 1.45 degrees. Every nominal validation take has 100% resolved coverage with worst-take p95 10 degrees, validation silence produces zero selected bearings, and replay is deterministic. The separate two-microphone role passes exact zero/intermediate/endpoint semantics, 95.83% synthetic candidate containment, and 7.48-degree candidate-error p95. Energetic identical channels now proceed through GCC-PHAT, so zero TDOA exposes the physical `(0, 180)` candidate pair without a selected bearing, sector, or confidence; silence remains `low_information`. These generic semantics are usable by any two-microphone consumer, while hardware-specific performance requires that consumer's own evidence.
 
-Robustness fails only its own role. In the synthetic degraded conditions, PyRoom is accurate when it answers—resolved-error p95 remains below 9 degrees—but it answers on only 62.5–68.75% of cases, below the required 90% coverage. Lowering reliability improves some synthetic coverage but reintroduces false directions on silence. In the real takes, ordinary added noise passes; left occlusion reduces coverage to 80%, low-level left input reduces it to 85%, and front occlusion produces two confident front/back flips near 180 degrees that the reliability threshold cannot remove. This means the nominal planar estimator remains qualified, but degraded-condition output must not yet be treated as robust. Planar composed compute passes 200 measured calls after 20 warmups: both report runs remain below 5.31 ms p95 and 5.34 ms maximum, separately from the 250 ms observation interval. End-to-end rolling 20 Hz integration remains blocked until 04.3. Optional 3D remains available for downstream evaluation but blocked as a product claim because only 12 synthetic diagnostics exist and no representative real or realtime 3D evidence is present.
+Robustness fails only its own role. In the synthetic degraded conditions, PyRoom is accurate when it answers—resolved-error p95 remains below 9 degrees—but it answers on only 62.5–68.75% of cases, below the required 90% coverage. Lowering reliability improves some synthetic coverage but reintroduces false directions on silence. In the real takes, ordinary added noise passes; left occlusion reduces coverage to 80%, low-level left input reduces it to 85%, and front occlusion produces two confident front/back flips near 180 degrees that the reliability threshold cannot remove. This means the nominal planar estimator remains qualified, but degraded-condition output must not yet be treated as robust. Planar composed compute passes 200 measured calls after 20 warmups: both report runs remain below 5.31 ms p95 and 5.34 ms maximum, separately from the 250 ms observation interval. End-to-end rolling 20 Hz integration was deferred to 04.3 at this closeout. Optional 3D remains available for downstream evaluation but blocked as a product claim because only 12 synthetic diagnostics exist and no representative real or realtime 3D evidence is present.
 
 `bearing_confidence` remains explicitly estimator-local reliability, not a probability or cross-estimator comparable score. Below-threshold, insufficient-context, unsupported-geometry, and unobservable-azimuth outcomes remain explicit unresolved estimates when the input is structurally valid. Malformed arrays and non-finite input still fail. The Phase 04.1 interface, `DoaEstimate`, frame v3, registry IDs, mixture-only inputs, causal behavior, ambiguity fields, configuration, and consumer defaults remain unchanged.
 
@@ -50,7 +50,7 @@ Robustness fails only its own role. In the synthetic degraded conditions, PyRoom
 - PyRoom SRP passes the primary planar role independently; consumer selection and integration remain 04.3 work.
 - Least-squares passes only the separate two-microphone ambiguity role; it is not a general planar competitor.
 - The estimator is stateless. A later consumer must supply the selected causal 250 ms window without future look-ahead.
-- Internal SRP has no qualification role and remains only until 04.3 removal.
+- Internal SRP had no qualification role and remained only for 04.3 removal.
 - NormMUSIC is neither evaluated nor added.
 - A robustness failure and optional 3D blocker do not invalidate the passed primary planar or two-microphone roles.
 - Geometry and DOA providers remain independently replaceable.
@@ -63,33 +63,44 @@ The selected 250 ms observation context can smear fast source or robot motion ev
 
 #### Implementation
 
-Select and integrate PyRoom SRP as the maintained primary estimator for planar arrays with at least three non-collinear microphones. Supply its causal 250 ms observation context on the consumer's 20 Hz update cycle without future look-ahead, while keeping estimator identity, local reliability, latency, ambiguity, and abstention visible.
+`MaintainedDoaEstimator` now performs the standard geometry routing without changing `DoaEstimator.estimate(...)`: exactly two microphones select `tdoa_least_squares`; at least three horizontal, non-collinear XY microphones select `pyroomacoustics_srp`; rank-3 arrays return the unselected `optional_3d_unselected` capability result; and other unsupported geometries abstain. There is no fallback between estimators. Planar selection resolves PyRoom lazily and fails with `OptionalDependencyUnavailable` plus the `isaac-audio-sensors[room]` installation action when absent, while the two-microphone role remains Core-only.
 
-Retain least-squares as the single estimator for the distinct two-microphone role, preserving physical front/back ambiguity rather than resolving it through a hidden assumption. Keep PyRoom's optional 3D capability available but unselected and unqualified as a product claim; consumers with suitable arrays own any further 3D qualification. Remove internal SRP and every other duplicate or unused estimator surface.
+The maintained consumer owns an exact trailing 250 ms causal window. Every valid mixture advances it, including inactive Auditok ticks, but DOA runs only on an active decision. Active ticks before the window is complete return `insufficient_context`. A layout, valid-channel set, sample-rate, producer-stream identity, time gap, or explicit lifecycle reset clears all DOA state. The first inactive decision clears stable and pending temporal bearings without discarding accumulated audio context.
 
-Temporal handling must treat abrupt inconsistent directions, especially front/back reversals, as instability or unknown rather than silently accepting or replacing them with an invented direction. Any tracking or contextual prior belongs explicitly to the consumer and must preserve the observed-only Core boundary.
+Resolved bearings use one fail-closed temporal rule. A circular jump of at least 150 degrees becomes unresolved `temporal_instability`, never reuses the old bearing, and records a pending lobe. The next active tick confirms that lobe only within 30 degrees; otherwise the pending result is discarded and output remains unresolved. Diagnostics preserve selected role and estimator, exact context duration and sample count, causal ownership, estimator-local raw reliability, compute time, angular jump, pending/confirmed state, and the abstention reason.
+
+Standard Core, CLI, Isaac Sim, Isaac Lab reference, and Kit entry points expose `doa_enabled=False`; the CLI spelling is `--enable-doa`. A caller-owned `AudioPerceptionPipeline` cannot be combined with standard activation. Lab entity binding rejects DOA because it has no waveform, while reference binding executes it without projecting tensors before Phase 07. Kit binding `ias.omni_extension_binding.v7` requires exact `direction_estimation: {"enabled": bool}` and has no v6 parser. Core TOML, frame v3, `DoaEstimate`, and the qualified PyRoom `0.06` threshold remain unchanged.
+
+The internal `srp_phat` module, adapter/export, registry declaration, stale constant, and dedicated tests are removed. PyRoom's estimator diagnostics retain their accurate internal SRP-PHAT terminology.
 
 #### Key Decisions
 
-- Keep one implementation per supported DOA role.
+- Keep one implementation per supported DOA role and never fall back silently.
 - PyRoom owns general planar DOA; least-squares owns the generic two-microphone ambiguity role.
 - Nominal planar qualification does not imply robustness under occlusion, low SNR, or low-level input.
 - Optional 3D remains available without becoming a default or a qualified product capability.
 - `DoaEstimate` remains independent of the selected algorithm.
+- Standard activation is explicit and default-off; injected pipelines remain fully caller-owned.
+- Temporal state is consumer policy, not a change to the estimator protocol or scientific qualification.
 
 #### Problems / Limitations
 
-The 250 ms context can smear motion, and rolling use can expose temporal direction instability that isolated blocks do not show. Subphase 04.3 must preserve safe abstention and must not broaden the qualified nominal operating envelope. If robust degraded-condition behavior becomes required, it needs separate evidence and qualification rather than a hidden threshold or prior change.
+The 250 ms context can smear fast motion. The confirmation rule blocks abrupt reversals but does not turn the failed 04.2 robustness role into a qualified capability. Occlusion, low SNR, low-level input, particular two-microphone hardware, and rank-3 operation still require separate evidence. Phase 07 remains responsible for projecting observed results into Isaac Lab tensors.
 
 ## Artifacts
 
-Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP, estimator-local reliability and abstention semantics, the corrected role-based qualification runner, and ignored v2 JSON reports under `build/qualification/doa/`. The retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded historical evidence; their comparative conclusions are not current qualification authority. Subphase 04.3 must integrate PyRoom for the primary planar role, retain least-squares for generic two-microphone ambiguity, remove internal SRP, and keep optional 3D explicitly unqualified.
+Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP, estimator-local reliability and abstention semantics, the corrected role-based qualification runner, and ignored v2 JSON reports under `build/qualification/doa/`. The retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded historical evidence; their comparative conclusions are not current qualification authority.
+
+Subphase 04.3 adds `ias.doa.phase_04_3_rolling_qualification.v1` and ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.json` reports. Each report contains two independent 20 Hz runs with 20 warm-up and 200 measured ticks per run. Semantics are identical within and across both reports; context remains exact and causal. Across the four measured runs, compute p95 is 5.22–5.68 ms and maximum is 5.30–6.10 ms, passing the strict `<50 ms` p95 and `<250 ms` maximum gates.
 
 ## Files
 
 - `src/isaac_audio_sensors/core/plugins/pyroomacoustics.py`
+- `src/isaac_audio_sensors/core/plugins/standard_doa.py`
+- `src/isaac_audio_sensors/core/perception.py`
 - `src/isaac_audio_sensors/core/plugins/adapters.py`
 - `tools/qualification/doa/phase_04_2.py`
+- `tools/qualification/doa/phase_04_3.py`
 - `tests/unit/test_doa_qualification.py`
 
 ## Version Notes
@@ -98,3 +109,4 @@ Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 
 - 2026-09-04: Qualified PyRoom SRP at a causal 250 ms observation context and estimator-local reliability threshold `0.034`; no maintained consumer or default estimator changed.
 - 2026-09-04: Superseded the v1 comparative conclusion with role-based v2 evidence, recalibrated PyRoom reliability to `0.06`, qualified its primary planar and compute roles, qualified least-squares two-microphone ambiguity, isolated the robustness failure, and kept optional 3D blocked.
 - 2026-09-04: Removed the synthetic split/SNR confounding by gating the complete independent primary matrix, relabeled the real partition as within-campaign take-level validation, and made two-microphone hardware and optional 3D limitations consumer-generic.
+- 2026-09-04: Integrated explicit standard DOA selection, exact rolling context, temporal reversal abstention, default-off Core/Isaac/Lab/Kit consumers, Kit binding v7, internal SRP removal, and the passing rolling 20 Hz gate.

@@ -276,6 +276,9 @@ class AudioPerceptionPipeline:
         values = np.asarray(samples)
         geometry = np.asarray(positions, dtype=float)
         signature = (
+            block.array_id,
+            block.producer_id,
+            block.provenance,
             block.sample_rate_hz,
             microphone_ids,
             geometry.shape,
@@ -286,7 +289,13 @@ class AudioPerceptionPipeline:
             self._doa_history_signature is not None
             and signature != self._doa_history_signature
         ):
-            reset_reason = "valid_channel_layout_changed"
+            previous_signature = self._doa_history_signature
+            if signature[:3] != previous_signature[:3]:
+                reset_reason = "stream_identity_changed"
+            elif signature[3] != previous_signature[3]:
+                reset_reason = "sample_rate_changed"
+            else:
+                reset_reason = "valid_channel_layout_changed"
             self._clear_doa_consumer_state()
         elif self._doa_history_end_s is not None and not _times_touch(
             self._doa_history_end_s,
@@ -341,11 +350,16 @@ class AudioPerceptionPipeline:
             "previous_accepted_bearing_deg": stable,
             "pending_bearing_deg": pending,
             "observed_bearing_deg": bearing,
+            "pending": pending is not None,
+            "confirmed": False,
+            "abstention_reason": None,
         }
         if bearing is None:
+            diagnostics["abstention_reason"] = estimate.ambiguity_reason
             if pending is not None:
                 self._doa_pending_bearing_deg = None
                 diagnostics["status"] = "pending_not_confirmed"
+                diagnostics["pending"] = False
             else:
                 diagnostics["status"] = "estimator_unresolved"
             return estimate, diagnostics
@@ -353,6 +367,7 @@ class AudioPerceptionPipeline:
             self._doa_stable_bearing_deg = bearing
             self._doa_pending_bearing_deg = None
             diagnostics["status"] = "accepted_initial"
+            diagnostics["pending"] = False
             return estimate, diagnostics
         if pending is not None:
             confirmation_delta = _circular_distance_deg(bearing, pending)
@@ -361,16 +376,33 @@ class AudioPerceptionPipeline:
             if confirmation_delta <= tolerance:
                 self._doa_stable_bearing_deg = bearing
                 diagnostics["status"] = "accepted_confirmed"
+                diagnostics["pending"] = False
+                diagnostics["confirmed"] = True
                 return estimate, diagnostics
             diagnostics["status"] = "pending_not_confirmed"
-            return _temporal_instability(estimate), diagnostics
+            diagnostics["pending"] = False
+            diagnostics["abstention_reason"] = (
+                "The next active bearing did not confirm the pending lobe."
+            )
+            return _temporal_instability(
+                estimate,
+                reason=str(diagnostics["abstention_reason"]),
+            ), diagnostics
 
         jump = _circular_distance_deg(bearing, stable)
         diagnostics["jump_delta_deg"] = jump
         if jump >= threshold:
             self._doa_pending_bearing_deg = bearing
             diagnostics["status"] = "confirmation_required"
-            return _temporal_instability(estimate), diagnostics
+            diagnostics["pending"] = True
+            diagnostics["abstention_reason"] = (
+                f"The observed bearing jumped by {jump:.6g} degrees and requires "
+                "confirmation from the next active update."
+            )
+            return _temporal_instability(
+                estimate,
+                reason=str(diagnostics["abstention_reason"]),
+            ), diagnostics
 
         self._doa_stable_bearing_deg = bearing
         diagnostics["status"] = "accepted_consistent"
@@ -448,7 +480,11 @@ def _circular_distance_deg(left: float, right: float) -> float:
     return abs((left - right + 180.0) % 360.0 - 180.0)
 
 
-def _temporal_instability(estimate: DoaEstimate) -> DoaEstimate:
+def _temporal_instability(
+    estimate: DoaEstimate,
+    *,
+    reason: str,
+) -> DoaEstimate:
     candidates = estimate.candidate_bearing_deg or (
         (estimate.estimated_bearing_deg,)
         if estimate.estimated_bearing_deg is not None
@@ -459,10 +495,7 @@ def _temporal_instability(estimate: DoaEstimate) -> DoaEstimate:
         candidate_bearing_deg=candidates,
         bearing_confidence=0.0,
         ambiguity_class="temporal_instability",
-        ambiguity_reason=(
-            "The observed bearing changed by at least 150 degrees and requires "
-            "confirmation from the next active update."
-        ),
+        ambiguity_reason=reason,
         candidate_elevation_deg=estimate.candidate_elevation_deg,
     )
 

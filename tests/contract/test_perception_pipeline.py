@@ -395,6 +395,13 @@ def test_opposite_jump_requires_next_active_confirmation() -> None:
         ]
         == "confirmation_required"
     )
+    instability = unstable.diagnostics["doa_estimator"]["consumer"][
+        "temporal_stability"
+    ]
+    assert instability["jump_delta_deg"] == 180.0
+    assert instability["pending"] is True
+    assert instability["confirmed"] is False
+    assert instability["abstention_reason"] == unstable.doa.ambiguity_reason
     confirmed = frames[6].observations[0]
     assert confirmed.doa.estimated_bearing_deg == 178.0
     assert (
@@ -403,6 +410,11 @@ def test_opposite_jump_requires_next_active_confirmation() -> None:
         ]["status"]
         == "accepted_confirmed"
     )
+    confirmed_state = confirmed.diagnostics["doa_estimator"]["consumer"][
+        "temporal_stability"
+    ]
+    assert confirmed_state["pending"] is False
+    assert confirmed_state["confirmed"] is True
 
 
 def test_failed_confirmation_abstains_and_inactivity_clears_reference() -> None:
@@ -460,6 +472,58 @@ def test_doa_context_resets_on_discontinuity_and_explicit_reset() -> None:
     assert after_reset.diagnostics["perception"]["doa_context"][
         "available_sample_count"
     ] == 1
+
+
+def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None:
+    detector = SequenceDetector([False] * 4)
+    estimator = ConsumerPolicyEstimator([])
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    )
+    array = _stream_array()
+    pipeline.process(_stream_block(0, value=1.0), array, frame_id="first")
+
+    layout = replace(
+        array,
+        microphones=(
+            replace(array.microphones[0], relative_position_m=(0.2, 0.0, 0.0)),
+            *array.microphones[1:],
+        ),
+    )
+    layout_frame = pipeline.process(
+        _stream_block(1, value=2.0),
+        layout,
+        frame_id="layout",
+    )
+    assert layout_frame.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+        "valid_channel_layout_changed"
+    )
+
+    rate_array = replace(layout, sample_rate_hz=40)
+    rate_block = replace(
+        _stream_block(2, value=3.0),
+        samples=np.full((3, 2), 3.0, dtype=np.float32),
+        sample_rate_hz=40,
+    )
+    rate_frame = pipeline.process(rate_block, rate_array, frame_id="rate")
+    assert rate_frame.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+        "sample_rate_changed"
+    )
+
+    stream_block = replace(
+        rate_block,
+        time_window=AudioTimeWindow(
+            start_time_s=0.15,
+            end_time_s=0.2,
+            frame_index=3,
+        ),
+        producer_id="replacement_stream",
+    )
+    stream_frame = pipeline.process(stream_block, rate_array, frame_id="stream")
+    assert stream_frame.diagnostics["perception"]["doa_context"][
+        "reset_reason"
+    ] == "stream_identity_changed"
 
 
 @pytest.mark.parametrize(

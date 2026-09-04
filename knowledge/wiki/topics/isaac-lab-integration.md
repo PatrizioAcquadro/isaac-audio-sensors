@@ -8,7 +8,7 @@ After launch, `AudioArraySensorCfg` directly inherits `SensorBaseCfg` and `Audio
 
 ## Configuration
 
-`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_observations`, optional `energy_threshold_dbfs`, `effects`, `speed_of_sound_mps`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers, `max_detections`, estimator selection, and sensor-side ambiguity policies are absent. The threshold must be a finite real value when present.
+`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_observations`, optional `energy_threshold_dbfs`, `doa_enabled=False`, effects, speed of sound, and analytic solver settings. The backend defaults to `analytic_acoustics`; estimator IDs and sensor-side ambiguity policies are absent. The threshold must be finite when present and the DOA opt-in must be Boolean.
 
 The active `SimulationContext` is the only device authority. `debug_vis=True` fails explicitly because the sensor has no real visualization implementation.
 
@@ -33,13 +33,13 @@ Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and 
 
 Inputs must already be rank-correct `float32` tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive exactly one explicit origin offset. WXYZ state quaternions convert to the package XYZW convention before relative poses are composed.
 
-Entity mode currently supports only `analytic_acoustics` over explicit `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. It rejects `energy_threshold_dbfs` because no microphone signal exists on this path, validates and resolves array/source entity state on the sensor device, and returns a correctly padded zero-observation result. Source poses and schedules are not converted into observations. Invalid directivity, orientation, gain, topology, options, devices, shapes, or dtypes still fail explicitly; there is no CUDA-to-CPU fallback.
+Entity mode currently supports only `analytic_acoustics` over explicit `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. It rejects `energy_threshold_dbfs` and `doa_enabled=True` because no microphone signal exists on this path, validates and resolves array/source entity state on the sensor device, and returns a correctly padded zero-observation result. Source poses and schedules are not converted into observations. Invalid directivity, orientation, gain, topology, options, devices, shapes, or dtypes still fail explicitly; there is no CUDA-to-CPU fallback.
 
 The current zero-observation path allocates and scatters fixed-shape tensors on the selected device. It does not loop over environments, transfer tensors to the CPU, or produce waveforms, reverberation, occlusion, SPL, calibration, closed-room behavior, or per-environment acoustic randomization.
 
 ## Reference Binding
 
-`bind_reference(snapshots, array_ids)` requires `AudioArraySensorCfg.energy_threshold_dbfs` and accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The reference path executes the selected Core backend through `simulate_frame()` with one independent persistent Auditok pipeline per environment and resets only selected environments. Detector decisions are intentionally not projected into the six tensors until Phase 07, so the current result remains zero-filled.
+`bind_reference(snapshots, array_ids)` requires `AudioArraySensorCfg.energy_threshold_dbfs` and accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The reference path executes the selected Core backend through `simulate_frame()` with one independent persistent standard pipeline per environment; `doa_enabled=True` enables the same geometry-routed consumer as scalar Core. Activity and DOA remain unprojected until Phase 07, so the six tensors remain zero-filled.
 
 This path remains a scalar lifecycle/debug boundary rather than an oracle reference. It does not inspect a USD stage, accept a scene/provider object, retain parallel `MicrophoneArraySpec` inputs, or turn snapshot source data into activity or direction labels.
 

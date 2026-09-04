@@ -3,7 +3,8 @@
 ## 3.0.0 - Unreleased
 
 - Integrate Auditok 0.5.2 into the standard sensor with an explicit finite `Activity dBFS` field, causal signal-derived observations, and reset on stream-defining array changes.
-- Breaking: use exact `ias.omni_extension_binding.v6` configuration with required `activity_detection.detector_id="auditok"` and `energy_threshold_dbfs`; reject older bindings without compatibility parsing.
+- Add a default-off DOA control using the maintained causal geometry-routed consumer; preserve unresolved warm-up, ambiguity, and temporal-instability evidence in live observations.
+- Breaking: use exact `ias.omni_extension_binding.v7` configuration with required Auditok activity state and `direction_estimation.enabled`; reject binding v6 and older without compatibility parsing.
 - Migrate state, configuration, export, recording, Replicator, OmniGraph, instruments, and summaries to frame-v3 observation/producer semantics without deriving source truth.
 - Preserve valid waveform and RMS output during inactive, warm-up, and post-reset empty-observation states, and bundle Auditok as the sixth hash-locked runtime distribution.
 - Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
