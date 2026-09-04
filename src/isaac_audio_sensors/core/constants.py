@@ -109,8 +109,6 @@ ACOUSTIC_ENVIRONMENT_KINDS = frozenset(
 )
 ACOUSTIC_SURFACE_ROLES = frozenset({"floor", "wall", "ceiling"})
 
-DOA_ESTIMATOR_IDS = frozenset({"tdoa_least_squares", "srp_phat"})
-
 SECTOR_ORDER = (
     "straight",
     "straight_right",

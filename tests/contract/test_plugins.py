@@ -126,7 +126,6 @@ def test_protocols_and_canonical_signature() -> None:
         registry.resolve("doa_estimator", "tdoa_least_squares"),
         DoaEstimator,
     )
-    assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
     pyroom = {
         item.plugin_id: item for item in registry.declarations("doa_estimator")
     }
@@ -140,10 +139,7 @@ def test_protocols_and_canonical_signature() -> None:
         )
 
 
-@pytest.mark.parametrize("estimator_id", ("tdoa_least_squares", "srp_phat"))
-def test_built_in_doa_estimators_run_from_mixture_and_local_geometry(
-    estimator_id: str,
-) -> None:
+def test_built_in_least_squares_runs_from_mixture_and_local_geometry() -> None:
     sample_rate_hz = 48_000
     microphone_positions_m = np.asarray(
         (
@@ -163,7 +159,9 @@ def test_built_in_doa_estimators_run_from_mixture_and_local_geometry(
             signal,
         )
     ).astype(np.float32)
-    estimator = get_default_registry().resolve("doa_estimator", estimator_id)
+    estimator = get_default_registry().resolve(
+        "doa_estimator", "tdoa_least_squares"
+    )
 
     doa, diagnostics = estimator.estimate(
         samples,
@@ -172,7 +170,7 @@ def test_built_in_doa_estimators_run_from_mixture_and_local_geometry(
     )
 
     assert isinstance(doa, DoaEstimate)
-    assert diagnostics["doa_estimator"] == estimator_id
+    assert diagnostics["doa_estimator"] == "tdoa_least_squares"
 
 
 def test_activity_detector_declaration_and_registry_contract() -> None:
@@ -247,7 +245,6 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
         ("propagation_backend", "analytic_acoustics"),
         ("doa_estimator", "tdoa_least_squares"),
         ("doa_estimator", "pyroomacoustics_srp"),
-        ("doa_estimator", "srp_phat"),
     }
     auditok = declarations[("activity_detector", "auditok")]
     assert auditok.required_dependencies == ("auditok",)

@@ -8,7 +8,6 @@ import pytest
 from isaac_audio_sensors.core.plugins import (
     GccPhatLeastSquaresEstimator,
     PyroomacousticsSrpEstimator,
-    SrpPhatEstimator,
 )
 
 
@@ -237,20 +236,6 @@ def test_pyroom_srp_rejects_invalid_configuration(
             planar_positions,
             16_000,
         )
-
-
-def test_internal_srp_abstains_on_unsupported_geometry() -> None:
-    positions = np.asarray(((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.2, 0.0, 0.0)))
-
-    estimate, diagnostics = SrpPhatEstimator().estimate(
-        np.ones((3, 1024)),
-        positions,
-        16_000,
-    )
-
-    assert estimate.estimated_bearing_deg is None
-    assert estimate.ambiguity_class == "unsupported_geometry"
-    assert diagnostics["reliability_score"] == 0.0
 
 
 def test_least_squares_threshold_preserves_candidate(

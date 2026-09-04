@@ -11,7 +11,6 @@ from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.plugins.adapters import (
     GccPhatLeastSquaresEstimator,
-    SrpPhatEstimator,
 )
 from isaac_audio_sensors.core.plugins.declarations import (
     PLUGIN_KINDS,
@@ -341,21 +340,6 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.plugins.pyroomacoustics",
             ),
             PyroomacousticsSrpEstimator,
-        ),
-        (
-            PluginDeclaration(
-                plugin_id="srp_phat",
-                kind="doa_estimator",
-                fidelity_level=None,
-                required_dependencies=(),
-                supported_devices=("cpu",),
-                supported_profiles=both_profiles,
-                deterministic=True,
-                output_contract=doa_contract,
-                description="Deterministic steered-response-power PHAT direction.",
-                provenance="isaac_audio_sensors.core.doa.srp_phat",
-            ),
-            SrpPhatEstimator,
         ),
     )
 

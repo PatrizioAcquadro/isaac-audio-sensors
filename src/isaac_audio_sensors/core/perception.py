@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING
+from time import perf_counter_ns
+from typing import TYPE_CHECKING, cast
 
+from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
+from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.types import (
     ActivityDecision,
     AudioObservation,
@@ -64,6 +67,23 @@ class AudioPerceptionPipeline:
         self.detector_id = detector_id
         self._doa_estimator = doa_estimator
         self.max_observations = max_observations
+        self._doa_context_duration_s = _optional_positive_attribute(
+            doa_estimator,
+            "consumer_context_duration_s",
+        )
+        self._doa_jump_threshold_deg = _optional_bearing_attribute(
+            doa_estimator,
+            "consumer_jump_threshold_deg",
+        )
+        self._doa_confirmation_tolerance_deg = _optional_bearing_attribute(
+            doa_estimator,
+            "consumer_confirmation_tolerance_deg",
+        )
+        self._doa_history: object | None = None
+        self._doa_history_signature: tuple[object, ...] | None = None
+        self._doa_history_end_s: float | None = None
+        self._doa_stable_bearing_deg: float | None = None
+        self._doa_pending_bearing_deg: float | None = None
 
     def reset(self) -> None:
         """Reset each injected stateful perception component once."""
@@ -76,6 +96,7 @@ class AudioPerceptionPipeline:
             reset = getattr(component, "reset", None)
             if callable(reset):
                 reset()
+        self._clear_doa_consumer_state()
 
     def process(
         self,
@@ -123,6 +144,21 @@ class AudioPerceptionPipeline:
         if valid_indices and self._activity_detector is not None:
             valid_samples = np.ascontiguousarray(block.samples[list(valid_indices)])
             valid_samples.setflags(write=False)
+            positions = np.asarray(
+                [
+                    array.microphones[index].relative_position_m
+                    for index in valid_indices
+                ],
+                dtype=float,
+            )
+            doa_samples, context_diagnostics = self._update_doa_context(
+                valid_samples,
+                positions,
+                tuple(block.microphone_ids[index] for index in valid_indices),
+                block,
+            )
+            if context_diagnostics is not None:
+                perception_diagnostics["doa_context"] = context_diagnostics
             decision = self._activity_detector.detect(
                 valid_samples,
                 block.sample_rate_hz,
@@ -141,26 +177,31 @@ class AudioPerceptionPipeline:
                     "detector_diagnostics": detector_diagnostics,
                 }
             )
+            if not decision.active:
+                self._clear_doa_temporal_state()
             if decision.active:
                 observation_diagnostics: dict[str, object] = {
                     "activity_detector": detector_diagnostics,
                 }
                 doa: DoaEstimate | None = None
                 if self._doa_estimator is not None and len(valid_indices) >= 2:
-                    positions = np.asarray(
-                        [
-                            array.microphones[index].relative_position_m
-                            for index in valid_indices
-                        ],
-                        dtype=float,
-                    )
+                    started_ns = perf_counter_ns()
                     doa, doa_diagnostics = _doa_result(
                         self._doa_estimator.estimate(
-                            valid_samples,
+                            doa_samples,
                             positions,
                             block.sample_rate_hz,
                         )
                     )
+                    compute_latency_ms = (perf_counter_ns() - started_ns) / 1e6
+                    doa, temporal_diagnostics = self._apply_doa_temporal_policy(doa)
+                    if self._doa_context_duration_s is not None:
+                        doa_diagnostics["consumer"] = {
+                            "causal": True,
+                            "compute_latency_ms": compute_latency_ms,
+                            "context": context_diagnostics,
+                            "temporal_stability": temporal_diagnostics,
+                        }
                     observation_diagnostics["doa_estimator"] = doa_diagnostics
                 elif self._doa_estimator is not None:
                     observation_diagnostics["doa_skipped"] = (
@@ -220,6 +261,131 @@ class AudioPerceptionPipeline:
             },
         )
 
+    def _update_doa_context(
+        self,
+        samples: object,
+        positions: object,
+        microphone_ids: tuple[str, ...],
+        block: MicrophoneSignalBlock,
+    ) -> tuple[object, dict[str, object] | None]:
+        import numpy as np
+
+        if self._doa_estimator is None or self._doa_context_duration_s is None:
+            return samples, None
+
+        values = np.asarray(samples)
+        geometry = np.asarray(positions, dtype=float)
+        signature = (
+            block.sample_rate_hz,
+            microphone_ids,
+            geometry.shape,
+            geometry.tobytes(),
+        )
+        reset_reason: str | None = None
+        if (
+            self._doa_history_signature is not None
+            and signature != self._doa_history_signature
+        ):
+            reset_reason = "valid_channel_layout_changed"
+            self._clear_doa_consumer_state()
+        elif self._doa_history_end_s is not None and not _times_touch(
+            self._doa_history_end_s,
+            block.time_window.start_time_s,
+        ):
+            reset_reason = "non_contiguous_time_window"
+            self._clear_doa_consumer_state()
+
+        previous = self._doa_history
+        buffered = (
+            np.array(values, copy=True, order="C")
+            if previous is None
+            else np.concatenate((np.asarray(previous), values), axis=1)
+        )
+        required_samples = round(
+            self._doa_context_duration_s * block.sample_rate_hz
+        )
+        if buffered.shape[1] > required_samples:
+            buffered = np.array(
+                buffered[:, -required_samples:],
+                copy=True,
+                order="C",
+            )
+        buffered.setflags(write=False)
+        self._doa_history = buffered
+        self._doa_history_signature = signature
+        self._doa_history_end_s = block.time_window.end_time_s
+        return buffered, {
+            "required_duration_s": self._doa_context_duration_s,
+            "required_sample_count": required_samples,
+            "available_duration_s": buffered.shape[1] / block.sample_rate_hz,
+            "available_sample_count": int(buffered.shape[1]),
+            "complete": buffered.shape[1] == required_samples,
+            "reset_reason": reset_reason,
+        }
+
+    def _apply_doa_temporal_policy(
+        self,
+        estimate: DoaEstimate,
+    ) -> tuple[DoaEstimate, dict[str, object] | None]:
+        threshold = self._doa_jump_threshold_deg
+        tolerance = self._doa_confirmation_tolerance_deg
+        if threshold is None or tolerance is None:
+            return estimate, None
+
+        bearing = estimate.estimated_bearing_deg
+        stable = self._doa_stable_bearing_deg
+        pending = self._doa_pending_bearing_deg
+        diagnostics: dict[str, object] = {
+            "jump_threshold_deg": threshold,
+            "confirmation_tolerance_deg": tolerance,
+            "previous_accepted_bearing_deg": stable,
+            "pending_bearing_deg": pending,
+            "observed_bearing_deg": bearing,
+        }
+        if bearing is None:
+            if pending is not None:
+                self._doa_pending_bearing_deg = None
+                diagnostics["status"] = "pending_not_confirmed"
+            else:
+                diagnostics["status"] = "estimator_unresolved"
+            return estimate, diagnostics
+        if stable is None:
+            self._doa_stable_bearing_deg = bearing
+            self._doa_pending_bearing_deg = None
+            diagnostics["status"] = "accepted_initial"
+            return estimate, diagnostics
+        if pending is not None:
+            confirmation_delta = _circular_distance_deg(bearing, pending)
+            diagnostics["confirmation_delta_deg"] = confirmation_delta
+            self._doa_pending_bearing_deg = None
+            if confirmation_delta <= tolerance:
+                self._doa_stable_bearing_deg = bearing
+                diagnostics["status"] = "accepted_confirmed"
+                return estimate, diagnostics
+            diagnostics["status"] = "pending_not_confirmed"
+            return _temporal_instability(estimate), diagnostics
+
+        jump = _circular_distance_deg(bearing, stable)
+        diagnostics["jump_delta_deg"] = jump
+        if jump >= threshold:
+            self._doa_pending_bearing_deg = bearing
+            diagnostics["status"] = "confirmation_required"
+            return _temporal_instability(estimate), diagnostics
+
+        self._doa_stable_bearing_deg = bearing
+        diagnostics["status"] = "accepted_consistent"
+        return estimate, diagnostics
+
+    def _clear_doa_temporal_state(self) -> None:
+        self._doa_stable_bearing_deg = None
+        self._doa_pending_bearing_deg = None
+
+    def _clear_doa_consumer_state(self) -> None:
+        self._doa_history = None
+        self._doa_history_signature = None
+        self._doa_history_end_s = None
+        self._clear_doa_temporal_state()
+
     @staticmethod
     def _validate_binding(
         block: MicrophoneSignalBlock,
@@ -254,6 +420,87 @@ def _doa_result(result: object) -> tuple[DoaEstimate, dict[str, object]]:
     if not isinstance(diagnostics, Mapping):
         raise TypeError("doa_estimator diagnostics must be a mapping.")
     return doa, dict(diagnostics)
+
+
+def _optional_positive_attribute(component: object, name: str) -> float | None:
+    if component is None or not hasattr(component, name):
+        return None
+    value = float(getattr(component, name))
+    if value <= 0.0:
+        raise ValueError(f"{name} must be positive.")
+    return value
+
+
+def _optional_bearing_attribute(component: object, name: str) -> float | None:
+    value = _optional_positive_attribute(component, name)
+    if value is not None and value > 180.0:
+        raise ValueError(f"{name} must be in (0, 180].")
+    return value
+
+
+def _times_touch(left: float, right: float) -> bool:
+    import math
+
+    return math.isclose(left, right, rel_tol=1e-9, abs_tol=1e-9)
+
+
+def _circular_distance_deg(left: float, right: float) -> float:
+    return abs((left - right + 180.0) % 360.0 - 180.0)
+
+
+def _temporal_instability(estimate: DoaEstimate) -> DoaEstimate:
+    candidates = estimate.candidate_bearing_deg or (
+        (estimate.estimated_bearing_deg,)
+        if estimate.estimated_bearing_deg is not None
+        else ()
+    )
+    return DoaEstimate(
+        estimated_bearing_deg=None,
+        candidate_bearing_deg=candidates,
+        bearing_confidence=0.0,
+        ambiguity_class="temporal_instability",
+        ambiguity_reason=(
+            "The observed bearing changed by at least 150 degrees and requires "
+            "confirmation from the next active update."
+        ),
+        candidate_elevation_deg=estimate.candidate_elevation_deg,
+    )
+
+
+def _build_standard_perception_pipeline(
+    *,
+    energy_threshold_dbfs: float,
+    doa_enabled: bool = False,
+    max_observations: int | None = None,
+    runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+) -> AudioPerceptionPipeline:
+    """Compose the maintained scalar detector and optional DOA consumer."""
+
+    if not isinstance(doa_enabled, bool):
+        raise ConfigValidationError("doa_enabled must be a boolean.")
+
+    from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
+    from isaac_audio_sensors.core.plugins.registry import get_default_registry
+    from isaac_audio_sensors.core.plugins.standard_doa import MaintainedDoaEstimator
+
+    activity_detector = cast(
+        ActivityDetector,
+        get_default_registry().resolve(
+            "activity_detector",
+            "auditok",
+            runtime_profile=runtime_profile,
+            factory_kwargs={"energy_threshold_dbfs": energy_threshold_dbfs},
+        ),
+    )
+    return AudioPerceptionPipeline(
+        activity_detector=activity_detector,
+        doa_estimator=(
+            MaintainedDoaEstimator(runtime_profile=runtime_profile)
+            if doa_enabled
+            else None
+        ),
+        max_observations=max_observations,
+    )
 
 
 __all__ = ["AudioPerceptionPipeline"]

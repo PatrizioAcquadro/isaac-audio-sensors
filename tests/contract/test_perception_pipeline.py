@@ -85,6 +85,53 @@ class StatefulPerceptionComponent:
         self.reset_count += 1
 
 
+class SequenceDetector(FakeDetector):
+    def __init__(self, decisions: list[bool]) -> None:
+        super().__init__(False)
+        self.decisions = iter(decisions)
+
+    def detect(self, samples, sample_rate_hz):
+        self.active = next(self.decisions)
+        return super().detect(samples, sample_rate_hz)
+
+
+class ConsumerPolicyEstimator:
+    consumer_context_duration_s = 0.25
+    consumer_jump_threshold_deg = 150.0
+    consumer_confirmation_tolerance_deg = 30.0
+
+    def __init__(self, bearings: list[float]) -> None:
+        self.bearings = iter(bearings)
+        self.calls: list[np.ndarray] = []
+
+    def estimate(self, samples, microphone_positions_m, sample_rate_hz):
+        del microphone_positions_m
+        self.calls.append(np.array(samples, copy=True))
+        required = round(self.consumer_context_duration_s * sample_rate_hz)
+        if samples.shape[1] < required:
+            return (
+                DoaEstimate(
+                    estimated_bearing_deg=None,
+                    ambiguity_class="insufficient_context",
+                    ambiguity_reason="complete causal context required",
+                ),
+                {"doa_estimator": "policy_fake", "resolved": False},
+            )
+        bearing = next(self.bearings)
+        return (
+            DoaEstimate(
+                estimated_bearing_deg=bearing,
+                candidate_bearing_deg=(bearing,),
+                bearing_confidence=0.8,
+            ),
+            {
+                "doa_estimator": "policy_fake",
+                "reliability_score": 0.8,
+                "resolved": True,
+            },
+        )
+
+
 def test_inactive_and_detector_free_frames_have_no_observations() -> None:
     detector = FakeDetector(False)
     inactive = AudioPerceptionPipeline(activity_detector=detector).process(
@@ -284,6 +331,137 @@ def test_fully_invalid_block_skips_all_perception() -> None:
     assert frame.observations == ()
 
 
+def test_causal_context_accumulates_inactive_blocks_and_keeps_trailing_window() -> None:
+    detector = SequenceDetector([False, False, False, False, True, True])
+    estimator = ConsumerPolicyEstimator([0.0, 0.0])
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    )
+
+    frames = [
+        pipeline.process(
+            _stream_block(index, value=float(index + 1)),
+            _stream_array(),
+            frame_id=f"rolling_{index}",
+        )
+        for index in range(6)
+    ]
+
+    assert all(not frame.observations for frame in frames[:4])
+    assert frames[4].observations[0].doa.estimated_bearing_deg == 0.0
+    assert estimator.calls[0].tolist() == [[1, 2, 3, 4, 5]] * 3
+    assert estimator.calls[1].tolist() == [[2, 3, 4, 5, 6]] * 3
+    context = frames[5].diagnostics["perception"]["doa_context"]
+    assert context == {
+        "required_duration_s": 0.25,
+        "required_sample_count": 5,
+        "available_duration_s": 0.25,
+        "available_sample_count": 5,
+        "complete": True,
+        "reset_reason": None,
+    }
+
+
+def test_opposite_jump_requires_next_active_confirmation() -> None:
+    detector = SequenceDetector([True] * 7)
+    estimator = ConsumerPolicyEstimator([0.0, 180.0, 178.0])
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    )
+
+    frames = [
+        pipeline.process(
+            _stream_block(index, value=float(index + 1)),
+            _stream_array(),
+            frame_id=f"jump_{index}",
+        )
+        for index in range(7)
+    ]
+
+    assert all(
+        frame.observations[0].doa.ambiguity_class == "insufficient_context"
+        for frame in frames[:4]
+    )
+    assert frames[4].observations[0].doa.estimated_bearing_deg == 0.0
+    unstable = frames[5].observations[0]
+    assert unstable.doa.estimated_bearing_deg is None
+    assert unstable.doa.ambiguity_class == "temporal_instability"
+    assert unstable.doa.candidate_bearing_deg == (180.0,)
+    assert (
+        unstable.diagnostics["doa_estimator"]["consumer"]["temporal_stability"][
+            "status"
+        ]
+        == "confirmation_required"
+    )
+    confirmed = frames[6].observations[0]
+    assert confirmed.doa.estimated_bearing_deg == 178.0
+    assert (
+        confirmed.diagnostics["doa_estimator"]["consumer"][
+            "temporal_stability"
+        ]["status"]
+        == "accepted_confirmed"
+    )
+
+
+def test_failed_confirmation_abstains_and_inactivity_clears_reference() -> None:
+    detector = SequenceDetector([True] * 7 + [False, True])
+    estimator = ConsumerPolicyEstimator([0.0, 180.0, 90.0, 180.0])
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    )
+    frames = [
+        pipeline.process(
+            _stream_block(index, value=float(index + 1)),
+            _stream_array(),
+            frame_id=f"reset_{index}",
+        )
+        for index in range(9)
+    ]
+
+    assert frames[5].observations[0].doa.ambiguity_class == "temporal_instability"
+    assert frames[6].observations[0].doa.ambiguity_class == "temporal_instability"
+    assert frames[7].observations == ()
+    assert frames[8].observations[0].doa.estimated_bearing_deg == 180.0
+    assert (
+        frames[8].observations[0].diagnostics["doa_estimator"]["consumer"][
+            "temporal_stability"
+        ]["status"]
+        == "accepted_initial"
+    )
+
+
+def test_doa_context_resets_on_discontinuity_and_explicit_reset() -> None:
+    detector = SequenceDetector([False, False, False])
+    estimator = ConsumerPolicyEstimator([])
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    )
+    pipeline.process(_stream_block(0, value=1.0), _stream_array(), frame_id="first")
+    gap = pipeline.process(
+        _stream_block(2, value=3.0),
+        _stream_array(),
+        frame_id="gap",
+    )
+    assert gap.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+        "non_contiguous_time_window"
+    )
+    assert gap.diagnostics["perception"]["doa_context"]["available_sample_count"] == 1
+
+    pipeline.reset()
+    after_reset = pipeline.process(
+        _stream_block(3, value=4.0),
+        _stream_array(),
+        frame_id="after_reset",
+    )
+    assert after_reset.diagnostics["perception"]["doa_context"][
+        "available_sample_count"
+    ] == 1
+
+
 @pytest.mark.parametrize(
     ("block_overrides", "message"),
     (
@@ -386,6 +564,39 @@ def _three_mic_array() -> MicrophoneArraySpec:
             MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -0.1, 0.0)),
         ),
         sample_rate_hz=4,
+    )
+
+
+def _stream_array() -> MicrophoneArraySpec:
+    return MicrophoneArraySpec(
+        array_id="stream_rig",
+        prim_path="/World/StreamRig",
+        position_world=(0.0, 0.0, 0.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        microphones=(
+            MicrophoneSpec(mic_id="front", relative_position_m=(0.1, 0.0, 0.0)),
+            MicrophoneSpec(mic_id="right", relative_position_m=(0.0, 0.1, 0.0)),
+            MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -0.1, 0.0)),
+        ),
+        sample_rate_hz=20,
+    )
+
+
+def _stream_block(index: int, *, value: float) -> MicrophoneSignalBlock:
+    start = index * 0.05
+    return MicrophoneSignalBlock(
+        samples=np.full((3, 1), value, dtype=np.float32),
+        microphone_ids=("front", "right", "left"),
+        array_id="stream_rig",
+        sample_rate_hz=20,
+        time_window=AudioTimeWindow(
+            start_time_s=start,
+            end_time_s=start + 0.05,
+            frame_index=index,
+        ),
+        channel_validity=(True, True, True),
+        producer_id="stream",
+        provenance="synthetic/core",
     )
 
 

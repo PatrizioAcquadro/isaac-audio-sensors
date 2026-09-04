@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from isaac_audio_sensors.core.plugins.adapters import (
     GccPhatLeastSquaresEstimator,
-    SrpPhatEstimator,
 )
 from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
 from isaac_audio_sensors.core.plugins.declarations import (
@@ -42,6 +41,5 @@ __all__ = [
     "PluginRegistry",
     "PropagationBackend",
     "PyroomacousticsSrpEstimator",
-    "SrpPhatEstimator",
     "get_default_registry",
 ]
