@@ -423,11 +423,11 @@ class SessionRecorder:
         gap_plan: TimeGapPlan | None = None
         if self.preserve_time_gaps:
             payload, block, gap_plan, reason = self._validated_gap_append_inputs(
-                frame, signal_block, timestamp_ms, is_reset
+                frame, signal_block, is_reset
             )
         else:
             payload, block, reason = self._validated_append_inputs(
-                frame, signal_block, timestamp_ms, is_reset
+                frame, signal_block, is_reset
             )
         if reason is not None:
             self._record_drop(frame)
@@ -448,9 +448,7 @@ class SessionRecorder:
             self._resolve_pending_boundary(mid_episode=True)
 
         dataset_index = self._next_dataset_frame
-        producer_step = payload.get("frame_index")
-        if type(producer_step) is not int:
-            producer_step = None
+        producer_step = frame.frame_index
         episode = self._current_episode
         episode.timestamps_ms.append(timestamp_ms)
         if episode.frame_count == 0:
@@ -459,9 +457,7 @@ class SessionRecorder:
         if is_reset:
             episode.reset_markers.append(
                 ResetMarker(
-                    step_index=producer_step
-                    if producer_step is not None
-                    else dataset_index,
+                    step_index=producer_step,
                     frame_index=dataset_index,
                     timestamp_ms=timestamp_ms,
                 )
@@ -470,9 +466,7 @@ class SessionRecorder:
         self._next_dataset_frame += 1
         episode.frame_count += 1
         episode.last_timestamp_ms = timestamp_ms
-        self._recovery_store.record_producer_id(
-            episode.ordinal, str(payload["frame_id"])
-        )
+        self._recovery_store.record_producer_id(episode.ordinal, frame.frame_id)
         if gap_plan is not None:
             self._commit_time_gap_plan(gap_plan, timestamp_ms=timestamp_ms)
 
@@ -499,29 +493,19 @@ class SessionRecorder:
 
     def _validated_append_inputs(
         self,
-        frame: AudioSensorFrame | dict[str, Any],
+        frame: AudioSensorFrame,
         signal_block: MicrophoneSignalBlock | None,
-        timestamp_ms: int,
         is_reset: bool,
     ) -> tuple[dict[str, Any] | None, np.ndarray | None, str | None]:
         try:
             if not isinstance(is_reset, bool):
                 raise ValueError("is_reset must be a bool")
-            if isinstance(timestamp_ms, bool) or int(timestamp_ms) != timestamp_ms:
-                raise ValueError("timestamp_ms must be an integer")
-            payload = (
-                frame_to_trace_dict(frame)
-                if isinstance(frame, AudioSensorFrame)
-                else frame
-            )
+            payload = frame_to_trace_dict(frame)
             validate_trace_projection(
                 payload,
                 session_root=self.session_root,
                 location="producer frame",
             )
-            assert isinstance(payload, dict)
-            if payload["timestamp_ms"] != int(timestamp_ms):
-                raise ValueError("timestamp_ms disagrees with frame.timestamp_ms")
             if payload["producer_id"] != self.configuration["backend_id"]:
                 raise ValueError("frame.producer_id disagrees with configuration")
             if payload.get("sample_rate_hz") not in (None, self.sample_rate_hz):
@@ -530,11 +514,11 @@ class SessionRecorder:
             assert episode is not None
             if (
                 episode.last_timestamp_ms is not None
-                and timestamp_ms < episode.last_timestamp_ms
+                and frame.timestamp_ms < episode.last_timestamp_ms
             ):
                 raise ValueError("timestamp_ms is non-monotonic within the episode")
             if self._recovery_store.contains_producer_id(
-                episode.ordinal, str(payload["frame_id"])
+                episode.ordinal, frame.frame_id
             ):
                 raise ValueError("duplicate producer frame_id within the episode")
             block: np.ndarray | None = None
@@ -557,8 +541,6 @@ class SessionRecorder:
                 ):
                     raise ValueError("signal_block.time_window disagrees with frame")
                 frame_validity = frame.channel_validity
-                if not isinstance(frame_validity, dict):
-                    raise ValueError("frame.channel_validity must be an object")
                 channel_order = tuple(self.configuration["channel_order"])
                 if signal_block.microphone_ids != channel_order:
                     raise ValueError(
@@ -587,9 +569,8 @@ class SessionRecorder:
 
     def _validated_gap_append_inputs(
         self,
-        frame: AudioSensorFrame | dict[str, Any],
+        frame: AudioSensorFrame,
         signal_block: MicrophoneSignalBlock | None,
-        timestamp_ms: int,
         is_reset: bool,
     ) -> tuple[
         dict[str, Any] | None,
@@ -598,7 +579,7 @@ class SessionRecorder:
         str | None,
     ]:
         payload, block, reason = self._validated_append_inputs(
-            frame, signal_block, timestamp_ms, is_reset
+            frame, signal_block, is_reset
         )
         if reason is not None:
             if "timestamp_ms is non-monotonic" in reason:
@@ -606,16 +587,11 @@ class SessionRecorder:
             return None, None, None, reason
         assert payload is not None
         try:
-            if type(timestamp_ms) is not int or timestamp_ms < 0:
+            timestamp_ms = frame.timestamp_ms
+            if timestamp_ms < 0:
                 raise ValueError("timestamp_ms must be a non-negative integer")
-            if block is None or block.shape != (
-                self.channels,
-                self.window_sample_count,
-            ):
-                raise ValueError(
-                    "signal_block.samples must be finite float32 with exact shape "
-                    f"({self.channels}, {self.window_sample_count})"
-                )
+            if block is None:
+                raise ValueError("preserve_time_gaps requires a signal_block")
             if 4 * self.channels > 1_048_576:
                 raise ValueError(
                     "audio_block channel row exceeds the 1 MiB gap allocation cap"
@@ -628,14 +604,14 @@ class SessionRecorder:
     def _compute_time_gap_plan(
         self,
         payload: Mapping[str, Any],
-        timestamp_ms: object,
+        timestamp_ms: int,
     ) -> TimeGapPlan:
         return compute_time_gap_plan(
             self._time_gap_cursor,
             placement_sequence=self._next_dataset_frame,
             start_time_s=payload.get("start_time_s"),
             end_time_s=payload.get("end_time_s"),
-            timestamp_ms=timestamp_ms,  # type: ignore[arg-type]
+            timestamp_ms=timestamp_ms,
             sample_rate_hz=self.sample_rate_hz,
             window_sample_count=self.window_sample_count,
             hop_sample_count=self.hop_sample_count,
@@ -664,15 +640,8 @@ class SessionRecorder:
             self._time_gap_counters["absorbed_drift_samples_signed"] += absorbed
         self._planned_session_audio_samples += inserted + self.hop_sample_count
 
-    def _record_drop(self, frame: AudioSensorFrame | dict[str, Any]) -> None:
-        producer_id: object
-        if isinstance(frame, AudioSensorFrame):
-            producer_id = frame.frame_id
-        elif isinstance(frame, dict):
-            producer_id = frame.get("frame_id", "<unknown>")
-        else:
-            producer_id = "<unknown>"
-        text = str(producer_id) or "<unknown>"
+    def _record_drop(self, frame: AudioSensorFrame) -> None:
+        text = frame.frame_id or "<unknown>"
         self._pending_drop_count += 1
         if len(self._pending_drop_ids) < 100:
             self._pending_drop_ids.append(text)

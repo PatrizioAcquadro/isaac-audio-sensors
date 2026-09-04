@@ -103,7 +103,6 @@ class FrameWaveformWriter:
                 "mode": "per_frame",
                 "channel_mic_ids": list(block.microphone_ids),
                 "sample_count": int(block.samples.shape[1]),
-                "window_sample_count": int(block.samples.shape[1]),
                 "sample_rate_hz": block.sample_rate_hz,
                 "subtype": WAVEFORM_WAV_SUBTYPE,
             },
@@ -157,7 +156,6 @@ class ContinuousWaveformWriter:
             paths=(str(self.path),),
             diagnostics={
                 "mode": "session",
-                "path": str(self.path),
                 "start_sample": start_sample,
                 "end_sample": self._cursor,
                 "channel_mic_ids": list(block.microphone_ids),

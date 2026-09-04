@@ -45,7 +45,7 @@ def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> No
         channel_validity=(True, True, True, True),
         producer_id="counting",
         provenance="synthetic/core",
-        diagnostics={"rendered_sample_count": 480},
+        diagnostics={"backend_detail": "counting"},
     )
     backend = CountingBackend(block)
     sink = CaptureSink()
@@ -65,7 +65,7 @@ def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> No
     assert frame.frame_id == "counting_orchestration_rig_0_7"
     assert frame.frame_name == "orchestration/rig/counting/frame7_t0ms"
     assert frame.observations == ()
-    assert frame.diagnostics["rendered_sample_count"] == 480
+    assert frame.diagnostics["backend_detail"] == "counting"
     assert frame.diagnostics["waveform"] == {"mode": "stub"}
 
 

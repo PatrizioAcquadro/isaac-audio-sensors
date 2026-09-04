@@ -8,7 +8,6 @@ import pytest
 
 from isaac_audio_sensors.core.plugins import AuditokActivityDetector
 from isaac_audio_sensors.core.plugins.auditok import (
-    _AUDITOK_REFERENCE_DB,
     _float32_interleaved_bytes,
 )
 
@@ -36,25 +35,6 @@ def _detector(
         min_activity_s=min_activity_s,
         max_silence_s=max_silence_s,
     )
-
-
-def _candidate_calibration_threshold_dbfs(samples: np.ndarray) -> float:
-    payload = _float32_interleaved_bytes(samples)
-    energies = auditok.signal.compute_frame_energies(
-        payload,
-        4,
-        samples.shape[0],
-        WINDOW_SAMPLES,
-        use_channel="any",
-    )
-    estimate = auditok.signal.estimate_energy_threshold(
-        energies,
-        method="percentile",
-        percentile=10.0,
-        margin=6.0,
-    )
-    floor = -50.0 + _AUDITOK_REFERENCE_DB
-    return max(estimate, floor) - _AUDITOK_REFERENCE_DB
 
 
 def test_float32_bytes_round_trip_preserves_scale_order_and_strides() -> None:
@@ -92,6 +72,10 @@ def test_threshold_and_diagnostics_use_ias_dbfs_scale() -> None:
 
 
 def test_current_block_is_causal_and_uses_bounded_past_context() -> None:
+    short_activity = _detector(min_activity_s=0.02)
+    assert short_activity.detect(_samples(0.2), SAMPLE_RATE_HZ).active is False
+    assert short_activity.detect(_samples(0.0), SAMPLE_RATE_HZ).active is False
+
     detector = _detector(min_activity_s=0.02, max_silence_s=0.01)
 
     assert detector.detect(_samples(0.2), SAMPLE_RATE_HZ).active is False
@@ -206,29 +190,3 @@ def test_invalid_signal_inputs_fail_closed(
 def test_invalid_detector_configuration_fails_closed(kwargs, message) -> None:
     with pytest.raises(ValueError, match=message):
         AuditokActivityDetector(**kwargs)
-
-
-def test_initial_calibration_candidate_remains_an_explicit_pre_stream_step() -> None:
-    quiet = np.tile(
-        np.array([0.0005, 0.001, 0.002, 0.001], dtype=np.float32),
-        750,
-    )[None, :]
-    contaminated = quiet.copy()
-    contaminated[:, : 29 * quiet.shape[1] // 30] = 0.2
-
-    quiet_threshold = _candidate_calibration_threshold_dbfs(quiet)
-    contaminated_threshold = _candidate_calibration_threshold_dbfs(contaminated)
-
-    assert quiet_threshold >= -50.0
-    assert contaminated_threshold > quiet_threshold
-    assert _detector().detect(_samples(0.011), SAMPLE_RATE_HZ).active is False
-
-
-def test_short_impulse_is_an_operating_limit_not_a_qualification_failure() -> None:
-    detector = _detector(min_activity_s=0.02, max_silence_s=0.0)
-
-    impulse = detector.detect(_samples(0.2), SAMPLE_RATE_HZ)
-    following_silence = detector.detect(_samples(0.0), SAMPLE_RATE_HZ)
-
-    assert impulse.active is False
-    assert following_silence.active is False

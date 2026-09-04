@@ -151,7 +151,7 @@ def _exercise_analytic_rooms() -> list[str]:
             atol=5e-8,
         )
         solver_ids.append(str(frame.diagnostics["analytic_solver"]["solver_id"]))
-        assert direct_frame.diagnostics["rendered_sample_count"] >= direct.shape[1]
+        assert direct_frame.aggregate_per_mic_rms
         assert frame.observations == ()
         assert all(value > 0.0 for value in frame.aggregate_per_mic_rms.values())
     return solver_ids

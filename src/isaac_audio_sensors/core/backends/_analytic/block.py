@@ -20,7 +20,6 @@ def assemble_signal_block(
     """Project one private analytic render into the public signal boundary."""
 
     provider = "core" if core_solver else "pyroomacoustics"
-    rendered_sample_count = int(rendered.mixture.shape[1])
     diagnostics: dict[str, object] = {
         "analytic_solver": {
             "solver_id": solver_id,
@@ -28,11 +27,6 @@ def assemble_signal_block(
             "provider_version": str(getattr(prepared.pra, "__version__", "unknown")),
             "environment_kind": prepared.scene.environment.kind,
         },
-        "rendered_sample_count": rendered_sample_count,
-        "tail_sample_count": max(
-            0,
-            rendered_sample_count - prepared.window_sample_count,
-        ),
     }
     effect_stages = tuple(sorted(rendered.effect_diagnostics))
     if effect_stages:

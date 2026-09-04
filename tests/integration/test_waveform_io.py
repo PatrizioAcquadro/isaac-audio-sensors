@@ -49,7 +49,7 @@ def test_waveform_filename_is_portable():
     assert waveform_safe_filename("a/b\\c:d e") == "a_b_c_d_e"
 
 
-def test_continuous_writer_close_does_not_append_private_render_tail(tmp_path):
+def test_continuous_writer_close_does_not_append_beyond_exact_block(tmp_path):
     soundfile = pytest.importorskip("soundfile")
     samples = np.asarray([[0.1, 0.2, 0.3, 0.4]], dtype=np.float32)
     block = MicrophoneSignalBlock(
@@ -63,7 +63,6 @@ def test_continuous_writer_close_does_not_append_private_render_tail(tmp_path):
         channel_validity=(True,),
         producer_id="analytic_acoustics",
         provenance="synthetic/core",
-        diagnostics={"rendered_sample_count": 20, "tail_sample_count": 16},
     )
     writer = ContinuousWaveformWriter(tmp_path / "continuous.wav")
 
