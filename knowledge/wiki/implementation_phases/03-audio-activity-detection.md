@@ -43,7 +43,7 @@ IAS `[channel, sample]` values are converted to native-endian IEEE-754 `float32`
 
 The built-in registry exposes `auditok` for both runtime profiles and requires factory kwargs containing the threshold. Importing `core.plugins` does not import Auditok. Standard Python declares `auditok>=0.5.2,<0.6` as a Core dependency; the Kit archive locks and audits the exact 0.5.2 pure-Python wheel, metadata, and MIT license as its sixth bundled distribution. At the 03.2 boundary, no Core, Isaac, Lab, Kit, CLI, or configuration default selected the detector; 03.3 later integrated it into maintained scalar consumers.
 
-Fixed threshold and initial calibration received separate verdicts. `fixed_threshold` passes the blocking current-block, causality, reset, multichannel, determinism, float-format/scale, packaging, and supported-runtime gates. `initial_calibration` is not admitted as an in-band detector mode: the Boolean contract cannot represent “not ready,” and `active=False` would incorrectly mean inactive. An explicit pre-stream experiment may estimate a number and then construct a fresh fixed-threshold detector, but percentile 10, 6 dB margin, -50 dBFS floor, and 3 s duration remain unconfirmed initial values rather than runtime defaults.
+Only the fixed-threshold profile is maintained. Calibration is absent from the streaming contract and production implementation because the Boolean decision cannot represent “not ready.” Any future calibration requires an explicit readiness contract and separate evidence.
 
 #### Key Decisions
 
@@ -54,9 +54,7 @@ Fixed threshold and initial calibration received separate verdicts. `fixed_thres
 
 #### Problems / Limitations
 
-Low SNR can remain below the threshold, a noise-floor increase can produce sustained activity, contaminated calibration can raise the estimate, and impulses shorter than the temporal profile can be suppressed. These are operating limits, not automatic rejection conditions.
-
-The deterministic synthetic calibration probe produced -53.96 dBFS before applying the provisional -50 dBFS floor under stable background and -20.02 dBFS under heavily contaminated calibration. A post-calibration floor increase crossed the fixed threshold after the minimum-duration window; a low-SNR case and a 25 ms impulse remained inactive. These measurements demonstrate sensitivity to the candidate parameters and do not establish physical calibration.
+Low SNR can remain below the threshold, a noise-floor increase can produce sustained activity, and impulses shorter than the temporal profile can be suppressed. These are operating limits, not automatic rejection conditions.
 
 For 500 four-channel, 48 kHz, 50 ms blocks, the host qualification run measured 0.312 ms median, 0.359 ms p95, 0.379 ms p99, and 0.754 ms maximum detector-call latency. The provisional 5 ms p95 target is satisfied in this run but remains informational and must be confirmed on target workloads.
 
@@ -95,7 +93,7 @@ The official Isaac runtime does not inherit the project's Python dependencies by
 
 Subphase 03.1 produced the public decision/protocol contract, registry validation, and typed pipeline seam. Subphase 03.2 added one qualified fixed-threshold Auditok adapter, focused qualification coverage, exact Python and Kit dependency boundaries, and documented calibration and operating limits. Subphase 03.3 integrated that one detector into maintained scalar consumers, advanced the Kit binding to v6, preserved the Lab tensor contract for Phase 07, and closed live GPU and downstream compatibility gates.
 
-The 03.3 closeout passes `make check` with 579 unit/contract tests, 221 integration tests, and 58 release tests; optional audio; 96 tests in the supported Isaac runtime; and live Isaac Sim, Isaac Lab, and Kit gates on the RTX 4090. The Lab smoke preserves zero-filled entity/reference tensor parity and selective reset over 4096 environments at 0.131 ms/step mean against the 20 ms budget. Seventy focused SquadBot consumer tests pass with one skip and no downstream changes.
+The original 03.3 closeout passed host, optional-audio, supported Isaac runtime, live Isaac Sim/Lab/Kit, 4096-environment Lab, and focused SquadBot gates. Current validation is summarized in [[status|Project Status]].
 
 ## Files
 
@@ -104,12 +102,8 @@ The 03.3 closeout passes `make check` with 579 unit/contract tests, 221 integrat
 - `src/isaac_audio_sensors/core/plugins/auditok.py`
 - `src/isaac_audio_sensors/core/perception.py`
 - `src/isaac_audio_sensors/core/simulation.py`
-- `src/isaac_audio_sensors/isaac/sensor.py`
-- `src/isaac_audio_sensors/lab/reference_backend.py`
 - `src/isaac_audio_sensors/kit/configuration.py`
 
 ## Version Notes
 
-- 2026-09-03: Implemented Subphase 03.1 with a bounded activity-probability decision, stateful detector plugin protocol, registry validation, typed pipeline integration, explicit reset ownership, and no concrete default detector or schema change.
-- 2026-09-03: Qualified Auditok 0.5.2 for explicit fixed-threshold use, kept initial calibration outside the Boolean streaming contract, added exact float32/dBFS adaptation and Core/Kit packaging, and preserved zero-observation defaults until 03.3.
-- 2026-09-04: Completed Subphase 03.3 with explicit-threshold Auditok integration across maintained scalar runtimes, Kit binding v6, detector state per Lab reference environment, unchanged Phase 07 tensor semantics, live RTX 4090 validation, and focused downstream compatibility.
+- 2026-09-04: Completed the detector contract, fixed-threshold Auditok qualification and packaging, scalar-runtime integration, Kit binding v6, Lab reference state, GPU validation, and downstream compatibility.

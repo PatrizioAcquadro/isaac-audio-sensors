@@ -135,20 +135,10 @@ Subphase 02.1 produced the public `MicrophoneSignalBlock`, scene-to-signal propa
 - `src/isaac_audio_sensors/core/types/_frame.py`
 - `src/isaac_audio_sensors/core/perception.py`
 - `src/isaac_audio_sensors/core/simulation.py`
-- `src/isaac_audio_sensors/core/plugins/protocols.py`
-- `src/isaac_audio_sensors/core/backends/analytic.py`
-- `src/isaac_audio_sensors/core/io/waveforms.py`
-- `src/isaac_audio_sensors/recording/recorder.py`
-- `src/isaac_audio_sensors/isaac/sensor.py`
-- `src/isaac_audio_sensors/lab/reference_backend.py`
 - `src/isaac_audio_sensors/schemas/audio_sensor_frame.v3.schema.json`
 
 Current cross-cutting contract ownership is described by [[topics/public-contracts-and-recording|Public Contracts and Recording]].
 
 ## Version Notes
 
-- 2026-09-03: Implemented Subphase 02.1 with the exact-window microphone-signal contract and analytic producer while retaining one temporary legacy frame bridge.
-- 2026-09-03: Sequenced the bounded R9.4 selected-provider qualification after the completed 02.1 boundary and before 02.2 without changing executable behavior.
-- 2026-09-03: Completed R9.4 without changing the Plan 02 signal boundary; Plan 02 resumes at 02.2.
-- 2026-09-03: Implemented Subphase 02.2 with perception-owned observed-only frames, frame schema v3, migrated consumers, and intentional zero default observations at that phase boundary; Subphase 02.3 remained planned.
-- 2026-09-03: Completed Subphase 02.3 with one signal-to-frame orchestrator, direct block recording, lifecycle-owned perception reset, analytic bridge removal, strict downstream frame-v3 migration, clean-source artifacts, and RTX 4090 runtime closeout.
+- 2026-09-03: Completed the signal boundary, observed-only frame v3 migration, shared orchestration, direct recording, lifecycle-owned reset, downstream migration, and RTX 4090 closeout.

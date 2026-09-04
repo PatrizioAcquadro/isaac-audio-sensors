@@ -2,13 +2,10 @@
 
 ## 3.0.0 - Unreleased
 
-- Integrate Auditok into the standard extension sensor with an explicit finite `Activity dBFS` field, signal-derived observations after causal warm-up, and reset on stream-defining array-layout changes.
-- Breaking: import and export `ias.omni_extension_binding.v6` with required exact `activity_detection.detector_id="auditok"` and `activity_detection.energy_threshold_dbfs`; reject v5 and older inputs without compatibility parsing.
-- Preserve signal-derived observations through frame export, JSONL, guided recording, Replicator, OmniGraph, headless summaries, presets, and configuration round trips without inventing score, DOA, source identity, class, or occlusion events.
-- Bundle and runtime-check Auditok 0.5.2 as the qualified fixed-threshold activity detector; consumer integration is completed by Plan 03.3.
-- Breaking: migrate sensor state, configuration, Replicator, OmniGraph, export, instruments, and recording summaries from detections/backend naming to frame-v3 observations/producer naming.
-- Show valid waveform and RMS output during inactive, warm-up, and post-reset empty-observation states; do not derive compass, timeline, source identity, or occlusion events from USD source truth.
-- Breaking: remove sensor-side DOA ambiguity policy state and introduce `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs were rejected, and Plan 03.3 later superseded v5 with v6.
+- Integrate Auditok 0.5.2 into the standard sensor with an explicit finite `Activity dBFS` field, causal signal-derived observations, and reset on stream-defining array changes.
+- Breaking: use exact `ias.omni_extension_binding.v6` configuration with required `activity_detection.detector_id="auditok"` and `energy_threshold_dbfs`; reject older bindings without compatibility parsing.
+- Migrate state, configuration, export, recording, Replicator, OmniGraph, instruments, and summaries to frame-v3 observation/producer semantics without deriving source truth.
+- Preserve valid waveform and RMS output during inactive, warm-up, and post-reset empty-observation states, and bundle Auditok as the sixth hash-locked runtime distribution.
 - Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
 - Export and import the analytic backend, solver options, environment mode, anchor, tolerance, resolved result, and provenance without any contextual direction prior.
 - Breaking: removed all four legacy backend choices and renamed room-specific UI/configuration fields to their analytic equivalents.

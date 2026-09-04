@@ -678,3 +678,12 @@ Verified 579 unit/contract tests, 221 integration tests, 58 release tests, 96
 tests in the supported Isaac runtime, optional audio, resolved wiki links,
 Ruff, whitespace, live Isaac Sim/Lab/Kit on the RTX 4090, and 70 focused
 SquadBot consumer tests without downstream changes.
+
+## 2026-09-04 — lint: Final local cleanup
+
+Removed the completed R9 qualification harness, simplified typed recording and
+non-contract diagnostics, dropped calibration-only test coverage, and condensed
+the local changelogs and phase closeout. Verified 536 unit/contract tests, 221
+integration tests, 58 release tests, config, fixtures, optional audio, resolved
+wiki links, Ruff, whitespace, preserved frame-v3 and v1 contracts, and unchanged
+downstream interfaces.

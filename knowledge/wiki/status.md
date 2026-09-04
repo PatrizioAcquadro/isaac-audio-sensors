@@ -154,110 +154,26 @@ passes 386 tests plus both active demos against the sibling SDK, while its
 historical Phase 6A handoff retains SHA-256
 `f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
 
-The corrected R9.2 focused gate passes 36 contract and qualification tests, and
-the complete deterministic host `make check` gate passes.
-Steam Audio `4.8.1` executes through the Isaac Sim `6.0.1-rc.7` / Kit
-`110.1.2` interpreter across 23 fixtures and 115 repetitions. All 12 oblique
-source/repetition cases pass six-pair phase checks through the geometric IAS
-bridge with at most 0.393 samples of lag error and at least 0.99986 realigned
-correlation; native direct output remains separately recorded as zero-lag.
-Reflective-room and L-corridor NLOS output passes all five repetitions. Complete
-four-microphone audio p95 is 0.30/1.15 ms and acoustic-refresh p95 is
-11.40/42.44 ms for one/four environments. Steam records 13 passes, one
-full-R10 transmission failure, and one blocked diagnostic, producing
-`qualified` core integration and `rejected` full R10. RTX Acoustic `3.0.0` was
-not rerun: its preserved measurements are explicitly reused to produce two
-passes, seven failures, six blockers, and `rejected` outcomes for both
-profiles. Rev2 reports, measurements, NPZ data, logs, provenance, and the
-non-ranking summary remain local and ignored under `build/validation/r9/rev2/`;
-the superseded artifacts remain unchanged.
+R9 selected Steam Audio `4.8.1` for future passive geometry propagation. R9.4
+admitted bounded baked pathing, arrival scheduling, diagnostics, and measured
+small-environment cost, while rejecting the non-additive closed-assembly
+transmission proxy. RTX Acoustic remains rejected for passive microphone PCM.
+The evidence stays local and ignored under `build/validation/r9/`; the completed
+qualification harness and its tests are no longer maintained.
 
-The R9.3 cleanup gate passed 33 focused contract and selected-provider tests,
-516 unit/contract tests, 207 integration tests, and 57 release tests. All 95
-pre-existing R9 evidence files retained their baseline SHA-256 hashes. The
-temporary qualification surface was removed after R9.4 completed.
+Plans 02 and 03 establish one immutable microphone-signal boundary, frame v3
+observations, shared propagation-to-perception orchestration, direct recording,
+lifecycle-owned reset, and one fixed-threshold Auditok detector for maintained
+scalar consumers. Isaac Lab reference mode owns one detector per environment
+but intentionally keeps its six public tensors zero-filled until Phase 07.
+SquadBot consumes the strict frame-v3 boundary through its project-owned adapter.
 
-The Plan 02.1 gate passes the complete `make check` workflow: 533 unit/contract
-tests, 210 integration tests, and 57 release tests, plus version synchronization,
-Ruff, documentation boundaries, internal wikilinks, and whitespace. The
-supported IsaacLab interpreter sees the RTX 4090 and passes all 101 Isaac tests.
-Live Isaac Sim, Lab, and Kit smokes were intentionally outside this subphase
-because no maintained Isaac consumer uses the new signal block yet. Package
-`3.0.0` and frame schema v2 remain unchanged.
-
-The R9.4 native qualification runs under the Isaac Sim `6.0.1-rc.7` / Kit
-`110.1.2` interpreter against the live-confirmed Steam Audio `v4.8.1` source,
-Release build, and Embree configuration. Six ordered gates pass, one measured
-gate fails, and none are blocked. Baked pathing is at least 129.32 dB above the
-disabled control in all microphone/repetition cases, with at most 0.391 samples
-of TDOA error and at least 0.99175 realigned correlation. Validation detects
-the occluded route and alternate-path output changes by 3.36 dB. Direct and
-pathing arrival errors remain below 0.5 samples, reflection IRs are unchanged,
-and split/continuous scheduling agrees exactly. Complete-block p95 is
-1.865/7.416 ms and path-update p95 is 5.786/10.923 ms for one/four
-environments. The 12 dB closed proxy instead measures 18 dB, with two/three
-assemblies at 30/42 dB; that capability is not admitted. The separate ignored
-`r9.4-v1` bundle contains the report, evaluation, measurements, signals,
-fixtures, provenance, and log. The final deterministic host gate passes 541
-unit/contract tests, 210 integration tests, and 57 release tests.
-
-The Plan 02.2 gate passes 549 unit/contract tests, 205 integration tests, 57
-release tests, 90 tests in the supported Isaac runtime, exact frame-v3 schema
-regeneration, configuration and optional-audio execution, and all three live
-Isaac Sim, Isaac Lab, and Kit smokes on the RTX 4090. The Lab smoke preserves
-zero-observation entity/reference parity, partial reset, and 50 steps over 4096
-environments at 0.131 ms/step mean against the 20 ms budget. Package `3.0.0`
-remains unchanged; no downstream checkout, publication, tag, or push is part of
-the subphase.
-
-The Plan 02.3 implementation passes the complete `make check`
-gate with 552 unit/contract tests, 213 isolated integration tests, and 57
-release tests. The optional-audio smoke passes real shoebox and polygon-prism
-execution with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. All
-91 tests pass in the supported Isaac runtime, and all three checked schemas
-regenerate byte-identically. A content-equivalent clean temporary Git checkout
-passes the complete sdist, universal-wheel, and Kit-ZIP build and artifact audit.
-On the RTX 4090, live Isaac Sim and Kit pass, and the Lab smoke preserves
-zero-observation entity/reference parity plus selective reset while completing
-50 steps over 4096 environments at 0.132 ms/step mean against the 20 ms budget.
-SquadBot commit `ff9006f` migrates the active adapter, replay, live bridge, and
-Phase 6A demo to strict frame-v3 observations. Its complete clean-upstream suite
-passes all 382 tests; Ruff, the empty default sensor graph, the `Unknown` replay
-candidate, and both Phase 6A contexts pass.
-The historical Phase 6A handoff remains byte-identical at SHA-256
-`f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
-
-The Subphase 03.1 gate passes the complete `make check` workflow with 555
-unit/contract tests, 213 integration tests, and 57 release tests. It preserves
-package `3.0.0`, frame schema v3, all three checked JSON schemas, dependency
-metadata, and zero-observation default behavior. No GPU validation is required
-because 03.1 adds only simulator-independent contracts and no concrete detector
-or runtime integration.
-
-The Subphase 03.2 gate passes `make check` with 576 unit/contract tests, 213
-integration tests, and 58 release tests. Fixed-threshold format, scale,
-current-block causality, bounded state, reset, multichannel, and determinism
-tests pass. Python 3.10, Python 3.12, and the supported Isaac Python execute
-Auditok 0.5.2 successfully. The real six-wheel Kit build, exact sdist/wheel/ZIP
-audit, and extracted-ZIP import/detection pass with Auditok loaded from
-`isaac_audio_sensors/_bundled`; schemas and consumer defaults remain unchanged.
-The informational four-channel 48 kHz timing probe measured 0.359 ms p95 over
-500 calls against the provisional, non-blocking 5 ms target.
-
-The Subphase 03.3 gate passes `make check` with 579 unit/contract tests, 221
-integration tests, and 58 release tests, plus the optional-audio gate and 96
-tests in the supported Isaac runtime. Live Isaac Sim, Isaac Lab, and Kit pass on
-the RTX 4090; the Sim trace proves causal warm-up, one signal-derived Auditok
-observation, cooldown, and inactivity, while Kit proves binding-v6/UI/headless,
-recording, Replicator, and OmniGraph propagation. The Lab gate preserves all six
-zero-filled tensors, entity/reference parity, independent reference state, and
-selective reset over 4096 environments at 0.131 ms/step mean against the 20 ms
-budget. Seventy focused SquadBot consumer tests pass with one skip and no
-downstream changes. The source-runtime gates expose the project environment's
-Auditok installation to the official launcher; a bare launcher without that
-declared Core dependency fails closed.
-
-Ruff, version synchronization, the executable README quickstart, internal wikilinks, index coverage, removed-root-doc references, Kit metadata, and whitespace checks passed.
+The latest cleanup host gate passes 536 unit/contract tests, 221 integration
+tests, 58 release tests, version synchronization, Ruff, and whitespace. Config,
+fixture, and optional-audio execution pass. The preceding 03.3 closeout passed
+96 supported-runtime tests plus live Isaac Sim, Isaac Lab, and Kit on the RTX
+4090, and 70 focused SquadBot tests without downstream changes. Final cleanup
+runtime, schema, artifact, and downstream gates are recorded in the wiki log.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
 
@@ -276,7 +192,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
 - Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
 - `analytic_acoustics` does not accept `surface_set`. Isaac Lab intentionally keeps its six observation tensors zero-filled until Phase 07 even though the scalar reference path executes Auditok; it does not yet project observed activity, bearing, confidence, waveform, reverberation, occlusion, SPL, calibration, closed-topology, or per-environment randomization behavior.
-- Auditok's fixed energy threshold requires application-specific tuning. Low SNR, post-calibration floor changes, contaminated calibration, and impulses shorter than the temporal profile remain operating limits; percentile 10, 6 dB margin, -50 dBFS floor, 3 s calibration, and 5 ms p95 are initial experimental values rather than universal guarantees.
+- Auditok's fixed threshold requires application-specific tuning. No calibration mode is maintained; low SNR, changing noise floors, and impulses shorter than the temporal profile remain operating limits.
 - Raycast partition transmission remains direct-path-only; it does not model diffraction, structural wall physics, or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
@@ -288,8 +204,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 R9.1 through R9.4, Plan 02, and Plan 03 are complete. The public fixed-threshold
 Auditok detector is the single registered, packaged, and integrated generic
 detector for maintained scalar consumers. Its threshold remains explicit and
-application-owned, while initial calibration remains outside the streaming
-contract.
+application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
