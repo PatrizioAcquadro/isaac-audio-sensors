@@ -10,9 +10,9 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
-- Subphase 05.1 dataset truth contracts and `recording.simulate_dataset_frame()` produce separate supervision from one analytic render; persistence and manifest migration are in progress.
+- Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
 
-- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3 while dataset-manifest and calibration-profile wrappers remain v1.
+- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3, dataset-manifest and frame-record contracts are v2, and calibration-profile remains v1.
 - One runtime propagation backend, `analytic_acoustics`, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
@@ -227,6 +227,13 @@ R4 changes documentation, packaging metadata, version checks, and release-bounda
 
 See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
 
+The Subphase 05.1 host gate passes 572 unit/contract tests, 242 integration
+tests, and 58 release tests. Optional audio passes with PyRoom 0.10.1 and
+SoundFile 0.14.0; all three shipped schemas regenerate byte-identically.
+The migrated fixture validates with three episodes, two shards, seven frames,
+and unchanged audio bytes. No new Isaac/GPU or downstream validation claim
+is made for this dataset-only subphase.
+
 ## Maintained Commands
 
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
@@ -236,6 +243,8 @@ See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]
 Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain available for subsystem work.
 
 ## Limits
+
+- Automatic dataset truth production supports `AnalyticAcoustics` only. Geometry describes the snapshot and acoustic evidence inherits window-local propagation limits. Received RMS precedes nonlinear mixture effects; residual RMS includes noise, electronics, and float32 conversion. Audibility decisions and observation/truth matching remain task-dependent and evaluator-owned. No learning sample, batching, or automatic Kit/Lab truth capture is introduced in 05.1.
 
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
 - Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
@@ -257,7 +266,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] are complete. Later phases add dataset truth, signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and Subphase 05.1 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next are 05.2 learning samples and 05.3 remaining dataset consumer migration/cleanup, followed by signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

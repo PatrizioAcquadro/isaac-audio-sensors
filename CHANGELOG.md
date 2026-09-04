@@ -2,9 +2,10 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking (Subphase 05.1): moved truth from `EpisodeRecord.source_truth` into atomic frame-record v2 rows beside frame v3, migrated manifests to v2, and removed `SourceTruth` and legacy dataset readers. Recorder, loader, replay, recovery, and FLAC preserve optional truth and separate annotations.
 - Added dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `simulate_dataset_frame()` with single-render analytic supervision, independent observation cardinality, and separate emission, linear received RMS, and mixture residual evidence.
 
-- Breaking (Plan 02): changed `PropagationBackend` from scene-to-frame `simulate()` to scene-to-signal `propagate()`, replaced frame v2 detections with the exact frame v3 observation contract, and removed the temporary bridge and source-conditioned assembly without aliases. Dataset-manifest and calibration-profile wrappers remain v1.
+- Breaking (Plan 02): changed `PropagationBackend` from scene-to-frame `simulate()` to scene-to-signal `propagate()`, replaced frame v2 detections with the exact frame v3 observation contract, and removed the temporary bridge and source-conditioned assembly without aliases. At Plan 02, dataset-manifest and calibration-profile wrappers remained v1; Plan 05 subsequently replaces the dataset wrapper.
 - Added immutable `MicrophoneSignalBlock`, observed-only `AudioObservation` and `AudioPerceptionPipeline` contracts, and `simulate_frame()` as the single propagation-to-perception path shared by waveform, recording, Isaac, Lab, Kit, Replicator, OmniGraph, and downstream adapters.
 - Added the stateful `ActivityDetector`/`ActivityDecision` contract and one maintained `AuditokActivityDetector` with causal bounded context, multichannel `any` semantics, deterministic reset, exact float32/dBFS adaptation, and an explicit application-owned threshold. No score, DOA, source identity, class, or source count is invented.
 - Corrected Subphase 04.2 to qualify estimator roles independently over the complete 128-case synthetic primary matrix and explicitly scoped the real results as take-level validation within one campaign. PyRoom SRP is the primary planar estimator at a 250 ms causal context and `0.06` reliability threshold; least-squares retains the generic two-microphone ambiguity role; robustness remains failed and optional 3D remains blocked as a product claim without invalidating the planar result.
@@ -37,7 +38,7 @@
 - Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
 - Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.
 - Retained channel-response gain, TDOA gain mismatch, and occlusion as separately ordered and diagnosed deltas. Calibration-profile gain remains data-only and is never applied automatically.
-- Preserved `ias.audio_dataset_manifest.v1` and `ias.audio_calibration_profile.v1`; the frame contract is now `ias.audio_sensor_frame.v3`.
+- Dataset manifests and frame records use v2; frames use `ias.audio_sensor_frame.v3` and calibration retains `ias.audio_calibration_profile.v1`.
 
 ## 2.0.0 - 2026-08-21
 

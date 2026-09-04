@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,6 @@ from isaac_audio_sensors.recording.manifest import (
     ManifestPose,
     ResetMarker,
     ShardRecord,
-    SourceTruth,
     SplitRecord,
 )
 
@@ -48,7 +48,7 @@ def write_dataset_manifest(
 
 
 def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
-    """Parse one exact canonical manifest-v1 projection."""
+    """Parse one exact canonical manifest-v2 projection."""
 
     if not isinstance(payload, dict):
         raise TypeError("manifest root must be an object")
@@ -107,7 +107,7 @@ def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
         raise ValueError(f"manifest root contains invalid JSON values: {exc}") from exc
     if source != canonical:
         raise ValueError(
-            "manifest root is not an exact canonical manifest-v1 projection"
+            "manifest root is not an exact canonical manifest-v2 projection"
         )
     return manifest
 
@@ -124,7 +124,7 @@ def _serialize(value: Any) -> Any:
             field_info.name: _serialize(getattr(value, field_info.name))
             for field_info in fields(value)
         }
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {str(key): _serialize(value[key]) for key in sorted(value)}
     if isinstance(value, (tuple, list)):
         return [_serialize(item) for item in value]
@@ -164,16 +164,6 @@ def _pose_from_dict(payload: dict[str, Any]) -> ManifestPose:
     )
 
 
-def _truth_from_dict(payload: dict[str, Any]) -> SourceTruth:
-    return SourceTruth(
-        source_id=str(payload["source_id"]),
-        timestamp_ms=int(payload["timestamp_ms"]),
-        class_label=str(payload["class_label"]),
-        active=bool(payload["active"]),
-        pose=_pose_from_dict(payload["pose"]),
-    )
-
-
 def _episode_from_dict(payload: dict[str, Any]) -> EpisodeRecord:
     return EpisodeRecord(
         episode_id=str(payload["episode_id"]),
@@ -196,9 +186,6 @@ def _episode_from_dict(payload: dict[str, Any]) -> EpisodeRecord:
         ),
         array_poses=tuple(
             _pose_from_dict(item) for item in payload.get("array_poses", ())
-        ),
-        source_truth=tuple(
-            _truth_from_dict(item) for item in payload.get("source_truth", ())
         ),
         labels=tuple(payload.get("labels", ())),
         visual_sync_asset_ids=tuple(payload.get("visual_sync_asset_ids", ())),

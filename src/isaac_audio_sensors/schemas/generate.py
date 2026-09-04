@@ -27,7 +27,7 @@ _SCHEMAS = {
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,
-        "audio_dataset_manifest.v1.schema.json",
+        "audio_dataset_manifest.v2.schema.json",
     ),
     "calibration-profile": (
         audio_calibration_profile_json_schema,

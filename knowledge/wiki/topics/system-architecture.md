@@ -24,7 +24,7 @@ This layer imports no other package subsystem. Importing the core package root l
 
 Recording consumes `AudioSensorFrame` plus its exact `MicrophoneSignalBlock`, or `None` for metadata-only sessions, and emits versioned generic dataset artifacts. It validates their shared producer/window/channel contract without requiring equal provenance; it does not own a task-specific acquisition campaign or scientific acceptance policy.
 
-Dataset-manifest constants, models, and canonical JSON serializers are recording APIs rather than core APIs.
+Dataset-manifest constants, models, supervision contracts, and canonical JSON serializers are recording APIs rather than core APIs. `recording.simulate_dataset_frame()` projects one private analytic render into the same observed frame/block composition plus separate `FrameTruth`. Core imports no recording types; private stems never reach perception. Truth and annotations travel atomically beside the frame through recorder, loader, replay, and FLAC.
 
 `SessionDataset` is the lifecycle and streaming-read authority shared by validation, replay, FLAC, and recovery. `SessionRecorder` composes internal shard/audio writing, recovery state, and pure manifest construction. Record serialization, shard planning/completion, time-gap accounting, and durable file replacement remain focused internal components rather than public user workflow.
 

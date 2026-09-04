@@ -63,6 +63,15 @@ from isaac_audio_sensors.recording.manifest import (
     ResetMarker,
 )
 from isaac_audio_sensors.recording.serialization import manifest_to_dict
+from isaac_audio_sensors.recording.truth import (
+    AnnotationRecord,
+    FrameTruth,
+    _annotations_from_dict,
+    _annotations_to_dict,
+    _truth_from_dict,
+    _truth_to_dict,
+    _validate_supervision,
+)
 
 _REQUIRED_CONFIGURATION_KEYS = frozenset(
     {
@@ -171,6 +180,8 @@ class _PendingRecord:
     episode_id_value: str
     audio_start: int
     desired_audio_end: int
+    truth: FrameTruth | None
+    annotations: tuple[AnnotationRecord, ...]
 
 
 _TIME_GAP_COUNTER_NAMES = (
@@ -411,6 +422,8 @@ class SessionRecorder:
         signal_block: MicrophoneSignalBlock | None,
         *,
         is_reset: bool = False,
+        truth: FrameTruth | None = None,
+        annotations: Sequence[AnnotationRecord] = (),
     ) -> AppendFrameResult:
         """Append one typed frame; invalid payloads are accounted as drops."""
 
@@ -419,6 +432,11 @@ class SessionRecorder:
         self._check_open()
         if self._current_episode is None:
             raise RuntimeError("begin_episode() must be called first")
+        try:
+            annotations = _validate_supervision(frame, truth, annotations)
+        except (TypeError, ValueError) as exc:
+            self._record_drop(frame)
+            return AppendFrameResult(False, None, str(exc))
         timestamp_ms = frame.timestamp_ms
         gap_plan: TimeGapPlan | None = None
         if self.preserve_time_gaps:
@@ -476,6 +494,8 @@ class SessionRecorder:
                 payload,
                 block,
                 dataset_index=dataset_index,
+                truth=truth,
+                annotations=annotations,
                 is_reset=is_reset,
                 gap_samples=gap_samples,
             )
@@ -485,6 +505,8 @@ class SessionRecorder:
                 payload,
                 block,
                 dataset_index=dataset_index,
+                truth=truth,
+                annotations=annotations,
                 is_reset=is_reset,
                 boundaries=boundaries,
                 gap_samples=gap_samples,
@@ -669,6 +691,8 @@ class SessionRecorder:
         block: np.ndarray | None,
         *,
         dataset_index: int,
+        truth: FrameTruth | None,
+        annotations: tuple[AnnotationRecord, ...],
         is_reset: bool,
         gap_samples: int,
     ) -> None:
@@ -680,6 +704,8 @@ class SessionRecorder:
             "audio_sample_count": sample_count,
             "dataset_frame_index": dataset_index,
             "frame": payload,
+            "truth": _truth_to_dict(truth),
+            "annotations": _annotations_to_dict(annotations),
             "gap_samples": gap_samples,
             "is_reset": is_reset,
         }
@@ -710,6 +736,8 @@ class SessionRecorder:
         block: np.ndarray | None,
         *,
         dataset_index: int,
+        truth: FrameTruth | None,
+        annotations: tuple[AnnotationRecord, ...],
         is_reset: bool,
         boundaries: Sequence[ShardBoundary],
         gap_samples: int,
@@ -734,6 +762,8 @@ class SessionRecorder:
             self._pending_boundary = boundaries[0]
             self._pending_record = _PendingRecord(
                 frame_payload=payload,
+                truth=truth,
+                annotations=annotations,
                 dataset_frame_index=dataset_index,
                 episode_id_value=episode_value,
                 audio_start=start,
@@ -743,6 +773,8 @@ class SessionRecorder:
             self._append_record_line(
                 open_shard,
                 payload,
+                truth=truth,
+                annotations=annotations,
                 dataset_index=dataset_index,
                 episode_id_value=episode_value,
                 audio_start=start,
@@ -840,6 +872,8 @@ class SessionRecorder:
         payload: dict[str, Any],
         *,
         dataset_index: int,
+        truth: FrameTruth | None,
+        annotations: tuple[AnnotationRecord, ...],
         episode_id_value: str,
         audio_start: int,
         audio_end: int,
@@ -850,6 +884,8 @@ class SessionRecorder:
             audio_start_sample=audio_start,
             audio_end_sample=audio_end,
             frame=payload,
+            truth=truth,
+            annotations=annotations,
             session_root=self.session_root,
             location=f"dataset frame {dataset_index}",
         )
@@ -874,6 +910,8 @@ class SessionRecorder:
             self._append_record_line(
                 open_shard,
                 pending.frame_payload,
+                truth=pending.truth,
+                annotations=pending.annotations,
                 dataset_index=pending.dataset_frame_index,
                 episode_id_value=pending.episode_id_value,
                 audio_start=pending.audio_start,
@@ -933,6 +971,8 @@ class SessionRecorder:
                 self._append_record_line(
                     open_shard,
                     item["frame"],
+                    truth=_truth_from_dict(item["truth"]),
+                    annotations=_annotations_from_dict(item["annotations"]),
                     dataset_index=int(item["dataset_frame_index"]),
                     episode_id_value=episode_value,
                     audio_start=start,
@@ -1062,6 +1102,8 @@ class SessionRecorder:
                 self._append_record_line(
                     open_shard,
                     item["frame"],
+                    truth=_truth_from_dict(item["truth"]),
+                    annotations=_annotations_from_dict(item["annotations"]),
                     dataset_index=int(item["dataset_frame_index"]),
                     episode_id_value=episode_value,
                     audio_start=start,

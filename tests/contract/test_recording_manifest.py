@@ -40,8 +40,8 @@ INVALID_MESSAGES = {
 def test_valid_manifest_fixtures_round_trip(tmp_path):
     paths = sorted(FIXTURE_DIR.glob("*.json"))
     assert [path.name for path in paths] == [
-        "minimal_manifest.v1.json",
-        "multi_episode_manifest.v1.json",
+        "minimal_manifest.v2.json",
+        "multi_episode_manifest.v2.json",
     ]
 
     for path in paths:
@@ -77,7 +77,7 @@ def test_paths_and_checksum_formats_are_enforced_directly():
 
 
 def test_completion_state_never_promotes_an_incomplete_shard():
-    complete = read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
+    complete = read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
     incomplete_shard = replace(complete.shards[0], completion_state="incomplete")
 
     incomplete_manifest = replace(
@@ -125,7 +125,7 @@ def test_manifest_pose_normalizes_valid_non_unit_quaternion():
 
 def test_manifest_reader_rejects_noncanonical_normalizable_values():
     payload = manifest_to_dict(
-        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
     )
     payload["episodes"][0]["array_poses"][0]["orientation_xyzw"] = [0, 0, 0, 3]
 
@@ -144,7 +144,7 @@ def test_manifest_reader_rejects_noncanonical_normalizable_values():
 )
 def test_manifest_parser_rejects_coercions_extra_and_missing_fields(mutate):
     payload = manifest_to_dict(
-        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v1.json")
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
     )
     mutate(payload)
 
@@ -153,7 +153,7 @@ def test_manifest_parser_rejects_coercions_extra_and_missing_fields(mutate):
 
 
 def _invalid_manifest(case: str) -> dict:
-    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v1.json").read_text())
+    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v2.json").read_text())
     mutations = {
         "asset_checksum": lambda value: value["shards"][0]["assets"][0].__setitem__(
             "sha256", "bad"

@@ -57,7 +57,6 @@ def _multi_group_manifest(group_count: int = 6) -> AudioDatasetManifest:
                 split_group=group_id,
                 reset_markers=(),
                 array_poses=(),
-                source_truth=(),
                 visual_sync_asset_ids=(),
             )
         )

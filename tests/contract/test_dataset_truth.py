@@ -257,3 +257,57 @@ def test_truth_quaternion_serialization_is_idempotent():
     for _ in range(3):
         truth = _truth_from_dict(json.loads(payload))
         assert json.dumps(_truth_to_dict(truth), sort_keys=True) == payload
+
+
+def test_nonlinear_mixture_does_not_redefine_per_source_received_evidence():
+    from isaac_audio_sensors.core.effects import ElectronicsConfig
+
+    scene = scene_with(source("loud", (0.2, 0, 0), audio_asset_path="generated://tone"))
+    _, clean, clean_truth = simulate(scene)
+    backend = AnalyticAcoustics(
+        effects=EffectsConfig(
+            electronics=ElectronicsConfig(enabled=True, full_scale=0.01, bit_depth=8)
+        )
+    )
+    frame, clipped, truth = simulate(scene, backend=backend)
+    assert truth.truth_events == clean_truth.truth_events
+    assert not np.array_equal(clean.samples, clipped.samples)
+    assert max(truth.mixture_residual_rms.values()) > 0.01
+    plain_frame, plain_block = simulate_frame(
+        backend, scene, "rig", WINDOW, perception=AudioPerceptionPipeline()
+    )
+    assert frame == plain_frame
+    np.testing.assert_array_equal(clipped.samples, plain_block.samples)
+
+
+@pytest.mark.parametrize("topology", ["shoebox", "polygon_prism"])
+def test_closed_room_truth_uses_same_rendered_window(topology):
+    pytest.importorskip("pyroomacoustics")
+    from isaac_audio_sensors.core.acoustics import (
+        polygon_prism_environment,
+        shoebox_environment,
+    )
+
+    environment = (
+        shoebox_environment(environment_id="room", dimensions_m=(4, 4, 3))
+        if topology == "shoebox"
+        else polygon_prism_environment(
+            environment_id="room",
+            floor_vertices_local_m=((0, 0, 0), (4, 0, 0), (4, 4, 0), (0, 4, 0)),
+            height_m=3,
+        )
+    )
+    scene = scene_with(
+        source("speaker", (2, 1, 1)),
+        array=replace(quad_array(), position_world=(1, 1, 1)),
+        environment=environment,
+    )
+    backend = AnalyticAcoustics(max_order=1)
+    frame, block, truth = simulate(scene, backend=backend)
+    np.testing.assert_allclose(
+        list(truth.truth_events[0].received_rms.values()),
+        np.sqrt(np.mean(block.samples.astype(float) ** 2, axis=1)),
+        rtol=1e-6,
+    )
+    assert frame.observations == ()
+    assert max(truth.mixture_residual_rms.values()) < 1e-7

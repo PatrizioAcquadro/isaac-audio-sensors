@@ -42,6 +42,7 @@ from isaac_audio_sensors.recording.manifest import (
     ShardRecord,
 )
 from isaac_audio_sensors.recording.serialization import read_dataset_manifest
+from isaac_audio_sensors.recording.truth import AnnotationRecord, FrameTruth
 
 _ROOT_ENTRIES = frozenset(
     {"manifest.json", "config", "calibration", "shards", "_staging"}
@@ -67,6 +68,8 @@ class LoadedFrame:
     frame: AudioSensorFrame
     shard_id: str
     line_number: int
+    truth: FrameTruth | None = None
+    annotations: tuple[AnnotationRecord, ...] = ()
 
 
 class SessionDataset:
@@ -471,6 +474,8 @@ class SessionDataset:
                             audio_start_sample=record.audio_start_sample,
                             audio_end_sample=record.audio_end_sample,
                             frame=frame,
+                            truth=record.truth,
+                            annotations=record.annotations,
                             shard_id=shard.shard_id,
                             line_number=line_number,
                         )

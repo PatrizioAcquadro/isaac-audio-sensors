@@ -15,8 +15,17 @@ from isaac_audio_sensors.core.io.traces import (
     frame_to_trace_dict,
 )
 from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording.truth import (
+    AnnotationRecord,
+    FrameTruth,
+    _annotations_from_dict,
+    _annotations_to_dict,
+    _truth_from_dict,
+    _truth_to_dict,
+    _validate_supervision,
+)
 
-DATASET_FRAME_RECORD_VERSION = "ias.dataset_frame_record.v1"
+DATASET_FRAME_RECORD_VERSION = "ias.dataset_frame_record.v2"
 
 _EPISODE_ID_RE = re.compile(r"^episode_[0-9]{5}$")
 _URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -56,6 +65,8 @@ class DatasetFrameRecord:
     audio_start_sample: int
     audio_end_sample: int
     frame: dict[str, Any]
+    truth: FrameTruth | None = None
+    annotations: tuple[AnnotationRecord, ...] = ()
     record_version: str = DATASET_FRAME_RECORD_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -68,6 +79,8 @@ class DatasetFrameRecord:
             "audio_start_sample": self.audio_start_sample,
             "audio_end_sample": self.audio_end_sample,
             "frame": self.frame,
+            "truth": _truth_to_dict(self.truth),
+            "annotations": _annotations_to_dict(self.annotations),
         }
 
 
@@ -78,6 +91,8 @@ def build_dataset_frame_record(
     audio_start_sample: int,
     audio_end_sample: int,
     frame: AudioSensorFrame | dict[str, Any],
+    truth: FrameTruth | None = None,
+    annotations: tuple[AnnotationRecord, ...] = (),
     session_root: str | Path | None = None,
     location: str = "dataset frame record",
 ) -> DatasetFrameRecord:
@@ -93,6 +108,8 @@ def build_dataset_frame_record(
         audio_start_sample=audio_start_sample,
         audio_end_sample=audio_end_sample,
         frame=frame_dict,
+        truth=truth,
+        annotations=annotations,
     )
     _validate_record_fields(record, location=location, sample_count=None)
     return record
@@ -131,6 +148,12 @@ def parse_dataset_frame_record(
         raise DatasetLayoutError(f"{location}: invalid JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise DatasetLayoutError(f"{location}: record must be a JSON object.")
+    if payload.get("record_version") != DATASET_FRAME_RECORD_VERSION:
+        raise DatasetLayoutError(
+            f"{location}: record_version must be {DATASET_FRAME_RECORD_VERSION!r}.",
+            code="unknown_version",
+            location=location,
+        )
     expected = {
         "record_version",
         "dataset_frame_index",
@@ -138,6 +161,8 @@ def parse_dataset_frame_record(
         "audio_start_sample",
         "audio_end_sample",
         "frame",
+        "truth",
+        "annotations",
     }
     if set(payload) != expected:
         raise DatasetLayoutError(
@@ -146,6 +171,15 @@ def parse_dataset_frame_record(
     frame_payload = payload["frame"]
     if not isinstance(frame_payload, dict):
         raise DatasetLayoutError(f"{location}.frame: must be an object.")
+    try:
+        truth = _truth_from_dict(payload["truth"])
+        annotations = _annotations_from_dict(payload["annotations"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise DatasetLayoutError(
+            f"{location}: invalid supervision: {exc}",
+            code="invalid_supervision",
+            location=location,
+        ) from exc
     record = DatasetFrameRecord(
         record_version=payload["record_version"],
         dataset_frame_index=payload["dataset_frame_index"],
@@ -153,6 +187,8 @@ def parse_dataset_frame_record(
         audio_start_sample=payload["audio_start_sample"],
         audio_end_sample=payload["audio_end_sample"],
         frame=frame_payload,
+        truth=truth,
+        annotations=annotations,
     )
     _validate_record_fields(record, location=location, sample_count=sample_count)
     validate_trace_projection(
@@ -226,6 +262,19 @@ def _validate_record_fields(
             code="unknown_version",
             location=location,
         )
+    if record.truth is not None or record.annotations:
+        try:
+            _validate_supervision(
+                frame_from_trace_dict(record.frame),
+                record.truth,
+                record.annotations,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise DatasetLayoutError(
+                f"{location}: invalid supervision: {exc}",
+                code="invalid_supervision",
+                location=location,
+            ) from exc
     _located_non_negative_int(
         record.dataset_frame_index, f"{location}.dataset_frame_index"
     )
@@ -269,10 +318,10 @@ def validate_trace_projection(
         rebuilt = frame_from_trace_dict(payload)
         canonical = frame_to_trace_dict(rebuilt)
     except (KeyError, TypeError, ValueError) as exc:
-        raise DatasetLayoutError(f"{location}: invalid frame v2: {exc}") from exc
+        raise DatasetLayoutError(f"{location}: invalid frame v3: {exc}") from exc
     if canonical != payload:
         raise DatasetLayoutError(
-            f"{location}: frame is not an unmodified canonical frame v2 trace dict."
+            f"{location}: frame is not an unmodified canonical frame v3 trace dict."
         )
     root = None if session_root is None else Path(session_root)
     waveform_paths = payload.get("waveform_paths", [])

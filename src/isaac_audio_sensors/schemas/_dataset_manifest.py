@@ -19,7 +19,7 @@ from isaac_audio_sensors.schemas._common import (
 
 
 def audio_dataset_manifest_json_schema() -> dict[str, Any]:
-    """Return the v1 ``AudioDatasetManifest`` JSON Schema."""
+    """Return the v2 ``AudioDatasetManifest`` JSON Schema."""
 
     stable_id = _stable_id_schema()
     sha256 = _sha256_schema()
@@ -62,18 +62,6 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
             "timestamp_ms": {"type": "integer", "minimum": 0},
         },
     }
-    source_truth = {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["source_id", "timestamp_ms", "class_label", "active", "pose"],
-        "properties": {
-            "source_id": stable_id,
-            "timestamp_ms": {"type": "integer", "minimum": 0},
-            "class_label": {"type": "string", "minLength": 1},
-            "active": {"type": "boolean"},
-            "pose": pose,
-        },
-    }
     episode = {
         "type": "object",
         "additionalProperties": False,
@@ -90,7 +78,6 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
             "split_group",
             "reset_markers",
             "array_poses",
-            "source_truth",
             "labels",
             "visual_sync_asset_ids",
         ],
@@ -111,7 +98,6 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
             "split_group": stable_id,
             "reset_markers": {"type": "array", "items": reset},
             "array_poses": {"type": "array", "items": pose},
-            "source_truth": {"type": "array", "items": source_truth},
             "labels": {
                 "type": "array",
                 "uniqueItems": True,
@@ -175,9 +161,9 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
             "https://isaac-audio-sensors.dev/schemas/"
-            "audio_dataset_manifest.v1.schema.json"
+            "audio_dataset_manifest.v2.schema.json"
         ),
-        "title": "Isaac Audio Sensors AudioDatasetManifest v1",
+        "title": "Isaac Audio Sensors AudioDatasetManifest v2",
         "description": (
             "Portable, checksummed dataset contract. Its schema version is "
             "independent of the Python package version; constructors enforce "

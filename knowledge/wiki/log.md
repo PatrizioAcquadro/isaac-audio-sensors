@@ -788,3 +788,22 @@ The host gate passed 568 unit/contract tests, 226 integration tests, and 58
 release tests. The focused acoustic/contract selection passed 104 tests; a
 subsequent quaternion round-trip regression and the six production cases pass.
 Ruff, wiki links/index coverage, raw preservation, and whitespace checks pass.
+
+## 2026-09-04 — update: Subphase 05.1 dataset persistence closeout
+
+Completed atomic truth/annotation persistence, typed loading, replay, crash and
+finalization recovery, and FLAC preservation. Replaced episode-owned SourceTruth
+with frame-record v2 supervision and manifest v2, migrated active examples and
+the reference fixture without audio changes, and reused the canonical serializer.
+Subphases 05.2 and 05.3 remain planned; no automatic Kit/Lab capture or learning
+sample is introduced.
+
+## 2026-09-04 — lint: Subphase 05.1 closeout
+
+Passed 572 unit/contract tests, 242 integration tests, and 58 release tests;
+optional audio passes on PyRoom 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0.
+The reference session validates with seven frames and no warnings; its audio
+bytes are unchanged. All three exported schemas match package resources.
+After correcting the manifest schema title, 40 schema/manifest/documentation
+checks pass. Ruff, wiki links/index coverage, raw preservation, and whitespace
+pass. No new GPU, live Isaac, downstream, or publication claim is made.

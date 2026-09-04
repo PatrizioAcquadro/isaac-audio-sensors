@@ -1,5 +1,5 @@
 {
-  "$id": "https://isaac-audio-sensors.dev/schemas/audio_dataset_manifest.v1.schema.json",
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_dataset_manifest.v2.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Portable, checksummed dataset contract. Its schema version is independent of the Python package version; constructors enforce cross-record ordering, reference, split, and completion invariants.",
@@ -286,93 +286,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "source_truth": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "active": {
-                  "type": "boolean"
-                },
-                "class_label": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "pose": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "entity_id": {
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
-                      "type": "string"
-                    },
-                    "entity_kind": {
-                      "enum": [
-                        "array",
-                        "source"
-                      ]
-                    },
-                    "frame": {
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
-                      "type": "string"
-                    },
-                    "orientation_xyzw": {
-                      "description": "Optional finite, non-zero quaternion in (x, y, z, w) order. Valid non-unit inputs are normalized to unit length during manifest construction and serialization; zero, near-zero, NaN, and infinite values are rejected.",
-                      "oneOf": [
-                        {
-                          "type": "null"
-                        },
-                        {
-                          "items": {
-                            "type": "number"
-                          },
-                          "maxItems": 4,
-                          "minItems": 4,
-                          "type": "array"
-                        }
-                      ]
-                    },
-                    "position_m": {
-                      "items": {
-                        "type": "number"
-                      },
-                      "maxItems": 3,
-                      "minItems": 3,
-                      "type": "array"
-                    },
-                    "timestamp_ms": {
-                      "minimum": 0,
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "entity_id",
-                    "entity_kind",
-                    "timestamp_ms",
-                    "position_m",
-                    "orientation_xyzw",
-                    "frame"
-                  ],
-                  "type": "object"
-                },
-                "source_id": {
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
-                  "type": "string"
-                },
-                "timestamp_ms": {
-                  "minimum": 0,
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "source_id",
-                "timestamp_ms",
-                "class_label",
-                "active",
-                "pose"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
           "split_group": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
             "type": "string"
@@ -415,7 +328,6 @@
           "split_group",
           "reset_markers",
           "array_poses",
-          "source_truth",
           "labels",
           "visual_sync_asset_ids"
         ],
@@ -438,7 +350,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "const": "ias.audio_dataset_manifest.v1"
+      "const": "ias.audio_dataset_manifest.v2"
     },
     "shards": {
       "items": {
@@ -611,6 +523,6 @@
     "completion_state",
     "schema_version"
   ],
-  "title": "Isaac Audio Sensors AudioDatasetManifest v1",
+  "title": "Isaac Audio Sensors AudioDatasetManifest v2",
   "type": "object"
 }

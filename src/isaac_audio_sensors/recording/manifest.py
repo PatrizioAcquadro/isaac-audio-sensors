@@ -1,4 +1,4 @@
-"""Public dataset-manifest v1 dataclasses and validation."""
+"""Public dataset-manifest v2 dataclasses and validation."""
 
 from __future__ import annotations
 
@@ -101,28 +101,6 @@ class ManifestPose:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SourceTruth:
-    """Ground-truth source state at one episode timestamp."""
-
-    source_id: str
-    timestamp_ms: int
-    class_label: str
-    active: bool
-    pose: ManifestPose
-
-    def __post_init__(self) -> None:
-        _require_id(self.source_id, "SourceTruth.source_id")
-        _require_non_negative_int(self.timestamp_ms, "SourceTruth.timestamp_ms")
-        _require_text(self.class_label, "SourceTruth.class_label")
-        if self.pose.entity_kind != "source":
-            raise ValueError("SourceTruth.pose must have entity_kind 'source'.")
-        if self.pose.entity_id != self.source_id:
-            raise ValueError("SourceTruth.pose entity_id must match source_id.")
-        if self.pose.timestamp_ms != self.timestamp_ms:
-            raise ValueError("SourceTruth.pose timestamp_ms must match timestamp_ms.")
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class ResetMarker:
     """Explicit simulator reset boundary inside an episode."""
 
@@ -138,7 +116,7 @@ class ResetMarker:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EpisodeRecord:
-    """Ranges, identities, truth, and synchronization data for one episode."""
+    """Ranges, identities, and synchronization data for one episode."""
 
     episode_id: str
     scene_id: str
@@ -152,7 +130,6 @@ class EpisodeRecord:
     split_group: str
     reset_markers: tuple[ResetMarker, ...] = field(default_factory=tuple)
     array_poses: tuple[ManifestPose, ...] = field(default_factory=tuple)
-    source_truth: tuple[SourceTruth, ...] = field(default_factory=tuple)
     labels: tuple[str, ...] = field(default_factory=tuple)
     visual_sync_asset_ids: tuple[str, ...] = field(default_factory=tuple)
 
@@ -189,9 +166,6 @@ class EpisodeRecord:
             raise ValueError("EpisodeRecord.array_poses must contain array poses.")
         _validate_pose_timestamps(array_poses, timestamps, "array_poses")
         object.__setattr__(self, "array_poses", array_poses)
-        source_truth = tuple(self.source_truth)
-        _validate_truth_timestamps(source_truth, timestamps)
-        object.__setattr__(self, "source_truth", source_truth)
         object.__setattr__(
             self,
             "labels",
@@ -427,12 +401,6 @@ class AudioDatasetManifest:
                         f"ManifestPose.frame {pose.frame!r} is not a declared "
                         "coordinate frame."
                     )
-            for truth in episode.source_truth:
-                if truth.pose.frame not in frames:
-                    raise ValueError(
-                        f"ManifestPose.frame {truth.pose.frame!r} is not a declared "
-                        "coordinate frame."
-                    )
         known_groups = {episode.split_group for episode in episodes}
         for episode in episodes:
             grouped_value = getattr(episode, self.split_grouping_key, None)
@@ -597,19 +565,4 @@ def _validate_pose_timestamps(
     _require_monotonic(
         tuple(pose.timestamp_ms for pose in poses),
         f"EpisodeRecord.{field_name} timestamps",
-    )
-
-
-def _validate_truth_timestamps(
-    truth_records: tuple[SourceTruth, ...],
-    timestamps: tuple[int, ...],
-) -> None:
-    for truth in truth_records:
-        if truth.timestamp_ms not in timestamps:
-            raise ValueError(
-                "EpisodeRecord.source_truth timestamp is absent from timestamps_ms."
-            )
-    _require_monotonic(
-        tuple(truth.timestamp_ms for truth in truth_records),
-        "EpisodeRecord.source_truth timestamps",
     )

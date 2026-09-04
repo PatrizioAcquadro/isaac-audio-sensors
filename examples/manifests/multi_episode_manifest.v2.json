@@ -68,26 +68,6 @@
       ],
       "scene_id": "scene_train",
       "seed": 11,
-      "source_truth": [
-        {
-          "active": true,
-          "class_label": "Speech",
-          "pose": {
-            "entity_id": "speaker_1",
-            "entity_kind": "source",
-            "frame": "world",
-            "orientation_xyzw": null,
-            "position_m": [
-              2.0,
-              0.5,
-              1.0
-            ],
-            "timestamp_ms": 0
-          },
-          "source_id": "speaker_1",
-          "timestamp_ms": 0
-        }
-      ],
       "split_group": "scene_train",
       "start_frame": 0,
       "start_step": 0,
@@ -134,26 +114,6 @@
       ],
       "scene_id": "scene_validation",
       "seed": 12,
-      "source_truth": [
-        {
-          "active": true,
-          "class_label": "Speech",
-          "pose": {
-            "entity_id": "speaker_1",
-            "entity_kind": "source",
-            "frame": "world",
-            "orientation_xyzw": null,
-            "position_m": [
-              2.0,
-              0.5,
-              1.0
-            ],
-            "timestamp_ms": 0
-          },
-          "source_id": "speaker_1",
-          "timestamp_ms": 0
-        }
-      ],
       "split_group": "scene_validation",
       "start_frame": 3,
       "start_step": 0,
@@ -168,7 +128,7 @@
   "license": "CC-BY-4.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v1",
+  "schema_version": "ias.audio_dataset_manifest.v2",
   "shards": [
     {
       "assets": [

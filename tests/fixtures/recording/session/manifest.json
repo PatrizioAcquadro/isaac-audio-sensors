@@ -48,7 +48,6 @@
       ],
       "scene_id": "scene_a",
       "seed": 1069551235531636834,
-      "source_truth": [],
       "split_group": "scene_a",
       "start_frame": 0,
       "start_step": 0,
@@ -74,7 +73,6 @@
       ],
       "scene_id": "scene_a",
       "seed": 3430078364821688530,
-      "source_truth": [],
       "split_group": "scene_a",
       "start_frame": 2,
       "start_step": 0,
@@ -100,7 +98,6 @@
       ],
       "scene_id": "scene_b",
       "seed": 6410060826111544611,
-      "source_truth": [],
       "split_group": "scene_b",
       "start_frame": 4,
       "start_step": 0,
@@ -115,7 +112,7 @@
   "license": "CC0-1.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v1",
+  "schema_version": "ias.audio_dataset_manifest.v2",
   "shards": [
     {
       "assets": [
@@ -123,7 +120,7 @@
           "asset_id": "shard_00000.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00000/frames.jsonl",
-          "sha256": "a37fc3f232a0dea35972cc3f191e2bf1813646336386832b62ceb1732bd26e26"
+          "sha256": "9ffd50d1e82011a62185cb245a7b9c757bde245f0e26943ed815b4e3c0bfd3d1"
         },
         {
           "asset_id": "shard_00000.audio",
@@ -145,7 +142,7 @@
           "asset_id": "shard_00001.frames",
           "kind": "frame_trace_jsonl",
           "path": "shards/shard_00001/frames.jsonl",
-          "sha256": "fead2d7facbf22978b16ad6c9b69b26a485fd390d2cf3cd88c003760ab262f2f"
+          "sha256": "b028e316769e07f2a922c0af2e946d98705f62bd778f86a20445189ad83c34e8"
         },
         {
           "asset_id": "shard_00001.audio",

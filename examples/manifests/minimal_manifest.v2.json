@@ -68,26 +68,6 @@
       ],
       "scene_id": "scene_a",
       "seed": 7,
-      "source_truth": [
-        {
-          "active": true,
-          "class_label": "Speech",
-          "pose": {
-            "entity_id": "speaker_1",
-            "entity_kind": "source",
-            "frame": "world",
-            "orientation_xyzw": null,
-            "position_m": [
-              2.0,
-              0.5,
-              1.0
-            ],
-            "timestamp_ms": 0
-          },
-          "source_id": "speaker_1",
-          "timestamp_ms": 0
-        }
-      ],
       "split_group": "scene_a",
       "start_frame": 0,
       "start_step": 0,
@@ -101,7 +81,7 @@
   "license": "CC0-1.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v1",
+  "schema_version": "ias.audio_dataset_manifest.v2",
   "shards": [
     {
       "assets": [

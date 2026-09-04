@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     SourceOcclusion,
 )
+from isaac_audio_sensors.recording.serialization import _serialize
 
 
 def _text(value: object, name: str) -> None:
@@ -154,6 +155,8 @@ class FrameTruth:
         _text(self.array_id, "array_id")
         if not isinstance(self.time_window, AudioTimeWindow):
             raise TypeError("time_window must be AudioTimeWindow.")
+        for name in ("start_time_s", "end_time_s"):
+            _number(getattr(self.time_window, name), name, minimum=-math.inf)
         if type(self.sample_rate_hz) is not int or self.sample_rate_hz <= 0:
             raise ValueError("sample_rate_hz must be a positive integer.")
         events = tuple(self.truth_events)
@@ -240,16 +243,6 @@ def _validate_supervision(
     return result
 
 
-def _plain(value: Any) -> Any:
-    if hasattr(value, "__dataclass_fields__"):
-        return {item.name: _plain(getattr(value, item.name)) for item in fields(value)}
-    if isinstance(value, Mapping):
-        return {key: _plain(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_plain(item) for item in value]
-    return value
-
-
 def _exact(payload: Any, model: type) -> dict[str, Any]:
     if not isinstance(payload, dict) or set(payload) != {
         item.name for item in fields(model)
@@ -261,7 +254,7 @@ def _exact(payload: Any, model: type) -> dict[str, Any]:
 
 
 def _occlusion_to_dict(value: SourceOcclusion) -> dict[str, Any]:
-    return _plain(value)
+    return _serialize(value)
 
 
 def _occlusion_from_dict(payload: dict[str, Any]) -> SourceOcclusion:
@@ -274,7 +267,7 @@ def _occlusion_from_dict(payload: dict[str, Any]) -> SourceOcclusion:
 
 
 def _truth_to_dict(value: FrameTruth | None) -> dict[str, Any] | None:
-    return _plain(value)
+    return _serialize(value)
 
 
 def _truth_from_dict(payload: dict[str, Any] | None) -> FrameTruth | None:
@@ -297,7 +290,7 @@ def _truth_from_dict(payload: dict[str, Any] | None) -> FrameTruth | None:
 
 
 def _annotations_to_dict(values: Sequence[AnnotationRecord]) -> list[dict[str, Any]]:
-    return [_plain(value) for value in values]
+    return [_serialize(value) for value in values]
 
 
 def _annotations_from_dict(
