@@ -861,3 +861,25 @@ Wiki links and index coverage pass across 32 pages. Ruff and whitespace checks
 pass; the fixture validates with three episodes, two shards, seven frames, and
 no findings. All seven non-manifest fixture files are byte-identical to 8d7a71e;
 raw evidence is unchanged. Packaged schema generation matches current resources.
+
+## 2026-09-04 — update: Subphase 05.3 consumer cleanup closeout
+
+Removed the duplicate record JSON/version parser and redundant replay checks.
+Loader, validation, replay, and learning retain canonical corruption codes and
+locations; replay preserves episode/reset ordering and separate supervision.
+Verified-shard validation preserves truth and annotations in loaded records.
+The host gate passes 581 unit/contract, 277 integration, and 58 release tests.
+Optional audio passes with PyRoom 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0.
+The learning example emits a (3, 2, 4800) policy waveform batch with three separate
+supervised frames. The fixture validates with three episodes, two shards, seven
+frames, and no findings. All three schema resources match regeneration and all
+seven non-manifest fixture files are byte-identical to baseline 8d7a71e.
+No new live Isaac, GPU, training, or downstream validation is claimed.
+
+## 2026-09-04 — lint: Subphase 05.3 closeout
+
+Wiki tree, links/index coverage across 32 pages, phase headings, current repository
+references, and completion claims pass review. The log preserves all prior entries;
+raw evidence is unchanged. Removed production names remain only in rejection tests
+and explanatory/history text. Documentation-boundary and schema tests pass (13);
+Ruff and Git whitespace checks pass. Plan 05 is complete; signal parity is next.

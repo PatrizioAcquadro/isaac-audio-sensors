@@ -46,7 +46,37 @@ def test_replay_matches_loader_and_is_read_only(tmp_path):
         assert np.array_equal(event.audio, dataset.read_frame_audio(item))
     assert [event.kind for event in events].count("episode_start") == 3
     assert [event.kind for event in events].count("episode_end") == 3
+    assert [event.kind for event in events] == [
+        kind
+        for count in (2, 2, 3)
+        for kind in ("episode_start", "reset", *["frame"] * count, "episode_end")
+    ]
     assert _snapshot(root) == before
+
+
+@pytest.mark.parametrize("corruption", ["duplicate_reset", "reset_time", "count"])
+def test_replay_preserves_loader_episode_failures(tmp_path, corruption):
+    root = tmp_path / corruption
+    shutil.copytree(REFERENCE, root)
+    path = root / "manifest.json"
+    manifest = json.loads(path.read_text())
+    episode = manifest["episodes"][-1]
+    if corruption == "duplicate_reset":
+        episode["reset_markers"] *= 2
+    elif corruption == "reset_time":
+        episode["reset_markers"][0]["timestamp_ms"] = episode["timestamps_ms"][1]
+    else:
+        episode["end_frame"] += 1
+        episode["timestamps_ms"].append(15)
+    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(DatasetLayoutError) as loaded:
+        list(SessionDataset.open(root).iter_records())
+    with pytest.raises(DatasetLayoutError) as replayed:
+        list(replay_session(root))
+    assert str(replayed.value) == str(loaded.value)
+    assert replayed.value.code == loaded.value.code
+    assert replayed.value.location == loaded.value.location
 
 
 def test_incomplete_replay_requires_opt_in(tmp_path):

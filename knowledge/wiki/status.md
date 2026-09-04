@@ -249,9 +249,12 @@ correct declared identities; temporal sequences and Phase 07 remain out of scope
 
 Manifest v4 and active consumers remove unused episode pose, label, and visual-sync
 metadata and their supporting statistics. Earlier manifests are rejected without
-compatibility readers. The focused migration gate passes 230 contract, recording,
-learning, and release tests. Parser/replay consolidation and final validation remain
-in progress.
+compatibility readers. Loader and validation share the canonical record parser; replay relies on the
+loader for timestamp, reset, and frame-count validation. The final host gate passes
+581 unit/contract, 277 integration, and 58 release tests. Optional audio, schema
+regeneration, fixture validation, and the learning example pass. All seven
+non-manifest fixture files remain byte-identical to 8d7a71e. No new GPU or live
+Isaac qualification is claimed.
 
 ## Maintained Commands
 
@@ -285,7 +288,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.2 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next is 05.3 remaining dataset consumer migration/cleanup, followed by signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.3 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next is signal parity, followed by Lab tensor projection and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

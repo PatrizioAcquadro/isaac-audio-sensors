@@ -1,6 +1,6 @@
 # Implementation Plan 05 — Ground Truth and Learning Datasets
 
-Status: Subphases 05.1 and 05.2 implemented. Subphase 05.3 manifest migration is implemented; parser/replay cleanup remains in progress.
+Status: Subphases 05.1–05.3 implemented.
 
 ## Objective
 
@@ -75,7 +75,7 @@ Manifest v4 removes unused episode `array_poses`, `labels`, and `visual_sync_ass
 
 Recorder, loader, replay, validation, FLAC, learning, manifest examples, the deterministic fixture manifest, and packaged schema consumers use v4. Manifest v1–v3 and removed fields are rejected without compatibility readers. Frame v3, frame-record v2, recorder-state v2, calibration v1, and package 3.0.0 remain unchanged. Fixture audio, JSONL rows, configuration, and markers are unchanged.
 
-Remaining work consolidates frame-record parsing and loader-owned replay checks. No public `GroundTruthAssembler`, duplicate waveform storage, or test-only dataset fields are introduced.
+Loader and validation call the canonical frame-record parser directly; the duplicate JSON/version wrapper is removed. Replay emits events from the checked loader stream without repeating timestamp, reset, or frame-count validation. Corruption remains located and machine-readable across validation, loading, replay, and learning. Validation of independently verified shards also preserves separate truth and annotations in its loaded records. The shared manifest/truth serializer, maintained learning example, and distinct session-shard and corpus split responsibilities remain. No public `GroundTruthAssembler`, duplicate waveform storage, or test-only dataset fields are introduced.
 
 #### Key Decisions
 
@@ -85,13 +85,13 @@ Remaining work consolidates frame-record parsing and loader-owned replay checks.
 
 #### Problems / Limitations
 
-Existing v1–v3 artifacts require explicit external migration before loading; there is no automatic migration of local datasets or protected evidence. Parser/replay cleanup and the final host gate remain pending.
+Existing v1–v3 artifacts require explicit external migration before loading; there is no automatic migration of local datasets or protected evidence. This dataset-only cleanup adds no live Isaac, GPU, training, or downstream qualification claim.
 
 ## Artifacts
 
 Implemented artifacts are dataset truth and annotation contracts, a single-render analytic composition, atomic frame-record v2 persistence, and current manifest v4 resources/examples. Subphase 05.2 adds NumPy learning samples/collation, corpus splitting, acquisition identities, and a maintained end-to-end example at `examples/core/learning_samples.py`. Matching remains evaluator-owned.
 
-Focused tests cover empty/inactive/silent/partial/multiple sources, propagation outside the captured window, rotated and coincident geometry, motion semantics, occlusion/reflections, noise and nonlinear electronics, actual PyRoom shoebox/prism routes, immutable supervision, canonical round-trips, invalid alignment, resets, shard boundaries, metadata-only sessions, time gaps, crash/finalization recovery, replay, and FLAC preservation. Final gate results are recorded in the closeout log.
+Focused tests cover empty/inactive/silent/partial/multiple sources, propagation outside the captured window, rotated and coincident geometry, motion semantics, occlusion/reflections, noise and nonlinear electronics, actual PyRoom shoebox/prism routes, immutable supervision, canonical round-trips, invalid alignment, resets, shard boundaries, metadata-only sessions, time gaps, crash/finalization recovery, replay, and FLAC preservation. The 05.3 host gate passes 581 unit/contract, 277 integration, and 58 release tests; optional audio, the learning example, schema regeneration, and fixture validation pass. All seven non-manifest fixture files are byte-identical to 8d7a71e. Detailed closeout evidence is recorded in the log.
 
 ## Files
 

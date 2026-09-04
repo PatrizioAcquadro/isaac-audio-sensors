@@ -14,10 +14,10 @@ import numpy as np
 from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
 )
-from isaac_audio_sensors.recording import loader as _loader
 from isaac_audio_sensors.recording._records import (
     DatasetLayoutError,
     LayoutWarning,
+    parse_dataset_frame_record,
 )
 from isaac_audio_sensors.recording._shards import (
     VerifiedShard,
@@ -322,13 +322,20 @@ def _iter_verified_shard_records(
                 location = (
                     f"shard {shard.shard_id} file frames.jsonl line {line_number}"
                 )
-                record = _loader._parse_record(line, location, marker, root)
+                record = parse_dataset_frame_record(
+                    line,
+                    location=location,
+                    sample_count=marker["audio"]["sample_count"],
+                    session_root=root,
+                )
                 yield LoadedFrame(
                     dataset_frame_index=record.dataset_frame_index,
                     episode_id=record.episode_id,
                     audio_start_sample=record.audio_start_sample,
                     audio_end_sample=record.audio_end_sample,
                     frame=frame_from_trace_dict(record.frame),
+                    truth=record.truth,
+                    annotations=record.annotations,
                     shard_id=shard.shard_id,
                     line_number=line_number,
                 )

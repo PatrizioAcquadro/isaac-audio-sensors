@@ -17,7 +17,10 @@ from isaac_audio_sensors.recording import (
     CreationProvenance,
     DatasetLayoutError,
     DeviceProvenance,
+    LearningDataset,
+    SessionDataset,
     SessionRecorder,
+    replay_session,
     validate_dataset,
 )
 from tests.helpers import signal_block_for_frame
@@ -328,6 +331,15 @@ def test_corruption_matrix_has_only_intended_finding(tmp_path, case, code, locat
     assert [finding.code for finding in report.findings] == [code]
     assert report.findings[0].severity == "error"
     assert location in report.findings[0].location
+    for read in (
+        lambda: SessionDataset.open(root).iter_records(),
+        lambda: replay_session(root),
+        lambda: LearningDataset.open([root]).iter_samples(),
+    ):
+        with pytest.raises(DatasetLayoutError) as caught:
+            list(read())
+        assert caught.value.code == code
+        assert location in caught.value.location
 
 
 def test_split_group_crossing_is_one_located_error(tmp_path):

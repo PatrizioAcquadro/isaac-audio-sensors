@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -24,8 +24,6 @@ from isaac_audio_sensors.core.io.traces import frame_from_trace_dict
 from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.recording import _shards
 from isaac_audio_sensors.recording._records import (
-    DATASET_FRAME_RECORD_VERSION,
-    DatasetFrameRecord,
     DatasetLayoutError,
     canonical_configuration_bytes,
     configuration_sha256,
@@ -403,8 +401,11 @@ class SessionDataset:
                             f"shard {shard.shard_id} file frames.jsonl line "
                             f"{line_number}"
                         )
-                        record = _parse_record(
-                            line, location, marker, self.session_root
+                        record = parse_dataset_frame_record(
+                            line,
+                            location=location,
+                            sample_count=marker["audio"]["sample_count"],
+                            session_root=self.session_root,
                         )
                         if record.dataset_frame_index != expected_index:
                             raise DatasetLayoutError(
@@ -682,30 +683,3 @@ def _check_calibration_reference(root: Path, manifest: AudioDatasetManifest) -> 
         raise DatasetLayoutError(
             f"session {root} file {reference.path}: calibration sha256 mismatch."
         )
-
-
-def _parse_record(
-    line: bytes,
-    location: str,
-    marker: Mapping[str, Any],
-    session_root: Path,
-) -> DatasetFrameRecord:
-    try:
-        payload = json.loads(line)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        payload = None
-    if isinstance(payload, dict):
-        version = payload.get("record_version", "<missing>")
-        if version != DATASET_FRAME_RECORD_VERSION:
-            raise DatasetLayoutError(
-                f"{location}: record_version {version!r}; "
-                f"expected {DATASET_FRAME_RECORD_VERSION!r}.",
-                code="unknown_version",
-                location=location,
-            )
-    return parse_dataset_frame_record(
-        line,
-        location=location,
-        sample_count=marker["audio"]["sample_count"],
-        session_root=session_root,
-    )

@@ -94,7 +94,7 @@ Truth distinguishes missing supervision from a known empty scene. Observation an
 
 ## Dataset Sessions
 
-The current manifest v4 preserves the v3 stable acquisition `session_id`, defaulted from the initial `dataset_id` by the recorder and preserved by FLAC export. Optional episode `trajectory_id` and `source_asset_ids` are caller-declared global identities for learning splits; null assets mean unknown inventory, while an empty list means known empty. These fields survive recorder state v2 recovery. Frame-record v2 and frame v3 remain unchanged.
+Manifest v4 preserves the stable acquisition `session_id` introduced in v3, defaulted from the initial `dataset_id` by the recorder and preserved by FLAC export. Optional episode `trajectory_id` and `source_asset_ids` are caller-declared global identities for learning splits; null assets mean unknown inventory, while an empty list means known empty. These fields survive recorder state v2 recovery. Frame-record v2 and frame v3 remain unchanged.
 
 Manifest v4 removes episode `array_poses`, `labels`, and `visual_sync_asset_ids`, `ManifestPose`, and the `visual_sync` asset kind. Per-frame observations, truth, and annotations remain separate. Statistics no longer expose `label_counts`, `visual_sync_count`, JSON `labels`, or `modalities.visual_sync_count`; no replacement counters or label conversion are added.
 
@@ -108,7 +108,7 @@ Every canonical `ias.dataset_frame_record.v2` row contains its dataset/episode i
 
 Durable staging and atomic promotion prevent a partial write from appearing as a completed shard. Manifest and split-plan writes are atomic, and manifest input must already match the canonical v4 representation rather than relying on type coercion.
 
-`SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, frame sample rate/channel IDs, exact reset alignment, and optional checksums before exposing records. The recorder also rejects channel-ID mismatches in metadata-only captures before advancing accepted frame state. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
+`SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, frame sample rate/channel IDs, exact reset alignment, and optional checksums before exposing records. The recorder also rejects channel-ID mismatches in metadata-only captures before advancing accepted frame state. Loader and validation call the same canonical frame-record parser directly. Replay uses the checked episode stream for timestamp, reset, and count guarantees. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
 
 Validation checks manifest/schema consistency, shard tiling and lifecycle, frame records, split-group isolation, waveform finiteness when requested, and preserved time-gap accounting.
 

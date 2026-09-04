@@ -5,6 +5,7 @@
 - Breaking (Subphase 05.3): migrated to manifest v4 and removed unused episode poses, episode labels, visual-sync references/assets, `ManifestPose`, and corresponding statistics/JSON fields. Manifest v1–v3 and removed fields are rejected without compatibility readers; per-frame truth and annotations remain separate from observations.
 
 - Breaking (Subphase 05.1): moved truth from `EpisodeRecord.source_truth` into atomic frame-record v2 rows beside frame v3, migrated manifests to v2, and removed `SourceTruth` and legacy dataset readers. Recorder, loader, replay, recovery, and FLAC preserve optional truth and separate annotations.
+- Simplified dataset loading and validation to use the canonical record parser directly; replay uses loader-owned timestamp, reset, and count checks while preserving event order and located corruption errors.
 - Added dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `simulate_dataset_frame()` with single-render analytic supervision, independent observation cardinality, and separate emission, linear received RMS, and mixture residual evidence.
 
 - Breaking (Plan 02): changed `PropagationBackend` from scene-to-frame `simulate()` to scene-to-signal `propagate()`, replaced frame v2 detections with the exact frame v3 observation contract, and removed the temporary bridge and source-conditioned assembly without aliases. At Plan 02, dataset-manifest and calibration-profile wrappers remained v1; Plan 05 subsequently replaces the dataset wrapper.

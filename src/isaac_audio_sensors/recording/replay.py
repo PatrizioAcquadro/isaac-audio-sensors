@@ -9,7 +9,6 @@ from typing import Literal
 
 import numpy as np
 
-from isaac_audio_sensors.recording._records import DatasetLayoutError
 from isaac_audio_sensors.recording.loader import LoadedFrame, SessionDataset
 from isaac_audio_sensors.recording.manifest import EpisodeRecord
 
@@ -53,25 +52,10 @@ def replay_session(
             episode_id=episode.episode_id,
         )
         resets = {marker.frame_index: marker for marker in episode.reset_markers}
-        previous_timestamp: int | None = None
-        frame_count = 0
         for item in frames:
             timestamp = item.frame.timestamp_ms
-            if previous_timestamp is not None and timestamp < previous_timestamp:
-                raise DatasetLayoutError(
-                    f"session {root} episode {episode.episode_id}: non-monotonic "
-                    f"timestamp at frame {item.dataset_frame_index} "
-                    f"(shard {item.shard_id} file frames.jsonl line "
-                    f"{item.line_number})."
-                )
-            previous_timestamp = timestamp
-            reset = resets.pop(item.dataset_frame_index, None)
+            reset = resets.get(item.dataset_frame_index)
             if reset is not None:
-                if reset.timestamp_ms != timestamp:
-                    raise DatasetLayoutError(
-                        f"session {root} episode {episode.episode_id}: reset "
-                        f"timestamp mismatch at frame {item.dataset_frame_index}."
-                    )
                 yield ReplayEvent(
                     kind="reset",
                     frame_index=reset.frame_index,
@@ -86,20 +70,6 @@ def replay_session(
                 frame_index=item.dataset_frame_index,
                 timestamp_ms=timestamp,
                 episode_id=episode.episode_id,
-            )
-            frame_count += 1
-        expected_count = episode.end_frame - episode.start_frame + 1
-        if frame_count != expected_count:
-            raise DatasetLayoutError(
-                f"session {root} episode {episode.episode_id}: replayed "
-                f"{frame_count} frames; expected {expected_count} at frame "
-                f"{episode.start_frame + frame_count}."
-            )
-        if resets:
-            first = min(resets)
-            raise DatasetLayoutError(
-                f"session {root} episode {episode.episode_id}: reset marker "
-                f"has no record at frame {first}."
             )
         yield ReplayEvent(kind="episode_end", episode_id=episode.episode_id)
 
