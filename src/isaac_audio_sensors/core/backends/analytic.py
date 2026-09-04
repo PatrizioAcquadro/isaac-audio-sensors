@@ -129,6 +129,7 @@ class AnalyticAcoustics:
             backend_id=self.backend_id,
             solver_id=solver_id,
             core_solver=solver_id in _CORE_SOLVERS,
+            effects=self.effects,
         )
 
     def _render_signal(

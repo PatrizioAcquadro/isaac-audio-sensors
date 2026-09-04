@@ -53,13 +53,15 @@ def test_continuous_writer_close_does_not_append_beyond_exact_block(tmp_path):
     soundfile = pytest.importorskip("soundfile")
     samples = np.asarray([[0.1, 0.2, 0.3, 0.4]], dtype=np.float32)
     block = MicrophoneSignalBlock(
+        microphone_positions_m=((0.0, 0.0, 0.0),),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None,),
         samples=samples,
         microphone_ids=("mic",),
         array_id="rig",
         sample_rate_hz=4,
-        time_window=AudioTimeWindow(
-            start_time_s=0.0, end_time_s=1.0, frame_index=0
-        ),
+        time_window=AudioTimeWindow(start_time_s=0.0, end_time_s=1.0, frame_index=0),
         channel_validity=(True,),
         producer_id="analytic_acoustics",
         provenance="synthetic/core",

@@ -67,6 +67,10 @@ def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> No
         environment=free_field_environment(environment_id="free"),
     )
     block = MicrophoneSignalBlock(
+        microphone_positions_m=tuple(m.relative_position_m for m in array.microphones),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None,) * len(array.microphones),
         samples=np.zeros((4, 480), dtype=np.float32),
         microphone_ids=tuple(mic.mic_id for mic in array.microphones),
         array_id=array.array_id,
@@ -110,6 +114,10 @@ def test_simulate_frame_localizes_only_the_propagated_mixture() -> None:
     )
     samples = np.arange(4 * 480, dtype=np.float32).reshape(4, 480)
     block = MicrophoneSignalBlock(
+        microphone_positions_m=tuple(m.relative_position_m for m in array.microphones),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None,) * len(array.microphones),
         samples=samples,
         microphone_ids=tuple(mic.mic_id for mic in array.microphones),
         array_id=array.array_id,

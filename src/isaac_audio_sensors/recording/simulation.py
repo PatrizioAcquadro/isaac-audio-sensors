@@ -62,6 +62,7 @@ def simulate_dataset_frame(
         backend_id=backend.backend_id,
         solver_id=solver_id,
         core_solver=solver_id in _CORE_SOLVERS,
+        effects=backend.effects,
     )
     frame = _frame_from_signal(
         block,

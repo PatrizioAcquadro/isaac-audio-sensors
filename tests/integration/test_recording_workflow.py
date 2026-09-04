@@ -127,6 +127,12 @@ def _signal_block(frame: AudioSensorFrame) -> MicrophoneSignalBlock:
     samples = np.arange(32, dtype=np.float32).reshape(4, 8)
     samples = samples / np.float32(64.0) + np.float32(frame.frame_index / 128.0)
     return MicrophoneSignalBlock(
+        microphone_positions_m=tuple(
+            (0.0, float(i), 0.0) for i in range(len(frame.channel_validity))
+        ),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None,) * len(frame.channel_validity),
         samples=samples,
         microphone_ids=tuple(frame.channel_validity),
         array_id=frame.array_id,

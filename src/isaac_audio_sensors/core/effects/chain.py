@@ -139,6 +139,7 @@ class ChannelEffectsChain:
         backend_id: str,
         runtime_profile: str,
         nominal_window_start_sample: int,
+        observed_sample_count: int | None = None,
         microphone_self_noise_db: dict[str, float | None] | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Apply stochastic/nonlinear stages once to the summed mixture."""
@@ -175,6 +176,7 @@ class ChannelEffectsChain:
                 frame_id=frame_id,
                 config=self.config.electronics,
                 seed=self.config.noise.seed,
+                observed_sample_count=observed_sample_count,
             )
             stage_diagnostics["electronics"] = electronics_diagnostics
         return output, stage_diagnostics

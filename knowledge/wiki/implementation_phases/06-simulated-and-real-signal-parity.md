@@ -1,6 +1,6 @@
 # Implementation Plan 06 — Simulated and Real Signal Parity
 
-Status: Planned after the observed frame and dataset boundaries exist.
+Status: 06.1 in progress; the signal contract and analytic producer are migrated. Shared continuity handling remains in progress. 06.2 and 06.3 remain planned.
 
 ## Objective
 
@@ -14,7 +14,9 @@ Plan 06 follows the [[decisions/minimal-maintained-repository-surface|Minimal Ma
 
 #### Implementation
 
-Define common conventions for channel ordering, sample rate, timing, array identity, validity, discontinuity, clipping, and levels across simulated and captured blocks. Bind each producer to an explicit `MicrophoneArraySpec` or physical equivalent, with configurable geometry and acquisition parameters rather than assumptions tied to one device.
+The runtime block now requires ordered local microphone geometry, a named sample-clock domain, explicit discontinuity, and per-channel clipping with an unknown state. Existing finite immutable float32 samples, nominal rate, validity, and exact-window semantics remain. Analytic propagation and dataset truth production populate the same contract, including exact-window electronics clipping and separate nominal gain, configured drift, applied correction, and unknown measured-calibration metadata. See [[topics/public-contracts-and-recording|Public Contracts and Recording]] for the common conventions.
+
+Contract milestone validation passes 591 unit/contract tests and 153 focused signal, electronics, waveform, and recording tests. Geometry enforcement and shared automatic perception resets are the remaining 06.1 integration milestone.
 
 The block contains observed microphone samples only. Simulator state and hardware-driver details remain producer-owned metadata outside perception.
 

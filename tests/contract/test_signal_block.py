@@ -17,6 +17,10 @@ def _block(**overrides: object) -> MicrophoneSignalBlock:
     values: dict[str, object] = {
         "samples": np.zeros((2, 480), dtype=np.float64),
         "microphone_ids": ("left", "right"),
+        "microphone_positions_m": ((0.0, -0.1, 0.0), (0.0, 0.1, 0.0)),
+        "clock_domain": "device:test",
+        "discontinuity": False,
+        "channel_clipping": (None, None),
         "array_id": "rig",
         "sample_rate_hz": 48_000,
         "time_window": WINDOW,
@@ -35,10 +39,14 @@ def test_signal_block_has_the_minimal_public_boundary() -> None:
     assert tuple(field.name for field in fields(MicrophoneSignalBlock)) == (
         "samples",
         "microphone_ids",
+        "microphone_positions_m",
         "array_id",
         "sample_rate_hz",
         "time_window",
+        "clock_domain",
+        "discontinuity",
         "channel_validity",
+        "channel_clipping",
         "producer_id",
         "provenance",
         "diagnostics",
@@ -73,6 +81,13 @@ def test_signal_block_accepts_a_fully_invalid_finite_window() -> None:
         ({"channel_validity": (True, 1)}, "must be booleans"),
         ({"sample_rate_hz": True}, "positive integer"),
         ({"sample_rate_hz": 0}, "positive integer"),
+        ({"microphone_positions_m": ((0, 0, 0),)}, "must match"),
+        ({"microphone_positions_m": ((0, 0), (0, 0, 0))}, "three values"),
+        ({"microphone_positions_m": ((0, 0, float("nan")), (0, 0, 0))}, "finite"),
+        ({"clock_domain": ""}, "non-empty"),
+        ({"discontinuity": 1}, "boolean"),
+        ({"channel_clipping": (False,)}, "must match"),
+        ({"channel_clipping": (False, 1)}, "booleans or None"),
         ({"array_id": ""}, "non-empty"),
         ({"producer_id": ""}, "non-empty"),
         ({"provenance": ""}, "non-empty"),
@@ -86,3 +101,11 @@ def test_signal_block_rejects_invalid_values(overrides, message) -> None:
 def test_signal_block_requires_a_typed_time_window() -> None:
     with pytest.raises(TypeError, match="AudioTimeWindow"):
         _block(time_window={"start_time_s": 1.0, "end_time_s": 1.01})
+
+
+def test_levels_and_unknown_clipping_do_not_modify_samples() -> None:
+    samples = np.full((2, 480), 2.5, dtype=np.float32)
+    block = _block(samples=samples, channel_clipping=(True, None))
+    np.testing.assert_array_equal(block.samples, samples)
+    assert block.channel_clipping == (True, None)
+    assert block.diagnostics["acquisition"] is None

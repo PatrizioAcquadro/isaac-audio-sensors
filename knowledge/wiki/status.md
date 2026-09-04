@@ -10,6 +10,8 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
+- Subphase 06.1 contract milestone adds required local geometry, sample-clock domain, discontinuity, and tri-state per-channel clipping to runtime signal blocks. The analytic and dataset producers are migrated; 591 unit/contract tests and 153 focused checks pass. Shared automatic perception continuity is still in progress.
+
 - Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
 
 - Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3, dataset-manifest is v4, frame-record is v2, and calibration-profile remains v1.

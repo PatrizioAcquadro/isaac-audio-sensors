@@ -174,6 +174,12 @@ def signal_block_for_frame(frame: AudioSensorFrame, samples) -> MicrophoneSignal
     """Build the recorder input matching one frame's signal contract."""
 
     return MicrophoneSignalBlock(
+        microphone_positions_m=tuple(
+            (0.0, float(i), 0.0) for i in range(len(frame.channel_validity))
+        ),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None,) * len(frame.channel_validity),
         samples=samples,
         microphone_ids=tuple(frame.channel_validity),
         array_id=frame.array_id,

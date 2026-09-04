@@ -909,3 +909,15 @@ expected artifacts, and index; implementation remains planned.
 All five documentation-boundary checks and Git whitespace checks pass. Reviewed
 phase wording and scope; changes are limited to Plan 06, its index entry, and
 this log. No code, downstream files, raw evidence, or hardware was changed.
+
+## 2026-09-04 — update: Subphase 06.1 signal contract milestone
+
+Documented required signal geometry, sample-clock and discontinuity declarations,
+tri-state clipping, and producer-owned acquisition evidence. Analytic electronics
+reports clipping on the exact exported window without changing waveform values.
+Shared perception continuity remains in progress; serialized schemas are unchanged.
+
+## 2026-09-04 — lint: Subphase 06.1 contract milestone
+
+Wiki links, index coverage, five documentation-boundary tests, and Git whitespace
+checks pass. Raw evidence and serialized schemas remain unchanged.

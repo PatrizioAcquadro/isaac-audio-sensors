@@ -358,8 +358,7 @@ def apply_room_effects(
                 else:
                     continue
                 rendered.premix[index, mic_index] = (
-                    attenuated_direct
-                    + rendered.indirect_premix[index, mic_index]
+                    attenuated_direct + rendered.indirect_premix[index, mic_index]
                 )
         for mic_index, microphone in enumerate(prepared.sensor.microphones):
             rendered.premix[:, mic_index] *= db_to_amplitude_gain(
@@ -394,6 +393,7 @@ def apply_room_effects(
                 backend_id=backend_id,
                 runtime_profile=runtime_profile,
                 nominal_window_start_sample=prepared.nominal_window_start_sample,
+                observed_sample_count=prepared.window_sample_count,
                 microphone_self_noise_db=prepared.microphone_self_noise_db,
             )
             if diagnostics:
@@ -421,6 +421,7 @@ def apply_room_effects(
             backend_id=backend_id,
             runtime_profile=runtime_profile,
             nominal_window_start_sample=prepared.nominal_window_start_sample,
+            observed_sample_count=prepared.window_sample_count,
             microphone_self_noise_db=prepared.microphone_self_noise_db,
         )
         if diagnostics:
@@ -1024,9 +1025,7 @@ def _validate_simple_polygon_xy(
             c = vertices[right_index]
             d = vertices[(right_index + 1) % len(vertices)]
             if _segments_cross_xy(a, b, c, d):
-                raise ValueError(
-                    "polygon_prism floor polygon must not self-intersect."
-                )
+                raise ValueError("polygon_prism floor polygon must not self-intersect.")
 
 
 def _segments_cross_xy(

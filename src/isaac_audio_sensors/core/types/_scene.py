@@ -264,7 +264,7 @@ class MicrophoneArraySpec:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AudioTimeWindow:
-    """Half-open simulation window ``[start_time_s, end_time_s)``."""
+    """Half-open sample-time window ``[start_time_s, end_time_s)``."""
 
     start_time_s: float
     end_time_s: float

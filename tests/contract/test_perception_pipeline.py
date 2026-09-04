@@ -281,6 +281,8 @@ def test_only_final_valid_mixture_and_local_geometry_reach_estimator() -> None:
             dtype=np.float32,
         ),
         microphone_ids=("front", "right", "left"),
+        microphone_positions_m=tuple(m.relative_position_m for m in array.microphones),
+        channel_clipping=(None, None, None),
         channel_validity=(True, False, True),
     )
 
@@ -650,6 +652,12 @@ def _stream_array() -> MicrophoneArraySpec:
 def _stream_block(index: int, *, value: float) -> MicrophoneSignalBlock:
     start = index * 0.05
     return MicrophoneSignalBlock(
+        microphone_positions_m=tuple(
+            m.relative_position_m for m in _stream_array().microphones
+        ),
+        clock_domain="simulation:test",
+        discontinuity=False,
+        channel_clipping=(None, None, None),
         samples=np.full((3, 1), value, dtype=np.float32),
         microphone_ids=("front", "right", "left"),
         array_id="stream_rig",
@@ -669,6 +677,12 @@ def _block(**overrides: object) -> MicrophoneSignalBlock:
     values: dict[str, object] = {
         "samples": np.ones((2, 4), dtype=np.float32),
         "microphone_ids": ("left", "right"),
+        "microphone_positions_m": tuple(
+            m.relative_position_m for m in _array().microphones
+        ),
+        "clock_domain": "simulation:test",
+        "discontinuity": False,
+        "channel_clipping": (None, None),
         "array_id": "rig",
         "sample_rate_hz": 4,
         "time_window": AudioTimeWindow(start_time_s=1.0, end_time_s=2.0, frame_index=3),

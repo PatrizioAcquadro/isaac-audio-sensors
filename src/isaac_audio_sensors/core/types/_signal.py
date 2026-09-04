@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from isaac_audio_sensors.core.math_utils import as_vector3
 from isaac_audio_sensors.core.types._scene import AudioTimeWindow
 from isaac_audio_sensors.core.types._validation import require_non_empty
 
@@ -15,14 +16,24 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MicrophoneSignalBlock:
-    """One exact, ordered microphone-major signal window."""
+    """Ordered observed samples, with array-local geometry in canonical meters.
+
+    Samples use a unit digital amplitude reference, never implicit SPL or peak
+    normalization. Values beyond +/-1 are permitted. Clipping is producer-known
+    saturation (None means unknown), not a threshold test on the final samples.
+    Times belong to the named sample clock, not the buffer delivery clock.
+    """
 
     samples: NDArray[np.float32]
     microphone_ids: tuple[str, ...]
+    microphone_positions_m: tuple[tuple[float, float, float], ...]
     array_id: str
     sample_rate_hz: int
     time_window: AudioTimeWindow
+    clock_domain: str
+    discontinuity: bool
     channel_validity: tuple[bool, ...]
+    channel_clipping: tuple[bool | None, ...]
     producer_id: str
     provenance: str
     diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -33,6 +44,9 @@ class MicrophoneSignalBlock:
         require_non_empty(self.array_id, "MicrophoneSignalBlock.array_id")
         require_non_empty(self.producer_id, "MicrophoneSignalBlock.producer_id")
         require_non_empty(self.provenance, "MicrophoneSignalBlock.provenance")
+        require_non_empty(self.clock_domain, "MicrophoneSignalBlock.clock_domain")
+        if type(self.discontinuity) is not bool:
+            raise ValueError("MicrophoneSignalBlock.discontinuity must be a boolean.")
         if type(self.sample_rate_hz) is not int or self.sample_rate_hz <= 0:
             raise ValueError(
                 "MicrophoneSignalBlock.sample_rate_hz must be a positive integer."
@@ -44,9 +58,7 @@ class MicrophoneSignalBlock:
 
         microphone_ids = tuple(self.microphone_ids)
         if not microphone_ids:
-            raise ValueError(
-                "MicrophoneSignalBlock.microphone_ids must not be empty."
-            )
+            raise ValueError("MicrophoneSignalBlock.microphone_ids must not be empty.")
         for microphone_id in microphone_ids:
             require_non_empty(
                 microphone_id,
@@ -56,6 +68,19 @@ class MicrophoneSignalBlock:
             raise ValueError(
                 "MicrophoneSignalBlock.microphone_ids must contain unique values."
             )
+
+        positions = tuple(
+            as_vector3(position, "MicrophoneSignalBlock.microphone_positions_m")
+            for position in self.microphone_positions_m
+        )
+        if len(positions) != len(microphone_ids):
+            raise ValueError("microphone_positions_m must match microphone_ids.")
+
+        clipping = tuple(self.channel_clipping)
+        if len(clipping) != len(microphone_ids):
+            raise ValueError("channel_clipping must match microphone_ids.")
+        if any(value is not None and type(value) is not bool for value in clipping):
+            raise ValueError("channel_clipping entries must be booleans or None.")
 
         channel_validity = tuple(self.channel_validity)
         if len(channel_validity) != len(microphone_ids):
@@ -86,10 +111,7 @@ class MicrophoneSignalBlock:
             1,
             int(
                 round(
-                    (
-                        self.time_window.end_time_s
-                        - self.time_window.start_time_s
-                    )
+                    (self.time_window.end_time_s - self.time_window.start_time_s)
                     * self.sample_rate_hz
                 )
             ),
@@ -107,8 +129,12 @@ class MicrophoneSignalBlock:
         samples.setflags(write=False)
         object.__setattr__(self, "samples", samples)
         object.__setattr__(self, "microphone_ids", microphone_ids)
+        object.__setattr__(self, "microphone_positions_m", positions)
         object.__setattr__(self, "channel_validity", channel_validity)
-        object.__setattr__(self, "diagnostics", dict(self.diagnostics))
+        object.__setattr__(self, "channel_clipping", clipping)
+        diagnostics = dict(self.diagnostics)
+        diagnostics.setdefault("acquisition", None)
+        object.__setattr__(self, "diagnostics", diagnostics)
 
 
 __all__ = ["MicrophoneSignalBlock"]

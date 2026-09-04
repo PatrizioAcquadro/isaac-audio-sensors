@@ -717,3 +717,57 @@ def test_seed_replay_and_separation_change_every_active_derived_seed():
     }
     assert len(primary_seeds) == len(alternate_seeds) == 4
     assert primary_seeds.isdisjoint(alternate_seeds)
+
+
+def test_observed_clipping_excludes_private_tail_and_preserves_dsp() -> None:
+    samples = np.array([[0.0, 0.5, 2.0], [2.0, 0.0, 0.0], [1.0, -1.0, 0.0]])
+    kwargs = dict(
+        mic_ids=MIC_IDS[:3],
+        sample_rate_hz=SAMPLE_RATE_HZ,
+        frame_id=FRAME_ID,
+        config=_effects().electronics,
+        seed=SEED,
+    )
+    baseline, _ = electronics_module.apply_electronics(samples, **kwargs)
+    observed, diagnostics = electronics_module.apply_electronics(
+        samples,
+        observed_sample_count=2,
+        **kwargs,
+    )
+    np.testing.assert_array_equal(observed, baseline)
+    assert diagnostics["observed_channel_clipping"] == {
+        "front": False,
+        "right": True,
+        "rear": False,
+    }
+
+
+def test_analytic_block_declares_geometry_clock_and_electronics_clipping() -> None:
+    from isaac_audio_sensors.core.acoustics import free_field_environment
+
+    array = quad_array()
+    scene = replace(
+        room_scene(source("speaker", (3.0, 0.0, 0.0)), array=array),
+        environment=free_field_environment(environment_id="free"),
+    )
+    baseline = AnalyticAcoustics().propagate(scene, array.array_id, time_window())
+    clipped = AnalyticAcoustics(
+        effects=EffectsConfig(
+            electronics=ElectronicsConfig(
+                enabled=True,
+                full_scale=1e-6,
+                bit_depth=16,
+            )
+        )
+    ).propagate(scene, array.array_id, time_window())
+    assert baseline.microphone_positions_m == tuple(
+        mic.relative_position_m for mic in array.microphones
+    )
+    assert baseline.clock_domain == f"simulation:{scene.stage_id}"
+    assert baseline.discontinuity is False
+    assert baseline.channel_clipping == (False,) * 4
+    assert clipped.channel_clipping == (True,) * 4
+    assert np.max(np.abs(clipped.samples)) <= 1e-6
+    acquisition = baseline.diagnostics["acquisition"]
+    assert acquisition["calibration"] is None
+    assert acquisition["applied_corrections"] == {}

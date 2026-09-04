@@ -136,9 +136,15 @@ def apply_electronics(
     frame_id: str,
     config: ElectronicsConfig,
     seed: int | None,
+    observed_sample_count: int | None = None,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Run AGC, hard saturation, and quantization in the frozen order."""
 
+    if observed_sample_count is not None and (
+        type(observed_sample_count) is not int
+        or not 0 < observed_sample_count <= samples.shape[1]
+    ):
+        raise ValueError("observed_sample_count must select a non-empty sample prefix.")
     assert config.enabled
     assert config.full_scale is not None
     assert config.bit_depth is not None
@@ -153,6 +159,7 @@ def apply_electronics(
     clipping_mask = np.abs(agc_output) > full_scale
     saturated = np.clip(agc_output, -full_scale, full_scale)
     output = np.empty_like(saturated, dtype=np.float64)
+    observed_clipping: dict[str, bool] = {}
     for mic_index, mic_id in enumerate(mic_ids):
         dither = None
         if config.dither_enabled and saturated.shape[1] > 0:
@@ -163,6 +170,17 @@ def apply_electronics(
                 seed=seed,
                 frame_id=frame_id,
                 mic_id=mic_id,
+            )
+        if observed_sample_count is not None:
+            values = saturated[mic_index, :observed_sample_count]
+            if dither is not None:
+                values = values + dither[:observed_sample_count]
+            quantizer_clipping = np.abs(step * np.rint(values / step)) > full_scale
+            observed_clipping[mic_id] = bool(
+                np.any(
+                    clipping_mask[mic_index, :observed_sample_count]
+                    | quantizer_clipping
+                )
             )
         output[mic_index] = quantize(
             saturated[mic_index],
@@ -198,6 +216,8 @@ def apply_electronics(
         "agc_gain_trace_summary": summary,
         "quantization_step": step,
     }
+    if observed_sample_count is not None:
+        diagnostics["observed_channel_clipping"] = observed_clipping
     return output, diagnostics
 
 
