@@ -728,3 +728,17 @@ integration tests, 58 release tests, optional audio, two semantically identical
 full qualification runs, unchanged v1 report hashes, version synchronization,
 resolved wiki links, raw-evidence preservation, Ruff, and whitespace. No schema,
 configuration, consumer selection, estimator removal, or 04.3 work was included.
+
+## 2026-09-04 — update: Final Subphase 04.2 evaluation scope
+
+Removed the synthetic split/SNR confounding by gating the complete independent
+primary matrix, relabeled real results as within-campaign take-level validation,
+and made optional two-microphone hardware and 3D boundaries consumer-generic.
+
+## 2026-09-04 — lint: Final Subphase 04.2 evidence closeout
+
+Verified 42 focused DOA tests, 579 unit/contract tests, 221 integration tests,
+58 release tests, two semantically identical full reports with canonical hash
+`31532988b2571e7fdd24c302f894317ee64af2f28fb464124f7ef9e3719d83c9`,
+complete 10/20 dB synthetic evaluation, generic terminology, version
+synchronization, Ruff, and whitespace.

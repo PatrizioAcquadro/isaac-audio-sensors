@@ -181,20 +181,24 @@ tests, 58 release tests, version synchronization, Ruff, and whitespace. Its 59
 focused DOA, perception, plugin, and orchestration tests pass. No schema,
 configuration, package-version, GPU runtime, or downstream behavior changed.
 
-The corrected Subphase 04.2 host gate passes 577 unit/contract tests, 221
+The corrected Subphase 04.2 host gate passes 579 unit/contract tests, 221
 integration tests, 58 release tests, optional audio, version synchronization,
 Ruff, and whitespace. Two complete v2 qualifications over 35 hash-verified real
 takes have identical semantic SHA-256
-`e938f17d97cd2ddc3a99527dab46691320e1d95a85ec0cd2368e2914d05cd567`;
+`31532988b2571e7fdd24c302f894317ee64af2f28fb464124f7ef9e3719d83c9`;
 timing stays separate. The calibration-only rules select `-40.5 dBFS` for
 Auditok and `0.06` for PyRoom reliability. Primary planar PyRoom passes with
-100% held-out nominal take coverage, 10-degree worst-take p95, 1-degree
-synthetic p95, at most 1.45-degree frequency-band p95, and zero held-out
-silence bearings. Two-microphone least-squares passes exact ambiguity semantics,
-95.83% candidate containment, and 7.48-degree candidate-error p95. Composed
-planar compute passes below 5.31 ms p95 across both runs. Robustness fails
-independently on synthetic coverage, representative occlusion, and low-level
-coverage; optional 3D remains blocked. The v1 comparative reports remain
+100% coverage and 1-degree p95 across the complete 128-case independent
+synthetic primary matrix, at most 1.45-degree frequency-band p95, 100% nominal
+validation-take coverage with 10-degree worst-take p95, and zero validation
+silence bearings. Real validation is take-level within the same campaign, not
+leakage-group-independent. Two-microphone least-squares passes exact generic
+ambiguity semantics, 95.83% candidate containment, and 7.48-degree
+candidate-error p95; particular hardware still requires consumer-owned
+validation. Composed planar compute passes below 5.31 ms p95 across both runs.
+Robustness fails independently because degraded synthetic coverage is too low
+and real occlusion includes confident front/back errors; optional 3D remains
+available but blocked as a product claim. The v1 comparative reports remain
 unchanged but are superseded historical evidence.
 
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
@@ -215,7 +219,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
 - `analytic_acoustics` does not accept `surface_set`. Isaac Lab intentionally keeps its six observation tensors zero-filled until Phase 07 even though the scalar reference path executes Auditok; it does not yet project observed activity, bearing, confidence, waveform, reverberation, occlusion, SPL, calibration, closed-topology, or per-environment randomization behavior.
 - Auditok's fixed threshold requires application-specific tuning. No calibration mode is maintained; low SNR, changing noise floors, and impulses shorter than the temporal profile remain operating limits.
-- PyRoom SRP is qualified for the primary planar role on `pyroomacoustics>=0.10.1,<0.11` but remains unselected until 04.3. Its 250 ms causal observation can smear motion, robustness is not qualified, and real evidence has ±5-degree placement tolerance with nominal microphone centers. Reliability remains estimator-local rather than probabilistic or cross-estimator calibrated. Representative real and realtime 3D evidence is absent, so 3D support is blocked rather than claimed. Least-squares hardware performance for a possible NSMRL two-microphone consumer is also blocked until representative evidence exists.
+- PyRoom SRP is qualified for the primary planar role on `pyroomacoustics>=0.10.1,<0.11` but remains unselected until 04.3. Its 250 ms causal observation can smear motion, robustness is not qualified, and real evidence has ±5-degree placement tolerance, nominal microphone centers, and only within-campaign take-level validation. Reliability remains estimator-local rather than probabilistic or cross-estimator calibrated. Optional 3D remains available for downstream evaluation but lacks representative real and realtime product evidence. Generic two-microphone ambiguity is qualified; performance on a particular two-microphone array remains consumer-owned until representative evidence exists.
 - Raycast partition transmission remains direct-path-only; it does not model diffraction, structural wall physics, or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
