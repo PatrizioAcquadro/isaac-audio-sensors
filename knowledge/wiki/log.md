@@ -883,3 +883,16 @@ references, and completion claims pass review. The log preserves all prior entri
 raw evidence is unchanged. Removed production names remain only in rejection tests
 and explanatory/history text. Documentation-boundary and schema tests pass (13);
 Ruff and Git whitespace checks pass. Plan 05 is complete; signal parity is next.
+
+## 2026-09-04 — update: Plan 06 generality and physical reference
+
+Clarified contract-first ordering, extensibility across projects and arrays,
+ReSpeaker XVF3800 as the first physical reference, and practical realism without
+specializing the SDK to one device or task. Linked existing nominal and downstream
+acquisition references. Implementation and physical validation remain planned.
+
+## 2026-09-04 — lint: Plan 06 scope clarification
+
+All five documentation-boundary checks and Git whitespace checks pass. Phase
+structure and referenced files are verified; only Plan 06, its index entry, and
+this log changed. No code, raw evidence, or device state was modified.
