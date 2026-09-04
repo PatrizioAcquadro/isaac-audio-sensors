@@ -40,8 +40,8 @@ INVALID_MESSAGES = {
 def test_valid_manifest_fixtures_round_trip(tmp_path):
     paths = sorted(FIXTURE_DIR.glob("*.json"))
     assert [path.name for path in paths] == [
-        "minimal_manifest.v2.json",
-        "multi_episode_manifest.v2.json",
+        "minimal_manifest.v3.json",
+        "multi_episode_manifest.v3.json",
     ]
 
     for path in paths:
@@ -77,7 +77,7 @@ def test_paths_and_checksum_formats_are_enforced_directly():
 
 
 def test_completion_state_never_promotes_an_incomplete_shard():
-    complete = read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
+    complete = read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v3.json")
     incomplete_shard = replace(complete.shards[0], completion_state="incomplete")
 
     incomplete_manifest = replace(
@@ -125,7 +125,7 @@ def test_manifest_pose_normalizes_valid_non_unit_quaternion():
 
 def test_manifest_reader_rejects_noncanonical_normalizable_values():
     payload = manifest_to_dict(
-        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v3.json")
     )
     payload["episodes"][0]["array_poses"][0]["orientation_xyzw"] = [0, 0, 0, 3]
 
@@ -144,7 +144,7 @@ def test_manifest_reader_rejects_noncanonical_normalizable_values():
 )
 def test_manifest_parser_rejects_coercions_extra_and_missing_fields(mutate):
     payload = manifest_to_dict(
-        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v2.json")
+        read_dataset_manifest(FIXTURE_DIR / "minimal_manifest.v3.json")
     )
     mutate(payload)
 
@@ -153,7 +153,7 @@ def test_manifest_parser_rejects_coercions_extra_and_missing_fields(mutate):
 
 
 def _invalid_manifest(case: str) -> dict:
-    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v2.json").read_text())
+    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v3.json").read_text())
     mutations = {
         "asset_checksum": lambda value: value["shards"][0]["assets"][0].__setitem__(
             "sha256", "bad"
@@ -192,3 +192,37 @@ def _invalid_manifest(case: str) -> dict:
     result = deepcopy(payload)
     mutations[case](result)
     return result
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_previous_manifest_versions_are_rejected(version):
+    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v3.json").read_text())
+    payload["schema_version"] = f"ias.audio_dataset_manifest.{version}"
+    with pytest.raises(ValueError, match="schema_version"):
+        manifest_from_dict(payload)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("session_id", ""),
+        ("trajectory_id", "bad/id"),
+        ("source_asset_ids", "asset"),
+        ("source_asset_ids", ["a", "a"]),
+        ("source_asset_ids", ["bad/id"]),
+    ],
+)
+def test_learning_identity_metadata_is_validated(field, value):
+    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v3.json").read_text())
+    target = payload if field == "session_id" else payload["episodes"][0]
+    target[field] = value
+    with pytest.raises(ValueError, match=field):
+        manifest_from_dict(payload)
+
+
+def test_unknown_and_known_empty_asset_inventories_round_trip():
+    payload = json.loads((FIXTURE_DIR / "minimal_manifest.v3.json").read_text())
+    for assets in (None, [], ["asset-a", "asset-b"]):
+        payload["episodes"][0]["source_asset_ids"] = assets
+        payload["episodes"][0]["trajectory_id"] = "trajectory-a"
+        assert manifest_to_dict(manifest_from_dict(payload)) == payload

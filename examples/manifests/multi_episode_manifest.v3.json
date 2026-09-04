@@ -68,6 +68,7 @@
       ],
       "scene_id": "scene_train",
       "seed": 11,
+      "source_asset_ids": null,
       "split_group": "scene_train",
       "start_frame": 0,
       "start_step": 0,
@@ -76,6 +77,7 @@
         20,
         40
       ],
+      "trajectory_id": null,
       "visual_sync_asset_ids": []
     },
     {
@@ -114,6 +116,7 @@
       ],
       "scene_id": "scene_validation",
       "seed": 12,
+      "source_asset_ids": null,
       "split_group": "scene_validation",
       "start_frame": 3,
       "start_step": 0,
@@ -122,13 +125,15 @@
         20,
         40
       ],
+      "trajectory_id": null,
       "visual_sync_asset_ids": []
     }
   ],
   "license": "CC-BY-4.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v2",
+  "schema_version": "ias.audio_dataset_manifest.v3",
+  "session_id": "multi_episode_fixture",
   "shards": [
     {
       "assets": [

@@ -807,3 +807,18 @@ bytes are unchanged. All three exported schemas match package resources.
 After correcting the manifest schema title, 40 schema/manifest/documentation
 checks pass. Ruff, wiki links/index coverage, raw preservation, and whitespace
 pass. No new GPU, live Isaac, downstream, or publication claim is made.
+
+## 2026-09-04 — update: Subphase 05.2 recording identities
+
+Introduced acquisition session identity and declared trajectory/source-asset
+identities, manifest v3 and recorder state v2. Recovery and FLAC preserve the
+identities; migrated schema, examples, and required consumers. Reference audio
+and frame records remain byte-identical. Learning adapters remain in progress.
+
+## 2026-09-04 — lint: Subphase 05.2 identity milestone
+
+Passed 151 focused contract, recording, split, and release checks; 64 focused
+checks pass after documentation synchronization. The seven-frame reference
+session validates without warnings, and every shard payload and marker is
+byte-identical to the baseline. Ruff, whitespace, wiki links, and index coverage
+pass. No GPU workload is involved in this data-contract milestone.

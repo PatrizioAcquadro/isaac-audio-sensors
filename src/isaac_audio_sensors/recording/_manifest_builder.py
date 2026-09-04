@@ -59,6 +59,7 @@ def build_manifest(
 ) -> AudioDatasetManifest:
     return AudioDatasetManifest(
         dataset_id=configuration["dataset_id"],
+        session_id=configuration.get("session_id", configuration["dataset_id"]),
         creation_timestamp_ms=creation_timestamp_ms,
         creation=creation,
         license=license,

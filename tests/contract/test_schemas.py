@@ -24,7 +24,7 @@ SCHEMAS: dict[str, tuple[SchemaGenerator, str]] = {
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,
-        "audio_dataset_manifest.v2.schema.json",
+        "audio_dataset_manifest.v3.schema.json",
     ),
     "calibration-profile": (
         audio_calibration_profile_json_schema,

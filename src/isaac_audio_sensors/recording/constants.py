@@ -1,6 +1,6 @@
 """Dataset manifest contract constants."""
 
-DATASET_MANIFEST_SCHEMA_VERSION = "ias.audio_dataset_manifest.v2"
+DATASET_MANIFEST_SCHEMA_VERSION = "ias.audio_dataset_manifest.v3"
 
 DATASET_MANIFEST_UNITS = {
     "position": "m",

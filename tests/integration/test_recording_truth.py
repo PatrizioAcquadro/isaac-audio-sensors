@@ -117,7 +117,7 @@ def test_supervision_round_trip_across_shards_episodes_and_resets(
             )
         recorder.end_episode()
     manifest = recorder.finalize()
-    assert manifest.schema_version == "ias.audio_dataset_manifest.v2"
+    assert manifest.schema_version == "ias.audio_dataset_manifest.v3"
     dataset = SessionDataset.open(root)
     loaded = list(dataset.iter_records())
     assert [(item.truth, item.annotations) for item in loaded] == expected
@@ -195,7 +195,9 @@ from isaac_audio_sensors.recording import SessionRecorder
 from tests.integration.test_recording_writer import _configuration, _kwargs
 from tests.integration.test_recording_truth import append
 recorder = SessionRecorder(sys.argv[1], _configuration(aligned={aligned}), **_kwargs())
-recorder.begin_episode("scene", "env", "scene")
+recorder.begin_episode(
+    "scene", "env", "scene", trajectory_id="route", source_asset_ids=("tone",)
+)
 for index in range(4):
     append(recorder, index)
 os._exit(0)
@@ -208,7 +210,10 @@ os._exit(0)
     for index in range(3, 6):
         append(recorder, index)
     recorder.end_episode()
-    recorder.finalize()
+    manifest = recorder.finalize()
+    assert manifest.session_id == manifest.dataset_id
+    assert manifest.episodes[0].trajectory_id == "route"
+    assert manifest.episodes[0].source_asset_ids == ("tone",)
     records = list(SessionDataset.open(root).iter_records())
     assert [(item.truth, item.annotations) for item in records] == [
         supervision(_frame(index, index), index) for index in range(6)
@@ -218,8 +223,12 @@ os._exit(0)
 
 def test_finalization_recovery_and_flac_preserve_supervision(tmp_path, monkeypatch):
     root = tmp_path / "session"
-    recorder = SessionRecorder(root, _configuration(aligned=False), **_kwargs())
-    recorder.begin_episode("scene", "env", "scene")
+    recorder = SessionRecorder(
+        root, {**_configuration(aligned=False), "session_id": "capture"}, **_kwargs()
+    )
+    recorder.begin_episode(
+        "scene", "env", "scene", trajectory_id="route", source_asset_ids=()
+    )
     expected = [append(recorder, index) for index in range(3)]
     recorder.end_episode()
     import isaac_audio_sensors.recording.recorder as module
@@ -236,7 +245,10 @@ def test_finalization_recovery_and_flac_preserve_supervision(tmp_path, monkeypat
         with pytest.raises(OSError, match="interrupted"):
             recorder.finalize()
     assert not (root / "manifest.json").exists()
-    SessionRecorder.recover_finalization(root)
+    recovered = SessionRecorder.recover_finalization(root)
+    assert recovered.session_id == "capture"
+    assert recovered.episodes[0].trajectory_id == "route"
+    assert recovered.episodes[0].source_asset_ids == ()
     assert [
         (item.truth, item.annotations)
         for item in SessionDataset.open(root).iter_records()
@@ -245,6 +257,10 @@ def test_finalization_recovery_and_flac_preserve_supervision(tmp_path, monkeypat
     exported = export_session_flac(
         root, tmp_path / "flac", dataset_id="flac_truth", creation_timestamp_ms=1
     )
+    exported_manifest = SessionDataset.open(exported).manifest
+    assert exported_manifest.session_id == "capture"
+    assert exported_manifest.dataset_id == "flac_truth"
+    assert exported_manifest.episodes == recovered.episodes
     assert [
         (item.truth, item.annotations)
         for item in SessionDataset.open(exported).iter_records()
@@ -294,12 +310,12 @@ def test_frame_record_rejects_misaligned_malformed_and_legacy_supervision():
                 json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
             )
     manifest = json.loads(
-        Path("examples/manifests/minimal_manifest.v2.json").read_text()
+        Path("examples/manifests/minimal_manifest.v3.json").read_text()
     )
     manifest["schema_version"] = "ias.audio_dataset_manifest.v1"
     with pytest.raises(ValueError):
         manifest_from_dict(manifest)
-    manifest["schema_version"] = "ias.audio_dataset_manifest.v2"
+    manifest["schema_version"] = "ias.audio_dataset_manifest.v3"
     manifest["episodes"][0]["source_truth"] = []
     with pytest.raises(ValueError):
         manifest_from_dict(manifest)

@@ -1,4 +1,4 @@
-"""Public dataset-manifest v2 dataclasses and validation."""
+"""Public dataset-manifest v3 dataclasses and validation."""
 
 from __future__ import annotations
 
@@ -128,6 +128,8 @@ class EpisodeRecord:
     end_frame: int
     timestamps_ms: tuple[int, ...]
     split_group: str
+    trajectory_id: str | None = None
+    source_asset_ids: tuple[str, ...] | None = None
     reset_markers: tuple[ResetMarker, ...] = field(default_factory=tuple)
     array_poses: tuple[ManifestPose, ...] = field(default_factory=tuple)
     labels: tuple[str, ...] = field(default_factory=tuple)
@@ -136,6 +138,11 @@ class EpisodeRecord:
     def __post_init__(self) -> None:
         for name in ("episode_id", "scene_id", "environment_id", "split_group"):
             _require_id(getattr(self, name), f"EpisodeRecord.{name}")
+        trajectory_id, source_asset_ids = _learning_identities(
+            self.trajectory_id, self.source_asset_ids
+        )
+        object.__setattr__(self, "trajectory_id", trajectory_id)
+        object.__setattr__(self, "source_asset_ids", source_asset_ids)
         _require_non_negative_int(self.seed, "EpisodeRecord.seed")
         _require_range(self.start_step, self.end_step, "EpisodeRecord step")
         _require_range(self.start_frame, self.end_frame, "EpisodeRecord frame")
@@ -278,6 +285,7 @@ class AudioDatasetManifest:
     """Portable dataset-level contract independent of package version."""
 
     dataset_id: str
+    session_id: str
     creation_timestamp_ms: int
     creation: CreationProvenance
     license: str
@@ -302,6 +310,7 @@ class AudioDatasetManifest:
 
     def __post_init__(self) -> None:
         _require_id(self.dataset_id, "AudioDatasetManifest.dataset_id")
+        _require_id(self.session_id, "AudioDatasetManifest.session_id")
         if self.schema_version != DATASET_MANIFEST_SCHEMA_VERSION:
             raise ValueError(
                 "AudioDatasetManifest.schema_version must be "
@@ -442,6 +451,19 @@ class AudioDatasetManifest:
         object.__setattr__(self, "episodes", episodes)
         object.__setattr__(self, "shards", shards)
         object.__setattr__(self, "splits", splits)
+
+
+def _learning_identities(
+    trajectory_id: str | None, source_asset_ids: object
+) -> tuple[str | None, tuple[str, ...] | None]:
+    if trajectory_id is not None:
+        _require_id(trajectory_id, "trajectory_id")
+    assets = None
+    if source_asset_ids is not None:
+        if not isinstance(source_asset_ids, (list, tuple)):
+            raise ValueError("source_asset_ids must be a sequence of ids or None.")
+        assets = _unique_id_tuple(source_asset_ids, "source_asset_ids")
+    return trajectory_id, assets
 
 
 def _require_text(value: str, field_name: str) -> None:

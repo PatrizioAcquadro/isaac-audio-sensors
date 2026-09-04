@@ -61,6 +61,8 @@ from isaac_audio_sensors.recording.manifest import (
     DeviceProvenance,
     EpisodeRecord,
     ResetMarker,
+    _learning_identities,
+    _require_id,
 )
 from isaac_audio_sensors.recording.serialization import manifest_to_dict
 from isaac_audio_sensors.recording.truth import (
@@ -89,7 +91,7 @@ _REQUIRED_CONFIGURATION_KEYS = frozenset(
         "window_sample_count",
     }
 )
-_STATE_VERSION = "ias.session_recorder_state.v1"
+_STATE_VERSION = "ias.session_recorder_state.v2"
 
 
 class SessionRecorderError(RuntimeError):
@@ -113,6 +115,8 @@ class _EpisodeState:
     split_group: str
     seed: int
     start_frame: int
+    trajectory_id: str | None = None
+    source_asset_ids: tuple[str, ...] | None = None
     frame_count: int = 0
     last_timestamp_ms: int | None = None
     timestamps_ms: list[int] = field(default_factory=list)
@@ -124,10 +128,17 @@ class _EpisodeState:
     ended: bool = False
     end_frame: int | None = None
 
+    def __post_init__(self) -> None:
+        self.trajectory_id, self.source_asset_ids = _learning_identities(
+            self.trajectory_id, self.source_asset_ids
+        )
+
     def state_dict(self) -> dict[str, Any]:
         return {
             "ordinal": self.ordinal,
             "scene_id": self.scene_id,
+            "trajectory_id": self.trajectory_id,
+            "source_asset_ids": self.source_asset_ids,
             "environment_id": self.environment_id,
             "split_group": self.split_group,
             "seed": self.seed,
@@ -160,6 +171,8 @@ class _OpenShard:
     jsonl: JsonlShardFile
     wav: StreamingWavShardWriter
     episode_ids: list[str] = field(default_factory=list)
+    trajectory_id: str | None = None
+    source_asset_ids: tuple[str, ...] | None = None
     frame_count: int = 0
     max_audio_end: int = 0
 
@@ -170,6 +183,8 @@ class _EpisodeBuffer:
     metadata: StagedFile
     audio: StagedFile
     start_frame: int
+    trajectory_id: str | None = None
+    source_asset_ids: tuple[str, ...] | None = None
     frame_count: int = 0
 
 
@@ -345,6 +360,10 @@ class SessionRecorder:
                 or not self.configuration[key]
             ):
                 raise ValueError(f"configuration.{key} must be a non-empty string")
+        _require_id(
+            self.configuration.get("session_id", self.configuration["dataset_id"]),
+            "configuration.session_id",
+        )
         if self.creation.backend_id != self.configuration["backend_id"]:
             raise ValueError("creation.backend_id must match configuration.backend_id")
 
@@ -375,6 +394,9 @@ class SessionRecorder:
         environment_id: str,
         split_group: str,
         seed: int | None = None,
+        *,
+        trajectory_id: str | None = None,
+        source_asset_ids: Sequence[str] | None = None,
     ) -> str:
         """Open the next episode and return its deterministic dataset id."""
 
@@ -388,6 +410,9 @@ class SessionRecorder:
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"{name} must be a non-empty string")
+        trajectory_id, source_asset_ids = _learning_identities(
+            trajectory_id, source_asset_ids
+        )
         ordinal = len(self._episodes)
         episode_value = episode_id(ordinal)
         chosen_seed = (
@@ -404,6 +429,8 @@ class SessionRecorder:
         episode = _EpisodeState(
             ordinal=ordinal,
             scene_id=scene_id,
+            trajectory_id=trajectory_id,
+            source_asset_ids=source_asset_ids,
             environment_id=environment_id,
             split_group=split_group,
             seed=chosen_seed,
@@ -1419,6 +1446,8 @@ class SessionRecorder:
                 EpisodeRecord(
                     episode_id=episode_value,
                     scene_id=metadata.scene_id,
+                    trajectory_id=metadata.trajectory_id,
+                    source_asset_ids=metadata.source_asset_ids,
                     environment_id=metadata.environment_id,
                     seed=metadata.seed,
                     start_step=start_step,
@@ -1623,6 +1652,8 @@ class SessionRecorder:
         episode = _EpisodeState(
             ordinal=int(item["ordinal"]),
             scene_id=str(item["scene_id"]),
+            trajectory_id=item["trajectory_id"],
+            source_asset_ids=item["source_asset_ids"],
             environment_id=str(item["environment_id"]),
             split_group=str(item["split_group"]),
             seed=int(item["seed"]),
@@ -1717,6 +1748,8 @@ class SessionRecorder:
             episode = _EpisodeState(
                 ordinal=ordinal,
                 scene_id=str(item["scene_id"]),
+                trajectory_id=item["trajectory_id"],
+                source_asset_ids=item["source_asset_ids"],
                 environment_id=str(item["environment_id"]),
                 split_group=str(item["split_group"]),
                 seed=int(item["seed"]),

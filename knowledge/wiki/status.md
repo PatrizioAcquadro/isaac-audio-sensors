@@ -234,6 +234,8 @@ The migrated fixture validates with three episodes, two shards, seven frames,
 and unchanged audio bytes. No new Isaac/GPU or downstream validation claim
 is made for this dataset-only subphase.
 
+Subphase 05.2 recording identities now use manifest v3 and recorder state v2: stable acquisition `session_id`, optional episode trajectory and source-asset identities, and preservation through recovery and FLAC export. Learning samples and corpus splits are still in progress.
+
 ## Maintained Commands
 
 - `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.

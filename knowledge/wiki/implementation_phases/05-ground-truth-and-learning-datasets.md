@@ -1,6 +1,6 @@
 # Implementation Plan 05 — Ground Truth and Learning Datasets
 
-Status: Subphase 05.1 implemented. Subphases 05.2 and 05.3 remain planned.
+Status: Subphase 05.1 implemented. Subphase 05.2 recording identities implemented; learning adapter and corpus splits remain in progress. Subphase 05.3 remains planned.
 
 ## Objective
 
@@ -41,6 +41,10 @@ Simulation truth describes only the implemented producer model. Geometry describ
 ## Subphase 05.2 — Robot-Learning Sample Boundary
 
 #### Implementation
+
+Recording identities are implemented in manifest v3. `session_id` identifies the acquisition independently of artifact `dataset_id`; the recorder accepts it through configuration and defaults to `dataset_id`. FLAC exports preserve the acquisition identity even when the artifact ID changes. `begin_episode()` accepts optional `trajectory_id` and `source_asset_ids`, persisted through recorder state v2, crash resume, and finalization recovery. An unknown asset inventory is null; a known empty inventory is an empty array. These are caller-declared identities, not inferred from truth, paths, or seed. Frame-record v2, observed frame v3, and package 3.0.0 are unchanged. Older manifests and recorder states are rejected.
+
+The remaining learning adapter work follows this boundary:
 
 Define one learning sample from separable observed waveform or features, `AudioSensorFrame`, and optional truth or annotation records. Loaders expose privileged inputs explicitly rather than silently joining them into policy observations.
 

@@ -608,6 +608,8 @@ def _read_configuration(root: Path, manifest: AudioDatasetManifest) -> dict[str,
         raise DatasetLayoutError(
             f"{location}: unsupported runtime profile for dataset layout v1."
         )
+    if payload.get("session_id", payload.get("dataset_id")) != manifest.session_id:
+        raise DatasetLayoutError(f"{location}: session_id disagrees with manifest.")
     return payload
 
 

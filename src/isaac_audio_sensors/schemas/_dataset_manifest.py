@@ -19,7 +19,7 @@ from isaac_audio_sensors.schemas._common import (
 
 
 def audio_dataset_manifest_json_schema() -> dict[str, Any]:
-    """Return the v2 ``AudioDatasetManifest`` JSON Schema."""
+    """Return the v3 ``AudioDatasetManifest`` JSON Schema."""
 
     stable_id = _stable_id_schema()
     sha256 = _sha256_schema()
@@ -68,6 +68,8 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         "required": [
             "episode_id",
             "scene_id",
+            "trajectory_id",
+            "source_asset_ids",
             "environment_id",
             "seed",
             "start_step",
@@ -84,6 +86,12 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         "properties": {
             "episode_id": stable_id,
             "scene_id": stable_id,
+            "trajectory_id": {"anyOf": [stable_id, {"type": "null"}]},
+            "source_asset_ids": {
+                "type": ["array", "null"],
+                "items": stable_id,
+                "uniqueItems": True,
+            },
             "environment_id": stable_id,
             "seed": {"type": "integer", "minimum": 0},
             "start_step": {"type": "integer", "minimum": 0},
@@ -161,9 +169,9 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
             "https://isaac-audio-sensors.dev/schemas/"
-            "audio_dataset_manifest.v2.schema.json"
+            "audio_dataset_manifest.v3.schema.json"
         ),
-        "title": "Isaac Audio Sensors AudioDatasetManifest v2",
+        "title": "Isaac Audio Sensors AudioDatasetManifest v3",
         "description": (
             "Portable, checksummed dataset contract. Its schema version is "
             "independent of the Python package version; constructors enforce "
@@ -173,6 +181,7 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         "additionalProperties": False,
         "required": [
             "dataset_id",
+            "session_id",
             "creation_timestamp_ms",
             "creation",
             "license",
@@ -197,6 +206,7 @@ def audio_dataset_manifest_json_schema() -> dict[str, Any]:
         ],
         "properties": {
             "dataset_id": stable_id,
+            "session_id": stable_id,
             "creation_timestamp_ms": {"type": "integer", "minimum": 0},
             "creation": {
                 "type": "object",

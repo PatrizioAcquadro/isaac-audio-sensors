@@ -1,5 +1,5 @@
 {
-  "$id": "https://isaac-audio-sensors.dev/schemas/audio_dataset_manifest.v2.schema.json",
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_dataset_manifest.v3.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Portable, checksummed dataset contract. Its schema version is independent of the Python package version; constructors enforce cross-record ordering, reference, split, and completion invariants.",
@@ -286,6 +286,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "source_asset_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
+          },
           "split_group": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
             "type": "string"
@@ -306,6 +317,17 @@
             "minItems": 1,
             "type": "array"
           },
+          "trajectory_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "visual_sync_asset_ids": {
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
@@ -318,6 +340,8 @@
         "required": [
           "episode_id",
           "scene_id",
+          "trajectory_id",
+          "source_asset_ids",
           "environment_id",
           "seed",
           "start_step",
@@ -350,7 +374,11 @@
       "type": "integer"
     },
     "schema_version": {
-      "const": "ias.audio_dataset_manifest.v2"
+      "const": "ias.audio_dataset_manifest.v3"
+    },
+    "session_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "type": "string"
     },
     "shards": {
       "items": {
@@ -501,6 +529,7 @@
   },
   "required": [
     "dataset_id",
+    "session_id",
     "creation_timestamp_ms",
     "creation",
     "license",
@@ -523,6 +552,6 @@
     "completion_state",
     "schema_version"
   ],
-  "title": "Isaac Audio Sensors AudioDatasetManifest v2",
+  "title": "Isaac Audio Sensors AudioDatasetManifest v3",
   "type": "object"
 }

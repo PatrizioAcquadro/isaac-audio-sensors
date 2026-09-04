@@ -48,13 +48,14 @@ def write_dataset_manifest(
 
 
 def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
-    """Parse one exact canonical manifest-v2 projection."""
+    """Parse one exact canonical manifest-v3 projection."""
 
     if not isinstance(payload, dict):
         raise TypeError("manifest root must be an object")
     calibration_payload = payload.get("calibration_profile")
     manifest = AudioDatasetManifest(
         dataset_id=str(payload["dataset_id"]),
+        session_id=payload["session_id"],
         schema_version=str(
             payload.get("schema_version", DATASET_MANIFEST_SCHEMA_VERSION)
         ),
@@ -107,7 +108,7 @@ def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
         raise ValueError(f"manifest root contains invalid JSON values: {exc}") from exc
     if source != canonical:
         raise ValueError(
-            "manifest root is not an exact canonical manifest-v2 projection"
+            "manifest root is not an exact canonical manifest-v3 projection"
         )
     return manifest
 
@@ -168,6 +169,8 @@ def _episode_from_dict(payload: dict[str, Any]) -> EpisodeRecord:
     return EpisodeRecord(
         episode_id=str(payload["episode_id"]),
         scene_id=str(payload["scene_id"]),
+        trajectory_id=payload["trajectory_id"],
+        source_asset_ids=payload["source_asset_ids"],
         environment_id=str(payload["environment_id"]),
         seed=int(payload["seed"]),
         start_step=int(payload["start_step"]),

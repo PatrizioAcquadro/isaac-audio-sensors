@@ -84,6 +84,7 @@ def export_session_flac(
             (source / "config/session_config.json").read_text(encoding="utf-8")
         )
         configuration["dataset_id"] = dataset_id
+        configuration["session_id"] = manifest.session_id
         configuration["dtype"] = dtype
         config_bytes = canonical_configuration_bytes(configuration)
         config_path = staged_root / "config/session_config.json"

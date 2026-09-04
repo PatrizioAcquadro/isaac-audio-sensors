@@ -40,7 +40,7 @@ Signal-derived output precedes external observations in deterministic order. Obs
 
 ## Versioned Schemas
 
-The shipped schemas are `ias.audio_sensor_frame.v3`, `ias.audio_dataset_manifest.v2`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`. Dataset frame records are v2 and embed unchanged frame v3; calibration remains v1. Manifest v2 removes episode-owned source truth, which now belongs exclusively beside each frame.
+The shipped schemas are `ias.audio_sensor_frame.v3`, `ias.audio_dataset_manifest.v3`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`. Dataset frame records are v2 and embed unchanged frame v3; calibration remains v1. Manifest v2 removes episode-owned source truth, which now belongs exclusively beside each frame.
 
 The three Python generators are authoritative. Checked package resources and exports from `write_json_schema` must remain byte-identical deterministic JSON; schema export never reads documentation files.
 
@@ -94,6 +94,8 @@ Truth distinguishes missing supervision from a known empty scene. Observation an
 
 ## Dataset Sessions
 
+Manifest v3 adds stable acquisition `session_id`, defaulted from the initial `dataset_id` by the recorder and preserved by FLAC export. Optional episode `trajectory_id` and `source_asset_ids` are caller-declared global identities for learning splits; null assets mean unknown inventory, while an empty list means known empty. These fields survive recorder state v2 recovery. Frame-record v2 and frame v3 remain unchanged.
+
 The recording subsystem writes a finalized session with a root manifest, canonical session configuration, deterministic shard directories, frame records, audio payloads when enabled, and completion markers that bind promoted shard content.
 
 The public recording surface contains the manifest/provenance models, `AppendFrameResult`, `LoadedFrame`, `ReplayEvent`, split/statistics/validation reports, `SessionRecorder`, `SessionDataset`, replay, validation, FLAC export, manifest IO, and split-plan services. `DatasetLayoutError`, `DatasetSplitError`, and `SessionRecorderError` are the public failures; writer, checkpoint, carry, marker, planner, and filesystem details are internal.
@@ -102,7 +104,7 @@ The public recording surface contains the manifest/provenance models, `AppendFra
 
 Every canonical `ias.dataset_frame_record.v2` row contains its dataset/episode identity, audio sample bounds, `frame`, nullable `truth`, and an `annotations` array. Truth contains a `truth_events` array independently of `frame.observations`. A known empty scene has a non-null truth record with no events; unavailable truth is null. `LoadedFrame` exposes `frame`, `truth`, and `annotations` separately. Replay preserves these fields and FLAC copies the JSONL rows unchanged. No per-source waveform is stored.
 
-Durable staging and atomic promotion prevent a partial write from appearing as a completed shard. Manifest and split-plan writes are atomic, and manifest input must already match the canonical v2 representation rather than relying on type coercion.
+Durable staging and atomic promotion prevent a partial write from appearing as a completed shard. Manifest and split-plan writes are atomic, and manifest input must already match the canonical v3 representation rather than relying on type coercion.
 
 `SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, and optional checksums before exposing records. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
 
