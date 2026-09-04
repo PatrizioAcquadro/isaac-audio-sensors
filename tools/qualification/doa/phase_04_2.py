@@ -213,6 +213,7 @@ def run_qualification(
             "real_stream_starts_at_take_start": True,
             "future_lookahead": False,
             "synthetic_renderer": "independent_numpy_fractional_delay",
+            "primary_synthetic_partition": "independent_evaluation_only",
             "planar_microphone_counts": [3, 4],
             "frequency_bands_hz": [list(item) for item in FREQUENCY_BANDS_HZ],
         },
@@ -240,6 +241,10 @@ def run_qualification(
         "limitations": [
             "Real source placement has a +/-5 degree tolerance.",
             "Real microphone acoustic centers are nominal_not_measured.",
+            (
+                "Real validation is take-level within one campaign and is not "
+                "leakage-group-independent."
+            ),
             "The robustness conclusion is isolated from the primary planar role.",
             "Synthetic 3D diagnostics do not demonstrate realtime or real 3D support.",
             "End-to-end rolling 20 Hz integration remains a Subphase 04.3 gate.",
@@ -311,7 +316,7 @@ def _primary_scenarios(*, quick: bool) -> Iterable[Scenario]:
                             f"primary_{array_name}_b{bearing:03d}_{band[0]}-"
                             f"{band[1]}_snr{snr}"
                         ),
-                        split="calibration" if index % 2 == 0 else "heldout",
+                        split="evaluation",
                         condition="direct",
                         samples=_synthetic_mixture(
                             positions,
@@ -356,7 +361,7 @@ def _robustness_scenarios(*, quick: bool) -> Iterable[Scenario]:
                             f"robust_{condition}_b{bearing:03d}_{band[0]}-"
                             f"{band[1]}_snr{snr}"
                         ),
-                        split="heldout",
+                        split="evaluation",
                         condition=condition,
                         samples=_synthetic_mixture(
                             PLANAR_FOUR_M,
@@ -389,7 +394,7 @@ def _rank3_scenarios(*, quick: bool) -> Iterable[Scenario]:
         band = FREQUENCY_BANDS_HZ[index % len(FREQUENCY_BANDS_HZ)]
         yield Scenario(
             scenario_id=f"optional_3d_b{bearing:03d}_e{elevation:+03d}",
-            split="heldout",
+            split="evaluation",
             condition="direct",
             samples=_synthetic_mixture(
                 RANK3_FIVE_M,
@@ -748,9 +753,9 @@ def _load_real_takes(
         expected = {"nominal": 24, "stress": 4, "low_level": 4, "silence": 3}
         split_counts = {
             "calibration": sum(item.split == "calibration" for item in takes),
-            "heldout": sum(item.split == "heldout" for item in takes),
+            "validation": sum(item.split == "validation" for item in takes),
         }
-        if counts != expected or split_counts != {"calibration": 11, "heldout": 24}:
+        if counts != expected or split_counts != {"calibration": 11, "validation": 24}:
             raise ValueError(
                 f"Insufficient representative take inventory: {counts}, {split_counts}."
             )
@@ -765,6 +770,8 @@ def _load_real_takes(
         "included": True,
         "take_counts": counts,
         "split_counts": split_counts,
+        "validation_scope": "take_level_within_campaign",
+        "leakage_group_independent": False,
         "verified_wav_count": len(wav_hashes),
         "verified_authorized_configuration_count": len(configuration_hashes),
         "verified_wav_hashes_sha256": _hash_strings(wav_hashes),
@@ -1070,8 +1077,7 @@ def _primary_planar_role(
             "Primary general planar DOA for >=3 non-collinear microphones.",
             requirements,
         )
-    heldout = [item for item in synthetic if item["split"] == "heldout"]
-    synthetic_summary = _direction_summary(heldout)
+    synthetic_summary = _direction_summary(synthetic)
     requirements = [
         _requirement(
             "synthetic_resolved_coverage",
@@ -1107,12 +1113,12 @@ def _primary_planar_role(
         nominal = [
             item
             for item in _real_take_summaries(real)
-            if item["split"] == "heldout" and item["condition"] == "nominal"
+            if item["split"] == "validation" and item["condition"] == "nominal"
         ]
         silence = [
             item
             for item in real
-            if item["split"] == "heldout" and item["condition"] == "silence"
+            if item["split"] == "validation" and item["condition"] == "silence"
         ]
         requirements.extend(
             (
@@ -1136,7 +1142,7 @@ def _primary_planar_role(
                     15.0,
                 ),
                 _requirement(
-                    "heldout_silence_selected_bearings",
+                    "validation_silence_selected_bearings",
                     sum(item["resolved"] for item in silence),
                     "==",
                     0,
@@ -1181,9 +1187,9 @@ def _two_microphone_role(results: Mapping[str, Any]) -> dict[str, Any]:
         "Two-microphone physical ambiguity representation.",
         requirements,
     )
-    role["nsmrl_hardware_performance"] = {
+    role["real_hardware_performance"] = {
         "status": BLOCKED,
-        "reason": "No NSMRL-specific two-microphone hardware evidence is present.",
+        "reason": "No representative real two-microphone hardware evidence is present.",
     }
     return role
 
@@ -1543,7 +1549,7 @@ def _real_take_split(take_id: str, condition: str) -> str:
         return "calibration"
     if condition == "silence" and "silence_beginning" in take_id:
         return "calibration"
-    return "heldout"
+    return "validation"
 
 
 def _real_take_label(take_name: str) -> tuple[float | None, str]:

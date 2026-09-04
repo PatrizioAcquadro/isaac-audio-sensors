@@ -13,7 +13,9 @@ from tools.qualification.doa.phase_04_2 import (
     RealTake,
     _aggregate_status,
     _great_circle_error,
+    _primary_scenarios,
     _real_take_label,
+    _real_take_split,
     _real_take_summaries,
     _score_block,
     _select_reliability_threshold,
@@ -37,6 +39,10 @@ def test_quick_qualification_is_role_based_and_deterministic() -> None:
     assert semantic == second["semantic"]
     assert semantic["schema"] == "ias.doa.phase_04_2_qualification.v2"
     assert semantic["matrix"]["future_lookahead"] is False
+    assert (
+        semantic["matrix"]["primary_synthetic_partition"]
+        == "independent_evaluation_only"
+    )
     assert semantic["evidence"]["status"] == BLOCKED
     assert set(semantic["roles"]) == {
         "primary_planar_doa",
@@ -51,6 +57,7 @@ def test_quick_qualification_is_role_based_and_deterministic() -> None:
     assert semantic["roles"]["optional_3d"]["status"] == BLOCKED
     serialized = json.dumps(first).lower()
     assert "normmusic" not in serialized
+    assert "nsmrl" not in serialized
     assert '"srp_phat"' not in serialized
     assert "regression" not in serialized
 
@@ -104,7 +111,7 @@ def test_reliability_selection_uses_calibration_records_only() -> None:
             "reliability": 0.05,
         },
         {
-            "split": "heldout",
+            "split": "validation",
             "condition": "silence",
             "activity_detected": True,
             "raw_resolved": True,
@@ -123,7 +130,7 @@ def test_real_take_summaries_do_not_weight_one_take_by_another() -> None:
     records = [
         {
             "take_id": "short",
-            "split": "heldout",
+            "split": "validation",
             "condition": "stress",
             "activity_detected": True,
             "resolved": False,
@@ -132,7 +139,7 @@ def test_real_take_summaries_do_not_weight_one_take_by_another() -> None:
         *(
             {
                 "take_id": "long",
-                "split": "heldout",
+                "split": "validation",
                 "condition": "stress",
                 "activity_detected": True,
                 "resolved": True,
@@ -151,7 +158,7 @@ def test_real_take_summaries_do_not_weight_one_take_by_another() -> None:
 def test_scoring_uses_only_complete_sequential_authorized_blocks() -> None:
     take = RealTake(
         take_id="take",
-        split="heldout",
+        split="validation",
         condition="nominal",
         bearing_deg=0.0,
         samples=np.zeros((4, 16_000), dtype=np.float32),
@@ -183,6 +190,27 @@ def test_real_take_labels(
     condition: str,
 ) -> None:
     assert _real_take_label(take) == (bearing, condition)
+
+
+def test_primary_synthetic_matrix_is_independent_evaluation_only() -> None:
+    scenarios = list(_primary_scenarios(quick=False))
+
+    assert len(scenarios) == 128
+    assert {item.split for item in scenarios} == {"evaluation"}
+    assert {item.snr_db for item in scenarios} == {10, 20}
+    assert {item.positions_m.shape[0] for item in scenarios} == {3, 4}
+    assert {item.frequency_band_hz for item in scenarios} == {
+        (300, 800),
+        (800, 2000),
+        (2000, 4000),
+        (4000, 6000),
+    }
+
+
+def test_real_validation_partition_is_named_without_independence_claim() -> None:
+    assert _real_take_split("direction_000_r1", "nominal") == "calibration"
+    assert _real_take_split("direction_000_r2", "nominal") == "validation"
+    assert _real_take_split("silence_middle", "silence") == "validation"
 
 
 def test_great_circle_error_covers_elevation() -> None:
