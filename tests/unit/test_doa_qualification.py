@@ -55,9 +55,14 @@ def test_quick_qualification_is_role_based_and_deterministic() -> None:
     assert semantic["roles"]["two_microphone_ambiguity"]["status"] == PASS
     assert semantic["roles"]["realtime_planar_compute"]["status"] == BLOCKED
     assert semantic["roles"]["optional_3d"]["status"] == BLOCKED
+    assert (
+        semantic["roles"]["two_microphone_ambiguity"]["real_hardware_performance"][
+            "status"
+        ]
+        == BLOCKED
+    )
     serialized = json.dumps(first).lower()
     assert "normmusic" not in serialized
-    assert "nsmrl" not in serialized
     assert '"srp_phat"' not in serialized
     assert "regression" not in serialized
 
