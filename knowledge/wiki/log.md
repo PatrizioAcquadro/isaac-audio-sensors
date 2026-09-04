@@ -896,3 +896,16 @@ acquisition references. Implementation and physical validation remain planned.
 All five documentation-boundary checks and Git whitespace checks pass. Phase
 structure and referenced files are verified; only Plan 06, its index entry, and
 this log changed. No code, raw evidence, or device state was modified.
+
+## 2026-09-04 — update: Subphase 06.2 downstream capture ownership
+
+Clarified SDK ownership of shared signal integration and downstream ownership of
+ReSpeaker-specific acquisition, configuration, and calibration data. A reusable
+SDK capture adapter requires a distinct product role. Aligned the phase summary,
+expected artifacts, and index; implementation remains planned.
+
+## 2026-09-04 — lint: Subphase 06.2 ownership clarification
+
+All five documentation-boundary checks and Git whitespace checks pass. Reviewed
+phase wording and scope; changes are limited to Plan 06, its index entry, and
+this log. No code, downstream files, raw evidence, or hardware was changed.

@@ -6,7 +6,7 @@ Status: Planned after the observed frame and dataset boundaries exist.
 
 Make simulated propagation and physical capture interchangeable producers of the same `MicrophoneSignalBlock`. Reuse one perception pipeline across projects, robots, array layouts, sources, and environments so sim-to-real differences remain measurable at the signal boundary.
 
-Proceed from common signal semantics (06.1), to a first physical adapter (06.2), to cross-domain comparison and consolidation (06.3). The first device exercises the general contract; it does not define the SDK's scope or gate 06.1.
+Proceed from common signal semantics (06.1), to external physical capture integration (06.2), to cross-domain comparison and consolidation (06.3). The first device exercises the general contract; it does not define the SDK's scope or gate 06.1.
 
 Plan 06 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: parity consolidates shared semantics instead of creating parallel simulation and hardware stacks.
 
@@ -30,13 +30,13 @@ The block contains observed microphone samples only. Simulator state and hardwar
 
 Clock drift, missing channels, unknown gain, and buffering must remain explicit rather than being silently normalized away.
 
-## Subphase 06.2 — Physical Capture Adapter
+## Subphase 06.2 — Physical Capture Integration
 
 #### Implementation
 
-Add the smallest capture boundary that emits validated blocks from a standalone or robot-mounted array. Keep device-specific acquisition separate from shared signal handling so other devices can integrate without a separate perception stack. Activity and DOA remain exclusively in `AudioPerceptionPipeline`.
+Enable external acquisition producers to supply validated `MicrophoneSignalBlock` values to the SDK's shared perception and recording path. The SDK owns common contracts, validation, and reusable signal handling; hardware-specific drivers, device configuration, channel mapping, mounting geometry, calibration data, and acquisition campaigns remain in SquadBot or the consuming project. Activity and DOA remain exclusively in `AudioPerceptionPipeline`.
 
-Use the user's four-microphone ReSpeaker XVF3800 as the first reference device, reusing existing S-phase and SquadBot hardware and acquisition evidence. The shipped nominal calibration profile is a contract example, not measured calibration.
+Use the user's four-microphone ReSpeaker XVF3800 to verify this boundary through downstream acquisition, reusing existing S-phase and SquadBot work without importing its hardware integration into the SDK. The shipped nominal calibration profile is a contract example, not measured calibration.
 
 #### Key Decisions
 
@@ -44,7 +44,7 @@ Use the user's four-microphone ReSpeaker XVF3800 as the first reference device, 
 - Physical capture never bypasses the shared perception plugins.
 - Apply calibration only from a valid profile.
 - Stream faults produce explicit reset or invalid-block events.
-- Support the concrete reference device without building speculative driver abstractions or fixing the common contract to its layout.
+- An SDK capture adapter requires a concrete reusable role across devices or projects; the ReSpeaker reference alone does not justify one.
 
 #### Problems / Limitations
 
@@ -72,11 +72,11 @@ An extensible contract does not establish universal hardware compatibility or ac
 
 ## Artifacts
 
-Expected artifacts are one general signal contract, a first physical producer, comparable sim-versus-real outputs with explicit limits, and removal of duplicate domain paths.
+Expected artifacts are one general signal contract, a working connection from downstream physical acquisition to the SDK, comparable sim-versus-real outputs with explicit limits, and removal of duplicate domain paths.
 
 ## Files
 
-Exact capture and calibration integration files are deferred to implementation.
+Exact integration files are deferred to implementation; ReSpeaker-specific files remain downstream.
 
 Existing reference material:
 
