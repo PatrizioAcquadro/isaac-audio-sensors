@@ -139,12 +139,14 @@ def test_simulate_higher_threshold_is_inactive(capsys):
     assert frame["diagnostics"]["perception"]["activity_detected"] is False
 
 
-def test_simulate_enable_doa_routes_the_planar_array(capsys):
+def test_simulate_enable_doa_routes_the_two_microphone_array(capsys):
     assert (
         main(
             [
                 "simulate",
                 str(CONFIG),
+                "--array-id",
+                "rig_stereo",
                 "--energy-threshold-dbfs",
                 "-60",
                 "--enable-doa",
@@ -158,8 +160,8 @@ def test_simulate_enable_doa_routes_the_planar_array(capsys):
     assert observation["doa"] is not None
     assert observation["diagnostics"]["doa_estimator"]["selection"] == {
         "policy": "maintained_roles_v1",
-        "role": "primary_planar_doa",
-        "selected_estimator_id": "pyroomacoustics_srp",
+        "role": "two_microphone_ambiguity",
+        "selected_estimator_id": "tdoa_least_squares",
     }
 
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):

@@ -160,10 +160,12 @@ def test_simulate_from_config_rejects_invalid_explicit_threshold(threshold) -> N
 def test_simulate_from_config_doa_is_explicitly_opt_in() -> None:
     default_frame = simulate_from_config(
         "examples/configs/isaac_audio_sensors_demo.toml",
+        array_id="rig_stereo",
         energy_threshold_dbfs=-60.0,
     )
     enabled_frame = simulate_from_config(
         "examples/configs/isaac_audio_sensors_demo.toml",
+        array_id="rig_stereo",
         energy_threshold_dbfs=-60.0,
         doa_enabled=True,
     )
@@ -174,8 +176,8 @@ def test_simulate_from_config_doa_is_explicitly_opt_in() -> None:
     diagnostics = enabled_frame.observations[0].diagnostics["doa_estimator"]
     assert diagnostics["selection"] == {
         "policy": "maintained_roles_v1",
-        "role": "primary_planar_doa",
-        "selected_estimator_id": "pyroomacoustics_srp",
+        "role": "two_microphone_ambiguity",
+        "selected_estimator_id": "tdoa_least_squares",
     }
     context = enabled_frame.diagnostics["perception"]["doa_context"]
     assert context["causal"] is True
