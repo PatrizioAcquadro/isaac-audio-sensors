@@ -6,7 +6,7 @@ Built-in local layouts are `mono`, `stereo_y`/`two_mic_y`, `quad_front`/`quad_cr
 
 Named layouts use a positive finite spacing, with `tetrahedral` as the built-in rank-3 geometry that permits elevation estimation.
 
-World microphone positions are produced from the array XYZW orientation and its forward/right/up basis. Exactly two microphones are supported only by TDOA least-squares and require distinct XY positions. Least-squares with three or more microphones and all SRP-PHAT use require at least three microphones whose centered XY coordinates have rank two. Four non-collinear microphones remain the recommended practical configuration for redundancy and robustness, not a mandatory minimum.
+World microphone positions are produced from the array XYZW orientation and its forward/right/up basis. Exactly two microphones are supported only by TDOA least-squares and require distinct XY positions. Least-squares with three or more microphones and all SRP-PHAT uses require at least three microphones whose centered XY coordinates have rank two. Four non-collinear microphones remain the recommended practical configuration for redundancy and robustness, not a mandatory minimum.
 
 For two microphones, the public azimuth model returns every normalized, deduplicated bearing compatible with the measured delay in `candidate_bearing_deg`. The ordinary result has `estimated_bearing_deg`, `bearing_sector`, and elevation unset, confidence zero, and `ambiguity_class="ambiguous_front_back"`. Only a delay at the physical baseline endpoint, where the two candidates coincide, produces one unique bearing. Core accepts no contextual prior; assumptions such as “the source is in front” belong to downstream consumers.
 
@@ -98,7 +98,11 @@ Planar arrays report azimuth without inventing elevation; rank-3 arrays can esti
 
 Every estimator consumes only valid rows of the final multichannel mixture, matching array-local microphone positions, and sample rate. Source count, identities, positions, schedules, render stems, and scene diagnostics are unavailable to localization.
 
-GCC-PHAT exposes pair-delay evidence, SRP-PHAT scans candidate directions, and confidence must derive from observable signal/estimator evidence rather than oracle ground-truth error. The existing least-squares and internal SRP paths remain unselected until Plan 04 qualifies accuracy, low-information behavior, latency, context, and confidence semantics.
+GCC-PHAT exposes pair-delay evidence, while SRP-PHAT scans candidate directions. Structurally valid but silent, spatially identical, geometrically unsupported, or below-threshold inputs return explicit unresolved estimates rather than fabricated directions. Malformed or non-finite input still fails.
+
+`bearing_confidence` is an estimator-local reliability ordering, not a probability. Least-squares combines its residual score with median GCC peak strength, internal SRP retains its contrast/coherence score, and PyRoom SRP combines normalized coherent excess with grid contrast after selecting observed-energy STFT bins. These scores are not comparable across estimators without calibration.
+
+Subphase 04.2 qualifies `pyroomacoustics_srp` on independent NumPy mixtures and hash-verified real ReSpeaker audio. Its operating point is a causal 250 ms observation block, 512-point FFT, 256-sample hop, 300–6000 Hz outer band, 2-degree azimuth grid, 5-degree rank-3 elevation grid, and reliability threshold `0.034`. It reaches 97.98% held-out active coverage and 6-degree bearing p95 with four-channel compute p95 below 5.06 ms. Internal SRP and least-squares remain measured, unselected baselines without a complete qualified operating point. NormMUSIC was not needed because PyRoom SRP passed the essential gates.
 
 ## Interpretation Limits
 

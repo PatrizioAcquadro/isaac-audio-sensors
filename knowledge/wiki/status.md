@@ -17,7 +17,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Public snapshot-authoritative propagation through `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`, with exact-window, ordered, immutable `float32` microphone mixtures and no source, perception, persistence, or serialized-schema fields.
 - `AnalyticAcoustics.propagate()` supports silent, mono, and multi-source windows, includes final gain/directivity/occlusion/effects, marks simulated channels valid, and never runs DOA, assembles frames, or writes waveforms. `core.simulation.simulate_frame()` calls propagation once, resolves the exact snapshot array, runs an explicit perception pipeline, optionally gives the same block to a waveform sink, and returns both frame and block.
 - Public `ActivityDecision`, `ObservationOrigin`, `AudioObservation`, and `AudioPerceptionPipeline` own observed-only perception. The `ActivityDetector` plugin contract owns stable identity, typed decisions, streaming state, and explicit reset; its optional activity probability is bounded to `[0, 1]`. The injected detector sees only valid channels in array order; inactive or fully invalid blocks emit no signal observation; optional DOA requires at least two valid channels; external observations remain typed and ordered after the signal result; and `max_observations` caps only the final deterministic sequence.
-- Subphase 04.1 locks `DoaEstimator` to ordered mixture samples, matching array-local XYZ positions, and sample rate. The perception pipeline exposes no scene, source count, identity, position, schedule, private stem, or producer diagnostic to localization; `None` still means DOA did not run, while returned unresolved estimates retain candidate and ambiguity evidence. Both existing estimators remain optional and unselected pending 04.2.
+- Subphases 04.1–04.2 lock `DoaEstimator` to ordered mixture samples, matching array-local XYZ positions, and sample rate, then qualify lazy optional `pyroomacoustics_srp` as the primary external candidate. Its qualified causal operating point uses a 250 ms observation block, 512-point STFT, observed-energy bins within 300–6000 Hz, 2/5-degree grids, and estimator-local reliability threshold `0.034`. The pipeline still exposes no scene, source truth, private stems, or producer diagnostics, and no maintained consumer selects a DOA estimator before 04.3.
 - Public `AuditokActivityDetector` provides the one qualified generic detector path with an explicit fixed dBFS threshold, bounded causal context, current-block token overlap, `any`-channel energy, deterministic reset, and no claimed activity probability. Initial calibration is not a streaming mode because the Boolean decision contract has no “not ready” state; consumers may estimate a threshold before constructing the detector, but the candidate calibration parameters remain experimental.
 - Maintained scalar Core, CLI, Isaac Sim, and Kit entry points resolve Auditok only with an explicit runtime threshold. Active output is at most one `signal_derived` observation with no invented score, DOA, source identity, class, or source count; inactive and warm-up output is empty. `AudioSensorConfig`, TOML, frame schema v3, `simulate_frame()`, and direct `AudioPerceptionPipeline` composition remain unchanged.
 - Frame-v3 capture semantics retain the three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, array pose, channel validity, aggregate RMS, provenance, diagnostics, and recording-owned waveform references. `producer_id`, `observations`, and `max_observations` replace the backend/detection fields without a v2 parser.
@@ -181,6 +181,16 @@ tests, 58 release tests, version synchronization, Ruff, and whitespace. Its 59
 focused DOA, perception, plugin, and orchestration tests pass. No schema,
 configuration, package-version, GPU runtime, or downstream behavior changed.
 
+The Subphase 04.2 gate passes 563 unit/contract tests, 221 integration tests,
+58 release tests, optional audio, wheel/sdist construction, packaged schema and
+metadata checks, and the supported Isaac-Python import gate. Two complete
+qualification runs are semantically identical across 689 cases per estimator
+and 35 hash-verified real WAVs. PyRoom SRP passes at 250 ms with 97.98% active
+coverage, 6-degree overall and real-nominal bearing p95, zero held-out null
+emissions, and four-channel availability-latency p95 no greater than 5.06 ms.
+Internal SRP and least-squares remain unselected baselines without a complete
+qualified operating point.
+
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
 
 See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
@@ -199,6 +209,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
 - `analytic_acoustics` does not accept `surface_set`. Isaac Lab intentionally keeps its six observation tensors zero-filled until Phase 07 even though the scalar reference path executes Auditok; it does not yet project observed activity, bearing, confidence, waveform, reverberation, occlusion, SPL, calibration, closed-topology, or per-environment randomization behavior.
 - Auditok's fixed threshold requires application-specific tuning. No calibration mode is maintained; low SNR, changing noise floors, and impulses shorter than the temporal profile remain operating limits.
+- PyRoom SRP is qualified only as an unselected 04.3 candidate on `pyroomacoustics>=0.10.1,<0.11`. Its 250 ms causal observation can smear motion; the independent 300–800 Hz subset reaches 11-degree p95, and real evidence has ±5-degree placement tolerance with nominal microphone centers. Reliability remains estimator-local rather than probabilistic or cross-estimator calibrated.
 - Raycast partition transmission remains direct-path-only; it does not model diffraction, structural wall physics, or establish measured material behavior.
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
@@ -214,7 +225,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphase 04.1 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] is complete. Work now proceeds to 04.2 estimator qualification and operating semantics without changing the detector or reintroducing runtime source truth. Later phases add dataset truth, signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphases 04.1–04.2 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] are complete. Work now proceeds to 04.3 selection, causal 250 ms consumer integration, and duplicate-estimator cleanup without changing the detector or reintroducing runtime source truth. Later phases add dataset truth, signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

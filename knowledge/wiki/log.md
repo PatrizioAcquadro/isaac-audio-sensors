@@ -700,3 +700,16 @@ Verified 543 unit/contract tests, 221 integration tests, 58 release tests, 59
 focused DOA/perception tests, version synchronization, Ruff, internal wiki
 links, documentation boundaries, and whitespace without changing schemas,
 configuration, package version, GPU runtime, or downstream behavior.
+
+## 2026-09-04 — update: Subphase 04.2 estimator qualification
+
+Recorded the lazy PyRoom SRP candidate, estimator-local reliability and
+abstention semantics, independent simulation plus opened real-audio evidence,
+the qualified 250 ms operating point, and deferred 04.3 selection and cleanup.
+
+## 2026-09-04 — lint: Subphase 04.2 complete closeout
+
+Verified 563 unit/contract tests, 221 integration tests, 58 release tests,
+optional audio, package construction, supported Isaac-Python import, two
+semantically identical qualification runs, internal links, raw preservation,
+schema generation, version synchronization, Ruff, and whitespace.
