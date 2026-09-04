@@ -742,3 +742,9 @@ Verified 42 focused DOA tests, 579 unit/contract tests, 221 integration tests,
 `31532988b2571e7fdd24c302f894317ee64af2f28fb464124f7ef9e3719d83c9`,
 complete 10/20 dB synthetic evaluation, generic terminology, version
 synchronization, Ruff, and whitespace.
+
+## 2026-09-04 — update: Clarify Subphase 04.3 boundaries
+
+Clarified PyRoom planar integration, the maintained generic two-microphone role,
+consumer-owned optional 3D qualification, and the requirement to expose temporal
+instability or abstain without broadening the nominal robustness claim.

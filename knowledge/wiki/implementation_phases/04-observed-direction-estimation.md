@@ -63,23 +63,27 @@ The selected 250 ms observation context can smear fast source or robot motion ev
 
 #### Implementation
 
-Integrate one primary estimator into the perception pipeline and retain a lightweight baseline only for a distinct necessary role such as dependency-free diagnostics or mass-parallel execution. Keep estimator identity, confidence meaning, and latency recoverable.
+Select and integrate PyRoom SRP as the maintained primary estimator for planar arrays with at least three non-collinear microphones. Supply its causal 250 ms observation context on the consumer's 20 Hz update cycle without future look-ahead, while keeping estimator identity, local reliability, latency, ambiguity, and abstention visible.
 
-Remove non-selected or duplicate algorithms and their unused configuration, registry, adapter, dependency, test, example, and documentation surfaces. Tests and historical convenience do not justify a duplicate estimator; shared geometry and ambiguity utilities remain only when still used.
+Retain least-squares as the single estimator for the distinct two-microphone role, preserving physical front/back ambiguity rather than resolving it through a hidden assumption. Keep PyRoom's optional 3D capability available but unselected and unqualified as a product claim; consumers with suitable arrays own any further 3D qualification. Remove internal SRP and every other duplicate or unused estimator surface.
+
+Temporal handling must treat abrupt inconsistent directions, especially front/back reversals, as instability or unknown rather than silently accepting or replacing them with an invented direction. Any tracking or contextual prior belongs explicitly to the consumer and must preserve the observed-only Core boundary.
 
 #### Key Decisions
 
 - Keep one implementation per supported DOA role.
-- Every additional estimator requires a verified non-overlapping purpose and maintained consumer.
+- PyRoom owns general planar DOA; least-squares owns the generic two-microphone ambiguity role.
+- Nominal planar qualification does not imply robustness under occlusion, low SNR, or low-level input.
+- Optional 3D remains available without becoming a default or a qualified product capability.
 - `DoaEstimate` remains independent of the selected algorithm.
 
 #### Problems / Limitations
 
-Verify claimed scale or dependency distinctions before retaining another estimator.
+The 250 ms context can smear motion, and rolling use can expose temporal direction instability that isolated blocks do not show. Subphase 04.3 must preserve safe abstention and must not broaden the qualified nominal operating envelope. If robust degraded-condition behavior becomes required, it needs separate evidence and qualification rather than a hidden threshold or prior change.
 
 ## Artifacts
 
-Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP, estimator-local reliability and abstention semantics, the corrected role-based qualification runner, and ignored v2 JSON reports under `build/qualification/doa/`. The retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded historical evidence; their comparative conclusions are not current qualification authority. Subphase 04.3 must select and integrate the primary estimator and remove internal SRP while preserving any verified distinct two-microphone need.
+Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP, estimator-local reliability and abstention semantics, the corrected role-based qualification runner, and ignored v2 JSON reports under `build/qualification/doa/`. The retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded historical evidence; their comparative conclusions are not current qualification authority. Subphase 04.3 must integrate PyRoom for the primary planar role, retain least-squares for generic two-microphone ambiguity, remove internal SRP, and keep optional 3D explicitly unqualified.
 
 ## Files
 
