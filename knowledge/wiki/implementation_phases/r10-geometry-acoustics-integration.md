@@ -129,7 +129,7 @@ Target high-quality operation for one or a few Isaac environments. Expose geomet
 
 Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. Consume those distributions offline through the scalable analytic path completed in R8.3; do not introduce an online geometry-provider dependency into mass-parallel execution. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
 
-After validating the selected provider, remove unselected integrations, temporary R9 scaffolding, redundant geometry, material, or occlusion paths, and their unused supporting surfaces. Once the production Steam adapter passes the selected qualification scenarios, make it the sole Steam binding used by both runtime and requalification and delete the duplicate R9 adapter. Retain only contract cases that actively gate provider-version upgrades; remove unused runners, fixture generators, report builders, and experiment-only helpers. NVIDIA RTX Acoustic remains documentation and historical evidence only, with no executable or configurable provider surface. Do not keep provider-specific public observations or test-only runtime shortcuts.
+The temporary R9 adapters, runners, fixtures, report builders, validators, and tests are already removed. Implement one production Steam binding and validate provider-version upgrades directly through focused version, timing, assembly, pathing, signal, and performance tests at that boundary. Remove redundant geometry, material, or occlusion paths as the production integration settles. NVIDIA RTX Acoustic remains documentation and historical evidence only, with no executable or configurable provider surface. Do not keep provider-specific public observations or test-only runtime shortcuts.
 
 #### Key Decisions
 
@@ -137,8 +137,7 @@ After validating the selected provider, remove unselected integrations, temporar
 - `AnalyticAcoustics` remains the scalable Isaac Lab path.
 - One selected geometry provider is the maintained high-fidelity integration.
 - Provider-specific controls remain behind the provider capability boundary.
-- One production Steam adapter replaces the temporary R9 adapter; qualification
-  must not justify a duplicate provider implementation.
+- One production Steam adapter owns runtime behavior and focused requalification.
 - Public perception and dataset contracts remain signal-producer-independent.
 - Geometry-derived distributions transfer bounded behavior, not provider implementation details or raw path traces, into the analytic path.
 - Geometry, analytic, and physical producers preserve the same `MicrophoneSignalBlock` input boundary and downstream perception contracts.

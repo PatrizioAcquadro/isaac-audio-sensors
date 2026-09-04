@@ -172,12 +172,10 @@ profiles. Rev2 reports, measurements, NPZ data, logs, provenance, and the
 non-ranking summary remain local and ignored under `build/validation/r9/rev2/`;
 the superseded artifacts remain unchanged.
 
-The R9.3 cleanup gate passes 33 focused contract and selected-provider tests,
-516 unit/contract tests, 207 integration tests, and 57 release tests. Version
-synchronization, Ruff, the retained Steam runner import, exact outcome
-derivation for both preserved rev2 reports, internal wikilinks, documentation
-boundaries, and whitespace pass. All 95 pre-existing R9 evidence files retain
-their baseline SHA-256 hashes.
+The R9.3 cleanup gate passed 33 focused contract and selected-provider tests,
+516 unit/contract tests, 207 integration tests, and 57 release tests. All 95
+pre-existing R9 evidence files retained their baseline SHA-256 hashes. The
+temporary qualification surface was removed after R9.4 completed.
 
 The Plan 02.1 gate passes the complete `make check` workflow: 533 unit/contract
 tests, 210 integration tests, and 57 release tests, plus version synchronization,

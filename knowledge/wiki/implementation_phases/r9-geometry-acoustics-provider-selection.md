@@ -21,9 +21,9 @@ R9 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintai
 
 #### Implementation
 
-R9.1 is implemented as the repository-internal
-`tools/qualification/geometry_acoustics_contract.py` validator. The corrected
-`r9.1-rev2` contract supersedes the original internal report schema. It accepts
+R9.1 was executed through a repository-internal validator that was removed
+after provider selection and risk retirement completed. The corrected
+`r9.1-rev2` contract superseded the original internal report schema. It accepts
 candidate identity, the evaluated Isaac Sim/Kit runtime, and one result for
 each of 15 canonical criteria. It does not register a backend, change package
 configuration, or claim that a provider exists.
@@ -236,12 +236,11 @@ audible microphone PCM. Its installed proprietary extension does not satisfy
 the source-build packaging or open-source redistribution path, and the reused
 evidence cannot qualify the advanced rev2 criteria that were never exercised.
 
-The Steam adapter remains internal requalification tooling after R9.3. The
-NVIDIA adapter and comparison/reclassification tooling were removed after the
-decision. Full source, binary, measurement, NPZ, log, crash/build-failure, and
+The temporary provider adapters and qualification tooling were removed after
+R9.4. Full source, binary, measurement, NPZ, log, crash/build-failure, and
 provenance evidence remains local and ignored under `build/`; it is not a
-release artifact and can be removed by `make clean`. Simulation evidence does
-not establish physical calibration or sim-to-real validity.
+release artifact. Simulation evidence does not establish physical calibration
+or sim-to-real validity.
 
 ## Subphase R9.3 — Candidate Decision
 
@@ -270,11 +269,9 @@ does not satisfy the required source-build redistribution and licensing gates.
 Runtime availability and ecosystem proximity therefore do not make it eligible
 for the weighted provider decision.
 
-The unselected NVIDIA adapter, GMO helpers, evidence-reclassification runner,
-two-candidate summary builder, and their tests were removed. Historical R9.2
-reports and the non-ranking summary remain unchanged under `build/`. The
-contract, common fixtures, metrics, report writer, selected Steam adapter, and
-Steam runner remain only as internal requalification tooling.
+All candidate adapters, fixtures, report builders, runners, validators, and
+their tests were removed after R9.4. Historical R9.2 reports and the
+non-ranking summary remain unchanged under `build/`.
 
 R9.3 registers no public backend and starts no R10 integration. PyRoom remains
 the analytic provider rather than an arbitrary-geometry engine. Any future
@@ -365,9 +362,9 @@ a realtime gate.
 The ordered `r9.4-v1` report records six passes, one measured failure, no
 blockers, and an unchanged R9.3 selection. It admits baked pathing, the private
 arrival scheduler, and bounded path diagnostics to future R10 work while
-excluding the acoustic assembly proxy. The implementation remains entirely
-under `tools/qualification`; it adds no public backend, API, configuration,
-schema, version, or dependency.
+excluding the acoustic assembly proxy. The completed harness added no public
+backend, API, configuration, schema, version, or dependency and is no longer
+maintained.
 
 #### Key Decisions
 
@@ -393,9 +390,9 @@ sequential-assembly transmission from this representation.
 The pathing result is limited to the measured scenes, probe topology, default
 UTD model, CPU/Embree build, and small environment counts. It does not establish
 general diffraction accuracy, mass-parallel scaling, physical material
-calibration, or sim-to-real validity. The retained R9 adapter is temporary
-requalification tooling; R10.3 must replace it with the production binding and
-remove the duplicate.
+calibration, or sim-to-real validity. R10 must implement one production binding
+and validate it directly against the qualified version, signal, timing,
+assembly, pathing, and performance boundaries.
 
 ## Artifacts
 
@@ -412,9 +409,9 @@ the `r9.1-rev2` report, derived evaluation, measurements, NPZ signals, run log,
 and provenance. `build/validation/r9/rev2/summary.json` records valid
 two-candidate coverage without ranking or selection and is preserved as
 historical evidence; no maintained generator remains. The selected Steam
-source/build remains under `build/qualification/r9/steam-audio`, and its
-internal adapter and runner remain available for requalification. No public
-geometry backend or R10 integration exists yet.
+source/build remains under `build/qualification/r9/steam-audio`. A provider
+upgrade requires a new bounded qualification through the production
+integration; no public geometry backend or R10 integration exists yet.
 
 The separate ignored R9.4 bundle lives at
 `build/validation/r9/r9.4-v1/steam_audio/`. It contains the ordered report,
@@ -424,11 +421,6 @@ retain their aggregate SHA-256 baseline; no R9.2 artifact was rewritten.
 
 ## Files
 
-- `tools/qualification/geometry_acoustics_contract.py`
-- `tests/unit/test_geometry_acoustics_contract.py`
-- `tools/qualification/geometry_acoustics/`
-- `tests/unit/test_geometry_acoustics_qualification.py`
-- `tests/unit/test_geometry_acoustics_r9_4.py`
 - `src/isaac_audio_sensors/core/types/`
 - `src/isaac_audio_sensors/core/backends/analytic.py`
 - `src/isaac_audio_sensors/core/doa/ambiguity.py`
