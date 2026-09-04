@@ -762,3 +762,15 @@ Isaac-runtime tests, optional audio, two identical rolling reports, all three
 RTX 4090 live smokes, version synchronization, Ruff, wiki links, raw
 preservation, and whitespace. The Isaac source runtime used isolated Auditok
 0.5.2 because that user-managed interpreter did not contain the Core dependency.
+
+## 2026-09-04 — update: Final Plan 04 cleanup
+
+Recorded removal of the completed DOA qualification harness and test-only
+coverage, historical local retention of ignored reports, and deterministic
+single-context runtime diagnostics without changing DOA contracts or defaults.
+
+## 2026-09-04 — lint: Final Plan 04 cleanup
+
+Verified 99 focused consumer tests, 562 unit/contract tests, 226 integration
+tests, 58 release tests, optional audio, version synchronization, Ruff, wiki
+links, documentation boundaries, and whitespace.

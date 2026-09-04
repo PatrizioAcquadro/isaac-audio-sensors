@@ -352,6 +352,7 @@ def test_causal_context_accumulates_inactive_blocks_and_keeps_trailing_window() 
     assert estimator.calls[1].tolist() == [[2, 3, 4, 5, 6]] * 3
     context = frames[5].diagnostics["perception"]["doa_context"]
     assert context == {
+        "causal": True,
         "required_duration_s": 0.25,
         "required_sample_count": 5,
         "available_duration_s": 0.25,

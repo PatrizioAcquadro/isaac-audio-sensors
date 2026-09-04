@@ -177,7 +177,10 @@ def test_simulate_from_config_doa_is_explicitly_opt_in() -> None:
         "role": "primary_planar_doa",
         "selected_estimator_id": "pyroomacoustics_srp",
     }
-    assert diagnostics["consumer"]["causal"] is True
+    context = enabled_frame.diagnostics["perception"]["doa_context"]
+    assert context["causal"] is True
+    assert "context" not in diagnostics["consumer"]
+    assert "compute_latency_ms" not in diagnostics["consumer"]
 
 
 def test_simulate_from_config_rejects_non_boolean_doa_opt_in() -> None:

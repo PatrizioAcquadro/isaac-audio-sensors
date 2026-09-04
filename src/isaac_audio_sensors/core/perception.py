@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from time import perf_counter_ns
 from typing import TYPE_CHECKING, cast
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
@@ -189,7 +188,6 @@ class AudioPerceptionPipeline:
                 doa: DoaEstimate | None = None
                 if self._doa_estimator is not None and len(valid_indices) >= 2:
                     assert positions is not None
-                    started_ns = perf_counter_ns()
                     doa, doa_diagnostics = _doa_result(
                         self._doa_estimator.estimate(
                             doa_samples,
@@ -197,13 +195,9 @@ class AudioPerceptionPipeline:
                             block.sample_rate_hz,
                         )
                     )
-                    compute_latency_ms = (perf_counter_ns() - started_ns) / 1e6
                     doa, temporal_diagnostics = self._apply_doa_temporal_policy(doa)
                     if self._doa_context_duration_s is not None:
                         doa_diagnostics["consumer"] = {
-                            "causal": True,
-                            "compute_latency_ms": compute_latency_ms,
-                            "context": context_diagnostics,
                             "temporal_stability": temporal_diagnostics,
                         }
                     observation_diagnostics["doa_estimator"] = doa_diagnostics
@@ -324,6 +318,7 @@ class AudioPerceptionPipeline:
         self._doa_history_signature = signature
         self._doa_history_end_s = block.time_window.end_time_s
         return buffered, {
+            "causal": True,
             "required_duration_s": self._doa_context_duration_s,
             "required_sample_count": required_samples,
             "available_duration_s": buffered.shape[1] / block.sample_rate_hz,
