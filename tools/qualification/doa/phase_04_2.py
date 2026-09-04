@@ -128,6 +128,7 @@ def run_qualification(
     )
     real_records: list[dict[str, Any]] = []
     streams: list[dict[str, Any]] = []
+    real_take_performance: list[dict[str, Any]] = []
     if evidence["status"] == PASS:
         try:
             activity_selection = _select_activity_threshold(takes)
@@ -138,7 +139,7 @@ def run_qualification(
         and activity_selection["status"] == PASS
         and pyroom_issue is None
     ):
-        real_records, streams = _evaluate_real_pipeline(
+        real_records, streams, real_take_performance = _evaluate_real_pipeline(
             takes,
             activity_threshold_dbfs=float(activity_selection["selected"]),
         )
@@ -246,7 +247,10 @@ def run_qualification(
     }
     return {
         "semantic": semantic,
-        "performance": {"realtime_planar_compute": benchmark},
+        "performance": {
+            "realtime_planar_compute": benchmark,
+            "real_take_pipeline": real_take_performance,
+        },
         "runtime": {
             "python": platform.python_version(),
             "platform": platform.platform(),
@@ -874,9 +878,14 @@ def _evaluate_real_pipeline(
     takes: list[RealTake],
     *,
     activity_threshold_dbfs: float,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     records: list[dict[str, Any]] = []
     streams: list[dict[str, Any]] = []
+    performance: list[dict[str, Any]] = []
     for take in takes:
         pipeline = AudioPerceptionPipeline(
             activity_detector=AuditokActivityDetector(
@@ -887,6 +896,7 @@ def _evaluate_real_pipeline(
         array = _array_spec(take.positions_m, take.sample_rate_hz)
         processed = 0
         scored = 0
+        compute_ms: list[float] = []
         samples_per_block = _block_sample_count(take.sample_rate_hz)
         for frame_index, start in enumerate(
             range(0, take.samples.shape[1], samples_per_block)
@@ -894,11 +904,13 @@ def _evaluate_real_pipeline(
             stop = start + samples_per_block
             if stop > take.samples.shape[1]:
                 break
+            started = time.perf_counter_ns()
             frame = pipeline.process(
                 _signal_block(take, start, stop, frame_index),
                 array,
                 frame_id=f"qualification_{take.take_id}_{frame_index:04d}",
             )
+            compute_ms.append((time.perf_counter_ns() - started) / 1_000_000.0)
             processed += 1
             if not _score_block(take, start, stop):
                 continue
@@ -953,7 +965,17 @@ def _evaluate_real_pipeline(
                 "wav_sha256": take.wav_sha256,
             }
         )
-    return records, streams
+        performance.append(
+            {
+                "take_id": take.take_id,
+                "processed_call_count": len(compute_ms),
+                "compute_median_ms": _percentile(compute_ms, 50),
+                "compute_p95_ms": _percentile(compute_ms, 95),
+                "compute_max_ms": max(compute_ms),
+                "observation_duration_ms": CONTEXT_MS,
+            }
+        )
+    return records, streams, performance
 
 
 def _select_reliability_threshold(records: list[dict[str, Any]]) -> dict[str, Any]:
