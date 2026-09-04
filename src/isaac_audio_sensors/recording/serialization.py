@@ -23,7 +23,6 @@ from isaac_audio_sensors.recording.manifest import (
     CreationProvenance,
     DeviceProvenance,
     EpisodeRecord,
-    ManifestPose,
     ResetMarker,
     ShardRecord,
     SplitRecord,
@@ -48,7 +47,7 @@ def write_dataset_manifest(
 
 
 def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
-    """Parse one exact canonical manifest-v3 projection."""
+    """Parse one exact canonical manifest-v4 projection."""
 
     if not isinstance(payload, dict):
         raise TypeError("manifest root must be an object")
@@ -108,7 +107,7 @@ def manifest_from_dict(payload: dict[str, Any]) -> AudioDatasetManifest:
         raise ValueError(f"manifest root contains invalid JSON values: {exc}") from exc
     if source != canonical:
         raise ValueError(
-            "manifest root is not an exact canonical manifest-v3 projection"
+            "manifest root is not an exact canonical manifest-v4 projection"
         )
     return manifest
 
@@ -153,18 +152,6 @@ def _device_from_dict(payload: dict[str, Any]) -> DeviceProvenance:
     )
 
 
-def _pose_from_dict(payload: dict[str, Any]) -> ManifestPose:
-    orientation = payload.get("orientation_xyzw")
-    return ManifestPose(
-        entity_id=str(payload["entity_id"]),
-        entity_kind=str(payload["entity_kind"]),
-        timestamp_ms=int(payload["timestamp_ms"]),
-        position_m=tuple(payload["position_m"]),
-        orientation_xyzw=None if orientation is None else tuple(orientation),
-        frame=str(payload["frame"]),
-    )
-
-
 def _episode_from_dict(payload: dict[str, Any]) -> EpisodeRecord:
     return EpisodeRecord(
         episode_id=str(payload["episode_id"]),
@@ -187,11 +174,6 @@ def _episode_from_dict(payload: dict[str, Any]) -> EpisodeRecord:
             )
             for item in payload.get("reset_markers", ())
         ),
-        array_poses=tuple(
-            _pose_from_dict(item) for item in payload.get("array_poses", ())
-        ),
-        labels=tuple(payload.get("labels", ())),
-        visual_sync_asset_ids=tuple(payload.get("visual_sync_asset_ids", ())),
     )
 
 

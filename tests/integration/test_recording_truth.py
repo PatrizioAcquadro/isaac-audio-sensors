@@ -118,7 +118,7 @@ def test_supervision_round_trip_across_shards_episodes_and_resets(
             )
         recorder.end_episode()
     manifest = recorder.finalize()
-    assert manifest.schema_version == "ias.audio_dataset_manifest.v3"
+    assert manifest.schema_version == "ias.audio_dataset_manifest.v4"
     dataset = SessionDataset.open(root)
     loaded = list(dataset.iter_records())
     assert [(item.truth, item.annotations) for item in loaded] == expected
@@ -315,12 +315,12 @@ def test_frame_record_rejects_misaligned_malformed_and_legacy_supervision():
                 json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
             )
     manifest = json.loads(
-        Path("examples/manifests/minimal_manifest.v3.json").read_text()
+        Path("examples/manifests/minimal_manifest.v4.json").read_text()
     )
     manifest["schema_version"] = "ias.audio_dataset_manifest.v1"
     with pytest.raises(ValueError):
         manifest_from_dict(manifest)
-    manifest["schema_version"] = "ias.audio_dataset_manifest.v3"
+    manifest["schema_version"] = "ias.audio_dataset_manifest.v4"
     manifest["episodes"][0]["source_truth"] = []
     with pytest.raises(ValueError):
         manifest_from_dict(manifest)

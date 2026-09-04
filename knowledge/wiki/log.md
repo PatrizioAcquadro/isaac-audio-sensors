@@ -846,3 +846,18 @@ PyRoom 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The maintained example produc
 a (3, 2, 4800) float32 policy waveform batch with separate supervision.
 Ruff, whitespace, wiki links/index coverage, documentation checks, and raw
 preservation pass. No new GPU, live Isaac, training, or downstream claim is made.
+
+## 2026-09-04 — update: Subphase 05.3 manifest migration
+
+Migrated active manifest consumers and packaged schemas to v4. Removed unused
+episode poses, labels, visual-sync metadata/assets, and their statistics. Preserved
+acquisition identities and all fixture bytes except the manifest. The focused gate
+passes 230 contract, recording, learning, and release tests. Parser/replay cleanup
+and the final host gate remain pending.
+
+## 2026-09-04 — lint: Subphase 05.3 manifest migration
+
+Wiki links and index coverage pass across 32 pages. Ruff and whitespace checks
+pass; the fixture validates with three episodes, two shards, seven frames, and
+no findings. All seven non-manifest fixture files are byte-identical to 8d7a71e;
+raw evidence is unchanged. Packaged schema generation matches current resources.

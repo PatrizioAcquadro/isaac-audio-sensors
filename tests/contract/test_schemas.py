@@ -24,7 +24,7 @@ SCHEMAS: dict[str, tuple[SchemaGenerator, str]] = {
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,
-        "audio_dataset_manifest.v3.schema.json",
+        "audio_dataset_manifest.v4.schema.json",
     ),
     "calibration-profile": (
         audio_calibration_profile_json_schema,
@@ -67,13 +67,6 @@ def test_current_payloads_conform_to_generated_schemas():
         audio_calibration_profile_json_schema(),
         _json_payloads(Path("examples/calibration")),
     )
-
-
-def test_superseded_frame_schemas_are_not_packaged() -> None:
-    for version in ("v1", "v2"):
-        assert not files("isaac_audio_sensors.schemas").joinpath(
-            f"audio_sensor_frame.{version}.schema.json"
-        ).is_file()
     _validate_all(
         audio_dataset_manifest_json_schema(),
         (
@@ -85,6 +78,17 @@ def test_superseded_frame_schemas_are_not_packaged() -> None:
             ),
         ),
     )
+
+
+def test_superseded_schemas_are_not_packaged() -> None:
+    for version in ("v1", "v2"):
+        assert not files("isaac_audio_sensors.schemas").joinpath(
+            f"audio_sensor_frame.{version}.schema.json"
+        ).is_file()
+    for version in ("v1", "v2", "v3"):
+        assert not files("isaac_audio_sensors.schemas").joinpath(
+            f"audio_dataset_manifest.{version}.schema.json"
+        ).is_file()
 
 
 def _schema_text(schema: dict[str, Any]) -> str:

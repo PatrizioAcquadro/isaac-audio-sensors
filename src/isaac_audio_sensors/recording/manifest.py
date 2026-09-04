@@ -1,8 +1,7 @@
-"""Public dataset-manifest v3 dataclasses and validation."""
+"""Public dataset-manifest v4 dataclasses and validation."""
 
 from __future__ import annotations
 
-import math
 import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath, PureWindowsPath
@@ -11,7 +10,6 @@ from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     RUNTIME_PROFILES,
 )
-from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw
 from isaac_audio_sensors.recording.constants import (
     DATASET_MANIFEST_SCHEMA_VERSION,
     DATASET_MANIFEST_UNITS,
@@ -20,9 +18,7 @@ from isaac_audio_sensors.recording.constants import (
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _COMPLETION_STATES = frozenset({"incomplete", "complete"})
-_ASSET_KINDS = frozenset(
-    {"frame_trace_jsonl", "audio_wav", "audio_flac", "visual_sync"}
-)
+_ASSET_KINDS = frozenset({"frame_trace_jsonl", "audio_wav", "audio_flac"})
 _DTYPES = frozenset({"float32", "float64", "int16", "int24", "int32"})
 _TIME_BASES = frozenset({"simulation_time", "monotonic", "utc"})
 _SPLIT_NAMES = frozenset({"train", "validation", "test"})
@@ -68,39 +64,6 @@ class DeviceProvenance:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ManifestPose:
-    """Timestamped pose for a stable array or source id."""
-
-    entity_id: str
-    entity_kind: str
-    timestamp_ms: int
-    position_m: tuple[float, float, float]
-    orientation_xyzw: tuple[float, float, float, float] | None
-    frame: str
-
-    def __post_init__(self) -> None:
-        _require_id(self.entity_id, "ManifestPose.entity_id")
-        if self.entity_kind not in {"array", "source"}:
-            raise ValueError("ManifestPose.entity_kind must be 'array' or 'source'.")
-        _require_non_negative_int(self.timestamp_ms, "ManifestPose.timestamp_ms")
-        object.__setattr__(
-            self,
-            "position_m",
-            _finite_tuple(self.position_m, 3, "ManifestPose.position_m"),
-        )
-        if self.orientation_xyzw is not None:
-            object.__setattr__(
-                self,
-                "orientation_xyzw",
-                as_quaternion_xyzw(
-                    self.orientation_xyzw,
-                    "ManifestPose.orientation_xyzw",
-                ),
-            )
-        _require_id(self.frame, "ManifestPose.frame")
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class ResetMarker:
     """Explicit simulator reset boundary inside an episode."""
 
@@ -131,9 +94,6 @@ class EpisodeRecord:
     trajectory_id: str | None = None
     source_asset_ids: tuple[str, ...] | None = None
     reset_markers: tuple[ResetMarker, ...] = field(default_factory=tuple)
-    array_poses: tuple[ManifestPose, ...] = field(default_factory=tuple)
-    labels: tuple[str, ...] = field(default_factory=tuple)
-    visual_sync_asset_ids: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         for name in ("episode_id", "scene_id", "environment_id", "split_group"):
@@ -168,24 +128,6 @@ class EpisodeRecord:
             "EpisodeRecord.reset_markers timestamps",
         )
         object.__setattr__(self, "reset_markers", resets)
-        array_poses = tuple(self.array_poses)
-        if any(pose.entity_kind != "array" for pose in array_poses):
-            raise ValueError("EpisodeRecord.array_poses must contain array poses.")
-        _validate_pose_timestamps(array_poses, timestamps, "array_poses")
-        object.__setattr__(self, "array_poses", array_poses)
-        object.__setattr__(
-            self,
-            "labels",
-            _unique_text_tuple(self.labels, "EpisodeRecord.labels"),
-        )
-        object.__setattr__(
-            self,
-            "visual_sync_asset_ids",
-            _unique_id_tuple(
-                self.visual_sync_asset_ids,
-                "EpisodeRecord.visual_sync_asset_ids",
-            ),
-        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -396,20 +338,6 @@ class AudioDatasetManifest:
             tuple(asset.asset_id for asset in all_assets),
             "AudioDatasetManifest asset ids",
         )
-        known_assets = {asset.asset_id for asset in all_assets}
-        for episode in episodes:
-            unknown = set(episode.visual_sync_asset_ids) - known_assets
-            if unknown:
-                raise ValueError(
-                    "EpisodeRecord references unknown visual sync assets: "
-                    f"{sorted(unknown)}."
-                )
-            for pose in episode.array_poses:
-                if pose.frame not in frames:
-                    raise ValueError(
-                        f"ManifestPose.frame {pose.frame!r} is not a declared "
-                        "coordinate frame."
-                    )
         known_groups = {episode.split_group for episode in episodes}
         for episode in episodes:
             grouped_value = getattr(episode, self.split_grouping_key, None)
@@ -501,13 +429,6 @@ def _require_monotonic(values: tuple[int, ...], field_name: str) -> None:
         raise ValueError(f"{field_name} must be non-negative and monotonic.")
 
 
-def _finite_tuple(values: object, length: int, field_name: str):
-    result = tuple(float(value) for value in values)  # type: ignore[union-attr]
-    if len(result) != length or not all(math.isfinite(value) for value in result):
-        raise ValueError(f"{field_name} must contain {length} finite values.")
-    return result
-
-
 def _require_relative_path(value: str, field_name: str) -> None:
     _require_text(value, field_name)
     posix_path = PurePosixPath(value)
@@ -553,14 +474,6 @@ def _unique_id_tuple(
     return result
 
 
-def _unique_text_tuple(values: object, field_name: str) -> tuple[str, ...]:
-    result = tuple(values)  # type: ignore[arg-type]
-    for value in result:
-        _require_text(value, field_name)
-    _require_unique(result, field_name)
-    return result
-
-
 def _require_unique(values: tuple[str, ...], field_name: str) -> None:
     if len(set(values)) != len(values):
         raise ValueError(f"{field_name} must not contain duplicates.")
@@ -572,19 +485,3 @@ def _require_completion_state(value: str, field_name: str) -> None:
             f"{field_name}.completion_state must be one of "
             f"{sorted(_COMPLETION_STATES)}."
         )
-
-
-def _validate_pose_timestamps(
-    poses: tuple[ManifestPose, ...],
-    timestamps: tuple[int, ...],
-    field_name: str,
-) -> None:
-    for pose in poses:
-        if pose.timestamp_ms not in timestamps:
-            raise ValueError(
-                f"EpisodeRecord.{field_name} timestamp is absent from timestamps_ms."
-            )
-    _require_monotonic(
-        tuple(pose.timestamp_ms for pose in poses),
-        f"EpisodeRecord.{field_name} timestamps",
-    )

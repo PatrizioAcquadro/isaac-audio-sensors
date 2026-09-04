@@ -12,7 +12,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 - Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
 
-- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3, dataset-manifest and frame-record contracts are v2, and calibration-profile remains v1.
+- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3, dataset-manifest is v4, frame-record is v2, and calibration-profile remains v1.
 - One runtime propagation backend, `analytic_acoustics`, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
@@ -244,6 +244,14 @@ unchanged. The maintained generated-signal example produces a `(3, 2, 4800)`
 batch with supervision separate from policy inputs. The host gate passes 580
 unit/contract, 274 integration, and 58 release tests. Split guarantees depend on
 correct declared identities; temporal sequences and Phase 07 remain out of scope.
+
+## Subphase 05.3 — Dataset Migration and Cleanup
+
+Manifest v4 and active consumers remove unused episode pose, label, and visual-sync
+metadata and their supporting statistics. Earlier manifests are rejected without
+compatibility readers. The focused migration gate passes 230 contract, recording,
+learning, and release tests. Parser/replay consolidation and final validation remain
+in progress.
 
 ## Maintained Commands
 

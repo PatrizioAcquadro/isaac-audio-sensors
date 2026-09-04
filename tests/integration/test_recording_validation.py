@@ -185,7 +185,6 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
             "verified_assets": 4,
             "verified_shards": 2,
         },
-        "labels": {},
         "missingness": {
             "frames_with_empty_audio_range": 0,
             "frames_without_observations": 7,
@@ -195,7 +194,6 @@ def test_reference_fixture_has_exact_statistics_and_no_findings():
             "audio_ranges_nonempty": 7,
             "frames_with_observations": 0,
             "frames_with_waveform_paths": 0,
-            "visual_sync_count": 0,
             "waveform_path_count": 0,
         },
     }

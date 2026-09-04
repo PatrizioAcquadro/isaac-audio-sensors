@@ -33,32 +33,10 @@
   "dtype": "float32",
   "episodes": [
     {
-      "array_poses": [
-        {
-          "entity_id": "xvf3800_array",
-          "entity_kind": "array",
-          "frame": "world",
-          "orientation_xyzw": [
-            0.0,
-            0.0,
-            0.0,
-            1.0
-          ],
-          "position_m": [
-            0.0,
-            0.0,
-            1.0
-          ],
-          "timestamp_ms": 0
-        }
-      ],
       "end_frame": 2,
       "end_step": 2,
       "environment_id": "env_0",
       "episode_id": "episode_000",
-      "labels": [
-        "Speech"
-      ],
       "reset_markers": [
         {
           "frame_index": 0,
@@ -77,36 +55,13 @@
         20,
         40
       ],
-      "trajectory_id": null,
-      "visual_sync_asset_ids": []
+      "trajectory_id": null
     },
     {
-      "array_poses": [
-        {
-          "entity_id": "xvf3800_array",
-          "entity_kind": "array",
-          "frame": "world",
-          "orientation_xyzw": [
-            0.0,
-            0.0,
-            0.0,
-            1.0
-          ],
-          "position_m": [
-            0.0,
-            0.0,
-            1.0
-          ],
-          "timestamp_ms": 0
-        }
-      ],
       "end_frame": 5,
       "end_step": 2,
       "environment_id": "env_1",
       "episode_id": "episode_001",
-      "labels": [
-        "Speech"
-      ],
       "reset_markers": [
         {
           "frame_index": 3,
@@ -125,14 +80,13 @@
         20,
         40
       ],
-      "trajectory_id": null,
-      "visual_sync_asset_ids": []
+      "trajectory_id": null
     }
   ],
   "license": "CC-BY-4.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v3",
+  "schema_version": "ias.audio_dataset_manifest.v4",
   "session_id": "multi_episode_fixture",
   "shards": [
     {

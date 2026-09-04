@@ -48,7 +48,7 @@ PROJECT = "isaac-audio-sensors"
 SCHEMAS = frozenset(
     {
         "audio_calibration_profile.v1.schema.json",
-        "audio_dataset_manifest.v3.schema.json",
+        "audio_dataset_manifest.v4.schema.json",
         "audio_sensor_frame.v3.schema.json",
     }
 )

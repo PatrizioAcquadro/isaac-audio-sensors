@@ -33,32 +33,10 @@
   "dtype": "float32",
   "episodes": [
     {
-      "array_poses": [
-        {
-          "entity_id": "xvf3800_array",
-          "entity_kind": "array",
-          "frame": "world",
-          "orientation_xyzw": [
-            0.0,
-            0.0,
-            0.0,
-            1.0
-          ],
-          "position_m": [
-            0.0,
-            0.0,
-            1.0
-          ],
-          "timestamp_ms": 0
-        }
-      ],
       "end_frame": 1,
       "end_step": 1,
       "environment_id": "env_0",
       "episode_id": "episode_000",
-      "labels": [
-        "Speech"
-      ],
       "reset_markers": [
         {
           "frame_index": 0,
@@ -76,14 +54,13 @@
         0,
         20
       ],
-      "trajectory_id": null,
-      "visual_sync_asset_ids": []
+      "trajectory_id": null
     }
   ],
   "license": "CC0-1.0",
   "runtime_profile": "waveform_fidelity",
   "sample_rate_hz": 48000,
-  "schema_version": "ias.audio_dataset_manifest.v3",
+  "schema_version": "ias.audio_dataset_manifest.v4",
   "session_id": "minimal_fixture",
   "shards": [
     {

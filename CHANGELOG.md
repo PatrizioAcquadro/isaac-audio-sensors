@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking (Subphase 05.3): migrated to manifest v4 and removed unused episode poses, episode labels, visual-sync references/assets, `ManifestPose`, and corresponding statistics/JSON fields. Manifest v1–v3 and removed fields are rejected without compatibility readers; per-frame truth and annotations remain separate from observations.
+
 - Breaking (Subphase 05.1): moved truth from `EpisodeRecord.source_truth` into atomic frame-record v2 rows beside frame v3, migrated manifests to v2, and removed `SourceTruth` and legacy dataset readers. Recorder, loader, replay, recovery, and FLAC preserve optional truth and separate annotations.
 - Added dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `simulate_dataset_frame()` with single-render analytic supervision, independent observation cardinality, and separate emission, linear received RMS, and mixture residual evidence.
 
@@ -38,7 +40,7 @@
 - Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
 - Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.
 - Retained channel-response gain, TDOA gain mismatch, and occlusion as separately ordered and diagnosed deltas. Calibration-profile gain remains data-only and is never applied automatically.
-- Dataset manifests and frame records use v2; frames use `ias.audio_sensor_frame.v3` and calibration retains `ias.audio_calibration_profile.v1`.
+- Dataset manifests use v4 and frame records use v2; frames use `ias.audio_sensor_frame.v3` and calibration retains `ias.audio_calibration_profile.v1`.
 
 ## 2.0.0 - 2026-08-21
 

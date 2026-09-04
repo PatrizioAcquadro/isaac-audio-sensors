@@ -29,13 +29,11 @@ class Statistics:
     audio_duration_seconds_by_shard: tuple[tuple[str, float], ...]
     episode_frame_counts: tuple[tuple[str, int], ...]
     episode_timestamp_spans_ms: tuple[tuple[str, int], ...]
-    label_counts: tuple[tuple[str, int], ...]
     audio_ranges_nonempty: int
     audio_ranges_empty: int
     frames_with_observations: int
     frames_with_waveform_paths: int
     waveform_path_count: int
-    visual_sync_count: int
     frames_without_observations: int
     channel_count: int
     sample_rate_hz: int
@@ -65,13 +63,11 @@ class Statistics:
             audio_duration_seconds_by_shard=(),
             episode_frame_counts=(),
             episode_timestamp_spans_ms=(),
-            label_counts=(),
             audio_ranges_nonempty=0,
             audio_ranges_empty=0,
             frames_with_observations=0,
             frames_with_waveform_paths=0,
             waveform_path_count=0,
-            visual_sync_count=0,
             frames_without_observations=0,
             channel_count=0,
             sample_rate_hz=0,
@@ -127,7 +123,6 @@ class Statistics:
                 "verified_assets": self.verified_asset_count,
                 "verified_shards": self.verified_shard_count,
             },
-            "labels": dict(self.label_counts),
             "missingness": {
                 "frames_with_empty_audio_range": self.audio_ranges_empty,
                 "frames_without_observations": self.frames_without_observations,
@@ -137,7 +132,6 @@ class Statistics:
                 "audio_ranges_nonempty": self.audio_ranges_nonempty,
                 "frames_with_observations": self.frames_with_observations,
                 "frames_with_waveform_paths": self.frames_with_waveform_paths,
-                "visual_sync_count": self.visual_sync_count,
                 "waveform_path_count": self.waveform_path_count,
             },
         }
@@ -157,13 +151,11 @@ class StatisticsBuilder:
         self._episode_frame_counts: Counter[str] = Counter()
         self._episode_first_timestamp: dict[str, int] = {}
         self._episode_last_timestamp: dict[str, int] = {}
-        self._labels: Counter[str] = Counter()
         self._audio_ranges_nonempty = 0
         self._audio_ranges_empty = 0
         self._frames_with_observations = 0
         self._frames_with_waveform_paths = 0
         self._waveform_path_count = 0
-        self._visual_sync_count = 0
         self._frames_without_observations = 0
         self._observed_channel_counts: set[int] = set()
         self._observed_sample_rates: set[int] = set()
@@ -172,10 +164,6 @@ class StatisticsBuilder:
         self._verified_shards = 0
         self._skipped_shards = 0
         self._verified_assets = 0
-        for episode in manifest.episodes:
-            for label in episode.labels:
-                self._labels[label] += 1
-            self._visual_sync_count += len(episode.visual_sync_asset_ids)
 
     def add_verified_shard(self, shard: ShardRecord, marker: Mapping[str, Any]) -> None:
         """Add verified marker/header and asset-size facts."""
@@ -263,13 +251,11 @@ class StatisticsBuilder:
             ),
             episode_frame_counts=episode_counts,
             episode_timestamp_spans_ms=timestamp_spans,
-            label_counts=tuple(sorted(self._labels.items())),
             audio_ranges_nonempty=self._audio_ranges_nonempty,
             audio_ranges_empty=self._audio_ranges_empty,
             frames_with_observations=self._frames_with_observations,
             frames_with_waveform_paths=self._frames_with_waveform_paths,
             waveform_path_count=self._waveform_path_count,
-            visual_sync_count=self._visual_sync_count,
             frames_without_observations=self._frames_without_observations,
             channel_count=channel_count,
             sample_rate_hz=sample_rate,

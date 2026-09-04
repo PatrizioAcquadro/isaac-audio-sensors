@@ -1,6 +1,6 @@
 # Implementation Plan 05 — Ground Truth and Learning Datasets
 
-Status: Subphases 05.1 and 05.2 implemented. Subphase 05.3 remains planned.
+Status: Subphases 05.1 and 05.2 implemented. Subphase 05.3 manifest migration is implemented; parser/replay cleanup remains in progress.
 
 ## Objective
 
@@ -71,23 +71,28 @@ The full frame can contain pose and arbitrary diagnostics and is not itself a po
 
 #### Implementation
 
-Migrate recording, replay, validation, schema, and learning consumers. Remove mixed observation/truth fields, duplicate serializers, unused wrappers, compatibility readers, and their unused supporting surfaces. Do not add a public `GroundTruthAssembler`, duplicate waveform storage, or test-only dataset fields.
+Manifest v4 removes unused episode `array_poses`, `labels`, and `visual_sync_asset_ids`, the `ManifestPose` model, and `visual_sync` assets. The recorder never populated these metadata paths. Their parser, schema, validation, and statistics support is removed, including `Statistics.label_counts`, `Statistics.visual_sync_count`, JSON `labels`, and `modalities.visual_sync_count`. Frame annotations remain the label authority; no automatic conversion is introduced.
+
+Recorder, loader, replay, validation, FLAC, learning, manifest examples, the deterministic fixture manifest, and packaged schema consumers use v4. Manifest v1–v3 and removed fields are rejected without compatibility readers. Frame v3, frame-record v2, recorder-state v2, calibration v1, and package 3.0.0 remain unchanged. Fixture audio, JSONL rows, configuration, and markers are unchanged.
+
+Remaining work consolidates frame-record parsing and loader-owned replay checks. No public `GroundTruthAssembler`, duplicate waveform storage, or test-only dataset fields are introduced.
 
 #### Key Decisions
 
 - Keep one canonical observation, truth, annotation, and recording model.
 - Preserve required historical evidence without retaining obsolete active APIs.
+- Version only the changed manifest contract; remove unused metadata and statistics without substitute fields.
 
 #### Problems / Limitations
 
-Check packaged schemas, replay, and in-scope consumers before removal.
+Existing v1–v3 artifacts require explicit external migration before loading; there is no automatic migration of local datasets or protected evidence. Parser/replay cleanup and the final host gate remain pending.
 
 ## Artifacts
 
-Implemented artifacts are dataset truth and annotation contracts, a single-render analytic composition, atomic frame-record v2 persistence, and current manifest v3 resources/examples. Subphase 05.2 adds NumPy learning samples/collation, corpus splitting, acquisition identities, and a temporary end-to-end example at `examples/core/learning_samples.py`. Matching remains evaluator-owned.
+Implemented artifacts are dataset truth and annotation contracts, a single-render analytic composition, atomic frame-record v2 persistence, and current manifest v4 resources/examples. Subphase 05.2 adds NumPy learning samples/collation, corpus splitting, acquisition identities, and a maintained end-to-end example at `examples/core/learning_samples.py`. Matching remains evaluator-owned.
 
 Focused tests cover empty/inactive/silent/partial/multiple sources, propagation outside the captured window, rotated and coincident geometry, motion semantics, occlusion/reflections, noise and nonlinear electronics, actual PyRoom shoebox/prism routes, immutable supervision, canonical round-trips, invalid alignment, resets, shard boundaries, metadata-only sessions, time gaps, crash/finalization recovery, replay, and FLAC preservation. Final gate results are recorded in the closeout log.
 
 ## Files
 
-Main implementation: `src/isaac_audio_sensors/recording/truth.py`, `src/isaac_audio_sensors/recording/simulation.py`, `src/isaac_audio_sensors/recording/recorder.py`, and `src/isaac_audio_sensors/recording/learning.py`; corpus grouping is internal to the same recording subsystem. Frame-record parsing and loading remain in the same recording subsystem; manifest v3 generation remains in the schemas subsystem. Contracts and usage are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]].
+Main implementation: `src/isaac_audio_sensors/recording/truth.py`, `src/isaac_audio_sensors/recording/simulation.py`, `src/isaac_audio_sensors/recording/recorder.py`, and `src/isaac_audio_sensors/recording/learning.py`; corpus grouping is internal to the same recording subsystem. Frame-record parsing and loading remain in the same recording subsystem; manifest v4 generation remains in the schemas subsystem. Contracts and usage are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]].

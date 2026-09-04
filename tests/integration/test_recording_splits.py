@@ -56,8 +56,6 @@ def _multi_group_manifest(group_count: int = 6) -> AudioDatasetManifest:
                 timestamps_ms=tuple(range(frame_count)),
                 split_group=group_id,
                 reset_markers=(),
-                array_poses=(),
-                visual_sync_asset_ids=(),
             )
         )
         shard_id = f"shard_{index:05d}"
@@ -169,14 +167,14 @@ def test_unknown_and_non_string_grouping_metadata_fail_located():
             grouping_key="room_id",
         )
     with pytest.raises(
-        DatasetSplitError, match=r"episode episode_00000 field labels.*string id"
+        DatasetSplitError, match=r"episode episode_00000 field timestamps_ms.*string id"
     ):
         build_split_plan(
             manifest,
             kind="train_validation_test",
             ratios=TVT_RATIOS,
             seed=1,
-            grouping_key="labels",
+            grouping_key="timestamps_ms",
         )
 
 

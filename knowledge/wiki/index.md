@@ -10,7 +10,7 @@
 - [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — continue from the completed signal boundary and R9.4 qualification into observation contracts, consumer migration, and detection-architecture removal.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
-- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1 truth production and 05.2 NumPy learning samples, corpus splits, and manifest v3 identities; 05.3 cleanup remains planned.
+- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1 truth production and 05.2 NumPy learning samples, corpus splits, and acquisition identities; 05.3 manifest v4 migration complete, parser/replay cleanup in progress.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — unify simulation and physical capture behind one signal contract and remove duplicate domain paths.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — migrate to observed fixed tensors and retain execution paths only for distinct validated scale roles.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.3.
