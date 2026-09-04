@@ -713,3 +713,18 @@ Verified 563 unit/contract tests, 221 integration tests, 58 release tests,
 optional audio, package construction, supported Isaac-Python import, two
 semantically identical qualification runs, internal links, raw preservation,
 schema generation, version synchronization, Ruff, and whitespace.
+
+## 2026-09-04 — update: Corrected Subphase 04.2 role qualification
+
+Superseded the retained v1 estimator competition with v2 role-based evidence.
+Recorded primary planar PyRoom, separate two-microphone least-squares ambiguity,
+the isolated robustness failure, blocked optional 3D and rolling integration,
+the corrected zero-TDOA candidates, and unchanged 04.1 and consumer boundaries.
+
+## 2026-09-04 — lint: Corrected Subphase 04.2 closeout
+
+Verified 73 focused DOA/plugin/perception tests, 577 unit/contract tests, 221
+integration tests, 58 release tests, optional audio, two semantically identical
+full qualification runs, unchanged v1 report hashes, version synchronization,
+resolved wiki links, raw-evidence preservation, Ruff, and whitespace. No schema,
+configuration, consumer selection, estimator removal, or 04.3 work was included.

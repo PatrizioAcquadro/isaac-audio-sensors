@@ -33,25 +33,31 @@ Mixtures, reverberation, low SNR, aliasing, clipping, and motion can destabilize
 
 #### Implementation
 
-`PyroomacousticsSrpEstimator` is a public, lazy optional plugin candidate under registry ID `pyroomacoustics_srp`. It keeps the 04.1 signature unchanged and performs a stateless Hann-windowed STFT over only the supplied mixture block. Its qualified settings are a 512-point FFT, 256-sample hop, observed-energy bin selection within 300–6000 Hz, a 2-degree azimuth grid, a 5-degree elevation grid for rank-3 arrays, and estimator-local minimum reliability `0.034`. PyRoom is constrained to the qualified `>=0.10.1,<0.11` minor line; importing Core or the plugin surface still does not import PyRoom.
+`PyroomacousticsSrpEstimator` is the primary general-purpose planar estimator for arrays with at least three non-collinear microphones. It remains a public, lazy optional plugin under registry ID `pyroomacoustics_srp`, keeps the 04.1 signature unchanged, and performs a stateless Hann-windowed STFT over only the supplied mixture block. Its qualified settings are a causal 250 ms block, 512-point FFT, 256-sample hop, observed-energy bin selection within 300–6000 Hz, a 2-degree azimuth grid, and estimator-local minimum reliability `0.06`. PyRoom remains constrained to `>=0.10.1,<0.11`; importing Core or the plugin surface does not import it.
 
-The qualification runner compares PyRoom SRP, internal SRP, and GCC-PHAT least-squares on 689 cases per estimator. Independent NumPy plane-wave mixtures cover planar and rank-3 geometry, four frequency bands, four SNRs, direct sound, early reflection, interference, clipping, silence, incoherent noise, common-mode ambiguity, and invalid channels. Real validation uses the 24 nominal, four noise/occlusion, four low-level, and three silence ReSpeaker takes from the opened S4 recovery evidence. All 35 selected WAV hashes are verified against their official producer records; one silence take calibrates the low-information threshold and two independent silence takes remain held out. No audio or report is written into `evidence/`.
+The corrected `ias.doa.phase_04_2_qualification.v2` runner qualifies roles independently rather than ranking estimators. PyRoom alone owns the primary planar, robustness, planar-compute, and informational 3D evaluations. `tdoa_least_squares` is qualified separately for the physically distinct two-microphone role. Internal `srp_phat` and NormMUSIC are absent from all qualification gates; internal SRP remains present only until the planned 04.3 cleanup. Exact `pass`, `fail`, and `blocked` states distinguish observed gate violations from absent dependencies or insufficient evidence.
 
-The evidence selects the shortest acceptable context at 250 ms. PyRoom achieves 97.98% held-out active coverage, 6-degree overall bearing p95, 3-degree synthetic-planar p95, 6-degree real-nominal p95 with 2-degree median, and zero held-out null emissions. The limited rank-3 cells at that context have 0-degree p95 on the 2/5-degree grid. Two complete runs produce identical semantic results; four-channel availability-latency p95 is 5.06 ms and 5.00 ms, below the 50 ms live period. Observation interval and post-window compute latency are recorded separately.
+The real evaluation replays each of the 35 hash-verified ReSpeaker takes from its start as sequential, non-overlapping 250 ms blocks through `AuditokActivityDetector -> AudioPerceptionPipeline -> PyRoom SRP`. Active takes are scored only inside their canonically hash-verified authorized reference interval, while complete official silence takes are scored. Eleven calibration takes select the highest eligible 0.5 dB Auditok grid point and the lowest eligible 0.01 PyRoom reliability grid point; the resulting values are `-40.5 dBFS` and `0.06`. Twenty-four other takes remain held out. The report records per-take activity and resolved coverage, abstention, bearing median/p95/max, and separate compute timing. No source audio or report is written into `evidence/`.
 
-`bearing_confidence` is now explicitly an estimator-local reliability ordering, not a probability or a cross-estimator comparable score. PyRoom combines normalized coherent excess with grid contrast; least-squares combines residual confidence with GCC peak strength; internal SRP retains its existing noise-aware score. Below-threshold, insufficient-context, unsupported-geometry, and unobservable-azimuth outcomes remain explicit unresolved estimates when the input is structurally valid. Malformed arrays and non-finite input still fail.
+Primary planar PyRoom passes: synthetic resolved coverage is 100% with 1-degree p95; every frequency-band p95 is at most 1.45 degrees; every held-out nominal take has 100% resolved coverage with worst-take p95 10 degrees; held-out silence produces zero selected bearings; and replay is deterministic. The separate two-microphone role passes exact zero/intermediate/endpoint semantics, 95.83% synthetic candidate containment, and 7.48-degree candidate-error p95. Energetic identical channels now proceed through GCC-PHAT, so zero TDOA exposes the physical `(0, 180)` candidate pair without a selected bearing, sector, or confidence; silence remains `low_information`.
+
+Robustness fails only its own role. Synthetic low-SNR, reflection, interference, clipping, and noise cases miss the 90% coverage gate, while resolved-error p95 remains below 9 degrees. Representative real noise takes pass, but occlusion reaches 178.3-degree worst-take p95 and 80% minimum take coverage, and low-level behavior reaches only 85% minimum take coverage. Planar composed compute passes 200 measured calls after 20 warmups: the two report runs record p95 5.25 ms and 5.23 ms, with maxima below 5.38 ms, separately from the 250 ms observation interval. End-to-end rolling 20 Hz integration remains blocked until 04.3. Optional 3D remains blocked because only 12 synthetic diagnostics exist; no representative real or realtime 3D evidence supports a product claim.
+
+`bearing_confidence` remains explicitly estimator-local reliability, not a probability or cross-estimator comparable score. Below-threshold, insufficient-context, unsupported-geometry, and unobservable-azimuth outcomes remain explicit unresolved estimates when the input is structurally valid. Malformed arrays and non-finite input still fail. The Phase 04.1 interface, `DoaEstimate`, frame v3, registry IDs, mixture-only inputs, causal behavior, ambiguity fields, configuration, and consumer defaults remain unchanged.
 
 #### Key Decisions
 
-- PyRoom SRP passes qualification as the primary external candidate; selection and consumer integration remain 04.3 work.
+- PyRoom SRP passes the primary planar role independently; consumer selection and integration remain 04.3 work.
+- Least-squares passes only the separate two-microphone ambiguity role; it is not a general planar competitor.
 - The estimator is stateless. A later consumer must supply the selected causal 250 ms window without future look-ahead.
-- Internal SRP and least-squares remain measured baselines but do not satisfy the complete threshold, coverage, held-out-null, and context gate.
-- NormMUSIC is not evaluated because PyRoom SRP passes every essential gate.
+- Internal SRP has no qualification role and remains only until 04.3 removal.
+- NormMUSIC is neither evaluated nor added.
+- A robustness failure and optional 3D blocker do not invalidate the passed primary planar or two-microphone roles.
 - Geometry and DOA providers remain independently replaceable.
 
 #### Problems / Limitations
 
-The selected 250 ms observation context can smear fast source or robot motion even though compute availability remains below 6 ms. The 300–800 Hz synthetic band reaches 11-degree p95, and 800–2000 Hz coverage is 87.5%; these frequency limits remain visible instead of being hidden by the aggregate result. Real placement has a ±5-degree tolerance and the microphone centers are nominal rather than measured, so the real figures validate robustness and repeatability rather than sub-degree physical accuracy. The ignored local report is reproducible evidence, not a distributed benchmark fixture.
+The selected 250 ms observation context can smear fast source or robot motion even though measured composed compute remains below 6 ms. Robustness is not qualified, specifically under low SNR, occlusion, and low-level coverage. Real placement has a ±5-degree tolerance and microphone centers are nominal rather than measured, so the real figures do not establish sub-degree physical accuracy. NSMRL-specific two-microphone hardware behavior and representative real/realtime 3D behavior remain blocked. The ignored local reports are reproducible evidence, not distributed benchmark fixtures.
 
 ## Subphase 04.3 — Selection, Integration, and Cleanup
 
@@ -73,11 +79,12 @@ Verify claimed scale or dependency distinctions before retaining another estimat
 
 ## Artifacts
 
-Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds the lazy PyRoom SRP candidate, estimator-local reliability and abstention semantics, a reproducible independent/real qualification runner, and ignored JSON reports under `build/qualification/doa/`. Subphase 04.3 must select and integrate one estimator and remove any baseline without a distinct maintained role.
+Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP, estimator-local reliability and abstention semantics, the corrected role-based qualification runner, and ignored v2 JSON reports under `build/qualification/doa/`. The retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded historical evidence; their comparative conclusions are not current qualification authority. Subphase 04.3 must select and integrate the primary estimator and remove internal SRP while preserving any verified distinct two-microphone need.
 
 ## Files
 
 - `src/isaac_audio_sensors/core/plugins/pyroomacoustics.py`
+- `src/isaac_audio_sensors/core/plugins/adapters.py`
 - `tools/qualification/doa/phase_04_2.py`
 - `tests/unit/test_doa_qualification.py`
 
@@ -85,3 +92,4 @@ Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 
 
 - 2026-09-04: Completed the mixture-only DOA boundary without selecting an estimator, changing serialized contracts, or integrating DOA into maintained consumers.
 - 2026-09-04: Qualified PyRoom SRP at a causal 250 ms observation context and estimator-local reliability threshold `0.034`; no maintained consumer or default estimator changed.
+- 2026-09-04: Superseded the v1 comparative conclusion with role-based v2 evidence, recalibrated PyRoom reliability to `0.06`, qualified its primary planar and compute roles, qualified least-squares two-microphone ambiguity, isolated the robustness failure, and kept optional 3D blocked.
