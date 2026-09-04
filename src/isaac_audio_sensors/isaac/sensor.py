@@ -68,6 +68,16 @@ from isaac_audio_sensors.isaac.viz.overlays import (
 )
 
 
+def _perception_stream_signature(array: MicrophoneArraySpec) -> tuple[object, ...]:
+    return (
+        array.array_id,
+        array.prim_path,
+        array.sample_rate_hz,
+        array.coordinate_convention,
+        array.microphones,
+    )
+
+
 @dataclass(slots=True)
 class IsaacAudioArraySensor:
     """Lifecycle-capable audio array sensor for Isaac Sim-style stages."""
@@ -648,6 +658,11 @@ class IsaacAudioArraySensor:
             sim_time_s=sim_time_s,
         )
         sensor = scene.array_by_id(self.array_id)
+        if self._latest_sensor is not None and _perception_stream_signature(
+            self._latest_sensor
+        ) != _perception_stream_signature(sensor):
+            assert self.perception_pipeline is not None
+            self.perception_pipeline.reset()
         time_window = AudioTimeWindow(
             start_time_s=start_time_s,
             end_time_s=end_time_s,

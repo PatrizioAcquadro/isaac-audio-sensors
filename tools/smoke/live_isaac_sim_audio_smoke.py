@@ -46,6 +46,7 @@ OPTIONAL_BACKENDS: tuple[str, ...] = ()
 SMOKE_PHASES = (
     ("before", 0.0),
     ("moved", 0.1),
+    ("active", 0.15),
     ("cooldown_a", 0.5),
     ("cooldown_b", 0.55),
     ("inactive", 0.6),
@@ -379,6 +380,7 @@ def _summarize_backend(
 ) -> dict[str, Any]:
     before = frames["before"]
     moved = frames["moved"]
+    active = frames["active"]
     inactive = frames["inactive"]
     before_array_pose = _array_pose(before)
     moved_array_pose = _array_pose(moved)
@@ -464,12 +466,12 @@ def _summarize_backend(
             ),
             "activity_transition": {
                 "warmup_empty": before.observations == (),
-                "moved_signal_derived": (
-                    len(moved.observations) == 1
-                    and moved.observations[0].origin.value == "signal_derived"
-                    and moved.observations[0].detector_id == "auditok"
-                    and moved.observations[0].detection_score is None
-                    and moved.observations[0].doa is None
+                "active_signal_derived": (
+                    len(active.observations) == 1
+                    and active.observations[0].origin.value == "signal_derived"
+                    and active.observations[0].detector_id == "auditok"
+                    and active.observations[0].detection_score is None
+                    and active.observations[0].doa is None
                 ),
                 "inactive_empty": inactive.observations == (),
             },
@@ -492,7 +494,11 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
             f"{backend_id} did not prove live movement changes: {missing}."
         )
     counts = result.get("observation_counts", {})
-    if counts.get("before") != 0 or counts.get("moved") != 1:
+    if (
+        counts.get("before") != 0
+        or counts.get("moved") != 0
+        or counts.get("active") != 1
+    ):
         raise RuntimeError(
             f"{backend_id} did not prove Auditok causal warm-up and activity."
         )
@@ -559,7 +565,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         "moved_has_ray": True,
         "activity_transition": {
             "warmup_empty": True,
-            "moved_signal_derived": True,
+            "active_signal_derived": True,
             "inactive_empty": True,
         },
     }:

@@ -1963,15 +1963,16 @@ def _array_rotation_changed(
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
-        "signal_activity_preserved": (
-            _valid_activity_summary(before) and _valid_activity_summary(after)
+        "valid_activity_output": (
+            _valid_activity_summary(before, allow_empty=True)
+            and _valid_activity_summary(after, allow_empty=True)
         ),
     }
     passed = (
         checks["orientation_changed"]
         and checks["mic_world_positions_changed"]
         and checks["rms_changed"]
-        and checks["signal_activity_preserved"]
+        and checks["valid_activity_output"]
     )
     return {
         "status": "passed" if passed else "failed",
@@ -1995,15 +1996,16 @@ def _array_move_changed(
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
-        "signal_activity_preserved": (
-            _valid_activity_summary(before) and _valid_activity_summary(after)
+        "valid_activity_output": (
+            _valid_activity_summary(before, allow_empty=True)
+            and _valid_activity_summary(after, allow_empty=True)
         ),
     }
     passed = (
         checks["array_position_changed"]
         and checks["mic_world_positions_changed"]
         and checks["rms_changed"]
-        and checks["signal_activity_preserved"]
+        and checks["valid_activity_output"]
     )
     return {
         "status": "passed" if passed else "failed",

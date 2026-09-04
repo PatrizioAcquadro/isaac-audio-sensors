@@ -169,6 +169,41 @@ def test_manual_capture_and_update_throttling(monkeypatch):
     assert perception_resets == ["reset", "reset"]
 
 
+def test_live_sensor_resets_perception_when_array_layout_changes(monkeypatch):
+    stage, _, array_prim = motion_stage()
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
+        source_prim_path="/World/Speaker",
+        backend="analytic_acoustics",
+        energy_threshold_dbfs=-60.0,
+    )
+    sensor.capture(end_time_s=UPDATE_PERIOD_S)
+
+    assert sensor.perception_pipeline is not None
+    original_reset = sensor.perception_pipeline.reset
+    resets = []
+
+    def _reset():
+        resets.append("reset")
+        original_reset()
+
+    monkeypatch.setattr(sensor.perception_pipeline, "reset", _reset)
+    array_prim.attributes["ias:layout_name"] = "stereo_y"
+    sensor.rediscover()
+
+    frame = sensor.capture(
+        start_time_s=UPDATE_PERIOD_S,
+        end_time_s=2 * UPDATE_PERIOD_S,
+        frame_index=1,
+    )
+
+    assert resets == ["reset"]
+    assert tuple(frame.channel_validity) == ("left", "right")
+
+
 def test_live_sensor_recognizes_analytic_core_backend() -> None:
     stage, _, _ = motion_stage()
     sensor = IsaacAudioArraySensor.from_stage(
