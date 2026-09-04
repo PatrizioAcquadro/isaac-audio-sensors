@@ -96,7 +96,9 @@ Bearings are normalized to `[0, 360)` and map to eight half-open 45-degree secto
 
 Planar arrays report azimuth without inventing elevation; rank-3 arrays can estimate elevation from full 3D delays.
 
-GCC-PHAT exposes pair-delay evidence, SRP-PHAT scans candidate directions, and confidence is derived from observable signal/estimator evidence rather than oracle ground-truth error.
+Every estimator consumes only valid rows of the final multichannel mixture, matching array-local microphone positions, and sample rate. Source count, identities, positions, schedules, render stems, and scene diagnostics are unavailable to localization.
+
+GCC-PHAT exposes pair-delay evidence, SRP-PHAT scans candidate directions, and confidence must derive from observable signal/estimator evidence rather than oracle ground-truth error. The existing least-squares and internal SRP paths remain unselected until Plan 04 qualifies accuracy, low-information behavior, latency, context, and confidence semantics.
 
 ## Interpretation Limits
 

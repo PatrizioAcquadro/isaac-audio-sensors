@@ -17,6 +17,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Public snapshot-authoritative propagation through `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`, with exact-window, ordered, immutable `float32` microphone mixtures and no source, perception, persistence, or serialized-schema fields.
 - `AnalyticAcoustics.propagate()` supports silent, mono, and multi-source windows, includes final gain/directivity/occlusion/effects, marks simulated channels valid, and never runs DOA, assembles frames, or writes waveforms. `core.simulation.simulate_frame()` calls propagation once, resolves the exact snapshot array, runs an explicit perception pipeline, optionally gives the same block to a waveform sink, and returns both frame and block.
 - Public `ActivityDecision`, `ObservationOrigin`, `AudioObservation`, and `AudioPerceptionPipeline` own observed-only perception. The `ActivityDetector` plugin contract owns stable identity, typed decisions, streaming state, and explicit reset; its optional activity probability is bounded to `[0, 1]`. The injected detector sees only valid channels in array order; inactive or fully invalid blocks emit no signal observation; optional DOA requires at least two valid channels; external observations remain typed and ordered after the signal result; and `max_observations` caps only the final deterministic sequence.
+- Subphase 04.1 locks `DoaEstimator` to ordered mixture samples, matching array-local XYZ positions, and sample rate. The perception pipeline exposes no scene, source count, identity, position, schedule, private stem, or producer diagnostic to localization; `None` still means DOA did not run, while returned unresolved estimates retain candidate and ambiguity evidence. Both existing estimators remain optional and unselected pending 04.2.
 - Public `AuditokActivityDetector` provides the one qualified generic detector path with an explicit fixed dBFS threshold, bounded causal context, current-block token overlap, `any`-channel energy, deterministic reset, and no claimed activity probability. Initial calibration is not a streaming mode because the Boolean decision contract has no “not ready” state; consumers may estimate a threshold before constructing the detector, but the candidate calibration parameters remain experimental.
 - Maintained scalar Core, CLI, Isaac Sim, and Kit entry points resolve Auditok only with an explicit runtime threshold. Active output is at most one `signal_derived` observation with no invented score, DOA, source identity, class, or source count; inactive and warm-up output is empty. `AudioSensorConfig`, TOML, frame schema v3, `simulate_frame()`, and direct `AudioPerceptionPipeline` composition remain unchanged.
 - Frame-v3 capture semantics retain the three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, array pose, channel validity, aggregate RMS, provenance, diagnostics, and recording-owned waveform references. `producer_id`, `observations`, and `max_observations` replace the backend/detection fields without a v2 parser.
@@ -175,6 +176,11 @@ fixture, and optional-audio execution pass. The preceding 03.3 closeout passed
 4090, and 70 focused SquadBot tests without downstream changes. Final cleanup
 runtime, schema, artifact, and downstream gates are recorded in the wiki log.
 
+The Subphase 04.1 host gate passes 543 unit/contract tests, 221 integration
+tests, 58 release tests, version synchronization, Ruff, and whitespace. Its 59
+focused DOA, perception, plugin, and orchestration tests pass. No schema,
+configuration, package-version, GPU runtime, or downstream behavior changed.
+
 R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
 
 See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
@@ -208,7 +214,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Work now proceeds to [[implementation_phases/04-observed-direction-estimation|Plan 04]], which qualifies observed-only DOA without changing the detector or reintroducing runtime source truth. Later phases add dataset truth, signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphase 04.1 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] is complete. Work now proceeds to 04.2 estimator qualification and operating semantics without changing the detector or reintroducing runtime source truth. Later phases add dataset truth, signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

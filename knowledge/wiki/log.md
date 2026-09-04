@@ -687,3 +687,16 @@ the local changelogs and phase closeout. Verified 536 unit/contract tests, 221
 integration tests, 58 release tests, config, fixtures, optional audio, resolved
 wiki links, Ruff, whitespace, preserved frame-v3 and v1 contracts, and unchanged
 downstream interfaces.
+
+## 2026-09-04 — update: Subphase 04.1 mixture-only DOA boundary
+
+Recorded the exact mixture-and-local-geometry estimator contract, final-block
+and valid-channel orchestration, preserved unresolved semantics, explicit
+failure behavior, and deferred estimator qualification and selection.
+
+## 2026-09-04 — lint: Subphase 04.1 complete closeout
+
+Verified 543 unit/contract tests, 221 integration tests, 58 release tests, 59
+focused DOA/perception tests, version synchronization, Ruff, internal wiki
+links, documentation boundaries, and whitespace without changing schemas,
+configuration, package version, GPU runtime, or downstream behavior.
