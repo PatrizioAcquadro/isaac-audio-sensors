@@ -4,9 +4,11 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.core import (
+    ActivityDecision,
     AudioPerceptionPipeline,
     AudioSceneSnapshot,
     AudioTimeWindow,
+    DoaEstimate,
     MicrophoneSignalBlock,
 )
 from isaac_audio_sensors.core.acoustics import free_field_environment
@@ -25,6 +27,34 @@ class CountingBackend:
     def propagate(self, scene, array_id, time_window):
         self.calls.append((scene, array_id, time_window))
         return self.block
+
+
+class AlwaysActiveDetector:
+    detector_id = "active"
+
+    def detect(self, samples, sample_rate_hz):
+        del samples, sample_rate_hz
+        return ActivityDecision(active=True)
+
+    def reset(self) -> None:
+        pass
+
+
+class CapturingEstimator:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def estimate(self, samples, microphone_positions_m, sample_rate_hz):
+        self.calls.append((samples, microphone_positions_m, sample_rate_hz))
+        return (
+            DoaEstimate(
+                estimated_bearing_deg=None,
+                candidate_bearing_deg=(0.0, 180.0),
+                ambiguity_class="ambiguous_front_back",
+                ambiguity_reason="two compatible bearings",
+            ),
+            {"localization": "captured_mixture"},
+        )
 
 
 def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> None:
@@ -67,6 +97,55 @@ def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> No
     assert frame.observations == ()
     assert frame.diagnostics["backend_detail"] == "counting"
     assert frame.diagnostics["waveform"] == {"mode": "stub"}
+
+
+def test_simulate_frame_localizes_only_the_propagated_mixture() -> None:
+    array = quad_array()
+    window = AudioTimeWindow(start_time_s=0.0, end_time_s=0.01, frame_index=8)
+    scene = AudioSceneSnapshot(
+        stage_id="mixture_boundary",
+        sources=(),
+        arrays=(array,),
+        environment=free_field_environment(environment_id="free"),
+    )
+    samples = np.arange(4 * 480, dtype=np.float32).reshape(4, 480)
+    block = MicrophoneSignalBlock(
+        samples=samples,
+        microphone_ids=tuple(mic.mic_id for mic in array.microphones),
+        array_id=array.array_id,
+        sample_rate_hz=array.sample_rate_hz,
+        time_window=window,
+        channel_validity=(True, True, True, True),
+        producer_id="counting",
+        provenance="synthetic/core",
+        diagnostics={"private_render_state": "must_not_reach_estimator"},
+    )
+    estimator = CapturingEstimator()
+
+    frame, returned = simulate_frame(
+        CountingBackend(block),
+        scene,
+        array.array_id,
+        window,
+        perception=AudioPerceptionPipeline(
+            activity_detector=AlwaysActiveDetector(),
+            doa_estimator=estimator,
+        ),
+    )
+
+    observed, positions, sample_rate_hz = estimator.calls[0]
+    assert returned is block
+    assert np.array_equal(observed, block.samples)
+    assert not observed.flags.writeable
+    assert positions.tolist() == [
+        list(microphone.relative_position_m) for microphone in array.microphones
+    ]
+    assert sample_rate_hz == block.sample_rate_hz
+    assert frame.observations[0].doa is not None
+    assert frame.observations[0].doa.estimated_bearing_deg is None
+    assert frame.observations[0].diagnostics["doa_estimator"] == {
+        "localization": "captured_mixture"
+    }
 
 
 @pytest.mark.parametrize("threshold", (True, float("nan")))

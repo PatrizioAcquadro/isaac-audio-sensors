@@ -58,6 +58,15 @@ class FakeEstimator:
         return self.result, {"localization": "fake"}
 
 
+class RawEstimator:
+    def __init__(self, result: object) -> None:
+        self.result = result
+
+    def estimate(self, samples, microphone_positions_m, sample_rate_hz):
+        del samples, microphone_positions_m, sample_rate_hz
+        return self.result
+
+
 class StatefulPerceptionComponent:
     detector_id = "stateful"
 
@@ -182,7 +191,7 @@ def test_active_signal_creates_one_observation_and_preserves_unresolved_doa() ->
     assert len(estimator.calls) == 1
 
 
-def test_only_valid_channels_reach_detector_and_estimator_in_array_order() -> None:
+def test_one_valid_channel_reaches_detector_and_skips_estimator() -> None:
     detector = FakeDetector(True)
     estimator = FakeEstimator(
         DoaEstimate(estimated_bearing_deg=0.0, bearing_confidence=0.5)
@@ -209,6 +218,53 @@ def test_only_valid_channels_reach_detector_and_estimator_in_array_order() -> No
     assert frame.aggregate_per_mic_rms == pytest.approx(
         {"left": np.sqrt(7.5), "right": np.sqrt(43.5)}
     )
+
+
+def test_only_final_valid_mixture_and_local_geometry_reach_estimator() -> None:
+    detector = FakeDetector(True)
+    estimator = FakeEstimator(
+        DoaEstimate(estimated_bearing_deg=0.0, bearing_confidence=0.5)
+    )
+    array = _three_mic_array()
+    block = _block(
+        samples=np.array(
+            (
+                (1.0, 2.0, 3.0, 4.0),
+                (5.0, 6.0, 7.0, 8.0),
+                (9.0, 10.0, 11.0, 12.0),
+            ),
+            dtype=np.float32,
+        ),
+        microphone_ids=("front", "right", "left"),
+        channel_validity=(True, False, True),
+    )
+
+    AudioPerceptionPipeline(
+        activity_detector=detector,
+        doa_estimator=estimator,
+    ).process(block, array, frame_id="mixture_only")
+
+    samples, positions, sample_rate_hz = estimator.calls[0]
+    assert sample_rate_hz == block.sample_rate_hz
+    assert samples.tolist() == [[1.0, 2.0, 3.0, 4.0], [9.0, 10.0, 11.0, 12.0]]
+    assert not samples.flags.writeable
+    assert positions.tolist() == [[0.1, 0.0, 0.0], [0.0, -0.1, 0.0]]
+
+
+@pytest.mark.parametrize(
+    ("result", "message"),
+    (
+        (DoaEstimate(estimated_bearing_deg=0.0), "return"),
+        ((object(), {}), "DoaEstimate"),
+        ((DoaEstimate(estimated_bearing_deg=0.0), ()), "diagnostics"),
+    ),
+)
+def test_structurally_invalid_doa_results_fail_closed(result, message) -> None:
+    with pytest.raises(TypeError, match=message):
+        AudioPerceptionPipeline(
+            activity_detector=FakeDetector(True),
+            doa_estimator=RawEstimator(result),
+        ).process(_block(), _array(), frame_id="invalid_doa")
 
 
 def test_fully_invalid_block_skips_all_perception() -> None:
@@ -313,6 +369,21 @@ def _array() -> MicrophoneArraySpec:
         microphones=(
             MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -0.1, 0.0)),
             MicrophoneSpec(mic_id="right", relative_position_m=(0.0, 0.1, 0.0)),
+        ),
+        sample_rate_hz=4,
+    )
+
+
+def _three_mic_array() -> MicrophoneArraySpec:
+    return MicrophoneArraySpec(
+        array_id="rig",
+        prim_path="/World/Rig",
+        position_world=(4.0, 5.0, 6.0),
+        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+        microphones=(
+            MicrophoneSpec(mic_id="front", relative_position_m=(0.1, 0.0, 0.0)),
+            MicrophoneSpec(mic_id="right", relative_position_m=(0.0, 0.1, 0.0)),
+            MicrophoneSpec(mic_id="left", relative_position_m=(0.0, -0.1, 0.0)),
         ),
         sample_rate_hz=4,
     )

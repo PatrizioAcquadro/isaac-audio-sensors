@@ -18,7 +18,7 @@ from isaac_audio_sensors.core.plugins import (
     PropagationBackend,
     get_default_registry,
 )
-from isaac_audio_sensors.core.types import ActivityDecision
+from isaac_audio_sensors.core.types import ActivityDecision, DoaEstimate
 
 
 class _ActivityDetector:
@@ -112,12 +112,53 @@ def test_protocols_and_canonical_signature() -> None:
         "array_id",
         "time_window",
     )
+    assert tuple(inspect.signature(DoaEstimator.estimate).parameters) == (
+        "self",
+        "samples",
+        "microphone_positions_m",
+        "sample_rate_hz",
+    )
     registry = get_default_registry()
     assert isinstance(
         registry.resolve("doa_estimator", "tdoa_least_squares"),
         DoaEstimator,
     )
     assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
+
+
+@pytest.mark.parametrize("estimator_id", ("tdoa_least_squares", "srp_phat"))
+def test_built_in_doa_estimators_run_from_mixture_and_local_geometry(
+    estimator_id: str,
+) -> None:
+    sample_rate_hz = 48_000
+    microphone_positions_m = np.asarray(
+        (
+            (0.05, 0.0, 0.0),
+            (0.0, 0.05, 0.0),
+            (-0.05, 0.0, 0.0),
+            (0.0, -0.05, 0.0),
+        )
+    )
+    rng = np.random.default_rng(17)
+    signal = rng.standard_normal(1024)
+    samples = np.stack(
+        (
+            np.roll(signal, -7),
+            signal,
+            np.roll(signal, 7),
+            signal,
+        )
+    ).astype(np.float32)
+    estimator = get_default_registry().resolve("doa_estimator", estimator_id)
+
+    doa, diagnostics = estimator.estimate(
+        samples,
+        microphone_positions_m,
+        sample_rate_hz,
+    )
+
+    assert isinstance(doa, DoaEstimate)
+    assert diagnostics["doa_estimator"] == estimator_id
 
 
 def test_activity_detector_declaration_and_registry_contract() -> None:

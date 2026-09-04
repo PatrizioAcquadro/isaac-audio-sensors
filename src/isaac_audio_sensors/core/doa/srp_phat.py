@@ -6,9 +6,9 @@ in degrees clockwise from array forward, and elevation in degrees up from the
 array's forward/right plane when the microphone layout has full 3D rank.
 Planar layouts steer azimuth only and report ``elevation_deg=None``.
 
-This module hosts the waveform-domain estimator family; future estimators
-(e.g. MUSIC) should follow the same input contract so backends can dispatch
-on an estimator id.
+This module hosts the waveform-domain estimator family. Estimators run through
+the perception-owned mixture and array-local geometry contract, never through
+propagation-backend source truth.
 """
 
 from __future__ import annotations

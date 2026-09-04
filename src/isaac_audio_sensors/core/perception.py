@@ -18,7 +18,10 @@ from isaac_audio_sensors.core.types import (
 from isaac_audio_sensors.core.types._validation import require_non_empty
 
 if TYPE_CHECKING:
-    from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
+    from isaac_audio_sensors.core.plugins.protocols import (
+        ActivityDetector,
+        DoaEstimator,
+    )
 
 
 class AudioPerceptionPipeline:
@@ -28,7 +31,7 @@ class AudioPerceptionPipeline:
         self,
         *,
         activity_detector: ActivityDetector | None = None,
-        doa_estimator: object | None = None,
+        doa_estimator: DoaEstimator | None = None,
         max_observations: int | None = None,
     ) -> None:
         if activity_detector is None:
