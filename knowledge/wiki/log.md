@@ -921,3 +921,13 @@ Shared perception continuity remains in progress; serialized schemas are unchang
 
 Wiki links, index coverage, five documentation-boundary tests, and Git whitespace
 checks pass. Raw evidence and serialized schemas remain unchanged.
+
+## 2026-09-04 — update: Complete Subphase 06.1 common signal semantics
+
+Documented geometry binding, shared activity/DOA continuity resets, retained
+producer acquisition evidence, and recording-compatible signal diagnostics.
+Removed duplicate Isaac geometry reset ownership. Migrated Kit smoke to genuine
+contiguous activity followed by inactive paused snapshots, preserving UI history
+and Replicator activity coverage. Host, optional-audio, fixture/schema checks,
+99 Isaac tests, and RTX 4090 Sim/Lab/Kit smokes pass. Runtime checks used isolated
+Auditok 0.5.2; no physical-acquisition or calibrated-transfer claim is made.

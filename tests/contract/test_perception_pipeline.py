@@ -181,7 +181,7 @@ def test_activity_decision_probability_and_diagnostics_are_bounded() -> None:
         ActivityDecision(active=False, diagnostics=())
 
 
-def test_stream_boundaries_require_an_explicit_reset() -> None:
+def test_stream_boundaries_reset_automatically() -> None:
     detector = FakeDetector(False)
     pipeline = AudioPerceptionPipeline(activity_detector=detector)
     pipeline.process(_block(), _array(), frame_id="before_gap")
@@ -197,9 +197,9 @@ def test_stream_boundaries_require_an_explicit_reset() -> None:
         frame_id="after_gap",
     )
 
-    assert detector.reset_count == 0
-    pipeline.reset()
     assert detector.reset_count == 1
+    pipeline.reset()
+    assert detector.reset_count == 2
 
 
 def test_block_diagnostics_are_copied_beside_perception_namespace() -> None:
@@ -360,7 +360,6 @@ def test_causal_context_accumulates_inactive_blocks_and_keeps_trailing_window() 
         "available_duration_s": 0.25,
         "available_sample_count": 5,
         "complete": True,
-        "reset_reason": None,
     }
 
 
@@ -459,7 +458,7 @@ def test_doa_context_resets_on_discontinuity_and_explicit_reset() -> None:
         _stream_array(),
         frame_id="gap",
     )
-    assert gap.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+    assert gap.diagnostics["perception"]["reset_reason"] == (
         "non_contiguous_time_window"
     )
     assert gap.diagnostics["perception"]["doa_context"]["available_sample_count"] == 1
@@ -494,11 +493,16 @@ def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None
         ),
     )
     layout_frame = pipeline.process(
-        _stream_block(1, value=2.0),
+        replace(
+            _stream_block(1, value=2.0),
+            microphone_positions_m=tuple(
+                m.relative_position_m for m in layout.microphones
+            ),
+        ),
         layout,
         frame_id="layout",
     )
-    assert layout_frame.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+    assert layout_frame.diagnostics["perception"]["reset_reason"] == (
         "valid_channel_layout_changed"
     )
 
@@ -506,10 +510,11 @@ def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None
     rate_block = replace(
         _stream_block(2, value=3.0),
         samples=np.full((3, 2), 3.0, dtype=np.float32),
+        microphone_positions_m=tuple(m.relative_position_m for m in layout.microphones),
         sample_rate_hz=40,
     )
     rate_frame = pipeline.process(rate_block, rate_array, frame_id="rate")
-    assert rate_frame.diagnostics["perception"]["doa_context"]["reset_reason"] == (
+    assert rate_frame.diagnostics["perception"]["reset_reason"] == (
         "sample_rate_changed"
     )
 
@@ -524,7 +529,7 @@ def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None
     )
     stream_frame = pipeline.process(stream_block, rate_array, frame_id="stream")
     assert (
-        stream_frame.diagnostics["perception"]["doa_context"]["reset_reason"]
+        stream_frame.diagnostics["perception"]["reset_reason"]
         == "stream_identity_changed"
     )
 
@@ -535,6 +540,7 @@ def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None
         ({"array_id": "other"}, "array_id"),
         ({"sample_rate_hz": 8, "samples": np.zeros((2, 8))}, "sample_rate"),
         ({"microphone_ids": ("right", "left")}, "microphone order"),
+        ({"microphone_positions_m": ((0, 0, 0), (1, 0, 0))}, "local geometry"),
     ),
 )
 def test_block_array_mismatch_is_rejected(block_overrides, message) -> None:
@@ -575,7 +581,17 @@ def test_zero_cap_runs_detector_without_resetting_stream_state() -> None:
     )
 
     first = pipeline.process(_block(), _array(), frame_id="capped_0")
-    second = pipeline.process(_block(), _array(), frame_id="capped_1")
+    second = pipeline.process(
+        _block(
+            time_window=AudioTimeWindow(
+                start_time_s=2.0,
+                end_time_s=3.0,
+                frame_index=4,
+            )
+        ),
+        _array(),
+        frame_id="capped_1",
+    )
 
     assert first.observations == second.observations == ()
     assert len(detector.calls) == 2
@@ -703,4 +719,166 @@ def _external(observation_id: str) -> AudioObservation:
         observation_id=observation_id,
         origin=ObservationOrigin.EXTERNAL_SYSTEM,
         detector_id="external_adapter",
+    )
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    (
+        ({"discontinuity": True}, "declared_discontinuity"),
+        ({"clock_domain": "device:restart"}, "clock_domain_changed"),
+        ({"producer_id": "replacement"}, "stream_identity_changed"),
+        ({"array_id": "replacement_array"}, "stream_identity_changed"),
+        ({"sample_rate_hz": 8, "samples": np.ones((2, 8))}, "sample_rate_changed"),
+        ({"channel_validity": (False, True)}, "valid_channel_layout_changed"),
+        ({"channel_validity": (False, False)}, "no_valid_channels"),
+        (
+            {
+                "time_window": AudioTimeWindow(
+                    start_time_s=3, end_time_s=4, frame_index=5
+                )
+            },
+            "non_contiguous_time_window",
+        ),
+        (
+            {
+                "time_window": AudioTimeWindow(
+                    start_time_s=1.5, end_time_s=2.5, frame_index=5
+                )
+            },
+            "non_contiguous_time_window",
+        ),
+        (
+            {
+                "time_window": AudioTimeWindow(
+                    start_time_s=0, end_time_s=1, frame_index=0
+                )
+            },
+            "non_contiguous_time_window",
+        ),
+    ),
+)
+def test_boundary_resets_shared_components_once(changes, reason) -> None:
+    shared = StatefulPerceptionComponent()
+    pipeline = AudioPerceptionPipeline(activity_detector=shared, doa_estimator=shared)
+    pipeline.process(_block(), _array(), frame_id="before")
+    values = {
+        "time_window": AudioTimeWindow(start_time_s=2, end_time_s=3, frame_index=4)
+    }
+    values.update(changes)
+    block = _block(**values)
+    array = replace(
+        _array(), array_id=block.array_id, sample_rate_hz=block.sample_rate_hz
+    )
+    frame = pipeline.process(block, array, frame_id="after")
+    assert shared.reset_count == 1
+    assert frame.diagnostics["perception"]["reset_reason"] == reason
+    assert not frame.observations
+
+
+def test_rigid_motion_and_provenance_do_not_interrupt_contiguous_signal() -> None:
+    detector = FakeDetector(False)
+    pipeline = AudioPerceptionPipeline(activity_detector=detector)
+    pipeline.process(_block(), _array(), frame_id="first")
+    moved = replace(
+        _array(), position_world=(9, 8, 7), orientation_world_quat=(0, 0, 1, 0)
+    )
+    frame = pipeline.process(
+        _block(
+            time_window=AudioTimeWindow(start_time_s=2, end_time_s=3, frame_index=4),
+            provenance="replay/trace",
+        ),
+        moved,
+        frame_id="moved",
+    )
+    assert detector.reset_count == 0
+    assert frame.diagnostics["perception"]["reset_reason"] is None
+
+
+def test_geometry_mismatch_fails_before_perception_state_changes() -> None:
+    detector = FakeDetector(False)
+    pipeline = AudioPerceptionPipeline(activity_detector=detector)
+    pipeline.process(_block(), _array(), frame_id="first")
+    with pytest.raises(ValueError, match="local geometry"):
+        pipeline.process(
+            _block(microphone_positions_m=((0, 0, 0), (1, 0, 0))),
+            _array(),
+            frame_id="invalid",
+        )
+    assert len(detector.calls) == 1
+    assert detector.reset_count == 0
+
+
+def test_large_clock_origin_does_not_hide_a_missing_sample() -> None:
+    detector = FakeDetector(False)
+    pipeline = AudioPerceptionPipeline(activity_detector=detector)
+    origin = 1_000_000_000.0
+    first = _block(
+        time_window=AudioTimeWindow(
+            start_time_s=origin,
+            end_time_s=origin + 1,
+            frame_index=0,
+        )
+    )
+    pipeline.process(first, _array(), frame_id="first")
+    second = replace(
+        first,
+        time_window=AudioTimeWindow(
+            start_time_s=origin + 1.25,
+            end_time_s=origin + 2.25,
+            frame_index=1,
+        ),
+    )
+    frame = pipeline.process(second, _array(), frame_id="missing_sample")
+    assert detector.reset_count == 1
+    assert (
+        frame.diagnostics["perception"]["reset_reason"] == "non_contiguous_time_window"
+    )
+
+
+@pytest.mark.parametrize("fault", ("gap", "invalid", "channels", "declared"))
+def test_auditok_after_fault_matches_fresh_pipeline(fault) -> None:
+    from isaac_audio_sensors.core.plugins import AuditokActivityDetector
+
+    def new_pipeline():
+        return AudioPerceptionPipeline(
+            activity_detector=AuditokActivityDetector(
+                energy_threshold_dbfs=-40.0,
+            )
+        )
+
+    def block_at(index, **changes):
+        return _block(
+            samples=np.full((2, 400), 0.5, dtype=np.float32),
+            sample_rate_hz=8000,
+            time_window=AudioTimeWindow(
+                start_time_s=index * 0.05,
+                end_time_s=(index + 1) * 0.05,
+                frame_index=index,
+            ),
+            **changes,
+        )
+
+    array = replace(_array(), sample_rate_hz=8000)
+    pipeline = new_pipeline()
+    pipeline.process(block_at(0), array, frame_id="warm0")
+    warm = pipeline.process(block_at(1), array, frame_id="warm1")
+    assert warm.observations
+    if fault == "invalid":
+        invalid = pipeline.process(
+            block_at(2, channel_validity=(False, False)), array, frame_id="invalid"
+        )
+        assert invalid.observations == ()
+    next_block = block_at(
+        3 if fault in ("gap", "invalid") else 2,
+        channel_validity=(False, True) if fault == "channels" else (True, True),
+        discontinuity=fault == "declared",
+    )
+    next_block = replace(next_block, samples=np.zeros((2, 400), dtype=np.float32))
+    actual = pipeline.process(next_block, array, frame_id="after")
+    expected = new_pipeline().process(next_block, array, frame_id="after")
+    assert actual.observations == expected.observations == ()
+    assert (
+        actual.diagnostics["perception"]["detector_diagnostics"]
+        == expected.diagnostics["perception"]["detector_diagnostics"]
     )

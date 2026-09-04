@@ -275,3 +275,49 @@ def test_finalization_recovery_never_exposes_false_complete(tmp_path, monkeypatc
     manifest = SessionRecorder.recover_finalization(root)
     assert manifest.completion_state == "complete"
     assert validate_dataset(root).status == "passed"
+
+
+def test_recording_preserves_common_signal_diagnostics_and_explicit_reset(tmp_path):
+    from isaac_audio_sensors.core import (
+        AudioPerceptionPipeline,
+        MicrophoneArraySpec,
+        MicrophoneSpec,
+    )
+
+    block = replace(
+        signal_block_for_frame(_frame(0, 0), _audio(0)),
+        discontinuity=True,
+        channel_clipping=(True, None),
+        clock_domain="device:take_1",
+    )
+    array = MicrophoneArraySpec(
+        array_id=block.array_id,
+        prim_path="/Array",
+        position_world=(0, 0, 0),
+        orientation_world_quat=(0, 0, 0, 1),
+        sample_rate_hz=block.sample_rate_hz,
+        microphones=tuple(
+            MicrophoneSpec(mic_id=mic, relative_position_m=position)
+            for mic, position in zip(
+                block.microphone_ids, block.microphone_positions_m, strict=True
+            )
+        ),
+    )
+    frame = AudioPerceptionPipeline().process(block, array, frame_id="common_signal")
+    recorder = SessionRecorder(tmp_path, _configuration(aligned=True), **_kwargs())
+    recorder.begin_episode("scene", "environment", "scene")
+    assert recorder.append_frame(frame, block, is_reset=True).accepted
+    recorder.end_episode()
+    recorder.finalize()
+    dataset = SessionDataset.open(tmp_path)
+    record = next(dataset.iter_records())
+    signal = record.frame.diagnostics["signal"]
+    assert signal["channel_clipping"] == {"front": True, "rear": None}
+    assert signal["clock_domain"] == "device:take_1"
+    assert signal["discontinuity"] is True
+    assert (
+        record.frame.diagnostics["perception"]["reset_reason"]
+        == "declared_discontinuity"
+    )
+    assert len(dataset.manifest.episodes[0].reset_markers) == 1
+    np.testing.assert_array_equal(dataset.read_frame_audio(record), block.samples)

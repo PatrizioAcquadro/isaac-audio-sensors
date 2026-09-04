@@ -1,6 +1,6 @@
-# Implementation Plan 06 — Simulated and Real Signal Parity
+# Phase 06 — Simulated and Real Signal Parity
 
-Status: 06.1 in progress; the signal contract and analytic producer are migrated. Shared continuity handling remains in progress. 06.2 and 06.3 remain planned.
+Status: 06.1 complete. 06.2 and 06.3 remain planned.
 
 ## Objective
 
@@ -16,7 +16,11 @@ Plan 06 follows the [[decisions/minimal-maintained-repository-surface|Minimal Ma
 
 The runtime block now requires ordered local microphone geometry, a named sample-clock domain, explicit discontinuity, and per-channel clipping with an unknown state. Existing finite immutable float32 samples, nominal rate, validity, and exact-window semantics remain. Analytic propagation and dataset truth production populate the same contract, including exact-window electronics clipping and separate nominal gain, configured drift, applied correction, and unknown measured-calibration metadata. See [[topics/public-contracts-and-recording|Public Contracts and Recording]] for the common conventions.
 
-Contract milestone validation passes 591 unit/contract tests and 153 focused signal, electronics, waveform, and recording tests. Geometry enforcement and shared automatic perception resets are the remaining 06.1 integration milestone.
+`AudioPerceptionPipeline` validates the declared local geometry against the bound array before invoking plugins. One shared continuity check resets activity, estimator state, and rolling DOA context on a fault, an invalid block, changed identity/clock/rate/layout, or non-contiguous windows. Its first applicable reset reason is recorded once in perception diagnostics. Rigid pose changes and provenance-only changes preserve contiguous state. Isaac's duplicate geometry-signature reset path is removed; explicit lifecycle resets remain.
+
+Common signal diagnostics survive frame recording and replay through the existing diagnostics extension. Frame v3, manifest v4, frame-record v2, and calibration v1 remain unchanged. Recorder reset markers and gap accounting retain their existing ownership. No capture adapter, device driver, automatic calibration, new dependency, or compatibility constructor is introduced.
+
+Validation passes 612 unit/contract, 278 integration, and 58 release tests. Tests cover binding failures, exact-window clipping, fault reset equivalence with a fresh Auditok pipeline, rigid motion, large clock origins, and equal observations for identical samples supplied with different producer provenance. Parity cases use mono/8 kHz, stereo/16 kHz, and quad/48 kHz arrays. Recording preserves signal metadata and explicit reset markers. Optional PyRoom/SoundFile audio, the seven-frame fixture, and byte-identical regeneration of all three schemas pass. The supported Isaac interpreter passes 99 tests. Live Isaac Sim, Isaac Lab, and Kit smokes pass on the RTX 4090. Lab preserves zero-tensor parity and partial reset; its existing 4096-environment entity path measures 0.138 ms/step against a 20 ms budget, not parallel waveform perception. The source Isaac interpreter lacks Auditok, so runtime gates use an isolated copy of the installed exact 0.5.2 package without replacing Kit NumPy or changing the runtime.
 
 The block contains observed microphone samples only. Simulator state and hardware-driver details remain producer-owned metadata outside perception.
 
@@ -27,10 +31,17 @@ The block contains observed microphone samples only. Simulator state and hardwar
 - Channel order and geometry fail closed because silent permutation invalidates DOA.
 - Provenance remains available without changing observation meaning.
 - Nominal parameters, measured calibration, and applied corrections remain distinguishable.
+- The public constructor is migrated directly without legacy defaults or aliases.
+- Samples retain their original digital amplitude; perception does not normalize or infer SPL.
+- Continuity belongs to the common pipeline; driver and calibration metadata cannot alter perception.
 
 #### Problems / Limitations
 
-Clock drift, missing channels, unknown gain, and buffering must remain explicit rather than being silently normalized away.
+Resolved: missing channels remain explicit invalid rows; unknown clipping and acquisition evidence remain null; nominal gains, configured drift, and applied channel corrections are distinct. Geometry mismatch fails instead of silently permuting samples.
+
+Resolved during runtime validation: the Kit smoke previously accumulated repeated paused 50 ms windows as though they were new audio. It now advances and commits the timeline for genuine contiguous activity, then checks that repeated paused snapshots remain inactive while prior activity persists in UI history and Replicator.
+
+Unresolved by design: producer declarations cannot prove physical channel mapping, clock quality, gain, or calibration. Unknown acquisition details stay unknown. The parity tests establish common semantics, not acoustic fidelity or measured sim-to-real transfer; physical integration and comparison remain 06.2 and 06.3.
 
 ## Subphase 06.2 — Physical Capture Integration
 
@@ -74,11 +85,22 @@ An extensible contract does not establish universal hardware compatibility or ac
 
 ## Artifacts
 
-Expected artifacts are one general signal contract, a working connection from downstream physical acquisition to the SDK, comparable sim-versus-real outputs with explicit limits, and removal of duplicate domain paths.
+06.1 delivers the common runtime contract, one shared continuity owner, migrated consumers, and maintained validation tests. Local ignored evidence is under `build/validation/phase06_1/` (host, optional-audio/schema, and runtime logs) and `build/validation/isaac_audio_sensors/` (live smoke JSON and media). No physical recording or transfer evidence is produced.
+
+06.2–06.3 still target downstream acquisition integration and measured sim-versus-real comparisons with explicit limits.
 
 ## Files
 
-Exact integration files are deferred to implementation; ReSpeaker-specific files remain downstream.
+Main 06.1 implementation files:
+
+- `src/isaac_audio_sensors/core/types/_signal.py` — common signal declarations and validation.
+- `src/isaac_audio_sensors/core/perception.py` — binding, common continuity, and frame diagnostics.
+- `src/isaac_audio_sensors/core/backends/_analytic/block.py` — analytic signal projection.
+- `src/isaac_audio_sensors/core/effects/electronics.py` — exact-window clipping evidence.
+- `src/isaac_audio_sensors/isaac/sensor.py` — lifecycle integration without duplicate stream validation.
+- `tools/smoke/live_omniverse_extension_ux.py` — contiguous activity and paused-snapshot runtime checks.
+
+ReSpeaker-specific files remain downstream.
 
 Existing reference material:
 

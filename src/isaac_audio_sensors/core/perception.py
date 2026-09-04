@@ -79,8 +79,8 @@ class AudioPerceptionPipeline:
             "consumer_confirmation_tolerance_deg",
         )
         self._doa_history: object | None = None
-        self._doa_history_signature: tuple[object, ...] | None = None
-        self._doa_history_end_s: float | None = None
+        self._stream_signature: tuple[object, ...] | None = None
+        self._stream_end_s: float | None = None
         self._doa_stable_bearing_deg: float | None = None
         self._doa_pending_bearing_deg: float | None = None
 
@@ -96,6 +96,8 @@ class AudioPerceptionPipeline:
             if callable(reset):
                 reset()
         self._clear_doa_consumer_state()
+        self._stream_signature = None
+        self._stream_end_s = None
 
     def process(
         self,
@@ -133,7 +135,9 @@ class AudioPerceptionPipeline:
         valid_indices = tuple(
             index for index, valid in enumerate(block.channel_validity) if valid
         )
+        reset_reason = self._advance_stream(block)
         perception_diagnostics: dict[str, object] = {
+            "reset_reason": reset_reason,
             "activity_detected": None,
             "activity_ran": False,
             "channel_count": len(block.microphone_ids),
@@ -155,8 +159,6 @@ class AudioPerceptionPipeline:
                 )
                 doa_samples, context_diagnostics = self._update_doa_context(
                     valid_samples,
-                    positions,
-                    tuple(block.microphone_ids[index] for index in valid_indices),
                     block,
                 )
                 if context_diagnostics is not None:
@@ -253,15 +255,68 @@ class AudioPerceptionPipeline:
             waveform_paths=(),
             diagnostics={
                 **block.diagnostics,
+                "signal": {
+                    "microphone_positions_m": dict(
+                        zip(
+                            block.microphone_ids,
+                            block.microphone_positions_m,
+                            strict=True,
+                        )
+                    ),
+                    "clock_domain": block.clock_domain,
+                    "discontinuity": block.discontinuity,
+                    "channel_clipping": dict(
+                        zip(
+                            block.microphone_ids,
+                            block.channel_clipping,
+                            strict=True,
+                        )
+                    ),
+                    "amplitude_reference": 1.0,
+                },
                 "perception": perception_diagnostics,
             },
         )
 
+    def _advance_stream(self, block: MicrophoneSignalBlock) -> str | None:
+        signature = (
+            block.array_id,
+            block.producer_id,
+            block.clock_domain,
+            block.sample_rate_hz,
+            block.microphone_ids,
+            block.microphone_positions_m,
+            block.channel_validity,
+        )
+        previous = self._stream_signature
+        reason: str | None = None
+        if block.discontinuity:
+            reason = "declared_discontinuity"
+        elif not any(block.channel_validity):
+            reason = "no_valid_channels"
+        elif previous is not None:
+            if signature[:2] != previous[:2]:
+                reason = "stream_identity_changed"
+            elif signature[2] != previous[2]:
+                reason = "clock_domain_changed"
+            elif signature[3] != previous[3]:
+                reason = "sample_rate_changed"
+            elif signature[4:] != previous[4:]:
+                reason = "valid_channel_layout_changed"
+            elif self._stream_end_s is not None and not _times_touch(
+                self._stream_end_s,
+                block.time_window.start_time_s,
+            ):
+                reason = "non_contiguous_time_window"
+        if reason is not None:
+            self.reset()
+        self._stream_signature = signature
+        self._stream_end_s = block.time_window.end_time_s
+        return reason
+
     def _update_doa_context(
         self,
         samples: object,
-        positions: object,
-        microphone_ids: tuple[str, ...],
         block: MicrophoneSignalBlock,
     ) -> tuple[object, dict[str, object] | None]:
         import numpy as np
@@ -270,36 +325,6 @@ class AudioPerceptionPipeline:
             return samples, None
 
         values = np.asarray(samples)
-        geometry = np.asarray(positions, dtype=float)
-        signature = (
-            block.array_id,
-            block.producer_id,
-            block.provenance,
-            block.sample_rate_hz,
-            microphone_ids,
-            geometry.shape,
-            geometry.tobytes(),
-        )
-        reset_reason: str | None = None
-        if (
-            self._doa_history_signature is not None
-            and signature != self._doa_history_signature
-        ):
-            previous_signature = self._doa_history_signature
-            if signature[:3] != previous_signature[:3]:
-                reset_reason = "stream_identity_changed"
-            elif signature[3] != previous_signature[3]:
-                reset_reason = "sample_rate_changed"
-            else:
-                reset_reason = "valid_channel_layout_changed"
-            self._clear_doa_consumer_state()
-        elif self._doa_history_end_s is not None and not _times_touch(
-            self._doa_history_end_s,
-            block.time_window.start_time_s,
-        ):
-            reset_reason = "non_contiguous_time_window"
-            self._clear_doa_consumer_state()
-
         previous = self._doa_history
         buffered = (
             np.array(values, copy=True, order="C")
@@ -315,8 +340,6 @@ class AudioPerceptionPipeline:
             )
         buffered.setflags(write=False)
         self._doa_history = buffered
-        self._doa_history_signature = signature
-        self._doa_history_end_s = block.time_window.end_time_s
         return buffered, {
             "causal": True,
             "required_duration_s": self._doa_context_duration_s,
@@ -324,7 +347,6 @@ class AudioPerceptionPipeline:
             "available_duration_s": buffered.shape[1] / block.sample_rate_hz,
             "available_sample_count": int(buffered.shape[1]),
             "complete": buffered.shape[1] == required_samples,
-            "reset_reason": reset_reason,
         }
 
     def _apply_doa_temporal_policy(
@@ -409,8 +431,6 @@ class AudioPerceptionPipeline:
 
     def _clear_doa_consumer_state(self) -> None:
         self._doa_history = None
-        self._doa_history_signature = None
-        self._doa_history_end_s = None
         self._clear_doa_temporal_state()
 
     @staticmethod
@@ -435,6 +455,15 @@ class AudioPerceptionPipeline:
             raise ValueError(
                 "MicrophoneSignalBlock.microphone_ids must exactly match the "
                 "MicrophoneArraySpec microphone order."
+            )
+
+        expected_positions = tuple(
+            microphone.relative_position_m for microphone in array.microphones
+        )
+        if block.microphone_positions_m != expected_positions:
+            raise ValueError(
+                "MicrophoneSignalBlock.microphone_positions_m must exactly match "
+                "MicrophoneArraySpec local geometry."
             )
 
 
@@ -468,7 +497,8 @@ def _optional_bearing_attribute(component: object, name: str) -> float | None:
 def _times_touch(left: float, right: float) -> bool:
     import math
 
-    return math.isclose(left, right, rel_tol=1e-9, abs_tol=1e-9)
+    tolerance = max(1e-9, 4 * math.ulp(left), 4 * math.ulp(right))
+    return abs(left - right) <= tolerance
 
 
 def _circular_distance_deg(left: float, right: float) -> float:

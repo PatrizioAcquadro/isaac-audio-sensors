@@ -126,7 +126,11 @@ If Replicator is unavailable, use package JSON/JSONL or the generic session reco
 
 If Kit mix capture is refused, verify that at least one `OmniSound` has a real `filePath` and has finished loading. `generated://` sources are valid for SDK backends but are not playable Kit assets. Treat the captured WAV only as a qualitative active-listener/device mix; use Sensor WAV output for microphone-array channels.
 
+Forced updates on a paused timeline can repeat the same signal window. The common pipeline treats those repeats as discontinuities: repeated 50 ms snapshots cannot satisfy Auditok's 100 ms minimum activity. Advance sample time contiguously for streaming activity; inactive snapshots still update microphone meters and preserve genuine earlier activity in UI history.
+
 ## Version Notes
+
+- 2026-09-04: Subphase 06.1 centralizes geometry and continuity resets in Core. Kit smoke now distinguishes genuine contiguous activity from repeated paused snapshots; Isaac lifecycle resets remain explicit.
 
 - 2026-09-04: Added default-off standard DOA control and upgraded exact configuration to binding v7 with required `direction_estimation.enabled`; binding v6 has no parser.
 - 2026-09-04: Integrated explicit-threshold Auditok observations through the standard sensor, UI, presets, headless workflow, recording, Replicator, OmniGraph, and binding v6; live layout changes reset stateful perception.

@@ -729,6 +729,19 @@ def _run_object_attach_scenario(
         f"{label}_update_sensor_before_parent_move",
         controller.update_sensor,
     )
+    # Activity requires new contiguous samples, not repeated paused snapshots.
+    import omni.timeline
+
+    timeline = omni.timeline.get_timeline_interface()
+    timeline.set_current_time(before_frame.end_time_s)
+    timeline.commit()
+    before_frame = _step(
+        evidence,
+        f"{label}_contiguous_activity_window",
+        controller.update_sensor,
+    )
+    if not before_frame.observations:
+        raise RuntimeError("Contiguous reference windows did not produce activity.")
     result["frame_before_parent_move"] = _frame_signal_summary(before_frame)
 
     _set_translate(object_prim, parent_position_after)
@@ -1840,7 +1853,7 @@ def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
             "passed"
             if before_summary["aggregate_per_mic_rms"]
             != after_summary["aggregate_per_mic_rms"]
-            and _valid_activity_summary(before_summary, allow_empty=True)
+            and _valid_activity_summary(before_summary)
             and _valid_activity_summary(after_summary)
             else "failed"
         ),
@@ -1849,14 +1862,10 @@ def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
     }
 
 
-def _valid_activity_summary(
-    summary: dict[str, Any],
-    *,
-    allow_empty: bool = False,
-) -> bool:
+def _valid_activity_summary(summary: dict[str, Any]) -> bool:
     count = int(summary.get("observation_count", 0))
     if count == 0:
-        return allow_empty
+        return True
     return (
         count == 1
         and summary.get("observation_origins") == ["signal_derived"]
@@ -1965,8 +1974,8 @@ def _array_rotation_changed(
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
         "valid_activity_output": (
-            _valid_activity_summary(before, allow_empty=True)
-            and _valid_activity_summary(after, allow_empty=True)
+            _valid_activity_summary(before)
+            and _valid_activity_summary(after)
         ),
     }
     passed = (
@@ -1998,8 +2007,8 @@ def _array_move_changed(
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
         "valid_activity_output": (
-            _valid_activity_summary(before, allow_empty=True)
-            and _valid_activity_summary(after, allow_empty=True)
+            _valid_activity_summary(before)
+            and _valid_activity_summary(after)
         ),
     }
     passed = (
@@ -2476,7 +2485,7 @@ def _collect_instruments_evidence(
     *,
     screenshot_path: Path,
 ) -> dict[str, Any]:
-    """Record compass/meter/timeline values and widget visibility evidence."""
+    """Verify inactive instruments after repeated paused-timeline snapshots."""
 
     state = controller.state
     window = _reference_ui_window(controller)
@@ -2490,6 +2499,7 @@ def _collect_instruments_evidence(
     meters = meter_view_models(state.latest_aggregate_rms)
     rows = timeline_rows(state.observation_history)
     record: dict[str, Any] = {
+        "scenario": "contiguous_activity_then_paused_snapshots",
         "frame_id": state.latest_frame_id,
         "observation_count": state.latest_observation_count,
         "history_count": len(state.observation_history),
@@ -2551,7 +2561,7 @@ def _collect_instruments_evidence(
     passed = (
         not view_model.needles
         and bool(record["meters"])
-        and record["observation_count"] == 1
+        and record["observation_count"] == 0
         and record["history_count"] > 0
         and record["timeline_row_count"] > 0
         and widget_record.get("available") is True
@@ -3333,10 +3343,10 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} parent move did not change frame: {object_move}")
     before = result.get("frame_before_parent_move", {})
     after = result.get("frame_after_parent_move", {})
-    if not _valid_activity_summary(before, allow_empty=True):
+    if not _valid_activity_summary(before):
         raise RuntimeError(f"{name} emitted an invalid warm-up observation.")
     if not _valid_activity_summary(after):
-        raise RuntimeError(f"{name} did not emit signal-derived Auditok activity.")
+        raise RuntimeError(f"{name} emitted an invalid activity observation.")
     offset_before = result.get("source_transform_before_local_offset_change", {})
     offset_after = result.get("source_transform_after_local_offset_change", {})
     if offset_before.get("position_world") == offset_after.get("position_world"):

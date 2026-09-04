@@ -11,7 +11,7 @@
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
-- [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — connect downstream physical acquisition to the shared signal contract, using ReSpeaker as the first reference while keeping hardware-specific integration downstream.
+- [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — 06.1 implements common signal semantics and shared perception continuity; 06.2–06.3 retain downstream acquisition and physical comparison, with ReSpeaker as the first reference.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — migrate to observed fixed tensors and retain execution paths only for distinct validated scale roles.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — retain only evidence-backed signal variation with measurable application value.

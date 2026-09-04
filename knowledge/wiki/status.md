@@ -10,7 +10,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
-- Subphase 06.1 contract milestone adds required local geometry, sample-clock domain, discontinuity, and tri-state per-channel clipping to runtime signal blocks. The analytic and dataset producers are migrated; 591 unit/contract tests and 153 focused checks pass. Shared automatic perception continuity is still in progress.
+- Subphase 06.1 provides explicit local signal geometry, sample-clock domain, discontinuity, and tri-state channel clipping. One shared pipeline validates binding and resets both activity and DOA on stream faults or changes. Acquisition evidence remains producer-owned; common diagnostics survive recording without schema changes. Validation passes 612 unit/contract, 278 integration, 58 release, and 99 supported-runtime Isaac tests; all three live Isaac Sim/Lab/Kit smokes pass on RTX 4090 using isolated Auditok 0.5.2. Physical capture and transfer remain outside this subphase.
 
 - Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
 
@@ -290,7 +290,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.3 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next is signal parity, followed by Lab tensor projection and the selected Geometry Acoustics provider.
+Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.3 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Subphase 06.1 common signal semantics is implemented. Next is 06.2 downstream physical capture integration, then 06.3 comparison, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

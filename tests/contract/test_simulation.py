@@ -200,3 +200,60 @@ def test_simulate_from_config_rejects_non_boolean_doa_opt_in() -> None:
             energy_threshold_dbfs=-60.0,
             doa_enabled="true",
         )
+
+
+@pytest.mark.parametrize(
+    ("layout", "rate"), (("mono", 8000), ("stereo_y", 16000), ("quad_cross", 48000))
+)
+def test_observation_semantics_do_not_depend_on_signal_provenance(layout, rate) -> None:
+    from dataclasses import replace
+
+    from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
+    from isaac_audio_sensors.core.microphone_array import create_microphone_array
+    from isaac_audio_sensors.core.plugins import (
+        AuditokActivityDetector,
+        GccPhatLeastSquaresEstimator,
+    )
+    from tests.helpers import source
+
+    array = create_microphone_array(
+        array_id="parity",
+        prim_path="/Parity",
+        layout_name=layout,
+        sample_rate_hz=rate,
+    )
+    scene = AudioSceneSnapshot(
+        stage_id="parity",
+        arrays=(array,),
+        sources=(source("tone", (3.0, 1.0, 0.0), audio_asset_path="generated://tone"),),
+        environment=free_field_environment(environment_id="free"),
+    )
+    block = AnalyticAcoustics().propagate(
+        scene,
+        array.array_id,
+        AudioTimeWindow(start_time_s=0.0, end_time_s=0.25, frame_index=0),
+    )
+    supplied = replace(
+        block,
+        producer_id="external_pcm",
+        provenance="replay/trace",
+        clock_domain="device:take_1",
+        channel_clipping=(None,) * len(array.microphones),
+        diagnostics={"acquisition": {"calibration": None, "buffer_latency_s": 0.1}},
+    )
+
+    def process(value):
+        return AudioPerceptionPipeline(
+            activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0),
+            doa_estimator=GccPhatLeastSquaresEstimator() if layout != "mono" else None,
+        ).process(value, array, frame_id="same_observation")
+
+    simulated, external = process(block), process(supplied)
+    assert simulated.observations
+    assert simulated.observations == external.observations
+    assert simulated.aggregate_per_mic_rms == external.aggregate_per_mic_rms
+    assert simulated.diagnostics["perception"] == external.diagnostics["perception"]
+    assert external.producer_id == "external_pcm"
+    assert external.diagnostics["signal"]["channel_clipping"] == dict.fromkeys(
+        block.microphone_ids
+    )
