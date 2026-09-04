@@ -39,7 +39,7 @@ def simulate_frame(
 ) -> tuple[AudioSensorFrame, MicrophoneSignalBlock]:
     """Propagate one window, run perception, and optionally persist its block."""
 
-    array = scene.array_by_id(array_id)
+    scene.array_by_id(array_id)
     block = backend.propagate(scene, array_id, time_window)
     if not isinstance(block, MicrophoneSignalBlock):
         raise TypeError(
@@ -49,6 +49,29 @@ def simulate_frame(
         raise ValueError(
             "PropagationBackend.propagate() returned a different time window."
         )
+    return _frame_from_signal(
+        block,
+        scene,
+        array_id,
+        perception=perception,
+        waveform_sink=waveform_sink,
+        external_observations=external_observations,
+    ), block
+
+
+def _frame_from_signal(
+    block: MicrophoneSignalBlock,
+    scene: AudioSceneSnapshot,
+    array_id: str,
+    *,
+    perception: AudioPerceptionPipeline,
+    waveform_sink: WaveformSink | None = None,
+    external_observations: Sequence[AudioObservation] = (),
+) -> AudioSensorFrame:
+    """Compose perception and recording references from an already rendered block."""
+
+    array = scene.array_by_id(array_id)
+    time_window = block.time_window
     frame_id = deterministic_frame_id(
         backend_id=block.producer_id,
         stage_id=scene.stage_id,
@@ -81,7 +104,7 @@ def simulate_frame(
             waveform_paths=write_result.paths,
             diagnostics=diagnostics,
         )
-    return frame, block
+    return frame
 
 
 def simulate_from_config(

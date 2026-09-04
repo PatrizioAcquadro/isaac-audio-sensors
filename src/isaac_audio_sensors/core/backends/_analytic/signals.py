@@ -32,6 +32,7 @@ class _ScheduledSignal:
     mode: str
     start_offset_samples: int
     content_sample_count: int
+    emission_rms: float
 
 
 def _piecewise_phase_signal(
@@ -124,18 +125,22 @@ def _scheduled_window_signal(
             source_end_s=source_end_s,
         )
     content = np.asarray(
-        content
-        * db_to_amplitude_gain(source.gain_db, "AudioSourceSpec.gain_db"),
+        content * db_to_amplitude_gain(source.gain_db, "AudioSourceSpec.gain_db"),
         dtype=float,
     )
     signal = np.concatenate([np.zeros(start_offset_samples, dtype=float), content])
     if signal.size == 0:
         signal = np.zeros(1, dtype=float)
+    window_samples = max(
+        1, round((time_window.end_time_s - time_window.start_time_s) * sample_rate_hz)
+    )
+    emitted = signal[:window_samples]
     return _ScheduledSignal(
         signal=signal,
         mode=mode,
         start_offset_samples=start_offset_samples,
         content_sample_count=content_samples,
+        emission_rms=float(np.sqrt(np.sum(emitted * emitted) / window_samples)),
     )
 
 

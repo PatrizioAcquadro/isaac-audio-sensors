@@ -10,6 +10,8 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
+- Subphase 05.1 dataset truth contracts and `recording.simulate_dataset_frame()` produce separate supervision from one analytic render; persistence and manifest migration are in progress.
+
 - Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v3 while dataset-manifest and calibration-profile wrappers remain v1.
 - One runtime propagation backend, `analytic_acoustics`, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.

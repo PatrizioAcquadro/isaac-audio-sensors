@@ -1,6 +1,6 @@
 # Implementation Plan 05 — Ground Truth and Learning Datasets
 
-Status: Planned after observed activity and DOA contracts are defined.
+Status: Subphase 05.1 in progress; dataset contracts and single-render production implemented. Subphases 05.2 and 05.3 remain planned.
 
 ## Objective
 
@@ -12,11 +12,13 @@ Plan 05 follows the [[decisions/minimal-maintained-repository-surface|Minimal Ma
 
 #### Implementation
 
-Produce one dataset-owned truth record aligned with each sensor frame without adding a public runtime `GroundTruthAssembler`. It may contain zero or more true source events with identity, authored class, pose, direction, distance, emission, received audibility evidence, meaningful occlusion or path state, and asset provenance.
+`recording.FrameTruth`, `TruthEvent`, and `AnnotationRecord` define supervision beside the observed frame. Truth identifies the frame, array, exact window, and sample rate. `None` means unavailable truth; an empty `truth_events` sequence means a known empty scene. Annotations carry a caller-authored label and provenance with optional explicit source and observation references.
 
-Store `observations[]` and `truth_events[]` independently. Evaluation, not the sensor, matches them. Distinguish emission from received audibility so blocked or below-noise sources do not become impossible positive targets.
+`recording.simulate_dataset_frame()` returns `(frame, block, truth)` from one private analytic render, sharing perception and waveform-sink composition with `simulate_frame()`. It emits one truth event per snapshot source, including inactive sources. Snapshot world pose, array-relative bearing/elevation and distance, authored class, prim, and asset reference stay outside observations. A coincident source has no direction; a vertical source has no azimuth.
 
-Former `scheduled_known_source` information becomes source truth; `manual_annotation` becomes annotation provenance. Neither remains a `detection_mode` or `AudioObservation.origin`.
+Schedule overlap and full-window source emission RMS are distinct from received RMS. Received evidence uses per-source private stems after propagation, directivity, occlusion, gains, and linear microphone response, cropped to the public window. Mixture residual RMS compares the final float32 block with the summed linear stems; it includes mixture noise, electronics, and float32 conversion, not a pure-noise or SNR estimate. Existing occlusion maps are copied only when supplied by the snapshot. No audibility threshold, matching, or positive-target decision is made here.
+
+Persistence and removal of the old manifest truth are the remaining 05.1 milestone. No public `GroundTruthAssembler`, stem output, or waveform duplication is introduced.
 
 #### Key Decisions
 
@@ -27,7 +29,7 @@ Former `scheduled_known_source` information becomes source truth; `manual_annota
 
 #### Problems / Limitations
 
-Simulation truth is exact only for its model. Audibility thresholds remain task-dependent and must preserve underlying received evidence.
+Simulation truth describes only the implemented producer model. Geometry describes the supplied snapshot while RMS integrates the rendered window, including supported motion. The producer renders window-local emission; cross-window arrivals and reverberation are not added by truth extraction. Audibility thresholds and observation-to-truth matching remain evaluator-owned. Automatic production currently supports only `AnalyticAcoustics`.
 
 ## Subphase 05.2 — Robot-Learning Sample Boundary
 

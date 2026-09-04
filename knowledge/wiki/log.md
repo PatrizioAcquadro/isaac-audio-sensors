@@ -774,3 +774,17 @@ single-context runtime diagnostics without changing DOA contracts or defaults.
 Verified 99 focused consumer tests, 562 unit/contract tests, 226 integration
 tests, 58 release tests, optional audio, version synchronization, Ruff, wiki
 links, documentation boundaries, and whitespace.
+
+## 2026-09-04 — update: Subphase 05.1 truth production
+
+Added dataset-owned truth and annotations plus single-render analytic production.
+Documented separate schedule, emission, linear received evidence, and mixture
+residual semantics without widening observed frame or propagation contracts.
+Persistence and legacy manifest truth replacement remain the next milestone.
+
+## 2026-09-04 — lint: Subphase 05.1 production milestone
+
+The host gate passed 568 unit/contract tests, 226 integration tests, and 58
+release tests. The focused acoustic/contract selection passed 104 tests; a
+subsequent quaternion round-trip regression and the six production cases pass.
+Ruff, wiki links/index coverage, raw preservation, and whitespace checks pass.

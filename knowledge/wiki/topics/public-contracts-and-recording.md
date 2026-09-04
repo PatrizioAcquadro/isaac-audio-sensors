@@ -86,6 +86,12 @@ Readers require the exact v3 frame shape; writers emit that same deterministic s
 
 Tracked v3 examples under `examples/traces/` cover a minimal zero-observation frame, one resolved observation, and external/unresolved observation records.
 
+## Dataset Supervision
+
+Subphase 05.1 adds `recording.FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `simulate_dataset_frame()`. The dataset-owned simulation function returns observed frame, immutable signal block, and separate truth from one analytic render. Per-source identity, authored class, snapshot geometry, emission, received evidence, occlusion, and asset references never enter `AudioObservation`, signal blocks, or perception inputs.
+
+Truth distinguishes missing supervision from a known empty scene. Observation and truth cardinalities are independent. Annotation provenance and explicit references belong beside the frame. Received RMS describes linear source stems before mixture effects; mixture residual RMS includes noise, electronics, and float32 conversion and is not a pure-noise or SNR estimate. No automatic audibility decision or matching is provided. Exact semantics and implementation progress are owned by [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]].
+
 ## Dataset Sessions
 
 The recording subsystem writes a finalized session with a root manifest, canonical session configuration, deterministic shard directories, frame records, audio payloads when enabled, and completion markers that bind promoted shard content.

@@ -20,6 +20,7 @@ from isaac_audio_sensors.recording.serialization import (
     read_dataset_manifest,
     write_dataset_manifest,
 )
+from isaac_audio_sensors.recording.simulation import simulate_dataset_frame
 from isaac_audio_sensors.recording.splits import (
     DatasetSplitError,
     SplitPlan,
@@ -29,6 +30,7 @@ from isaac_audio_sensors.recording.splits import (
     write_split_plan,
 )
 from isaac_audio_sensors.recording.statistics import Statistics
+from isaac_audio_sensors.recording.truth import AnnotationRecord, FrameTruth, TruthEvent
 from isaac_audio_sensors.recording.validate import (
     Finding,
     ValidationReport,
@@ -36,6 +38,7 @@ from isaac_audio_sensors.recording.validate import (
 )
 
 __all__ = [
+    "AnnotationRecord",
     "AppendFrameResult",
     "AudioDatasetManifest",
     "CreationProvenance",
@@ -43,6 +46,7 @@ __all__ = [
     "DatasetSplitError",
     "DeviceProvenance",
     "Finding",
+    "FrameTruth",
     "LoadedFrame",
     "ReplayEvent",
     "SessionDataset",
@@ -50,6 +54,7 @@ __all__ = [
     "SessionRecorderError",
     "SplitPlan",
     "Statistics",
+    "TruthEvent",
     "ValidationReport",
     "apply_split_plan",
     "build_split_plan",
@@ -59,6 +64,7 @@ __all__ = [
     "read_dataset_manifest",
     "read_split_plan",
     "replay_session",
+    "simulate_dataset_frame",
     "validate_dataset",
     "write_dataset_manifest",
     "write_split_plan",

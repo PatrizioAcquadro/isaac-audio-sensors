@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Added dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `simulate_dataset_frame()` with single-render analytic supervision, independent observation cardinality, and separate emission, linear received RMS, and mixture residual evidence.
+
 - Breaking (Plan 02): changed `PropagationBackend` from scene-to-frame `simulate()` to scene-to-signal `propagate()`, replaced frame v2 detections with the exact frame v3 observation contract, and removed the temporary bridge and source-conditioned assembly without aliases. Dataset-manifest and calibration-profile wrappers remain v1.
 - Added immutable `MicrophoneSignalBlock`, observed-only `AudioObservation` and `AudioPerceptionPipeline` contracts, and `simulate_frame()` as the single propagation-to-perception path shared by waveform, recording, Isaac, Lab, Kit, Replicator, OmniGraph, and downstream adapters.
 - Added the stateful `ActivityDetector`/`ActivityDecision` contract and one maintained `AuditokActivityDetector` with causal bounded context, multichannel `any` semantics, deterministic reset, exact float32/dBFS adaptation, and an explicit application-owned threshold. No score, DOA, source identity, class, or source count is invented.
