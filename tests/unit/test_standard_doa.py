@@ -96,9 +96,7 @@ def test_standard_selector_abstains_for_unselected_geometry(
 
 
 def test_standard_selector_abstains_before_full_context() -> None:
-    positions = np.asarray(
-        ((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.0, 0.1, 0.0))
-    )
+    positions = np.asarray(((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.0, 0.1, 0.0)))
 
     estimate, diagnostics = MaintainedDoaEstimator().estimate(
         np.ones((3, 3999)),
@@ -124,9 +122,7 @@ def test_planar_selector_reports_actionable_room_extra(monkeypatch) -> None:
             missing_dependencies=("pyroomacoustics",),
         ),
     )
-    positions = np.asarray(
-        ((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.0, 0.1, 0.0))
-    )
+    positions = np.asarray(((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.0, 0.1, 0.0)))
 
     with pytest.raises(
         OptionalDependencyUnavailable,

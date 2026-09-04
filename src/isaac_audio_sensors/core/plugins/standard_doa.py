@@ -8,7 +8,7 @@ import numpy as np
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
-from isaac_audio_sensors.core.plugins.adapters import _ordered_inputs
+from isaac_audio_sensors.core.plugins.adapters import _validate_doa_inputs
 from isaac_audio_sensors.core.plugins.protocols import DoaEstimator
 from isaac_audio_sensors.core.types import DoaEstimate
 
@@ -32,18 +32,17 @@ class MaintainedDoaEstimator:
     ) -> tuple[DoaEstimate, dict[str, object]]:
         """Route one causal observation to its maintained estimator role."""
 
-        _waveforms, _sensor, _aperture = _ordered_inputs(
+        values, positions = _validate_doa_inputs(
             samples,
             microphone_positions_m,
             sample_rate_hz,
         )
-        positions = np.asarray(microphone_positions_m, dtype=float)
         role, estimator_id, reason = _select_role(positions)
         if estimator_id is None:
             return _unresolved_selection(role=role, reason=reason)
 
         required_samples = round(self.consumer_context_duration_s * sample_rate_hz)
-        if np.asarray(samples).shape[1] < required_samples:
+        if values.shape[1] < required_samples:
             return _unresolved_selection(
                 role=role,
                 estimator_id=estimator_id,
@@ -53,15 +52,13 @@ class MaintainedDoaEstimator:
                 ),
                 extra={
                     "required_observation_samples": required_samples,
-                    "available_observation_samples": int(
-                        np.asarray(samples).shape[1]
-                    ),
+                    "available_observation_samples": int(values.shape[1]),
                 },
             )
 
         estimator = self._resolve(estimator_id)
         estimate, diagnostics = estimator.estimate(
-            samples,
+            values,
             positions,
             sample_rate_hz,
         )
@@ -73,14 +70,6 @@ class MaintainedDoaEstimator:
                 "selected_estimator_id": estimator_id,
             },
         }
-
-    def reset(self) -> None:
-        """Reset any resolved estimator with state."""
-
-        for estimator in self._estimators.values():
-            reset = getattr(estimator, "reset", None)
-            if callable(reset):
-                reset()
 
     def _resolve(self, estimator_id: str) -> DoaEstimator:
         cached = self._estimators.get(estimator_id)

@@ -204,9 +204,7 @@ def test_stream_boundaries_require_an_explicit_reset() -> None:
 
 def test_block_diagnostics_are_copied_beside_perception_namespace() -> None:
     block = _block(diagnostics={"analytic_solver": {"solver_id": "test"}})
-    frame = AudioPerceptionPipeline().process(
-        block, _array(), frame_id="diagnostics"
-    )
+    frame = AudioPerceptionPipeline().process(block, _array(), frame_id="diagnostics")
 
     assert frame.diagnostics["analytic_solver"] == {"solver_id": "test"}
     assert frame.diagnostics["perception"]["activity_ran"] is False
@@ -405,9 +403,9 @@ def test_opposite_jump_requires_next_active_confirmation() -> None:
     confirmed = frames[6].observations[0]
     assert confirmed.doa.estimated_bearing_deg == 178.0
     assert (
-        confirmed.diagnostics["doa_estimator"]["consumer"][
-            "temporal_stability"
-        ]["status"]
+        confirmed.diagnostics["doa_estimator"]["consumer"]["temporal_stability"][
+            "status"
+        ]
         == "accepted_confirmed"
     )
     confirmed_state = confirmed.diagnostics["doa_estimator"]["consumer"][
@@ -438,9 +436,9 @@ def test_failed_confirmation_abstains_and_inactivity_clears_reference() -> None:
     assert frames[7].observations == ()
     assert frames[8].observations[0].doa.estimated_bearing_deg == 180.0
     assert (
-        frames[8].observations[0].diagnostics["doa_estimator"]["consumer"][
-            "temporal_stability"
-        ]["status"]
+        frames[8]
+        .observations[0]
+        .diagnostics["doa_estimator"]["consumer"]["temporal_stability"]["status"]
         == "accepted_initial"
     )
 
@@ -469,9 +467,10 @@ def test_doa_context_resets_on_discontinuity_and_explicit_reset() -> None:
         _stream_array(),
         frame_id="after_reset",
     )
-    assert after_reset.diagnostics["perception"]["doa_context"][
-        "available_sample_count"
-    ] == 1
+    assert (
+        after_reset.diagnostics["perception"]["doa_context"]["available_sample_count"]
+        == 1
+    )
 
 
 def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None:
@@ -521,9 +520,10 @@ def test_doa_context_resets_on_layout_rate_and_stream_identity_changes() -> None
         producer_id="replacement_stream",
     )
     stream_frame = pipeline.process(stream_block, rate_array, frame_id="stream")
-    assert stream_frame.diagnostics["perception"]["doa_context"][
-        "reset_reason"
-    ] == "stream_identity_changed"
+    assert (
+        stream_frame.diagnostics["perception"]["doa_context"]["reset_reason"]
+        == "stream_identity_changed"
+    )
 
 
 @pytest.mark.parametrize(
@@ -670,9 +670,7 @@ def _block(**overrides: object) -> MicrophoneSignalBlock:
         "microphone_ids": ("left", "right"),
         "array_id": "rig",
         "sample_rate_hz": 4,
-        "time_window": AudioTimeWindow(
-            start_time_s=1.0, end_time_s=2.0, frame_index=3
-        ),
+        "time_window": AudioTimeWindow(start_time_s=1.0, end_time_s=2.0, frame_index=3),
         "channel_validity": (True, True),
         "producer_id": "capture",
         "provenance": "synthetic/core",

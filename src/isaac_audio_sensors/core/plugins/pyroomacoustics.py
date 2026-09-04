@@ -14,9 +14,9 @@ from isaac_audio_sensors.core.plugins.adapters import (
     _apply_reliability,
     _has_spatial_variation,
     _maximum_rms,
-    _ordered_inputs,
     _probability,
     _unresolved,
+    _validate_doa_inputs,
     _xy_rank,
 )
 from isaac_audio_sensors.core.types import DoaEstimate
@@ -85,12 +85,11 @@ class PyroomacousticsSrpEstimator:
     ) -> tuple[DoaEstimate, dict[str, object]]:
         """Estimate one direction from a bounded, past-and-present STFT."""
 
-        _waveforms, _sensor, _aperture = _ordered_inputs(
+        values, positions = _validate_doa_inputs(
             samples,
             microphone_positions_m,
             sample_rate_hz,
         )
-        positions = np.asarray(microphone_positions_m, dtype=float)
         if positions.shape[0] < 3 or _xy_rank(positions) < 2:
             return _unresolved(
                 estimator_id="pyroomacoustics_srp",
@@ -102,7 +101,7 @@ class PyroomacousticsSrpEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        if np.asarray(samples).shape[1] < self.nfft:
+        if values.shape[1] < self.nfft:
             return _unresolved(
                 estimator_id="pyroomacoustics_srp",
                 ambiguity_class="insufficient_context",
@@ -110,7 +109,7 @@ class PyroomacousticsSrpEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        if _maximum_rms(samples) <= self.minimum_rms:
+        if _maximum_rms(values) <= self.minimum_rms:
             return _unresolved(
                 estimator_id="pyroomacoustics_srp",
                 ambiguity_class="low_information",
@@ -118,7 +117,7 @@ class PyroomacousticsSrpEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        if not _has_spatial_variation(samples):
+        if not _has_spatial_variation(values):
             return _unresolved(
                 estimator_id="pyroomacoustics_srp",
                 ambiguity_class="unobservable_azimuth",
@@ -138,14 +137,12 @@ class PyroomacousticsSrpEstimator:
             )
 
         pra, version = _import_supported_pyroomacoustics()
-        spectra = _stft(np.asarray(samples, dtype=float), self.nfft, self.hop)
+        spectra = _stft(values, self.nfft, self.hop)
         centered_positions = positions - np.mean(positions, axis=0, keepdims=True)
         rank_xyz = int(
             np.linalg.matrix_rank(centered_positions[1:] - centered_positions[0])
         )
-        azimuth = np.radians(
-            np.arange(0.0, 360.0, self.azimuth_step_deg, dtype=float)
-        )
+        azimuth = np.radians(np.arange(0.0, 360.0, self.azimuth_step_deg, dtype=float))
         if rank_xyz >= 3:
             elevation_count = int(math.floor(90.0 / self.elevation_step_deg))
             elevation = (
@@ -226,9 +223,7 @@ class PyroomacousticsSrpEstimator:
             candidate_bearing_deg=(bearing_deg,),
             bearing_confidence=reliability,
             estimated_elevation_deg=elevation_deg,
-            candidate_elevation_deg=(
-                () if elevation_deg is None else (elevation_deg,)
-            ),
+            candidate_elevation_deg=(() if elevation_deg is None else (elevation_deg,)),
         )
         doa = _apply_reliability(
             doa,
@@ -260,10 +255,8 @@ class PyroomacousticsSrpEstimator:
                 "coherent_excess": coherent_excess,
                 "grid_contrast": contrast,
             },
-            "observation_samples": int(np.asarray(samples).shape[1]),
-            "observation_duration_s": (
-                float(np.asarray(samples).shape[1]) / float(sample_rate_hz)
-            ),
+            "observation_samples": int(values.shape[1]),
+            "observation_duration_s": (float(values.shape[1]) / float(sample_rate_hz)),
             "reliability_score": reliability,
             "minimum_reliability": self.minimum_reliability,
             "resolved": doa.estimated_bearing_deg is not None,
@@ -287,13 +280,9 @@ def _import_supported_pyroomacoustics() -> tuple[Any, str]:
     version = str(getattr(module, "__version__", ""))
     match = re.match(r"^(\d+)\.(\d+)\.(\d+)", version)
     if match is None:
-        raise RuntimeError(
-            f"Cannot validate pyroomacoustics version {version!r}."
-        )
+        raise RuntimeError(f"Cannot validate pyroomacoustics version {version!r}.")
     parsed = tuple(int(part) for part in match.groups())
-    if not (
-        _SUPPORTED_VERSION_MIN <= parsed < _SUPPORTED_VERSION_MAX
-    ):
+    if not (_SUPPORTED_VERSION_MIN <= parsed < _SUPPORTED_VERSION_MAX):
         raise RuntimeError(
             "PyRoom SRP is qualified only for pyroomacoustics>=0.10.1,<0.11; "
             f"found {version or 'unknown'}."

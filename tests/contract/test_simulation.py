@@ -169,6 +169,7 @@ def test_simulate_from_config_doa_is_explicitly_opt_in() -> None:
     )
 
     assert default_frame.observations[0].doa is None
+    assert "doa_context" not in default_frame.diagnostics["perception"]
     assert enabled_frame.observations[0].doa is not None
     diagnostics = enabled_frame.observations[0].diagnostics["doa_estimator"]
     assert diagnostics["selection"] == {

@@ -41,12 +41,12 @@ class GccPhatLeastSquaresEstimator:
     ) -> tuple[DoaEstimate, dict[str, object]]:
         """Run the existing GCC-PHAT and least-squares computation unchanged."""
 
-        waveforms, sensor, aperture = _ordered_inputs(
+        values, waveforms, sensor, aperture = _least_squares_inputs(
             samples,
             microphone_positions_m,
             sample_rate_hz,
         )
-        if _maximum_rms(samples) <= self.minimum_rms:
+        if _maximum_rms(values) <= self.minimum_rms:
             return _unresolved(
                 estimator_id="tdoa_least_squares",
                 ambiguity_class="low_information",
@@ -54,7 +54,7 @@ class GccPhatLeastSquaresEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        if np.asarray(samples).shape[0] > 2 and not _has_spatial_variation(samples):
+        if values.shape[0] > 2 and not _has_spatial_variation(values):
             return _unresolved(
                 estimator_id="tdoa_least_squares",
                 ambiguity_class="unobservable_azimuth",
@@ -202,11 +202,11 @@ def _non_negative(value: float, name: str) -> float:
     return number
 
 
-def _ordered_inputs(
+def _validate_doa_inputs(
     samples: np.ndarray,
     microphone_positions_m: np.ndarray,
     sample_rate_hz: int,
-) -> tuple[dict[str, np.ndarray], MicrophoneArraySpec, float]:
+) -> tuple[np.ndarray, np.ndarray]:
     values = np.asarray(samples, dtype=float)
     positions = np.asarray(microphone_positions_m, dtype=float)
     if values.ndim != 2 or values.shape[0] < 2 or values.shape[1] == 0:
@@ -219,12 +219,22 @@ def _ordered_inputs(
         raise ValueError("samples and microphone_positions_m must be finite.")
     if int(sample_rate_hz) <= 0:
         raise ValueError("sample_rate_hz must be positive.")
+    return values, positions
+
+
+def _least_squares_inputs(
+    samples: np.ndarray,
+    microphone_positions_m: np.ndarray,
+    sample_rate_hz: int,
+) -> tuple[np.ndarray, dict[str, np.ndarray], MicrophoneArraySpec, float]:
+    values, positions = _validate_doa_inputs(
+        samples,
+        microphone_positions_m,
+        sample_rate_hz,
+    )
 
     mic_ids = tuple(f"channel_{index}" for index in range(values.shape[0]))
-    waveforms = {
-        mic_id: values[index]
-        for index, mic_id in enumerate(mic_ids)
-    }
+    waveforms = {mic_id: values[index] for index, mic_id in enumerate(mic_ids)}
     microphones = tuple(
         MicrophoneSpec(
             mic_id=mic_id,
@@ -245,7 +255,7 @@ def _ordered_inputs(
         for left in range(positions.shape[0])
         for right in range(left + 1, positions.shape[0])
     )
-    return waveforms, sensor, aperture
+    return values, waveforms, sensor, aperture
 
 
 __all__ = ["GccPhatLeastSquaresEstimator"]

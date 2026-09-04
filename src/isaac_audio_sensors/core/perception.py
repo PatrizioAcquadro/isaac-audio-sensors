@@ -144,21 +144,24 @@ class AudioPerceptionPipeline:
         if valid_indices and self._activity_detector is not None:
             valid_samples = np.ascontiguousarray(block.samples[list(valid_indices)])
             valid_samples.setflags(write=False)
-            positions = np.asarray(
-                [
-                    array.microphones[index].relative_position_m
-                    for index in valid_indices
-                ],
-                dtype=float,
-            )
-            doa_samples, context_diagnostics = self._update_doa_context(
-                valid_samples,
-                positions,
-                tuple(block.microphone_ids[index] for index in valid_indices),
-                block,
-            )
-            if context_diagnostics is not None:
-                perception_diagnostics["doa_context"] = context_diagnostics
+            doa_samples: object = valid_samples
+            positions: object | None = None
+            if self._doa_estimator is not None:
+                positions = np.asarray(
+                    [
+                        array.microphones[index].relative_position_m
+                        for index in valid_indices
+                    ],
+                    dtype=float,
+                )
+                doa_samples, context_diagnostics = self._update_doa_context(
+                    valid_samples,
+                    positions,
+                    tuple(block.microphone_ids[index] for index in valid_indices),
+                    block,
+                )
+                if context_diagnostics is not None:
+                    perception_diagnostics["doa_context"] = context_diagnostics
             decision = self._activity_detector.detect(
                 valid_samples,
                 block.sample_rate_hz,
@@ -185,6 +188,7 @@ class AudioPerceptionPipeline:
                 }
                 doa: DoaEstimate | None = None
                 if self._doa_estimator is not None and len(valid_indices) >= 2:
+                    assert positions is not None
                     started_ns = perf_counter_ns()
                     doa, doa_diagnostics = _doa_result(
                         self._doa_estimator.estimate(
@@ -210,9 +214,7 @@ class AudioPerceptionPipeline:
                 assert self.detector_id is not None
                 signal_observations = (
                     AudioObservation(
-                        observation_id=(
-                            f"{frame_id}_{self.detector_id}_00"
-                        ),
+                        observation_id=(f"{frame_id}_{self.detector_id}_00"),
                         origin=ObservationOrigin.SIGNAL_DERIVED,
                         detector_id=self.detector_id,
                         detection_score=decision.activity_probability,
@@ -310,9 +312,7 @@ class AudioPerceptionPipeline:
             if previous is None
             else np.concatenate((np.asarray(previous), values), axis=1)
         )
-        required_samples = round(
-            self._doa_context_duration_s * block.sample_rate_hz
-        )
+        required_samples = round(self._doa_context_duration_s * block.sample_rate_hz)
         if buffered.shape[1] > required_samples:
             buffered = np.array(
                 buffered[:, -required_samples:],
