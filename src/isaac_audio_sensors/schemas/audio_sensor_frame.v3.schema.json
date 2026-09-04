@@ -157,6 +157,7 @@
                     ]
                   },
                   "bearing_confidence": {
+                    "description": "Estimator-local direction reliability; not a probability or cross-estimator calibrated quantity.",
                     "maximum": 1.0,
                     "minimum": 0.0,
                     "type": "number"

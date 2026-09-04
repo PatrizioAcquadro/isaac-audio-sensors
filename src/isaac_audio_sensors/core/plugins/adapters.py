@@ -21,10 +21,17 @@ class GccPhatLeastSquaresEstimator:
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         interp: int = 8,
         max_delay_margin_s: float = 0.002,
+        minimum_reliability: float = 0.0,
+        minimum_rms: float = 1e-8,
     ) -> None:
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.interp = int(interp)
         self.max_delay_margin_s = float(max_delay_margin_s)
+        self.minimum_reliability = _probability(
+            minimum_reliability,
+            "minimum_reliability",
+        )
+        self.minimum_rms = _non_negative(minimum_rms, "minimum_rms")
 
     def estimate(
         self,
@@ -39,6 +46,22 @@ class GccPhatLeastSquaresEstimator:
             microphone_positions_m,
             sample_rate_hz,
         )
+        if _maximum_rms(samples) <= self.minimum_rms:
+            return _unresolved(
+                estimator_id="tdoa_least_squares",
+                ambiguity_class="low_information",
+                reason="Signal RMS does not exceed the estimator noise floor.",
+                reliability=0.0,
+                threshold=self.minimum_reliability,
+            )
+        if not _has_spatial_variation(samples):
+            return _unresolved(
+                estimator_id="tdoa_least_squares",
+                ambiguity_class="unobservable_azimuth",
+                reason="Waveforms contain no observable inter-channel delay.",
+                reliability=0.0,
+                threshold=self.minimum_reliability,
+            )
         from isaac_audio_sensors.core.backends._analytic.doa import (
             estimate_doa_from_delays,
         )
@@ -64,10 +87,28 @@ class GccPhatLeastSquaresEstimator:
             per_mic_delay_s=per_mic_delay_s,
             speed_of_sound_mps=self.speed_of_sound_mps,
         )
+        pair_peaks = [
+            abs(float(peak_values[f"{left}->{right}"]))
+            for index, left in enumerate(mic_ids)
+            for right in mic_ids[index + 1 :]
+        ]
+        gcc_strength = float(
+            np.clip(np.median(pair_peaks) * float(self.interp), 0.0, 1.0)
+        )
+        reliability = float(result.bearing_confidence) * gcc_strength
+        result = _apply_reliability(
+            result,
+            reliability=reliability,
+            threshold=self.minimum_reliability,
+        )
         return result, {
             "doa_estimator": "tdoa_least_squares",
             "gcc_phat_peak": peak_values,
+            "gcc_phat_pair_strength": gcc_strength,
             "tdoa_matrix_s": tdoa_matrix_s,
+            "reliability_score": reliability,
+            "minimum_reliability": self.minimum_reliability,
+            "resolved": result.estimated_bearing_deg is not None,
         }
 
 
@@ -82,12 +123,19 @@ class SrpPhatEstimator:
         elevation_step_deg: float = 5.0,
         interp: int = 8,
         max_delay_margin_s: float = 0.002,
+        minimum_reliability: float = 0.0,
+        minimum_rms: float = 1e-8,
     ) -> None:
         self.speed_of_sound_mps = float(speed_of_sound_mps)
         self.azimuth_step_deg = float(azimuth_step_deg)
         self.elevation_step_deg = float(elevation_step_deg)
         self.interp = int(interp)
         self.max_delay_margin_s = float(max_delay_margin_s)
+        self.minimum_reliability = _probability(
+            minimum_reliability,
+            "minimum_reliability",
+        )
+        self.minimum_rms = _non_negative(minimum_rms, "minimum_rms")
 
     def estimate(
         self,
@@ -102,6 +150,33 @@ class SrpPhatEstimator:
             microphone_positions_m,
             sample_rate_hz,
         )
+        if len(waveforms) < 3 or _xy_rank(microphone_positions_m) < 2:
+            return _unresolved(
+                estimator_id="srp_phat",
+                ambiguity_class="unsupported_geometry",
+                reason=(
+                    "SRP-PHAT requires at least three non-collinear microphones "
+                    "in array-local XY."
+                ),
+                reliability=0.0,
+                threshold=self.minimum_reliability,
+            )
+        if _maximum_rms(samples) <= self.minimum_rms:
+            return _unresolved(
+                estimator_id="srp_phat",
+                ambiguity_class="low_information",
+                reason="Signal RMS does not exceed the estimator noise floor.",
+                reliability=0.0,
+                threshold=self.minimum_reliability,
+            )
+        if not _has_spatial_variation(samples):
+            return _unresolved(
+                estimator_id="srp_phat",
+                ambiguity_class="unobservable_azimuth",
+                reason="Waveforms contain no observable inter-channel delay.",
+                reliability=0.0,
+                threshold=self.minimum_reliability,
+            )
         from isaac_audio_sensors.core.doa.srp_phat import (
             srp_phat_confidence,
             srp_phat_direction,
@@ -124,12 +199,18 @@ class SrpPhatEstimator:
             interp=self.interp,
         )
         elevation = result.elevation_deg
+        reliability = srp_phat_confidence(result)
         doa = DoaEstimate(
             estimated_bearing_deg=result.bearing_deg,
             candidate_bearing_deg=(result.bearing_deg,),
-            bearing_confidence=srp_phat_confidence(result),
+            bearing_confidence=reliability,
             estimated_elevation_deg=elevation,
             candidate_elevation_deg=() if elevation is None else (elevation,),
+        )
+        doa = _apply_reliability(
+            doa,
+            reliability=reliability,
+            threshold=self.minimum_reliability,
         )
         return doa, {
             "doa_estimator": "srp_phat",
@@ -141,7 +222,100 @@ class SrpPhatEstimator:
                 "peak_power": result.peak_power,
                 "mean_power": result.mean_power,
             },
+            "reliability_score": reliability,
+            "minimum_reliability": self.minimum_reliability,
+            "resolved": doa.estimated_bearing_deg is not None,
         }
+
+
+def _apply_reliability(
+    estimate: DoaEstimate,
+    *,
+    reliability: float,
+    threshold: float,
+) -> DoaEstimate:
+    reliability = float(np.clip(reliability, 0.0, 1.0))
+    if estimate.estimated_bearing_deg is None:
+        return estimate
+    if reliability < threshold:
+        return DoaEstimate(
+            estimated_bearing_deg=None,
+            candidate_bearing_deg=estimate.candidate_bearing_deg,
+            bearing_confidence=0.0,
+            ambiguity_class="low_information",
+            ambiguity_reason=(
+                f"Estimator-local reliability {reliability:.6g} is below "
+                f"the configured threshold {threshold:.6g}."
+            ),
+            candidate_elevation_deg=estimate.candidate_elevation_deg,
+        )
+    return DoaEstimate(
+        estimated_bearing_deg=estimate.estimated_bearing_deg,
+        candidate_bearing_deg=estimate.candidate_bearing_deg,
+        bearing_sector=estimate.bearing_sector,
+        bearing_confidence=reliability,
+        ambiguity_class=estimate.ambiguity_class,
+        ambiguity_reason=estimate.ambiguity_reason,
+        estimated_elevation_deg=estimate.estimated_elevation_deg,
+        candidate_elevation_deg=estimate.candidate_elevation_deg,
+    )
+
+
+def _unresolved(
+    *,
+    estimator_id: str,
+    ambiguity_class: str,
+    reason: str,
+    reliability: float,
+    threshold: float,
+) -> tuple[DoaEstimate, dict[str, object]]:
+    estimate = DoaEstimate(
+        estimated_bearing_deg=None,
+        bearing_confidence=0.0,
+        ambiguity_class=ambiguity_class,
+        ambiguity_reason=reason,
+    )
+    return estimate, {
+        "doa_estimator": estimator_id,
+        "reliability_score": reliability,
+        "minimum_reliability": threshold,
+        "resolved": False,
+    }
+
+
+def _maximum_rms(samples: np.ndarray) -> float:
+    values = np.asarray(samples, dtype=float)
+    return float(np.max(np.sqrt(np.mean(values * values, axis=1))))
+
+
+def _has_spatial_variation(samples: np.ndarray) -> bool:
+    values = np.asarray(samples, dtype=float)
+    demeaned = values - np.mean(values, axis=1, keepdims=True)
+    signal_rms = float(np.sqrt(np.mean(demeaned * demeaned)))
+    if signal_rms <= np.finfo(float).eps:
+        return False
+    spatial = demeaned - np.mean(demeaned, axis=0, keepdims=True)
+    spatial_rms = float(np.sqrt(np.mean(spatial * spatial)))
+    return spatial_rms / signal_rms > 1e-6
+
+
+def _xy_rank(positions: np.ndarray) -> int:
+    values = np.asarray(positions, dtype=float)
+    return int(np.linalg.matrix_rank(values[1:, :2] - values[0, :2]))
+
+
+def _probability(value: float, name: str) -> float:
+    number = float(value)
+    if not np.isfinite(number) or number < 0.0 or number > 1.0:
+        raise ValueError(f"{name} must be finite and in [0, 1].")
+    return number
+
+
+def _non_negative(value: float, name: str) -> float:
+    number = float(value)
+    if not np.isfinite(number) or number < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative.")
+    return number
 
 
 def _ordered_inputs(

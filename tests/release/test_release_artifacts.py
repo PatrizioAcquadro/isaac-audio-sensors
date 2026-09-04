@@ -57,7 +57,7 @@ Requires-Python: >=3.10
 Requires-Dist: auditok<0.6,>=0.5.2
 Requires-Dist: numpy>=1.26
 Provides-Extra: room
-Requires-Dist: pyroomacoustics>=0.7; extra == "room"
+Requires-Dist: pyroomacoustics<0.11,>=0.10.1; extra == "room"
 Requires-Dist: scipy>=1.11; extra == "room"
 Requires-Dist: soundfile>=0.12; extra == "room"
 """

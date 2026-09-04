@@ -23,6 +23,9 @@ from isaac_audio_sensors.core.plugins.protocols import (
     DoaEstimator,
     PropagationBackend,
 )
+from isaac_audio_sensors.core.plugins.pyroomacoustics import (
+    PyroomacousticsSrpEstimator,
+)
 
 PluginFactory = Callable[..., object]
 
@@ -323,6 +326,21 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.doa.gcc_phat",
             ),
             GccPhatLeastSquaresEstimator,
+        ),
+        (
+            PluginDeclaration(
+                plugin_id="pyroomacoustics_srp",
+                kind="doa_estimator",
+                fidelity_level=None,
+                required_dependencies=("pyroomacoustics",),
+                supported_devices=("cpu",),
+                supported_profiles=both_profiles,
+                deterministic=True,
+                output_contract=doa_contract,
+                description="PyRoomAcoustics SRP-PHAT direction candidate.",
+                provenance="isaac_audio_sensors.core.plugins.pyroomacoustics",
+            ),
+            PyroomacousticsSrpEstimator,
         ),
         (
             PluginDeclaration(

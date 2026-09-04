@@ -55,6 +55,8 @@ class DoaEstimator(Protocol):
     ``microphone_positions_m``. Geometry is array-local XYZ in metres. The
     result uses the public array-local bearing/elevation convention and the
     diagnostics mapping contains estimator-specific scalar or structured data.
+    ``DoaEstimate.bearing_confidence`` is an estimator-local reliability score,
+    not a probability or a cross-estimator calibrated quantity.
     Scene sources, schedules, private stems, and producer diagnostics are not
     part of this contract.
     """

@@ -77,8 +77,10 @@ class DoaEstimate:
     from the array's forward/right plane (positive toward array-local +Z),
     in ``[-90.0, +90.0]``. They stay ``None``/empty unless the producer can
     resolve elevation (e.g. a rank-3 microphone layout); planar arrays keep
-    the azimuth-only behavior. ``bearing_confidence`` covers the full
-    estimated direction, including elevation when present.
+    the azimuth-only behavior. ``bearing_confidence`` is an estimator-local
+    reliability score in ``[0, 1]`` covering the full estimated direction,
+    including elevation when present. It is not a probability and scores from
+    different estimators are not comparable without explicit calibration.
     """
 
     estimated_bearing_deg: float | None

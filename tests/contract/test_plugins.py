@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -16,6 +18,7 @@ from isaac_audio_sensors.core.plugins import (
     PluginDeclaration,
     PluginRegistry,
     PropagationBackend,
+    PyroomacousticsSrpEstimator,
     get_default_registry,
 )
 from isaac_audio_sensors.core.types import ActivityDecision, DoaEstimate
@@ -124,6 +127,17 @@ def test_protocols_and_canonical_signature() -> None:
         DoaEstimator,
     )
     assert isinstance(registry.resolve("doa_estimator", "srp_phat"), DoaEstimator)
+    pyroom = {
+        item.plugin_id: item for item in registry.declarations("doa_estimator")
+    }
+    assert pyroom["pyroomacoustics_srp"].required_dependencies == (
+        "pyroomacoustics",
+    )
+    if registry.availability("doa_estimator", "pyroomacoustics_srp").available:
+        assert isinstance(
+            registry.resolve("doa_estimator", "pyroomacoustics_srp"),
+            DoaEstimator,
+        )
 
 
 @pytest.mark.parametrize("estimator_id", ("tdoa_least_squares", "srp_phat"))
@@ -232,6 +246,7 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
         ("activity_detector", "auditok"),
         ("propagation_backend", "analytic_acoustics"),
         ("doa_estimator", "tdoa_least_squares"),
+        ("doa_estimator", "pyroomacoustics_srp"),
         ("doa_estimator", "srp_phat"),
     }
     auditok = declarations[("activity_detector", "auditok")]
@@ -263,6 +278,17 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
     }
     assert registered_backend_ids() == ("analytic_acoustics",)
     assert isinstance(get_backend("analytic_acoustics"), AnalyticAcoustics)
+
+
+def test_public_pyroom_estimator_import_is_lazy() -> None:
+    command = (
+        "import sys; "
+        "from isaac_audio_sensors.core.plugins import PyroomacousticsSrpEstimator; "
+        "assert PyroomacousticsSrpEstimator.__name__; "
+        "assert 'pyroomacoustics' not in sys.modules"
+    )
+    subprocess.run([sys.executable, "-c", command], check=True)
+    assert PyroomacousticsSrpEstimator.__name__ == "PyroomacousticsSrpEstimator"
 
 
 @pytest.mark.parametrize(

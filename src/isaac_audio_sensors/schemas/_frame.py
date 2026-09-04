@@ -212,6 +212,12 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                             "type": "number",
                                             "minimum": 0.0,
                                             "maximum": 1.0,
+                                            "description": (
+                                                "Estimator-local direction "
+                                                "reliability; not a probability "
+                                                "or cross-estimator calibrated "
+                                                "quantity."
+                                            ),
                                         },
                                         "ambiguity_class": {
                                             "type": ["string", "null"],
