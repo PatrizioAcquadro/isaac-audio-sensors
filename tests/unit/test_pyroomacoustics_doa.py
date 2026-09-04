@@ -46,6 +46,24 @@ def _plane_wave(
     )
 
 
+def _two_mic_shifted_pair(
+    shift_samples: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    sample_rate_hz = 16_000
+    spacing_m = 343.0 * 4.0 / sample_rate_hz
+    positions = np.asarray(((0.0, -spacing_m / 2.0, 0.0), (0.0, spacing_m / 2.0, 0.0)))
+    source = np.random.default_rng(42).standard_normal(4010)
+    if shift_samples >= 0:
+        samples = np.stack(
+            (source[:4000], source[shift_samples : shift_samples + 4000])
+        )
+    else:
+        samples = np.stack(
+            (source[-shift_samples : -shift_samples + 4000], source[:4000])
+        )
+    return samples, positions
+
+
 @pytest.fixture
 def planar_positions() -> np.ndarray:
     return np.asarray(
@@ -73,6 +91,7 @@ def test_pyroom_srp_resolves_planar_direction(planar_positions: np.ndarray) -> N
     assert 0.0 < estimate.bearing_confidence <= 1.0
     assert diagnostics["doa_estimator"] == "pyroomacoustics_srp"
     assert diagnostics["stft"]["snapshot_count"] == 7
+    assert diagnostics["minimum_reliability"] == 0.06
     assert diagnostics["resolved"] is True
 
 
@@ -136,9 +155,7 @@ def test_pyroom_srp_abstains_without_importing_dependency(
     positions: np.ndarray,
     ambiguity_class: str,
 ) -> None:
-    module = importlib.import_module(
-        "isaac_audio_sensors.core.plugins.pyroomacoustics"
-    )
+    module = importlib.import_module("isaac_audio_sensors.core.plugins.pyroomacoustics")
     monkeypatch.setattr(
         module.importlib,
         "import_module",
@@ -191,9 +208,7 @@ def test_pyroom_srp_reports_missing_dependency(
     monkeypatch: pytest.MonkeyPatch,
     planar_positions: np.ndarray,
 ) -> None:
-    module = importlib.import_module(
-        "isaac_audio_sensors.core.plugins.pyroomacoustics"
-    )
+    module = importlib.import_module("isaac_audio_sensors.core.plugins.pyroomacoustics")
     real_import = module.importlib.import_module
 
     def _missing(name: str):
@@ -253,3 +268,84 @@ def test_least_squares_threshold_preserves_candidate(
     assert estimate.candidate_bearing_deg
     assert estimate.ambiguity_class == "low_information"
     assert diagnostics["gcc_phat_pair_strength"] > 0.0
+
+
+@pytest.mark.parametrize(
+    ("shift_samples", "expected_candidates"),
+    (
+        (0, (0.0, 180.0)),
+        (2, (30.0, 150.0)),
+        (-2, (210.0, 330.0)),
+    ),
+)
+def test_two_mic_adapter_preserves_ambiguous_candidates(
+    shift_samples: int,
+    expected_candidates: tuple[float, float],
+) -> None:
+    samples, positions = _two_mic_shifted_pair(shift_samples)
+
+    estimate, diagnostics = GccPhatLeastSquaresEstimator().estimate(
+        samples,
+        positions,
+        16_000,
+    )
+
+    assert estimate.candidate_bearing_deg == pytest.approx(expected_candidates)
+    assert estimate.estimated_bearing_deg is None
+    assert estimate.bearing_sector is None
+    assert estimate.bearing_confidence == 0.0
+    assert estimate.ambiguity_class == "ambiguous_front_back"
+    assert diagnostics["resolved"] is False
+
+
+@pytest.mark.parametrize(
+    ("shift_samples", "bearing", "sector"),
+    ((4, 90.0, "right"), (-4, 270.0, "left")),
+)
+def test_two_mic_adapter_preserves_physical_endpoints(
+    shift_samples: int,
+    bearing: float,
+    sector: str,
+) -> None:
+    samples, positions = _two_mic_shifted_pair(shift_samples)
+
+    estimate, _ = GccPhatLeastSquaresEstimator().estimate(
+        samples,
+        positions,
+        16_000,
+    )
+
+    assert estimate.estimated_bearing_deg == bearing
+    assert estimate.candidate_bearing_deg == (bearing,)
+    assert estimate.bearing_sector == sector
+    assert estimate.ambiguity_class is None
+
+
+def test_two_mic_adapter_is_invariant_to_channel_and_baseline_order() -> None:
+    samples, positions = _two_mic_shifted_pair(2)
+    estimator = GccPhatLeastSquaresEstimator()
+
+    forward, _ = estimator.estimate(samples, positions, 16_000)
+    reversed_order, _ = estimator.estimate(samples[::-1], positions[::-1], 16_000)
+
+    assert reversed_order.candidate_bearing_deg == pytest.approx(
+        forward.candidate_bearing_deg
+    )
+    assert reversed_order.estimated_bearing_deg is None
+    assert reversed_order.bearing_sector is None
+    assert reversed_order.bearing_confidence == 0.0
+
+
+def test_two_mic_adapter_silence_remains_low_information() -> None:
+    _, positions = _two_mic_shifted_pair(0)
+
+    estimate, diagnostics = GccPhatLeastSquaresEstimator().estimate(
+        np.zeros((2, 4000)),
+        positions,
+        16_000,
+    )
+
+    assert estimate.estimated_bearing_deg is None
+    assert not estimate.candidate_bearing_deg
+    assert estimate.ambiguity_class == "low_information"
+    assert diagnostics["resolved"] is False

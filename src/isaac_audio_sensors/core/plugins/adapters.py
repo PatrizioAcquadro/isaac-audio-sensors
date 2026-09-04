@@ -54,7 +54,7 @@ class GccPhatLeastSquaresEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        if not _has_spatial_variation(samples):
+        if np.asarray(samples).shape[0] > 2 and not _has_spatial_variation(samples):
             return _unresolved(
                 estimator_id="tdoa_least_squares",
                 ambiguity_class="unobservable_azimuth",

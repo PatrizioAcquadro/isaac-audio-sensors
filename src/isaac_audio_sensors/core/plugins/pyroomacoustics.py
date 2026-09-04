@@ -37,7 +37,7 @@ class PyroomacousticsSrpEstimator:
         frequency_range_hz: tuple[float, float] = (300.0, 6000.0),
         azimuth_step_deg: float = 2.0,
         elevation_step_deg: float = 5.0,
-        minimum_reliability: float = 0.034,
+        minimum_reliability: float = 0.06,
         minimum_rms: float = 1e-8,
     ) -> None:
         self.speed_of_sound_mps = _positive(
