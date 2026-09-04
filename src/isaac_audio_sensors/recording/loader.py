@@ -345,6 +345,20 @@ class SessionDataset:
                     f"timestamps_ms length {len(episode.timestamps_ms)} != {count} "
                     f"at frame {episode.start_frame}."
                 )
+            reset_indices = set()
+            for reset in episode.reset_markers:
+                offset = reset.frame_index - episode.start_frame
+                if reset.frame_index in reset_indices:
+                    raise DatasetLayoutError(
+                        f"episode {episode.episode_id}: duplicate reset at "
+                        f"frame {reset.frame_index}."
+                    )
+                if reset.timestamp_ms != episode.timestamps_ms[offset]:
+                    raise DatasetLayoutError(
+                        f"episode {episode.episode_id}: reset timestamp mismatch "
+                        f"at frame {reset.frame_index}."
+                    )
+                reset_indices.add(reset.frame_index)
             expected_episode_start = episode.end_frame + 1
 
         expected_index = 0
@@ -468,6 +482,17 @@ class SessionDataset:
                                 f"{location}.frame: cannot reconstruct "
                                 f"AudioSensorFrame: {exc}"
                             ) from exc
+                        if frame.sample_rate_hz != self.manifest.sample_rate_hz:
+                            raise DatasetLayoutError(
+                                f"{location}: frame sample_rate_hz "
+                                "disagrees with manifest."
+                            )
+                        if set(frame.channel_validity) != set(
+                            self.manifest.channel_order
+                        ):
+                            raise DatasetLayoutError(
+                                f"{location}: frame channel IDs disagree with manifest."
+                            )
                         yield LoadedFrame(
                             dataset_frame_index=expected_index,
                             episode_id=record.episode_id,
@@ -608,6 +633,15 @@ def _read_configuration(root: Path, manifest: AudioDatasetManifest) -> dict[str,
         raise DatasetLayoutError(
             f"{location}: unsupported runtime profile for dataset layout v1."
         )
+    expected = {
+        "dataset_id": manifest.dataset_id,
+        "sample_rate_hz": manifest.sample_rate_hz,
+        "channel_order": list(manifest.channel_order),
+        "dtype": manifest.dtype,
+    }
+    for name, value in expected.items():
+        if payload.get(name) != value:
+            raise DatasetLayoutError(f"{location}: {name} disagrees with manifest.")
     if payload.get("session_id", payload.get("dataset_id")) != manifest.session_id:
         raise DatasetLayoutError(f"{location}: session_id disagrees with manifest.")
     return payload

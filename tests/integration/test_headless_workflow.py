@@ -61,7 +61,7 @@ def _frame(index: int) -> AudioSensorFrame:
         frame_id=f"guided_frame_{index:03d}",
         producer_id="analytic_acoustics",
         array_id="minimal_array",
-        channel_validity={"center": True},
+        channel_validity={"left": True, "right": True},
         start_time_s=index / 100.0,
         end_time_s=index / 100.0 + 0.001,
         sample_rate_hz=8_000,
@@ -77,7 +77,7 @@ def _frame(index: int) -> AudioSensorFrame:
                 ),
             )
         ),
-        aggregate_per_mic_rms={"center": 0.5},
+        aggregate_per_mic_rms={"left": 0.5, "right": 0.5},
         diagnostics={"window_sample_count": 8},
     )
 

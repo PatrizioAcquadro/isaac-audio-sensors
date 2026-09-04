@@ -2,6 +2,11 @@
 
 from isaac_audio_sensors.recording._records import DatasetLayoutError
 from isaac_audio_sensors.recording.flac import export_session_flac
+from isaac_audio_sensors.recording.learning import (
+    LearningDataset,
+    LearningSample,
+    collate_learning_samples,
+)
 from isaac_audio_sensors.recording.loader import LoadedFrame, SessionDataset
 from isaac_audio_sensors.recording.manifest import (
     AudioDatasetManifest,
@@ -47,6 +52,8 @@ __all__ = [
     "DeviceProvenance",
     "Finding",
     "FrameTruth",
+    "LearningDataset",
+    "LearningSample",
     "LoadedFrame",
     "ReplayEvent",
     "SessionDataset",
@@ -58,6 +65,7 @@ __all__ = [
     "ValidationReport",
     "apply_split_plan",
     "build_split_plan",
+    "collate_learning_samples",
     "export_session_flac",
     "manifest_from_dict",
     "manifest_to_dict",

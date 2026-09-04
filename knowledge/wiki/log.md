@@ -822,3 +822,27 @@ checks pass after documentation synchronization. The seven-frame reference
 session validates without warnings, and every shard payload and marker is
 byte-identical to the baseline. Ruff, whitespace, wiki links, and index coverage
 pass. No GPU workload is involved in this data-contract milestone.
+
+## 2026-09-04 — update: Subphase 05.2 learning boundary closeout
+
+Implemented checked streaming learning samples with explicit observed-only
+NumPy inputs, opt-in supervision, masks and collation, and transitive corpus
+splits. Reused the existing frame-weighted allocation algorithm and tightened
+shared reset alignment checks. Added the generated-signal recording/split/batch
+example and synchronized canonical contracts, phase, status, index, and usage.
+No training, temporal sequence builder, or Isaac Lab tensor projection is added.
+
+## 2026-09-04 — lint: Subphase 05.2 closeout
+
+The final host gate passes 580 unit/contract, 274 integration, and 58 release
+tests. Learning tests cover observed-only invariance, missing/empty supervision,
+ragged collation, authoritative truncated shard ranges, gaps, resets, both FLAC
+PCM formats, duplicate inputs, missing identities, and transitive isolation.
+Final review added frame/configuration/audio alignment checks and corrected a
+headless test fixture that emitted mono frames under a stereo preset.
+The reference session validates with seven frames and no warnings; every shard
+payload and marker is byte-identical to d49629f. Optional audio passes with
+PyRoom 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The maintained example produces
+a (3, 2, 4800) float32 policy waveform batch with separate supervision.
+Ruff, whitespace, wiki links/index coverage, documentation checks, and raw
+preservation pass. No new GPU, live Isaac, training, or downstream claim is made.

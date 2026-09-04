@@ -98,7 +98,7 @@ Manifest v3 adds stable acquisition `session_id`, defaulted from the initial `da
 
 The recording subsystem writes a finalized session with a root manifest, canonical session configuration, deterministic shard directories, frame records, audio payloads when enabled, and completion markers that bind promoted shard content.
 
-The public recording surface contains the manifest/provenance models, `AppendFrameResult`, `LoadedFrame`, `ReplayEvent`, split/statistics/validation reports, `SessionRecorder`, `SessionDataset`, replay, validation, FLAC export, manifest IO, and split-plan services. `DatasetLayoutError`, `DatasetSplitError`, and `SessionRecorderError` are the public failures; writer, checkpoint, carry, marker, planner, and filesystem details are internal.
+The public recording surface contains the learning sample/dataset/collation APIs, manifest/provenance models, `AppendFrameResult`, `LoadedFrame`, `ReplayEvent`, split/statistics/validation reports, `SessionRecorder`, `SessionDataset`, replay, validation, FLAC export, manifest IO, and split-plan services. `DatasetLayoutError`, `DatasetSplitError`, and `SessionRecorderError` are the public failures; writer, checkpoint, carry, marker, planner, and filesystem details are internal.
 
 `SessionRecorder.append_frame()` accepts one `AudioSensorFrame` and a `MicrophoneSignalBlock | None`, uses the frame timestamp for automatic time-gap diagnostics, and accepts keyword-only `is_reset=False`, `truth=None`, and `annotations=()`. Truth and annotation references are validated before frame state advances; invalid inputs follow existing drop accounting. The recorder verifies array, producer, sample rate, window, frame index, microphone order, channel validity, and session configuration before consuming the immutable samples. It does not require equal frame/block provenance because an Isaac-owned `isaac_live` frame may derive from an analytic producer block. `None` remains valid for metadata-only sessions, and hop/overlap carry remains recorder-owned. `cancel()` finalizes an incomplete session; class methods own resume and finalization recovery.
 
@@ -106,11 +106,34 @@ Every canonical `ias.dataset_frame_record.v2` row contains its dataset/episode i
 
 Durable staging and atomic promotion prevent a partial write from appearing as a completed shard. Manifest and split-plan writes are atomic, and manifest input must already match the canonical v3 representation rather than relying on type coercion.
 
-`SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, and optional checksums before exposing records. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
+`SessionDataset` verifies lifecycle, manifest/configuration agreement, completion markers, record order, audio joins, frame sample rate/channel IDs, exact reset alignment, and optional checksums before exposing records. The recorder also rejects channel-ID mismatches in metadata-only captures before advancing accepted frame state. Corrupt or incomplete shards are not silently treated as valid data, and layout failures carry stable code, location, and detail fields.
 
 Validation checks manifest/schema consistency, shard tiling and lifecycle, frame records, split-group isolation, waveform finiteness when requested, and preserved time-gap accounting.
 
 Deterministic split planning keeps one split group together, statistics stream verified records, FLAC export is optional, and replay is ordered and read-only.
+
+## Learning Samples
+
+Open complete artifact roots with `LearningDataset.open([root_a, root_b])`. Input paths and artifact `dataset_id` values must be unique; transformed artifacts may share acquisition `session_id`. Iteration preserves supplied artifact order and frame order. `iter_samples(with_audio=True, with_supervision=False, split=None)` yields `LearningSample(policy_inputs, frame, truth, annotations, context)`. Supervision is opt-in and never changes policy inputs. Frame metadata, IDs, poses, provenance, and free-form diagnostics stay outside the policy projection.
+
+Policy arrays use float32 numerical values and boolean masks. Let C be channels, T the referenced audio length, O observations, and K the maximum candidate count for the corresponding angle axis within the sample:
+
+| Fields | Sample shape | Meaning |
+| --- | --- | --- |
+| `waveform`, `audio_mask` | `(C, T)`, `(T,)` | Full-scale audio and stored-sample presence; waveform is `None` when absent or disabled. |
+| `channel_validity` | `(C,)` | Recorded microphone validity, independent of padding. |
+| `rms`, `rms_mask` | `(C,)` | Observed RMS and value availability in manifest channel order. |
+| `observation_mask` | `(O,)` | Real observations rather than batch padding. |
+| `detection_score`, `bearing_deg`, `elevation_deg`, `bearing_confidence`, and each corresponding `_mask` | `(O,)` | Observed estimates; unavailable scalars use zero with a false mask. |
+| `candidate_bearing_deg`, `candidate_elevation_deg`, and each corresponding `_mask` | `(O, K)` | Candidate angles with separate bearing/elevation axes; no candidate pairing is invented. |
+
+`context` carries `dataset_id`, `session_id`, `episode_id`, `dataset_frame_index`, `audio_reference=(shard_id, start_sample, end_sample)`, `sample_rate_hz`, `channel_order`, `episode_start`, and `is_reset`. A reset may occur inside an episode; these flags are not interchangeable. The authoritative half-open audio range can be shorter than the nominal frame window at a shard boundary. Missing audio has zero audio-mask length and is distinct from recorded silence. PCM16 and left-aligned PCM24 are converted to float32 full-scale amplitude; WAV amplitude is unchanged.
+
+`collate_learning_samples(samples)` adds a leading batch dimension and pads variable axes with zero/false, without truncation. It rejects empty batches and mismatched sample rates/channel orders. With no audio in any sample, batch waveform remains `None`; otherwise absent audio rows are masked padding. It returns `policy_inputs` separately from ordered `frames`, `truth`, `annotations`, and `context` tuples. Ground truth remains ragged and independent of observation counts. Policy arrays and mappings are read-only; no additional waveform is serialized.
+
+`build_split(ratios=..., seed=..., isolate_by=("scene", "trajectory", "asset"), kind="train_validation_test")` returns read-only artifact-ID assignments and installs them for `iter_samples(split=...)`. `fit_holdout` uses the existing fit/holdout partition convention. Sessions are always indivisible, including multiple exports of one acquisition. Shared selected identities connect sessions transitively. Missing selected identities and impossible partitions fail; ratios are frame-weighted targets and may not be exactly attainable. A failed split request clears any earlier assignment. These corpus assignments do not modify existing per-session manifest splits or create another stored split format. Identity semantics and scope are owned by [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]].
+
+The maintained `examples/core/learning_samples.py` example records generated signals in temporary sessions, splits the corpus, and collates a supervised batch. Only `batch["policy_inputs"]` is intended for the policy.
 
 ## Calibration Profiles
 
@@ -130,7 +153,7 @@ Package `3.0.0` is a breaking directivity, gain-consistency, signal-producer, an
 
 Migrate source directivity to `AudioSourceSpec.directivity`, microphone directivity to `MicrophoneSpec.directivity`, and Isaac Lab custom microphone geometry to `EntityBindingCfg.microphones`. Construct `SourceOcclusion` from its required per-microphone maps and optional band rows; removed aggregate, model, hit-path, and material fields have no aliases. Rename Isaac fallback configuration to `unknown_material_loss_db` and remove any total-loss cap argument. Propagation plugins implement `propagate(scene, array_id, time_window)` and return `MicrophoneSignalBlock`; scene-to-frame consumers compose `core.simulation.simulate_frame()` with an explicit perception pipeline. Waveform sinks implement `write_signal_block(*, frame_id, block)`, and dataset recorders receive the block directly. Bind Lab reference mode with `array_ids` instead of `array_specs`. Replace legacy backend choices with `analytic_acoustics`, move solver options to `[audio.analytic_acoustics]`, and choose the estimator separately. Remove `[audio.effects.directivity]` rather than translating it. Former directivity `frequency_points` have no automatic migration; move a still-required microphone response manually to `audio.effects.channel_response.<mic>.frequency_response`.
 
-The frame schema is v3 because Plan 02.2 intentionally replaced backend-owned detections with perception-owned observations and channel validity. Subphase 05.1 changes dataset-manifest and dataset-frame-record schemas to v2, replacing `SourceTruth` and `EpisodeRecord.source_truth` with per-frame supervision. Old dataset versions and the old truth field are rejected without compatibility readers. Calibration remains v1 and dataset records embed the current v3 frame. The package does not retain aliases or parallel runtime paths for `AudioDetection`, detection fields, frame v1/v2, removed Python/configuration surfaces, four legacy propagation backends, the backend sensor-object argument, or Lab `array_specs` reference binding.
+The frame schema is v3 because Plan 02.2 intentionally replaced backend-owned detections with perception-owned observations and channel validity. Subphase 05.1 introduced dataset-manifest and dataset-frame-record schemas v2, replacing `SourceTruth` and `EpisodeRecord.source_truth` with per-frame supervision. Subphase 05.2 advances the manifest to v3 for learning identities while keeping frame-record v2. Earlier manifest versions and the old truth field are rejected without compatibility readers. Calibration remains v1 and dataset records embed the current v3 frame. The package does not retain aliases or parallel runtime paths for `AudioDetection`, detection fields, frame v1/v2, removed Python/configuration surfaces, four legacy propagation backends, the backend sensor-object argument, or Lab `array_specs` reference binding.
 
 Stable serialized v3 frame fields, units, provenance, coordinate meaning, ambiguity representation, producer identifiers, sector mapping, and named diagnostic namespaces cannot be removed or redefined in a compatible release. This serialized compatibility does not require preserving an old identifier as a runtime selection surface.
 

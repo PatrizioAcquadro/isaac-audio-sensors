@@ -1,6 +1,6 @@
 # Implementation Plan 05 — Ground Truth and Learning Datasets
 
-Status: Subphase 05.1 implemented. Subphase 05.2 recording identities implemented; learning adapter and corpus splits remain in progress. Subphase 05.3 remains planned.
+Status: Subphases 05.1 and 05.2 implemented. Subphase 05.3 remains planned.
 
 ## Objective
 
@@ -42,24 +42,30 @@ Simulation truth describes only the implemented producer model. Geometry describ
 
 #### Implementation
 
-Recording identities are implemented in manifest v3. `session_id` identifies the acquisition independently of artifact `dataset_id`; the recorder accepts it through configuration and defaults to `dataset_id`. FLAC exports preserve the acquisition identity even when the artifact ID changes. `begin_episode()` accepts optional `trajectory_id` and `source_asset_ids`, persisted through recorder state v2, crash resume, and finalization recovery. An unknown asset inventory is null; a known empty inventory is an empty array. These are caller-declared identities, not inferred from truth, paths, or seed. Frame-record v2, observed frame v3, and package 3.0.0 are unchanged. Older manifests and recorder states are rejected.
+`recording.LearningDataset.open()` composes checked `SessionDataset` readers for a corpus of complete artifacts. `iter_samples()` preserves caller session order and recorded frame order. Each `LearningSample` separates numerical `policy_inputs`, the complete `AudioSensorFrame`, optional truth and annotations, and alignment context. Supervision is exposed only with `with_supervision=True`; `with_audio=False` avoids waveform decoding. Context retains dataset/session/episode identities, dataset frame index, authoritative shard sample bounds, sample rate, channel order, episode start, and explicit reset. The shared loader rejects duplicate or incorrectly timed resets, frame sample-rate/channel mismatches, and disagreement between manifest and capture configuration before exposing records. The recorder rejects mismatched channel IDs even when no waveform is supplied.
 
-The remaining learning adapter work follows this boundary:
+The policy projection selects waveform, channel validity, observed RMS, detection scores, and estimated/candidate DOA angles and confidence. Poses, IDs, provenance, free-form diagnostics, truth, and annotations never enter this projection. Waveform reads use the existing half-open shard reference, including shorter references at shard boundaries. WAV stays float32; PCM16 and left-aligned PCM24 decode to float32 full-scale amplitude without peak normalization. Missing audio remains unavailable rather than silent, and decoded non-finite audio is rejected.
 
-Define one learning sample from separable observed waveform or features, `AudioSensorFrame`, and optional truth or annotation records. Loaders expose privileged inputs explicitly rather than silently joining them into policy observations.
+`collate_learning_samples()` pads individual frames without truncation. Boolean masks preserve audio lengths, observation counts, candidate counts, and unavailable scalar features independently of microphone validity. Candidate bearing and elevation axes remain independent. Frame metadata, truth, and annotations stay in separate ordered tuples; observation and truth cardinalities are never matched. Mixed sample rates or channel orders fail rather than triggering implicit conversion. These rules belong to the learning adapter; serialized observations do not change. The exact NumPy fields and shapes are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]].
 
-Preserve atomic alignment across audio, frame metadata, observations, reset markers, and truth. Splits prevent appropriate scene, trajectory, asset, and session leakage. Variable-length records use masks or collation in the learning adapter, not the serialized observation.
+Manifest v3 adds stable acquisition `session_id`, independent of artifact `dataset_id`. The recorder accepts it in configuration and defaults to the initial dataset ID; exports preserve it. `begin_episode()` accepts optional `trajectory_id` and `source_asset_ids`, persisted through recorder state v2, crash resume, and finalization recovery. Unknown asset inventory is null; known empty inventory is an empty array. These are caller-declared global identities, not inferred from truth, paths, poses, or seed. Previous manifest and recorder-state versions are rejected without compatibility readers; frame-record v2, frame v3, and package 3.0.0 remain unchanged. Required schemas, examples, release references, and the fixture manifest are migrated; fixture audio, frame records, and markers are byte-identical to the 05.1 baseline.
+
+`LearningDataset.build_split()` accepts explicit ratios and seed, installs an in-memory corpus assignment, and returns artifact IDs per partition. `iter_samples(split=...)` uses this assignment without rewriting manifest splits. Artifacts sharing a session always stay together. By default, shared scenes, trajectories, and source assets also connect acquisitions transitively; `isolate_by` explicitly selects optional isolation axes. Missing selected identities, duplicate artifacts, and insufficient independent groups fail with actionable errors. A failed request clears the previous assignment. Canonical records are checked before accepting an assignment. Whole connected groups are assigned to frame-weighted targets using the existing deterministic allocation algorithm; input path order, ratio mapping order, and isolation-axis order do not affect the result. Existing single-session split APIs retain their distinct physical-shard role and reuse that allocation helper.
 
 #### Key Decisions
 
-- Policy inputs and supervision are separate outputs.
-- Ground truth is optional at deployment.
-- Frames reference rather than duplicate waveform arrays.
-- Dataset integrity and semantic non-leakage are both required.
+- Only `policy_inputs` is intended for policy consumption; full frames and supervision remain explicit separate outputs.
+- Keep samples and batches NumPy-only, with no new dependency or persisted waveform copy.
+- Preserve acquisition identity across artifact transformations, including FLAC export.
+- Declare grouping identities during recording. Reusing a sound under a different ID does not make it independent.
+- Always isolate sessions; relax optional scene/trajectory/asset constraints only through explicit experiment-owned choices.
+- Pad single-frame records only; temporal sequence construction and target matching remain consumer-owned.
 
 #### Problems / Limitations
 
-Batching rules depend on the learning consumer and do not belong in the generic observation contract.
+Isolation guarantees apply to declared identities. The SDK cannot discover undisclosed asset reuse or infer trajectory identity. Existing producers that omit trajectory/asset metadata can still record and load samples, but strict corpus splitting requires those identities or explicit axis exclusion. Connected groups may prevent requested partitions or make achieved frame ratios differ from targets; no constraint is silently weakened. Acoustically equivalent assets with different declared IDs remain the producer's responsibility.
+
+The full frame can contain pose and arbitrary diagnostics and is not itself a policy-safe tensor. NumPy arrays are exposed read-only to avoid accidental edits; this is an API boundary, not a security sandbox. No PyTorch adapter, temporal sequence builder, automatic Kit/Lab truth capture, new learning model, or Phase 07 tensor projection is introduced.
 
 ## Subphase 05.3 — Dataset Migration and Cleanup
 
@@ -78,10 +84,10 @@ Check packaged schemas, replay, and in-scope consumers before removal.
 
 ## Artifacts
 
-Implemented artifacts are dataset truth and annotation contracts, a single-render analytic composition, atomic frame-record v2 persistence, and manifest v2 resources/examples. Matching remains evaluator-owned; no matching implementation or learning sample is introduced.
+Implemented artifacts are dataset truth and annotation contracts, a single-render analytic composition, atomic frame-record v2 persistence, and current manifest v3 resources/examples. Subphase 05.2 adds NumPy learning samples/collation, corpus splitting, acquisition identities, and a temporary end-to-end example at `examples/core/learning_samples.py`. Matching remains evaluator-owned.
 
 Focused tests cover empty/inactive/silent/partial/multiple sources, propagation outside the captured window, rotated and coincident geometry, motion semantics, occlusion/reflections, noise and nonlinear electronics, actual PyRoom shoebox/prism routes, immutable supervision, canonical round-trips, invalid alignment, resets, shard boundaries, metadata-only sessions, time gaps, crash/finalization recovery, replay, and FLAC preservation. Final gate results are recorded in the closeout log.
 
 ## Files
 
-Main implementation: `src/isaac_audio_sensors/recording/truth.py`, `src/isaac_audio_sensors/recording/simulation.py`, and `src/isaac_audio_sensors/recording/recorder.py`. Frame-record parsing and loading remain in the same recording subsystem; manifest v2 generation remains in the schemas subsystem. Contracts and usage are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]].
+Main implementation: `src/isaac_audio_sensors/recording/truth.py`, `src/isaac_audio_sensors/recording/simulation.py`, `src/isaac_audio_sensors/recording/recorder.py`, and `src/isaac_audio_sensors/recording/learning.py`; corpus grouping is internal to the same recording subsystem. Frame-record parsing and loading remain in the same recording subsystem; manifest v3 generation remains in the schemas subsystem. Contracts and usage are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]].

@@ -234,7 +234,16 @@ The migrated fixture validates with three episodes, two shards, seven frames,
 and unchanged audio bytes. No new Isaac/GPU or downstream validation claim
 is made for this dataset-only subphase.
 
-Subphase 05.2 recording identities now use manifest v3 and recorder state v2: stable acquisition `session_id`, optional episode trajectory and source-asset identities, and preservation through recovery and FLAC export. Learning samples and corpus splits are still in progress.
+## Subphase 05.2 — Learning Sample Boundary
+
+Completed explicit NumPy policy inputs, optional supervision, single-frame
+collation/masks, and corpus splits with transitive session/scene/trajectory/asset
+isolation. Manifest v3 and recorder state v2 preserve acquisition identities
+through recovery and FLAC export; frame-record v2 and observed frame v3 remain
+unchanged. The maintained generated-signal example produces a `(3, 2, 4800)`
+batch with supervision separate from policy inputs. The host gate passes 580
+unit/contract, 274 integration, and 58 release tests. Split guarantees depend on
+correct declared identities; temporal sequences and Phase 07 remain out of scope.
 
 ## Maintained Commands
 
@@ -268,7 +277,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and Subphase 05.1 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next are 05.2 learning samples and 05.3 remaining dataset consumer migration/cleanup, followed by signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.2 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Next is 05.3 remaining dataset consumer migration/cleanup, followed by signal parity, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

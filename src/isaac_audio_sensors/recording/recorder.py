@@ -559,6 +559,8 @@ class SessionRecorder:
                 raise ValueError("frame.producer_id disagrees with configuration")
             if payload.get("sample_rate_hz") not in (None, self.sample_rate_hz):
                 raise ValueError("frame.sample_rate_hz disagrees with configuration")
+            if set(frame.channel_validity) != set(self.configuration["channel_order"]):
+                raise ValueError("frame.channel_validity disagrees with configuration")
             episode = self._current_episode
             assert episode is not None
             if (

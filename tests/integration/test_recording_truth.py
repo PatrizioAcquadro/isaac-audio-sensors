@@ -16,6 +16,7 @@ from isaac_audio_sensors.recording import (
     AnnotationRecord,
     DatasetLayoutError,
     FrameTruth,
+    LearningDataset,
     SessionDataset,
     SessionRecorder,
     TruthEvent,
@@ -217,6 +218,10 @@ os._exit(0)
     records = list(SessionDataset.open(root).iter_records())
     assert [(item.truth, item.annotations) for item in records] == [
         supervision(_frame(index, index), index) for index in range(6)
+    ]
+    learned = list(LearningDataset.open([root]).iter_samples(with_supervision=True))
+    assert [(s.truth, s.annotations) for s in learned] == [
+        (r.truth, r.annotations) for r in records
     ]
     assert validate_dataset(root).status == "passed"
 

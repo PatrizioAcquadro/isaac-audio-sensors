@@ -79,7 +79,13 @@ Run the optional room recipe with the Isaac Lab interpreter or another environme
 python examples/core/room_acoustics_demo.py
 ```
 
-The Core examples use generated audio identifiers, write no persistent output, and require no private recordings.
+Record generated signals, split acquisitions, and collate a supervised NumPy batch:
+
+```bash
+python examples/core/learning_samples.py
+```
+
+The Core examples use generated audio identifiers, write no persistent output, and require no private recordings. The learning example creates and removes temporary sessions. See [[topics/public-contracts-and-recording|Public Contracts and Recording]] for policy inputs, masks, and split identity requirements.
 
 Isaac examples under `examples/isaac_sim/` and `examples/isaac_lab/` are concise recipes for initialized compatible runtimes. The end-to-end GPU workflows remain under `tools/smoke/` and are invoked through the maintained commands below.
 

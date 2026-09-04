@@ -217,7 +217,6 @@ def build_split_plan(
             f"many groups, but only {len(weights)} grouping values are available."
         )
 
-    targets = _largest_remainder_targets(normalized_ratios, sum(weights.values()))
     ordered_groups = sorted(
         sorted(weights),
         key=lambda group_id: (
@@ -225,25 +224,7 @@ def build_split_plan(
             group_id,
         ),
     )
-    partition_order = tuple(
-        name for name in _PARTITIONS[kind] if name in normalized_ratios
-    )
-    assigned_weights = {name: 0 for name in partition_order}
-    assigned_groups: dict[str, list[str]] = {name: [] for name in partition_order}
-    for index, group_id in enumerate(ordered_groups):
-        empty = tuple(name for name in partition_order if not assigned_groups[name])
-        groups_remaining = len(ordered_groups) - index
-        candidates = empty if groups_remaining == len(empty) else partition_order
-        partition = max(
-            candidates,
-            key=lambda name: (
-                targets[name] - assigned_weights[name],
-                normalized_ratios[name],
-                -partition_order.index(name),
-            ),
-        )
-        assigned_groups[partition].append(group_id)
-        assigned_weights[partition] += weights[group_id]
+    assignments = _assign_groups(weights, normalized_ratios, ordered_groups)
 
     plan = SplitPlan(
         dataset_id=manifest.dataset_id,
@@ -251,10 +232,7 @@ def build_split_plan(
         kind=kind,
         seed=seed,
         ratios=normalized_ratios,
-        assignments={
-            name: tuple(sorted(group_ids))
-            for name, group_ids in assigned_groups.items()
-        },
+        assignments=assignments,
         group_weights=weights,
         manifest_configuration_sha256=manifest.configuration_sha256,
     )
@@ -430,6 +408,35 @@ def _validated_ratios(kind: SplitKind, ratios: Mapping[str, float]) -> dict[str,
             "split request field ratios: positive ratios must sum to 1.0 within 1e-9."
         )
     return normalized
+
+
+def _assign_groups(
+    weights: Mapping[str, int],
+    ratios: Mapping[str, float],
+    ordered_groups: list[str],
+) -> dict[str, tuple[str, ...]]:
+    """Assign indivisible groups to frame-weighted targets in supplied order."""
+
+    targets = _largest_remainder_targets(ratios, sum(weights.values()))
+    partition_order = tuple(ratios)
+    assigned_weights = {name: 0 for name in partition_order}
+    assigned_groups: dict[str, list[str]] = {name: [] for name in partition_order}
+    for index, group_id in enumerate(ordered_groups):
+        empty = tuple(name for name in partition_order if not assigned_groups[name])
+        groups_remaining = len(ordered_groups) - index
+        candidates = empty if groups_remaining == len(empty) else partition_order
+        partition = max(
+            candidates,
+            key=lambda name: (
+                targets[name] - assigned_weights[name],
+                ratios[name],
+                -partition_order.index(name),
+            ),
+        )
+        assigned_groups[partition].append(group_id)
+        assigned_weights[partition] += weights[group_id]
+
+    return {name: tuple(sorted(groups)) for name, groups in assigned_groups.items()}
 
 
 def _validated_assignments(
