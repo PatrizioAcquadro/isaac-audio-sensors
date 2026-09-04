@@ -55,7 +55,12 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(trace_lines) == 1
     summary = json.loads(config_path.read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "ias.omni_extension_binding.v5"
+    assert summary["schema_version"] == "ias.omni_extension_binding.v6"
+    assert summary["activity_detection"] == {
+        "detector_id": "auditok",
+        "energy_threshold_dbfs": -60.0,
+    }
+    assert imported.state.energy_threshold_dbfs == -60.0
     assert summary["environment"]["mode"] == "manual_free_field"
     assert summary["environment"]["resolved"]["kind"] == "free_field"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
@@ -82,6 +87,41 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert imported.state.analytic_max_order == 0
 
 
+def test_extension_controller_emits_signal_activity_after_causal_warmup(tmp_path):
+    stage = _FakeStage(
+        (_FakePrim("/World", "Xform", {"xformOp:translate": (0, 0, 0)}),)
+    )
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    controller.state.environment_resolution_mode = "manual_free_field"
+    controller.state.jsonl_trace_path = str(tmp_path / "activity.frames.jsonl")
+
+    assert controller.author_array(stage=stage) is not None
+    assert controller.author_source(stage=stage) is not None
+    assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+
+    warmup = controller.update_sensor()
+    active = controller.update_sensor()
+
+    assert warmup is not None
+    assert warmup.observations == ()
+    assert active is not None
+    assert len(active.observations) == 1
+    observation = active.observations[0]
+    assert observation.origin.value == "signal_derived"
+    assert observation.detector_id == "auditok"
+    assert observation.detection_score is None
+    assert observation.doa is None
+    assert observation.diagnostics["activity_detector"]["threshold_dbfs"] == -60.0
+    assert controller.state.latest_observation_count == 1
+    assert controller.state.observation_history[-1]["detector_id"] == "auditok"
+    records = [
+        json.loads(line)
+        for line in (tmp_path / "activity.frames.jsonl").read_text().splitlines()
+    ]
+    assert records[-1]["observations"][0]["origin"] == "signal_derived"
+    assert records[-1]["observations"][0]["detector_id"] == "auditok"
 def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     monkeypatch,
     tmp_path,

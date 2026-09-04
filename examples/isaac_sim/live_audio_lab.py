@@ -52,4 +52,5 @@ def build_discovered_sensor(stage) -> IsaacAudioArraySensor:
             required_arrays=True,
             required_sources=True,
         ),
+        energy_threshold_dbfs=-60.0,
     )

@@ -11,6 +11,15 @@ from isaac_audio_sensors.kit.state import CurrentStageContext
 from tests.kit_helpers import _FakePrim, _FakeStage
 
 
+def _assert_auditok_activity(frame) -> None:
+    assert len(frame.observations) == 1
+    observation = frame.observations[0]
+    assert observation.origin.value == "signal_derived"
+    assert observation.detector_id == "auditok"
+    assert observation.detection_score is None
+    assert observation.doa is None
+
+
 def test_non_omni_sound_profile_requires_orientation_before_mutation() -> None:
     stage = _FakeStage(
         (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
@@ -234,7 +243,8 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
 
     assert first_frame is not None
     assert moved_frame is not None
-    assert first_frame.observations == moved_frame.observations == ()
+    assert first_frame.observations == ()
+    _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert source.attributes["ias:source_id"] == "oven_source"
     assert controller.state.latest_source_prim_path is None
@@ -295,12 +305,12 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     assert controller.apply_source_position_preset("right", stage=stage) is not None
     right_frame = controller.update_sensor()
     assert right_frame is not None
-    assert right_frame.observations == ()
+    _assert_auditok_activity(right_frame)
 
     source.attributes["xformOp:translate"] = (0.0, -2.0, 0.0)
     moved_frame = controller.update_sensor()
     assert moved_frame is not None
-    assert moved_frame.observations == ()
+    _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != right_frame.aggregate_per_mic_rms
     assert source.attributes["xformOp:translate"] == (0.0, -2.0, 0.0)
     assert controller.state.latest_source_position_m is None
@@ -356,7 +366,8 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
 
     assert first_frame is not None
     assert moved_frame is not None
-    assert first_frame.observations == moved_frame.observations == ()
+    assert first_frame.observations == ()
+    _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert controller.state.latest_source_prim_path is None
     assert controller.state.latest_source_position_m is None
@@ -374,7 +385,7 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     oven.attributes["xformOp:translate"] = (5.0, 0.0, 0.0)
     after_detach_frame = controller.update_sensor()
     assert after_detach_frame is not None
-    assert after_detach_frame.observations == ()
+    _assert_auditok_activity(after_detach_frame)
     assert detached_source.attributes["xformOp:translate"] == (0.0, 2.0, 0.0)
 
 
@@ -424,7 +435,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
 
     rotated_frame = controller.update_sensor()
     assert rotated_frame is not None
-    assert rotated_frame.observations == ()
+    _assert_auditok_activity(rotated_frame)
     assert rotated_frame.aggregate_per_mic_rms != front_frame.aggregate_per_mic_rms
     assert rotated_frame.array_pose is not None
     assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(expected_quat)
@@ -443,7 +454,7 @@ def test_extension_controller_array_pose_read_apply_and_drag_update(tmp_path):
     assert dragged_frame is not None
     assert dragged_frame.array_pose is not None
     assert dragged_frame.array_pose.position_m == (1.0, 1.0, 0.0)
-    assert dragged_frame.observations == ()
+    _assert_auditok_activity(dragged_frame)
     assert array_prim.attributes["ias:position_world"] == (0.0, 0.0, 0.0)
     assert controller.state.latest_array_position_m == (1.0, 1.0, 0.0)
     assert controller.state.latest_mic_world_positions["front"] == pytest.approx(
@@ -536,7 +547,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert moved_frame is not None
     assert moved_frame.array_pose is not None
     assert moved_frame.array_pose.position_m == pytest.approx((0.0, 2.0, 1.1))
-    assert moved_frame.observations == ()
+    _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert controller.state.latest_array_position_m == pytest.approx((0.0, 2.0, 1.1))
     assert controller.state.latest_mic_world_positions != first_mics
@@ -551,7 +562,7 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert rotated_frame.array_pose.orientation_xyzw == pytest.approx(
         quaternion_from_yaw_deg(90.0)
     )
-    assert rotated_frame.observations == ()
+    _assert_auditok_activity(rotated_frame)
 
     detached = controller.detach_array_from_object(stage=stage)
     assert detached is not None

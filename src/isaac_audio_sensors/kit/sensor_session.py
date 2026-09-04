@@ -88,6 +88,7 @@ class SensorSession(ControllerService):
         backend: str | None = None,
         update_period_s: float | None = None,
         max_observations: int | None = None,
+        energy_threshold_dbfs: float | None = None,
         debug_draw: bool | None = None,
         occlusion: bool | None = None,
         writer_path: str | Path | None = None,
@@ -103,6 +104,8 @@ class SensorSession(ControllerService):
                 self.state.update_period_s = float(update_period_s)
             if max_observations is not None:
                 self.state.max_observations = int(max_observations)
+            if energy_threshold_dbfs is not None:
+                self.state.energy_threshold_dbfs = energy_threshold_dbfs
             if debug_draw is not None:
                 self.state.debug_overlay_enabled = bool(debug_draw)
             if occlusion is not None:
@@ -427,6 +430,7 @@ class SensorSession(ControllerService):
                 backend=state.backend,
                 update_period_s=state.update_period_s,
                 max_observations=state.max_observations,
+                energy_threshold_dbfs=state.energy_threshold_dbfs,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
@@ -450,6 +454,7 @@ class SensorSession(ControllerService):
                 backend=state.backend,
                 update_period_s=state.update_period_s,
                 max_observations=state.max_observations,
+                energy_threshold_dbfs=state.energy_threshold_dbfs,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,

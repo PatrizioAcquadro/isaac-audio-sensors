@@ -46,7 +46,7 @@ def _frame(frame_id: str = "frame_001", bearing: float = 90.0) -> AudioSensorFra
             AudioObservation(
                 observation_id="observation_0",
                 origin=ObservationOrigin.SIGNAL_DERIVED,
-                detector_id="fake_activity",
+                detector_id="auditok",
                 doa=DoaEstimate(
                     estimated_bearing_deg=bearing,
                     bearing_sector="right",

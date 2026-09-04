@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from isaac_audio_sensors.core import (
     AudioPerceptionPipeline,
@@ -9,7 +10,8 @@ from isaac_audio_sensors.core import (
     MicrophoneSignalBlock,
 )
 from isaac_audio_sensors.core.acoustics import free_field_environment
-from isaac_audio_sensors.core.simulation import simulate_frame
+from isaac_audio_sensors.core.exceptions import ConfigValidationError
+from isaac_audio_sensors.core.simulation import simulate_frame, simulate_from_config
 from tests.helpers import CaptureSink, quad_array
 
 
@@ -65,3 +67,12 @@ def test_simulate_frame_propagates_once_and_shares_exact_block_with_sink() -> No
     assert frame.observations == ()
     assert frame.diagnostics["rendered_sample_count"] == 480
     assert frame.diagnostics["waveform"] == {"mode": "stub"}
+
+
+@pytest.mark.parametrize("threshold", (True, float("nan")))
+def test_simulate_from_config_rejects_invalid_explicit_threshold(threshold) -> None:
+    with pytest.raises(ConfigValidationError, match="energy_threshold_dbfs"):
+        simulate_from_config(
+            "examples/configs/isaac_audio_sensors_demo.toml",
+            energy_threshold_dbfs=threshold,
+        )

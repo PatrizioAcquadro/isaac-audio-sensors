@@ -237,6 +237,11 @@ def test_xvf3800_preset_matches_demo_config_claims() -> None:
     assert preset.values["source_id"] == "speaker_front_right"
     assert preset.values["source_prim_path"] == ("/World/Sources/SpeakerFrontRight")
     assert preset.values["source_position_world"] == (4.0, 2.0, 0.0)
+    assert preset.values["energy_threshold_dbfs"] == -60.0
+    assert preset.config_summary()["activity_detection"] == {
+        "detector_id": "auditok",
+        "energy_threshold_dbfs": -60.0,
+    }
 
 
 @pytest.mark.parametrize(

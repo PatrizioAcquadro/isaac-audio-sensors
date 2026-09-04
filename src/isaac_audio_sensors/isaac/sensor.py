@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, cast
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
@@ -27,6 +27,8 @@ from isaac_audio_sensors.core.motion import (
     validate_pose_observation,
 )
 from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
+from isaac_audio_sensors.core.plugins.registry import get_default_registry
 from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
@@ -89,6 +91,7 @@ class IsaacAudioArraySensor:
     usd_time_code_offset: float = 0.0
     update_period_s: float = 0.05
     max_observations: int | None = None
+    energy_threshold_dbfs: float | None = None
     perception_pipeline: AudioPerceptionPipeline | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     waveform_sink: WaveformSink | None = None
@@ -195,15 +198,39 @@ class IsaacAudioArraySensor:
         ):
             raise ValueError("max_observations must be a non-negative integer.")
         if self.perception_pipeline is None:
+            if self.energy_threshold_dbfs is None:
+                raise ValueError(
+                    "energy_threshold_dbfs is required when constructing the "
+                    "standard perception pipeline."
+                )
+            activity_detector = cast(
+                ActivityDetector,
+                get_default_registry().resolve(
+                    "activity_detector",
+                    "auditok",
+                    factory_kwargs={
+                        "energy_threshold_dbfs": self.energy_threshold_dbfs
+                    },
+                ),
+            )
             self.perception_pipeline = AudioPerceptionPipeline(
-                max_observations=self.max_observations
+                activity_detector=activity_detector,
+                max_observations=self.max_observations,
             )
-        elif not isinstance(self.perception_pipeline, AudioPerceptionPipeline):
-            raise TypeError("perception_pipeline must be an AudioPerceptionPipeline.")
-        elif self.perception_pipeline.max_observations != self.max_observations:
-            raise ValueError(
-                "perception_pipeline.max_observations must match max_observations."
-            )
+        else:
+            if self.energy_threshold_dbfs is not None:
+                raise ValueError(
+                    "energy_threshold_dbfs must be omitted when perception_pipeline "
+                    "is provided."
+                )
+            if not isinstance(self.perception_pipeline, AudioPerceptionPipeline):
+                raise TypeError(
+                    "perception_pipeline must be an AudioPerceptionPipeline."
+                )
+            if self.perception_pipeline.max_observations != self.max_observations:
+                raise ValueError(
+                    "perception_pipeline.max_observations must match max_observations."
+                )
         if self.usd_time_code_scale is not None and not math.isfinite(
             float(self.usd_time_code_scale)
         ):
@@ -255,6 +282,7 @@ class IsaacAudioArraySensor:
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
         max_observations: int | None = None,
+        energy_threshold_dbfs: float | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -302,6 +330,7 @@ class IsaacAudioArraySensor:
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
             max_observations=max_observations,
+            energy_threshold_dbfs=energy_threshold_dbfs,
             speed_of_sound_mps=speed_of_sound_mps,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
@@ -326,6 +355,7 @@ class IsaacAudioArraySensor:
         usd_time_code_offset: float = 0.0,
         update_period_s: float = 0.05,
         max_observations: int | None = None,
+        energy_threshold_dbfs: float | None = None,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -380,6 +410,7 @@ class IsaacAudioArraySensor:
             usd_time_code_offset=usd_time_code_offset,
             update_period_s=update_period_s,
             max_observations=max_observations,
+            energy_threshold_dbfs=energy_threshold_dbfs,
             speed_of_sound_mps=speed_of_sound_mps,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,

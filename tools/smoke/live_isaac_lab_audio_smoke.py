@@ -96,6 +96,7 @@ def main() -> int:
                     prim_path="/World/parity/env_.*/AudioSensor",
                     backend=backend_id,
                     max_observations=2,
+                    energy_threshold_dbfs=-60.0,
                 )
             ).bind_reference(snapshots, array_ids)
             parity_sensors.append((backend_id, entity_sensor, reference_sensor))
@@ -308,11 +309,11 @@ def _assert_contract(
         if value.device.type != "cuda":
             raise RuntimeError(f"{name} is not on the sensor CUDA device.")
     if data.event_presence.any():
-        raise RuntimeError("Phase 02.3 Lab output must contain zero observations.")
+        raise RuntimeError("Lab tensors must remain zero-filled until Phase 07.")
     if data.confidence.any() or data.per_mic_rms.any() or data.sector_onehot.any():
-        raise RuntimeError("Phase 02.3 Lab observation payload must be zero-filled.")
+        raise RuntimeError("Lab tensor payload must remain zero-filled until Phase 07.")
     if not torch.isnan(data.bearing_deg).all():
-        raise RuntimeError("Phase 02.3 Lab bearing padding must remain NaN.")
+        raise RuntimeError("Lab bearing padding must remain NaN until Phase 07.")
 
 
 if __name__ == "__main__":

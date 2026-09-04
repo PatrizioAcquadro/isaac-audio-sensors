@@ -15,6 +15,7 @@ from isaac_audio_sensors.core.effects import (
 from isaac_audio_sensors.core.exceptions import ConfigValidationError
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.motion import PoseHistory
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -253,6 +254,7 @@ def test_live_extension_enriches_frame_diagnostics_and_rediscovery_keeps_history
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
         update_period_s=0.05,
+        perception_pipeline=AudioPerceptionPipeline(),
         effects=effects,
     ).start()
     first = sensor.update(sim_time_s=1.0)
@@ -295,6 +297,7 @@ def test_live_direct_capture_requires_explicit_motion_time():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
+        perception_pipeline=AudioPerceptionPipeline(),
         effects=EffectsConfig(motion=_motion()),
     )
     with pytest.raises(ValueError, match="explicit sim_time_s"):
@@ -312,6 +315,7 @@ def test_stage_replacement_clears_history_before_new_stage_sample():
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
         effects=EffectsConfig(motion=_motion()),
     ).start()
     sensor.update(sim_time_s=0.0)
@@ -351,6 +355,7 @@ def test_entity_removal_and_same_id_new_prim_purges_only_removed_history():
         environment_resolution_cfg=MANUAL_RESOLUTION,
         environment=MANUAL_ENVIRONMENT,
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
         effects=EffectsConfig(motion=_motion()),
     ).start()
     sensor.update(sim_time_s=0.0)

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.core.types import (
+    AudioObservation,
+    AudioSensorFrame,
+    ObservationOrigin,
+)
 from isaac_audio_sensors.kit.controller import ExtensionController
 from isaac_audio_sensors.kit.headless import HeadlessGuidedSession
 from isaac_audio_sensors.kit.state import CurrentStageContext
@@ -62,6 +66,17 @@ def _frame(index: int) -> AudioSensorFrame:
         end_time_s=index / 100.0 + 0.001,
         sample_rate_hz=8_000,
         frame_index=index,
+        observations=(
+            ()
+            if index == 0
+            else (
+                AudioObservation(
+                    observation_id=f"guided_activity_{index:03d}",
+                    origin=ObservationOrigin.SIGNAL_DERIVED,
+                    detector_id="auditok",
+                ),
+            )
+        ),
         aggregate_per_mic_rms={"center": 0.5},
         diagnostics={"window_sample_count": 8},
     )
@@ -111,6 +126,9 @@ def test_headless_session_drives_all_stages_and_exports_valid_session(
     assert summary["status"] == "passed"
     assert summary["stages_passed"] == [stage.value for stage in GUIDED_STAGE_ORDER]
     assert summary["recording_stats"]["frames"] == 3
+    assert (
+        summary["validator_report"]["statistics"]["counts"]["observations"] > 0
+    )
     assert summary["recording_stats"]["validation_status"] in {
         "passed",
         "passed_with_warnings",

@@ -76,6 +76,7 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     assert controller.author_source(stage=stage) is not None
     assert controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
     status = controller.start_replicator()
+    warmup = controller.update_sensor()
     frame = controller.update_sensor()
     flushed = controller.flush_replicator()
     stopped = controller.stop_replicator()
@@ -85,11 +86,16 @@ def test_extension_controller_replicator_lifecycle_and_payload(
     assert status["annotator_registered"] is False
     assert status["annotator_status"] == "metadata_only"
     assert frame is not None
+    assert warmup is not None
+    assert warmup.observations == ()
+    assert len(frame.observations) == 1
+    assert frame.observations[0].origin.value == "signal_derived"
+    assert frame.observations[0].detector_id == "auditok"
     assert flushed is not None
     assert flushed["flushed"] is True
     assert stopped is not None
     assert stopped["stopped"] is True
-    assert controller.state.replicator_write_count == 1
+    assert controller.state.replicator_write_count == 2
     payload_path = Path(controller.state.replicator_latest_write_path or "")
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == PAYLOAD_SCHEMA_VERSION
@@ -97,7 +103,9 @@ def test_extension_controller_replicator_lifecycle_and_payload(
         controller.state.replicator_annotator_name
     )
     assert payload["summary"]["producer_id"] == "analytic_acoustics"
-    assert payload["summary"]["observation_count"] == 0
+    assert payload["summary"]["observation_count"] == 1
+    assert payload["frame"]["observations"][0]["origin"] == "signal_derived"
+    assert payload["frame"]["observations"][0]["detector_id"] == "auditok"
     assert payload["metadata"]["extension_id"] == "test.ext"
     assert (tmp_path / "replicator" / "audio_sensor_frames.jsonl").exists()
 

@@ -8,6 +8,8 @@ import pytest
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.effects import EffectsConfig, MotionEffectsConfig
+from isaac_audio_sensors.core.exceptions import ConfigValidationError
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.isaac.environment_resolution import (
     IsaacEnvironmentResolutionCfg,
 )
@@ -17,6 +19,44 @@ from tests.helpers import motion_stage
 UPDATE_PERIOD_S = 0.05
 MANUAL_ENVIRONMENT = free_field_environment(environment_id="lifecycle_free_field")
 MANUAL_RESOLUTION = IsaacEnvironmentResolutionCfg(mode="manual")
+
+
+def test_standard_and_custom_pipeline_configuration_is_fail_closed() -> None:
+    common = {
+        "array_id": "array",
+        "stage": object(),
+        "environment": MANUAL_ENVIRONMENT,
+    }
+    with pytest.raises(ValueError, match="energy_threshold_dbfs is required"):
+        IsaacAudioArraySensor(**common)
+
+    custom = AudioPerceptionPipeline(max_observations=1)
+    sensor = IsaacAudioArraySensor(
+        **common,
+        max_observations=1,
+        perception_pipeline=custom,
+    )
+    assert sensor.perception_pipeline is custom
+    assert sensor.energy_threshold_dbfs is None
+
+    with pytest.raises(ValueError, match="must be omitted"):
+        IsaacAudioArraySensor(
+            **common,
+            max_observations=1,
+            energy_threshold_dbfs=-60.0,
+            perception_pipeline=custom,
+        )
+
+
+@pytest.mark.parametrize("threshold", (True, float("nan")))
+def test_standard_pipeline_rejects_invalid_threshold(threshold) -> None:
+    with pytest.raises(ConfigValidationError, match="energy_threshold_dbfs"):
+        IsaacAudioArraySensor(
+            array_id="array",
+            stage=object(),
+            environment=MANUAL_ENVIRONMENT,
+            energy_threshold_dbfs=threshold,
+        )
 
 
 def _segmented_sensor(monkeypatch):
@@ -32,6 +72,7 @@ def _segmented_sensor(monkeypatch):
         stage=object(),
         environment=MANUAL_ENVIRONMENT,
         update_period_s=UPDATE_PERIOD_S,
+        perception_pipeline=AudioPerceptionPipeline(),
     )
     sensor.effects = EffectsConfig(
         motion=MotionEffectsConfig(
@@ -89,6 +130,7 @@ def test_manual_capture_and_update_throttling(monkeypatch):
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
         update_period_s=UPDATE_PERIOD_S,
+        perception_pipeline=AudioPerceptionPipeline(),
     )
     manual = sensor.capture()
     assert manual.provenance == "isaac_live"
@@ -136,6 +178,7 @@ def test_live_sensor_recognizes_analytic_core_backend() -> None:
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
     )
 
     frame = sensor.capture()
@@ -160,6 +203,7 @@ def test_non_monotonic_time_preserves_latest_frame():
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
     first = sensor.update(sim_time_s=1.0)
     with pytest.raises(ValueError, match="non-monotonic"):
@@ -220,6 +264,7 @@ def test_update_subscription_timeline_reset_and_close(monkeypatch, event_name):
         environment=MANUAL_ENVIRONMENT,
         source_prim_path="/World/Speaker",
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
         effects=EffectsConfig(
             motion=MotionEffectsConfig(derive_velocity_from_poses=True)
         ),

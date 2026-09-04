@@ -266,6 +266,23 @@ def test_external_observations_follow_signal_then_input_order_before_cap() -> No
     ]
 
 
+def test_zero_cap_runs_detector_without_resetting_stream_state() -> None:
+    detector = FakeDetector(True, probability=None)
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector,
+        max_observations=0,
+    )
+
+    first = pipeline.process(_block(), _array(), frame_id="capped_0")
+    second = pipeline.process(_block(), _array(), frame_id="capped_1")
+
+    assert first.observations == second.observations == ()
+    assert len(detector.calls) == 2
+    assert detector.reset_count == 0
+    assert first.diagnostics["perception"]["activity_detected"] is True
+    assert first.aggregate_per_mic_rms
+
+
 def test_external_origin_and_all_pre_cap_id_collisions_are_rejected() -> None:
     with pytest.raises(ValueError, match="external_system"):
         AudioPerceptionPipeline().process(

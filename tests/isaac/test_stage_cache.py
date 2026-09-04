@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from isaac_audio_sensors.core.acoustics import free_field_environment
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.isaac.discovery import IsaacAudioSceneBindingCfg
 from isaac_audio_sensors.isaac.environment_resolution import (
     IsaacEnvironmentResolutionCfg,
@@ -79,6 +80,7 @@ def _live_sensor(
             environment=MANUAL_ENVIRONMENT,
             backend="analytic_acoustics",
             update_period_s=0.1,
+            perception_pipeline=AudioPerceptionPipeline(),
         ).start()
     return IsaacAudioArraySensor.from_stage(
         stage=stage,
@@ -87,6 +89,7 @@ def _live_sensor(
         environment=MANUAL_ENVIRONMENT,
         backend="analytic_acoustics",
         update_period_s=0.1,
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
 
 
@@ -243,6 +246,7 @@ def test_rediscover_each_update_forces_full_discovery_every_capture():
         binding_cfg=IsaacAudioSceneBindingCfg(rediscover_each_update=True),
         backend="analytic_acoustics",
         update_period_s=0.1,
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
     construction_count = stage.traverse_count
 

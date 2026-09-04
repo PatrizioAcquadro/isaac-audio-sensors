@@ -22,6 +22,7 @@ from isaac_audio_sensors.core.constants import OCCLUSION_BAND_CENTERS_HZ
 from isaac_audio_sensors.core.io.traces import frame_to_trace_dict
 from isaac_audio_sensors.core.io.waveforms import WaveformWriteResult
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -513,6 +514,7 @@ def test_live_sensor_preserves_static_environment_without_anchor(fake_room):
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
         backend="analytic_acoustics",
         environment=environment,
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
 
     sensor.update(sim_time_s=0.0, force=True)
@@ -549,6 +551,7 @@ def test_auto_resolution_switches_marked_volume_when_complete_array_moves(fake_r
         array_prim_path=ARRAY_PATH,
         environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="auto"),
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
 
     sensor.update(sim_time_s=0.0, force=True)
@@ -582,6 +585,7 @@ def test_live_extension_tracks_occluder_move_and_anchor_refresh_without_stale_st
         occlusion_enabled=True,
         occlusion_raycaster=raycaster,
         update_period_s=0.05,
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
     first = sensor.update(sim_time_s=0.0, force=True)
     full_before = sensor._stage_cache.full_discovery_count
@@ -641,6 +645,7 @@ def test_anchor_deletion_fails_before_backend_frame_and_keeps_reason_pending(fak
             anchor_prim_path=ENVIRONMENT_PATH,
         ),
         backend="analytic_acoustics",
+        perception_pipeline=AudioPerceptionPipeline(),
     ).start()
     sensor.update(sim_time_s=0.0, force=True)
     stage.prims.pop(ENVIRONMENT_PATH)

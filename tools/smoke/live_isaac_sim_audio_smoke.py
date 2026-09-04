@@ -46,7 +46,9 @@ OPTIONAL_BACKENDS: tuple[str, ...] = ()
 SMOKE_PHASES = (
     ("before", 0.0),
     ("moved", 0.1),
-    ("inactive", 0.5),
+    ("cooldown_a", 0.5),
+    ("cooldown_b", 0.55),
+    ("inactive", 0.6),
 )
 
 
@@ -273,6 +275,7 @@ def _run_backend_smoke(
         usd_time_code_scale=1.0,
         update_period_s=0.05,
         max_observations=1,
+        energy_threshold_dbfs=-60.0,
         environment=resolved_environment,
         debug_draw=True,
         occlusion_enabled=backend_id == "analytic_acoustics",
@@ -425,6 +428,18 @@ def _summarize_backend(
         "observation_counts": {
             phase: len(frame.observations) for phase, frame in frames.items()
         },
+        "observation_origins": {
+            phase: [item.origin.value for item in frame.observations]
+            for phase, frame in frames.items()
+        },
+        "observation_detector_ids": {
+            phase: [item.detector_id for item in frame.observations]
+            for phase, frame in frames.items()
+        },
+        "observation_scores": {
+            phase: [item.detection_score for item in frame.observations]
+            for phase, frame in frames.items()
+        },
         "inactive_observation_count": len(inactive.observations),
         "debug_primitive_count": len(moved_debug_primitives),
         "debug_primitive_kinds": moved_kinds,
@@ -447,7 +462,17 @@ def _summarize_backend(
                 item.get("kind") == "occlusion_ray"
                 for item in moved_debug_primitives
             ),
-            "observations_are_empty": before.observations == moved.observations == (),
+            "activity_transition": {
+                "warmup_empty": before.observations == (),
+                "moved_signal_derived": (
+                    len(moved.observations) == 1
+                    and moved.observations[0].origin.value == "signal_derived"
+                    and moved.observations[0].detector_id == "auditok"
+                    and moved.observations[0].detection_score is None
+                    and moved.observations[0].doa is None
+                ),
+                "inactive_empty": inactive.observations == (),
+            },
         }
     return result
 
@@ -466,8 +491,32 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             f"{backend_id} did not prove live movement changes: {missing}."
         )
-    if any(result.get("observation_counts", {}).values()):
-        raise RuntimeError(f"{backend_id} emitted oracle observations in Phase 02.3.")
+    counts = result.get("observation_counts", {})
+    if counts.get("before") != 0 or counts.get("moved") != 1:
+        raise RuntimeError(
+            f"{backend_id} did not prove Auditok causal warm-up and activity."
+        )
+    if counts.get("inactive") != 0:
+        raise RuntimeError(f"{backend_id} did not return to inactivity.")
+    observed_origins = {
+        origin
+        for origins in result.get("observation_origins", {}).values()
+        for origin in origins
+    }
+    observed_detectors = {
+        detector
+        for detectors in result.get("observation_detector_ids", {}).values()
+        for detector in detectors
+    }
+    observed_scores = [
+        score
+        for scores in result.get("observation_scores", {}).values()
+        for score in scores
+    ]
+    if observed_origins != {"signal_derived"} or observed_detectors != {"auditok"}:
+        raise RuntimeError(f"{backend_id} emitted an invalid activity observation.")
+    if any(score is not None for score in observed_scores):
+        raise RuntimeError(f"{backend_id} invented an activity detection score.")
     if int(result.get("debug_primitive_count", 0)) <= 0:
         raise RuntimeError(f"{backend_id} did not produce debug primitives.")
     debug_kinds = set(result.get("debug_primitive_kinds", ()))
@@ -508,7 +557,11 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
     ) != {
         "before_has_hit": True,
         "moved_has_ray": True,
-        "observations_are_empty": True,
+        "activity_transition": {
+            "warmup_empty": True,
+            "moved_signal_derived": True,
+            "inactive_empty": True,
+        },
     }:
         raise RuntimeError(
             "analytic_acoustics did not prove the transient occlusion debug trace."
@@ -1020,6 +1073,7 @@ def _write_config(
             "usd_time_code_scale": 1.0,
             "update_period_s": 0.05,
             "max_observations": 1,
+            "energy_threshold_dbfs": -60.0,
             "debug_draw": True,
         },
         "environment": {

@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.io.traces import (
     frame_from_trace_dict,
     frame_to_trace_dict,
 )
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -301,6 +302,7 @@ def _live_sensor(
         environment=free_field_environment(environment_id="live_occlusion_free_field"),
         backend=backend,
         update_period_s=0.1,
+        perception_pipeline=AudioPerceptionPipeline(),
         **kwargs,
     ).start()
 

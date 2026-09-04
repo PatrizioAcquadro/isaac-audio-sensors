@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -143,8 +144,12 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v5",
+                "schema_version": "ias.omni_extension_binding.v6",
                 "backend": state.backend,
+                "activity_detection": {
+                    "detector_id": "auditok",
+                    "energy_threshold_dbfs": state.energy_threshold_dbfs,
+                },
                 "environment": {
                     "mode": state.environment_resolution_mode,
                     "anchor_prim_path": (
@@ -350,6 +355,7 @@ class ConfigurationService(ControllerService):
         array_binding = dict(payload.get("array_binding", {}))
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
+        activity_detection = dict(payload.get("activity_detection", {}))
         environment = dict(payload.get("environment", {}))
         analytic_acoustics = dict(payload.get("analytic_acoustics", {}))
         device = dict(payload.get("device", {}))
@@ -425,6 +431,9 @@ class ConfigurationService(ControllerService):
         )
 
         self.state.backend = str(payload.get("backend", self.state.backend))
+        self.state.energy_threshold_dbfs = float(
+            activity_detection["energy_threshold_dbfs"]
+        )
         self.state.device_id = str(device.get("device_id", self.state.device_id))
         self.state.compute_device = str(
             device.get("compute_device", self.state.compute_device)
@@ -777,23 +786,52 @@ class ConfigurationService(ControllerService):
         }.intersection(lifecycle)
         if legacy_keys:
             raise ValueError(
-                "Binding v5 rejects legacy room lifecycle keys: "
+                "Binding v6 rejects legacy room lifecycle keys: "
                 f"{sorted(legacy_keys)!r}."
             )
         if "ambiguity_policy" in lifecycle:
             raise ValueError(
-                "Binding v5 removed lifecycle.ambiguity_policy; contextual DOA "
+                "Binding v6 removed lifecycle.ambiguity_policy; contextual DOA "
                 "disambiguation belongs in downstream consumers."
             )
         if "room_acoustics" in payload:
             raise ValueError(
-                "Binding v5 removed room_acoustics; use analytic_acoustics."
+                "Binding v6 removed room_acoustics; use analytic_acoustics."
             )
         removed_keys = {"doa_estimator", "max_detections"}.intersection(lifecycle)
         if removed_keys:
             raise ValueError(
-                "Binding v5 rejects removed perception lifecycle keys: "
+                "Binding v6 rejects removed perception lifecycle keys: "
                 f"{sorted(removed_keys)!r}."
+            )
+        activity_detection = payload.get("activity_detection")
+        if not isinstance(activity_detection, Mapping):
+            raise ValueError("activity_detection must be a JSON object.")
+        required_activity_keys = {"detector_id", "energy_threshold_dbfs"}
+        missing_activity_keys = required_activity_keys - set(activity_detection)
+        if missing_activity_keys:
+            raise ValueError(
+                "activity_detection is missing required keys "
+                f"{sorted(missing_activity_keys)!r}."
+            )
+        unknown_activity_keys = set(activity_detection) - required_activity_keys
+        if unknown_activity_keys:
+            raise ValueError(
+                "activity_detection contains unknown keys "
+                f"{sorted(unknown_activity_keys)!r}."
+            )
+        if activity_detection["detector_id"] != "auditok":
+            raise ValueError("activity_detection.detector_id must be 'auditok'.")
+        threshold_dbfs = activity_detection["energy_threshold_dbfs"]
+        if isinstance(threshold_dbfs, bool) or not isinstance(
+            threshold_dbfs, int | float
+        ):
+            raise ValueError(
+                "activity_detection.energy_threshold_dbfs must be a real number."
+            )
+        if not math.isfinite(float(threshold_dbfs)):
+            raise ValueError(
+                "activity_detection.energy_threshold_dbfs must be finite."
             )
         environment = payload.get("environment")
         if not isinstance(environment, Mapping):

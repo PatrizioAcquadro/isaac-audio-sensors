@@ -35,6 +35,8 @@ def test_core_commands_render_service_results(tmp_path, capsys):
                 "analytic_acoustics",
                 "--array-id",
                 "rig_front",
+                "--energy-threshold-dbfs",
+                "-60",
                 "--out",
                 str(trace_path),
             ]
@@ -44,7 +46,16 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out) == json.loads(trace_path.read_text())
     frame = json.loads(trace_path.read_text())
     assert frame["producer_id"] == "analytic_acoustics"
-    assert frame["observations"] == []
+    assert len(frame["observations"]) == 1
+    observation = frame["observations"][0]
+    assert observation["origin"] == "signal_derived"
+    assert observation["detector_id"] == "auditok"
+    assert observation["detection_score"] is None
+    assert observation["doa"] is None
+    assert "source_id" not in observation
+    detector_diagnostics = observation["diagnostics"]["activity_detector"]
+    assert detector_diagnostics["threshold_dbfs"] == -60.0
+    assert detector_diagnostics["margin_db"] > 0.0
     assert frame["diagnostics"]["analytic_solver"] == {
         "solver_id": "free_field_direct",
         "provider": "core",
@@ -72,11 +83,60 @@ def test_simulate_rejects_removed_cli_arguments(removed):
 
 
 def test_zero_observation_cap_keeps_active_soundscape(capsys):
-    assert main(["simulate", str(CONFIG), "--max-observations", "0"]) == 0
+    assert (
+        main(
+            [
+                "simulate",
+                str(CONFIG),
+                "--energy-threshold-dbfs",
+                "-60",
+                "--max-observations",
+                "0",
+            ]
+        )
+        == 0
+    )
     frame = json.loads(capsys.readouterr().out)
 
     assert frame["observations"] == []
     assert any(value > 0.0 for value in frame["aggregate_per_mic_rms"].values())
+    assert frame["diagnostics"]["perception"]["activity_detected"] is True
+
+
+def test_simulate_requires_a_finite_explicit_threshold(capsys):
+    with pytest.raises(SystemExit):
+        main(["simulate", str(CONFIG)])
+    assert "--energy-threshold-dbfs" in capsys.readouterr().err
+
+    assert (
+        main(
+            [
+                "simulate",
+                str(CONFIG),
+                "--energy-threshold-dbfs",
+                "nan",
+            ]
+        )
+        == 1
+    )
+    assert "energy_threshold_dbfs" in capsys.readouterr().err
+
+
+def test_simulate_higher_threshold_is_inactive(capsys):
+    assert (
+        main(
+            [
+                "simulate",
+                str(CONFIG),
+                "--energy-threshold-dbfs",
+                "-50",
+            ]
+        )
+        == 0
+    )
+    frame = json.loads(capsys.readouterr().out)
+    assert frame["observations"] == []
+    assert frame["diagnostics"]["perception"]["activity_detected"] is False
 
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):
     assert main(["dataset", "validate", str(REFERENCE), "--json", "-"]) == 0

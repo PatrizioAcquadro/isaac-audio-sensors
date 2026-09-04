@@ -89,11 +89,11 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
     reference = ReferenceBackend(
         backend_id="analytic_acoustics",
         max_observations=8,
+        energy_threshold_dbfs=-60.0,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(snapshot,),
         array_ids=("selected",),
     )
-
     assert reference.array_ids == ("selected",)
     assert reference.num_mics == len(selected.microphones)
 
@@ -109,6 +109,7 @@ def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
         ReferenceBackend(
             backend_id="analytic_acoustics",
             max_observations=8,
+            energy_threshold_dbfs=-60.0,
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
             snapshots=(_snapshot(array, ()),),
             array_ids=("missing",),
@@ -126,10 +127,13 @@ def test_reference_backend_resets_only_selected_environment_pipelines(
     reference = ReferenceBackend(
         backend_id="analytic_acoustics",
         max_observations=1,
+        energy_threshold_dbfs=-60.0,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=tuple(_snapshot(array, ()) for _ in range(3)),
         array_ids=("array", "array", "array"),
     )
+    detectors = [pipeline._activity_detector for pipeline in reference._perception]
+    assert len({id(detector) for detector in detectors}) == 3
     reset_counts = [0, 0, 0]
     for index, pipeline in enumerate(reference._perception):
         monkeypatch.setattr(
@@ -191,6 +195,30 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
         ).validate()
     with pytest.raises(NotImplementedError, match="visualization"):
         AudioArraySensorCfg(prim_path="/World/Audio", debug_vis=True).validate()
+    with pytest.raises(TypeError, match="real number"):
+        AudioArraySensorCfg(
+            prim_path="/World/Audio", energy_threshold_dbfs=True
+        ).validate()
+    with pytest.raises(ValueError, match="finite"):
+        AudioArraySensorCfg(
+            prim_path="/World/Audio", energy_threshold_dbfs=float("nan")
+        ).validate()
+
+
+def test_lab_bindings_enforce_threshold_ownership() -> None:
+    entity_sensor = SimpleNamespace(
+        is_initialized=False,
+        cfg=SimpleNamespace(energy_threshold_dbfs=-60.0),
+    )
+    with pytest.raises(ValueError, match="not supported by the entity binding"):
+        AudioArraySensor.bind_entities(entity_sensor, object(), object())
+
+    reference_sensor = SimpleNamespace(
+        is_initialized=False,
+        cfg=SimpleNamespace(energy_threshold_dbfs=None),
+    )
+    with pytest.raises(ValueError, match="required by the reference binding"):
+        AudioArraySensor.bind_reference(reference_sensor, (), ())
 
 
 def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
@@ -233,7 +261,7 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     )
 
 
-def test_reference_path_emits_zero_observations_until_phase_03():
+def test_reference_path_runs_detector_but_keeps_tensors_zero_until_phase_07():
     backend_id = "analytic_acoustics"
     env_ids = torch.tensor([0])
 
@@ -267,6 +295,7 @@ def test_reference_path_emits_zero_observations_until_phase_03():
     reference = ReferenceBackend(
         backend_id=backend_id,
         max_observations=1,
+        energy_threshold_dbfs=-60.0,
         effects=AudioArraySensorCfg(
             prim_path="/World/Audio", backend=backend_id
         ).effects,

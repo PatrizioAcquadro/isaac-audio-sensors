@@ -43,6 +43,10 @@ class AudioArraySensor(SensorBase):
             raise RuntimeError(
                 "Bind AudioArraySensor before simulation initialization."
             )
+        if self.cfg.energy_threshold_dbfs is not None:
+            raise ValueError(
+                "energy_threshold_dbfs is not supported by the entity binding."
+            )
         self._entity_binding = EntityBinding(scene, cfg)
         self._reference_backend = None
         self._reference_frame_indices = None
@@ -60,6 +64,10 @@ class AudioArraySensor(SensorBase):
             raise RuntimeError(
                 "Bind AudioArraySensor before simulation initialization."
             )
+        if self.cfg.energy_threshold_dbfs is None:
+            raise ValueError(
+                "energy_threshold_dbfs is required by the reference binding."
+            )
         self._reference_backend = ReferenceBackend(
             backend_id=self.cfg.backend,
             speed_of_sound_mps=float(self.cfg.speed_of_sound_mps),
@@ -67,6 +75,7 @@ class AudioArraySensor(SensorBase):
             analytic_air_absorption=bool(self.cfg.analytic_air_absorption),
             analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
             max_observations=int(self.cfg.max_observations),
+            energy_threshold_dbfs=float(self.cfg.energy_threshold_dbfs),
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,

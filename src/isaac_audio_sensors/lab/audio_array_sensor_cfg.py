@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from numbers import Real
 
 from isaaclab.sensors import SensorBaseCfg
 from isaaclab.utils.configclass import configclass
@@ -20,6 +21,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
     max_observations: int = 8
+    energy_threshold_dbfs: float | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
@@ -39,6 +41,13 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise TypeError("max_observations must be an integer.")
         if self.max_observations < 0:
             raise ValueError("max_observations must be non-negative.")
+        if self.energy_threshold_dbfs is not None:
+            if isinstance(self.energy_threshold_dbfs, bool) or not isinstance(
+                self.energy_threshold_dbfs, Real
+            ):
+                raise TypeError("energy_threshold_dbfs must be a real number.")
+            if not math.isfinite(float(self.energy_threshold_dbfs)):
+                raise ValueError("energy_threshold_dbfs must be finite.")
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0

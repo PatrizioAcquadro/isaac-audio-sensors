@@ -41,6 +41,7 @@ def _simulate(args: argparse.Namespace) -> int:
             array_id=args.array_id,
             start_time_s=args.start_time_s,
             end_time_s=args.end_time_s,
+            energy_threshold_dbfs=args.energy_threshold_dbfs,
             max_observations=args.max_observations,
         )
         if args.out is not None:

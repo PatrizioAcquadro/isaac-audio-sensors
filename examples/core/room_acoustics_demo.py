@@ -7,6 +7,7 @@ from isaac_audio_sensors.core.acoustics import shoebox_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.plugins import AuditokActivityDetector
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -56,7 +57,9 @@ try:
 except OptionalDependencyUnavailable as exc:
     print(f"analytic_acoustics closed-room solver skipped: {exc}")
 else:
-    frame = AudioPerceptionPipeline().process(
+    frame = AudioPerceptionPipeline(
+        activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0)
+    ).process(
         block,
         array,
         frame_id="analytic_acoustics_example_000000",

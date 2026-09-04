@@ -157,6 +157,7 @@ class ExtensionUiState:
     calibration_profile_path: str = ""
     update_period_s: float = 0.05
     max_observations: int = 8
+    energy_threshold_dbfs: float = -60.0
     debug_overlay_enabled: bool = True
     occlusion_enabled: bool = False
     trace_enabled: bool = True

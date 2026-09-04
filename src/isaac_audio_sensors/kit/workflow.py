@@ -94,6 +94,10 @@ class SafePreset:
                 "update_period_s": values["update_period_s"],
                 "max_observations": values["max_observations"],
             },
+            "activity_detection": {
+                "detector_id": "auditok",
+                "energy_threshold_dbfs": values["energy_threshold_dbfs"],
+            },
         }
 
 
@@ -128,6 +132,7 @@ SAFE_PRESETS = (
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_observations": 8,
+            "energy_threshold_dbfs": -60.0,
         },
     ),
     SafePreset(
@@ -158,6 +163,7 @@ SAFE_PRESETS = (
             "source_directivity": "omni",
             "update_period_s": 0.05,
             "max_observations": 8,
+            "energy_threshold_dbfs": -60.0,
         },
     ),
 )

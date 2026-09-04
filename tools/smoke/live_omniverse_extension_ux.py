@@ -156,6 +156,7 @@ EXPECTED_FLOAT_FIELDS = (
     "source_position_y_m",
     "source_position_z_m",
     "source_start_time_s",
+    "energy_threshold_dbfs",
     "update_period_s",
 )
 EXPECTED_INT_FIELDS = ("max_observations", "sample_rate_hz", "source_loop_count")
@@ -1018,6 +1019,7 @@ def _config_binding_summary(config_path: Path) -> dict[str, Any]:
     return {
         "path": str(config_path),
         "schema_version": payload.get("schema_version"),
+        "activity_detection": payload.get("activity_detection", {}),
         "source": payload.get("source", {}),
         "sound_profiles": payload.get("sound_profiles", {}),
         "object_binding": payload.get("object_binding", {}),
@@ -1819,6 +1821,10 @@ def _frame_signal_summary(frame: Any) -> dict[str, Any]:
         "frame_id": getattr(frame, "frame_id", None),
         "frame_index": getattr(frame, "frame_index", None),
         "observation_count": len(observations),
+        "observation_origins": [item.origin.value for item in observations],
+        "observation_detector_ids": [item.detector_id for item in observations],
+        "observation_scores": [item.detection_score for item in observations],
+        "observation_has_doa": [item.doa is not None for item in observations],
         "aggregate_per_mic_rms": dict(
             getattr(frame, "aggregate_per_mic_rms", {})
         ),
@@ -1833,14 +1839,30 @@ def _source_frame_changed(before: Any, after: Any) -> dict[str, Any]:
             "passed"
             if before_summary["aggregate_per_mic_rms"]
             != after_summary["aggregate_per_mic_rms"]
-            and before_summary["observation_count"]
-            == after_summary["observation_count"]
-            == 0
+            and _valid_activity_summary(before_summary, allow_empty=True)
+            and _valid_activity_summary(after_summary)
             else "failed"
         ),
         "before": before_summary,
         "after": after_summary,
     }
+
+
+def _valid_activity_summary(
+    summary: dict[str, Any],
+    *,
+    allow_empty: bool = False,
+) -> bool:
+    count = int(summary.get("observation_count", 0))
+    if count == 0:
+        return allow_empty
+    return (
+        count == 1
+        and summary.get("observation_origins") == ["signal_derived"]
+        and summary.get("observation_detector_ids") == ["auditok"]
+        and summary.get("observation_scores") == [None]
+        and summary.get("observation_has_doa") == [False]
+    )
 
 
 def _array_pose_state(controller: ExtensionController) -> dict[str, Any]:
@@ -1941,15 +1963,15 @@ def _array_rotation_changed(
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
-        "observations_remain_empty": (
-            before.get("observation_count") == after.get("observation_count") == 0
+        "signal_activity_preserved": (
+            _valid_activity_summary(before) and _valid_activity_summary(after)
         ),
     }
     passed = (
         checks["orientation_changed"]
         and checks["mic_world_positions_changed"]
         and checks["rms_changed"]
-        and checks["observations_remain_empty"]
+        and checks["signal_activity_preserved"]
     )
     return {
         "status": "passed" if passed else "failed",
@@ -1973,15 +1995,15 @@ def _array_move_changed(
         "rms_changed": (
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
-        "observations_remain_empty": (
-            before.get("observation_count") == after.get("observation_count") == 0
+        "signal_activity_preserved": (
+            _valid_activity_summary(before) and _valid_activity_summary(after)
         ),
     }
     passed = (
         checks["array_position_changed"]
         and checks["mic_world_positions_changed"]
         and checks["rms_changed"]
-        and checks["observations_remain_empty"]
+        and checks["signal_activity_preserved"]
     )
     return {
         "status": "passed" if passed else "failed",
@@ -2036,8 +2058,12 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     recording = payload.get("recording", {})
     package_jsonl = recording.get("package_jsonl", {})
     replicator = recording.get("replicator", {})
+    activity_detection = payload.get("activity_detection", {})
     return {
         "backend": payload.get("backend"),
+        "energy_threshold_dbfs": activity_detection.get(
+            "energy_threshold_dbfs"
+        ),
         "array_prim_path": array.get("prim_path"),
         "array_position_world": array.get("position_world"),
         "array_orientation_world_quat": array.get("orientation_world_quat"),
@@ -2075,6 +2101,7 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
     state = controller.state
     return {
         "backend": state.backend,
+        "energy_threshold_dbfs": state.energy_threshold_dbfs,
         "array_prim_path": state.array_prim_path,
         "array_position_world": [
             state.array_position_x_m,
@@ -2518,14 +2545,14 @@ def _collect_instruments_evidence(
     passed = (
         not view_model.needles
         and bool(record["meters"])
-        and record["observation_count"] == 0
-        and record["history_count"] == 0
-        and record["timeline_row_count"] == 0
+        and record["observation_count"] == 1
+        and record["history_count"] > 0
+        and record["timeline_row_count"] > 0
         and widget_record.get("available") is True
         and widget_record.get("compass_image") is True
         and int(widget_record.get("visible_meter_rows", 0)) > 0
-        and int(widget_record.get("visible_timeline_rows", 0)) == 0
-        and widget_record.get("observation_empty_visible") is True
+        and int(widget_record.get("visible_timeline_rows", 0)) > 0
+        and widget_record.get("observation_empty_visible") is False
         and record["app_screenshot"].get("status") == "captured"
     )
     record["status"] = "passed" if passed else "failed"
@@ -3300,8 +3327,10 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
         raise RuntimeError(f"{name} parent move did not change frame: {object_move}")
     before = result.get("frame_before_parent_move", {})
     after = result.get("frame_after_parent_move", {})
-    if before.get("observation_count") != 0 or after.get("observation_count") != 0:
-        raise RuntimeError(f"{name} emitted oracle observations in Phase 02.3.")
+    if not _valid_activity_summary(before, allow_empty=True):
+        raise RuntimeError(f"{name} emitted an invalid warm-up observation.")
+    if not _valid_activity_summary(after):
+        raise RuntimeError(f"{name} did not emit signal-derived Auditok activity.")
     offset_before = result.get("source_transform_before_local_offset_change", {})
     offset_after = result.get("source_transform_after_local_offset_change", {})
     if offset_before.get("position_world") == offset_after.get("position_world"):
@@ -3328,6 +3357,13 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
             f"{name} rig profile was not authored on the array: {rig_application}"
         )
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    if config.get("schema_version") != "ias.omni_extension_binding.v6":
+        raise RuntimeError(f"{name} did not export binding v6.")
+    if config.get("activity_detection") != {
+        "detector_id": "auditok",
+        "energy_threshold_dbfs": -60.0,
+    }:
+        raise RuntimeError(f"{name} did not preserve Auditok activity settings.")
     array_binding_config = config.get("array_binding", {})
     if array_binding_config.get("attached") is not True:
         raise RuntimeError(f"{name} config did not preserve array attachment.")
@@ -3393,9 +3429,21 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     ]
     if not payload_files:
         raise RuntimeError(f"{name} has no Replicator frame payload artifact.")
-    payload = json.loads(payload_files[0].read_text(encoding="utf-8"))
-    if payload.get("frame", {}).get("schema_version") != frames[-1].schema_version:
+    payloads = [json.loads(path.read_text(encoding="utf-8")) for path in payload_files]
+    if payloads[-1].get("frame", {}).get("schema_version") != frames[-1].schema_version:
         raise RuntimeError(f"{name} Replicator payload frame schema mismatch.")
+    observed_payloads = [
+        payload
+        for payload in payloads
+        if payload.get("summary", {}).get("observation_count") == 1
+    ]
+    if not observed_payloads:
+        raise RuntimeError(f"{name} Replicator did not preserve activity observations.")
+    observation = observed_payloads[-1].get("frame", {}).get("observations", [{}])[0]
+    if observation.get("origin") != "signal_derived" or observation.get(
+        "detector_id"
+    ) != "auditok":
+        raise RuntimeError(f"{name} Replicator activity observation is invalid.")
 
 
 def _try_enable_extension_manager(

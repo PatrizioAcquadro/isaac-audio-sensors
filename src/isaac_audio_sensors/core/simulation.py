@@ -5,12 +5,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
+from typing import cast
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
 from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
-from isaac_audio_sensors.core.plugins.protocols import PropagationBackend
+from isaac_audio_sensors.core.plugins.protocols import (
+    ActivityDetector,
+    PropagationBackend,
+)
+from isaac_audio_sensors.core.plugins.registry import get_default_registry
 from isaac_audio_sensors.core.scene import (
     deterministic_frame_id,
     deterministic_frame_name,
@@ -84,6 +89,7 @@ def simulate_frame(
 def simulate_from_config(
     path: str | Path,
     *,
+    energy_threshold_dbfs: float,
     backend_id: str | None = None,
     array_id: str | None = None,
     start_time_s: float = 0.0,
@@ -112,12 +118,24 @@ def simulate_from_config(
         ray_tracing=config.analytic_ray_tracing,
     )
     backend = get_backend(selected_backend, **backend_kwargs)
+    activity_detector = cast(
+        ActivityDetector,
+        get_default_registry().resolve(
+            "activity_detector",
+            "auditok",
+            runtime_profile=config.runtime_profile,
+            factory_kwargs={"energy_threshold_dbfs": energy_threshold_dbfs},
+        ),
+    )
     frame, _block = simulate_frame(
         backend,
         scene,
         selected_array,
         time_window,
-        perception=AudioPerceptionPipeline(max_observations=max_observations),
+        perception=AudioPerceptionPipeline(
+            activity_detector=activity_detector,
+            max_observations=max_observations,
+        ),
     )
     return frame
 

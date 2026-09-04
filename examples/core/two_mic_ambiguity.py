@@ -6,6 +6,7 @@ from isaac_audio_sensors.core import AudioPerceptionPipeline
 from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
+from isaac_audio_sensors.core.plugins import AuditokActivityDetector
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -44,7 +45,9 @@ block = AnalyticAcoustics().propagate(
         frame_index=0,
     ),
 )
-frame = AudioPerceptionPipeline().process(
+frame = AudioPerceptionPipeline(
+    activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0)
+).process(
     block,
     array,
     frame_id="two_mic_ambiguity_example_000000",
@@ -53,6 +56,6 @@ print(
     {
         "producer": frame.producer_id,
         "observations": len(frame.observations),
-        "note": "No detector is configured before Phase 03.",
+        "note": "Activity detection does not invent a source identity or DOA.",
     }
 )
