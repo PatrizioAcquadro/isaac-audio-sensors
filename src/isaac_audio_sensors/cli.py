@@ -42,6 +42,7 @@ def _build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--start-time-s", type=float, default=0.0)
     simulate.add_argument("--end-time-s", type=float, default=1.0)
     simulate.add_argument("--energy-threshold-dbfs", type=float, required=True)
+    simulate.add_argument("--enable-doa", action="store_true")
     simulate.add_argument("--max-observations", type=int, default=None)
     simulate.add_argument("--out", type=Path, default=None)
     simulate.set_defaults(handler=_simulate)

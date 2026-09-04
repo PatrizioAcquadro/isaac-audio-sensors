@@ -144,12 +144,13 @@ class ConfigurationService(ControllerService):
         )
         return _json_ready(
             {
-                "schema_version": "ias.omni_extension_binding.v6",
+                "schema_version": "ias.omni_extension_binding.v7",
                 "backend": state.backend,
                 "activity_detection": {
                     "detector_id": "auditok",
                     "energy_threshold_dbfs": state.energy_threshold_dbfs,
                 },
+                "direction_estimation": {"enabled": state.doa_enabled},
                 "environment": {
                     "mode": state.environment_resolution_mode,
                     "anchor_prim_path": (
@@ -356,6 +357,7 @@ class ConfigurationService(ControllerService):
         binding = dict(payload.get("stage_binding", {}))
         lifecycle = dict(payload.get("lifecycle", {}))
         activity_detection = dict(payload.get("activity_detection", {}))
+        direction_estimation = dict(payload.get("direction_estimation", {}))
         environment = dict(payload.get("environment", {}))
         analytic_acoustics = dict(payload.get("analytic_acoustics", {}))
         device = dict(payload.get("device", {}))
@@ -434,6 +436,7 @@ class ConfigurationService(ControllerService):
         self.state.energy_threshold_dbfs = float(
             activity_detection["energy_threshold_dbfs"]
         )
+        self.state.doa_enabled = bool(direction_estimation["enabled"])
         self.state.device_id = str(device.get("device_id", self.state.device_id))
         self.state.compute_device = str(
             device.get("compute_device", self.state.compute_device)
@@ -786,22 +789,22 @@ class ConfigurationService(ControllerService):
         }.intersection(lifecycle)
         if legacy_keys:
             raise ValueError(
-                "Binding v6 rejects legacy room lifecycle keys: "
+                "Binding v7 rejects legacy room lifecycle keys: "
                 f"{sorted(legacy_keys)!r}."
             )
         if "ambiguity_policy" in lifecycle:
             raise ValueError(
-                "Binding v6 removed lifecycle.ambiguity_policy; contextual DOA "
+                "Binding v7 removed lifecycle.ambiguity_policy; contextual DOA "
                 "disambiguation belongs in downstream consumers."
             )
         if "room_acoustics" in payload:
             raise ValueError(
-                "Binding v6 removed room_acoustics; use analytic_acoustics."
+                "Binding v7 removed room_acoustics; use analytic_acoustics."
             )
         removed_keys = {"doa_estimator", "max_detections"}.intersection(lifecycle)
         if removed_keys:
             raise ValueError(
-                "Binding v6 rejects removed perception lifecycle keys: "
+                "Binding v7 rejects removed perception lifecycle keys: "
                 f"{sorted(removed_keys)!r}."
             )
         activity_detection = payload.get("activity_detection")
@@ -833,6 +836,24 @@ class ConfigurationService(ControllerService):
             raise ValueError(
                 "activity_detection.energy_threshold_dbfs must be finite."
             )
+        direction_estimation = payload.get("direction_estimation")
+        if not isinstance(direction_estimation, Mapping):
+            raise ValueError("direction_estimation must be a JSON object.")
+        required_direction_keys = {"enabled"}
+        missing_direction_keys = required_direction_keys - set(direction_estimation)
+        if missing_direction_keys:
+            raise ValueError(
+                "direction_estimation is missing required keys "
+                f"{sorted(missing_direction_keys)!r}."
+            )
+        unknown_direction_keys = set(direction_estimation) - required_direction_keys
+        if unknown_direction_keys:
+            raise ValueError(
+                "direction_estimation contains unknown keys "
+                f"{sorted(unknown_direction_keys)!r}."
+            )
+        if not isinstance(direction_estimation["enabled"], bool):
+            raise ValueError("direction_estimation.enabled must be a boolean.")
         environment = payload.get("environment")
         if not isinstance(environment, Mapping):
             raise ValueError("environment must be a JSON object.")

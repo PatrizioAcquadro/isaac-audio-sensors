@@ -98,6 +98,7 @@ class SafePreset:
                 "detector_id": "auditok",
                 "energy_threshold_dbfs": values["energy_threshold_dbfs"],
             },
+            "direction_estimation": {"enabled": values["doa_enabled"]},
         }
 
 
@@ -133,6 +134,7 @@ SAFE_PRESETS = (
             "update_period_s": 0.05,
             "max_observations": 8,
             "energy_threshold_dbfs": -60.0,
+            "doa_enabled": False,
         },
     ),
     SafePreset(
@@ -164,6 +166,7 @@ SAFE_PRESETS = (
             "update_period_s": 0.05,
             "max_observations": 8,
             "energy_threshold_dbfs": -60.0,
+            "doa_enabled": False,
         },
     ),
 )

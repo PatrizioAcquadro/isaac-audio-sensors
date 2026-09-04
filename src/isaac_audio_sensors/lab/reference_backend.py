@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 import torch
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
-from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
-from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
-from isaac_audio_sensors.core.plugins.registry import get_default_registry
+from isaac_audio_sensors.core.perception import _build_standard_perception_pipeline
 from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
@@ -34,6 +31,7 @@ class ReferenceBackend:
         analytic_ray_tracing: bool = False,
         max_observations: int,
         energy_threshold_dbfs: float,
+        doa_enabled: bool = False,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -68,17 +66,9 @@ class ReferenceBackend:
         }
         self._backend = get_backend(backend_id, **kwargs)
         self._perception = tuple(
-            AudioPerceptionPipeline(
-                activity_detector=cast(
-                    ActivityDetector,
-                    get_default_registry().resolve(
-                        "activity_detector",
-                        "auditok",
-                        factory_kwargs={
-                            "energy_threshold_dbfs": energy_threshold_dbfs
-                        },
-                    ),
-                ),
+            _build_standard_perception_pipeline(
+                energy_threshold_dbfs=energy_threshold_dbfs,
+                doa_enabled=doa_enabled,
                 max_observations=max_observations,
             )
             for _ in self.snapshots

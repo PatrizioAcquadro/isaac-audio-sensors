@@ -5,17 +5,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import cast
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.config import build_scene_snapshot, load_audio_config
 from isaac_audio_sensors.core.io.waveforms import WaveformSink
-from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
-from isaac_audio_sensors.core.plugins.protocols import (
-    ActivityDetector,
-    PropagationBackend,
+from isaac_audio_sensors.core.perception import (
+    AudioPerceptionPipeline,
+    _build_standard_perception_pipeline,
 )
-from isaac_audio_sensors.core.plugins.registry import get_default_registry
+from isaac_audio_sensors.core.plugins.protocols import PropagationBackend
 from isaac_audio_sensors.core.scene import (
     deterministic_frame_id,
     deterministic_frame_name,
@@ -95,6 +93,7 @@ def simulate_from_config(
     start_time_s: float = 0.0,
     end_time_s: float = 1.0,
     max_observations: int | None = None,
+    doa_enabled: bool = False,
 ) -> AudioSensorFrame:
     """Simulate one frame from a validated audio configuration."""
 
@@ -118,23 +117,16 @@ def simulate_from_config(
         ray_tracing=config.analytic_ray_tracing,
     )
     backend = get_backend(selected_backend, **backend_kwargs)
-    activity_detector = cast(
-        ActivityDetector,
-        get_default_registry().resolve(
-            "activity_detector",
-            "auditok",
-            runtime_profile=config.runtime_profile,
-            factory_kwargs={"energy_threshold_dbfs": energy_threshold_dbfs},
-        ),
-    )
     frame, _block = simulate_frame(
         backend,
         scene,
         selected_array,
         time_window,
-        perception=AudioPerceptionPipeline(
-            activity_detector=activity_detector,
+        perception=_build_standard_perception_pipeline(
+            energy_threshold_dbfs=energy_threshold_dbfs,
+            doa_enabled=doa_enabled,
             max_observations=max_observations,
+            runtime_profile=config.runtime_profile,
         ),
     )
     return frame

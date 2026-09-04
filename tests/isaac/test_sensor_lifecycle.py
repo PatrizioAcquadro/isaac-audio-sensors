@@ -38,6 +38,7 @@ def test_standard_and_custom_pipeline_configuration_is_fail_closed() -> None:
     )
     assert sensor.perception_pipeline is custom
     assert sensor.energy_threshold_dbfs is None
+    assert sensor.doa_enabled is False
 
     with pytest.raises(ValueError, match="must be omitted"):
         IsaacAudioArraySensor(
@@ -46,6 +47,22 @@ def test_standard_and_custom_pipeline_configuration_is_fail_closed() -> None:
             energy_threshold_dbfs=-60.0,
             perception_pipeline=custom,
         )
+
+    with pytest.raises(ValueError, match="caller-owned"):
+        IsaacAudioArraySensor(
+            **common,
+            max_observations=1,
+            doa_enabled=True,
+            perception_pipeline=custom,
+        )
+
+    doa_sensor = IsaacAudioArraySensor(
+        **common,
+        energy_threshold_dbfs=-60.0,
+        doa_enabled=True,
+    )
+    assert doa_sensor.doa_enabled is True
+    assert doa_sensor.perception_pipeline._doa_estimator is not None
 
 
 @pytest.mark.parametrize("threshold", (True, float("nan")))
@@ -56,6 +73,17 @@ def test_standard_pipeline_rejects_invalid_threshold(threshold) -> None:
             stage=object(),
             environment=MANUAL_ENVIRONMENT,
             energy_threshold_dbfs=threshold,
+        )
+
+
+def test_standard_pipeline_rejects_non_boolean_doa_opt_in() -> None:
+    with pytest.raises(ConfigValidationError, match="doa_enabled"):
+        IsaacAudioArraySensor(
+            array_id="array",
+            stage=object(),
+            environment=MANUAL_ENVIRONMENT,
+            energy_threshold_dbfs=-60.0,
+            doa_enabled=1,
         )
 
 
@@ -227,6 +255,23 @@ def test_live_sensor_recognizes_analytic_core_backend() -> None:
         "provider_version": "core",
         "environment_kind": "free_field",
     }
+
+
+def test_stage_factory_forwards_standard_doa_opt_in() -> None:
+    stage, _, _ = motion_stage()
+    sensor = IsaacAudioArraySensor.from_stage(
+        stage=stage,
+        array_prim_path="/World/Rig",
+        environment_resolution_cfg=MANUAL_RESOLUTION,
+        environment=MANUAL_ENVIRONMENT,
+        source_prim_path="/World/Speaker",
+        energy_threshold_dbfs=-60.0,
+        doa_enabled=True,
+    )
+
+    assert sensor.doa_enabled is True
+    assert sensor.perception_pipeline is not None
+    assert sensor.perception_pipeline._doa_estimator is not None
 
 
 def test_non_monotonic_time_preserves_latest_frame():

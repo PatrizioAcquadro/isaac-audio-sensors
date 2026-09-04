@@ -158,6 +158,7 @@ class ExtensionUiState:
     update_period_s: float = 0.05
     max_observations: int = 8
     energy_threshold_dbfs: float = -60.0
+    doa_enabled: bool = False
     debug_overlay_enabled: bool = True
     occlusion_enabled: bool = False
     trace_enabled: bool = True

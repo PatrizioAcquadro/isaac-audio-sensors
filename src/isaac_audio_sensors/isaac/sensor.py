@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any, cast
+from typing import Any
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
@@ -26,9 +26,10 @@ from isaac_audio_sensors.core.motion import (
     build_window_motion,
     validate_pose_observation,
 )
-from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
-from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
-from isaac_audio_sensors.core.plugins.registry import get_default_registry
+from isaac_audio_sensors.core.perception import (
+    AudioPerceptionPipeline,
+    _build_standard_perception_pipeline,
+)
 from isaac_audio_sensors.core.simulation import simulate_frame
 from isaac_audio_sensors.core.types import (
     AcousticEnvironmentSpec,
@@ -102,6 +103,7 @@ class IsaacAudioArraySensor:
     update_period_s: float = 0.05
     max_observations: int | None = None
     energy_threshold_dbfs: float | None = None
+    doa_enabled: bool = False
     perception_pipeline: AudioPerceptionPipeline | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     waveform_sink: WaveformSink | None = None
@@ -207,27 +209,25 @@ class IsaacAudioArraySensor:
             type(self.max_observations) is not int or self.max_observations < 0
         ):
             raise ValueError("max_observations must be a non-negative integer.")
+        if not isinstance(self.doa_enabled, bool):
+            raise ConfigValidationError("doa_enabled must be a boolean.")
         if self.perception_pipeline is None:
             if self.energy_threshold_dbfs is None:
                 raise ValueError(
                     "energy_threshold_dbfs is required when constructing the "
                     "standard perception pipeline."
                 )
-            activity_detector = cast(
-                ActivityDetector,
-                get_default_registry().resolve(
-                    "activity_detector",
-                    "auditok",
-                    factory_kwargs={
-                        "energy_threshold_dbfs": self.energy_threshold_dbfs
-                    },
-                ),
-            )
-            self.perception_pipeline = AudioPerceptionPipeline(
-                activity_detector=activity_detector,
+            self.perception_pipeline = _build_standard_perception_pipeline(
+                energy_threshold_dbfs=self.energy_threshold_dbfs,
+                doa_enabled=self.doa_enabled,
                 max_observations=self.max_observations,
             )
         else:
+            if self.doa_enabled:
+                raise ValueError(
+                    "doa_enabled=True cannot be combined with perception_pipeline; "
+                    "the custom pipeline is caller-owned."
+                )
             if self.energy_threshold_dbfs is not None:
                 raise ValueError(
                     "energy_threshold_dbfs must be omitted when perception_pipeline "
@@ -293,6 +293,7 @@ class IsaacAudioArraySensor:
         update_period_s: float = 0.05,
         max_observations: int | None = None,
         energy_threshold_dbfs: float | None = None,
+        doa_enabled: bool = False,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -341,6 +342,7 @@ class IsaacAudioArraySensor:
             update_period_s=update_period_s,
             max_observations=max_observations,
             energy_threshold_dbfs=energy_threshold_dbfs,
+            doa_enabled=doa_enabled,
             speed_of_sound_mps=speed_of_sound_mps,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,
@@ -366,6 +368,7 @@ class IsaacAudioArraySensor:
         update_period_s: float = 0.05,
         max_observations: int | None = None,
         energy_threshold_dbfs: float | None = None,
+        doa_enabled: bool = False,
         speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
         environment: AcousticEnvironmentSpec | None = None,
         analytic_max_order: int = 0,
@@ -421,6 +424,7 @@ class IsaacAudioArraySensor:
             update_period_s=update_period_s,
             max_observations=max_observations,
             energy_threshold_dbfs=energy_threshold_dbfs,
+            doa_enabled=doa_enabled,
             speed_of_sound_mps=speed_of_sound_mps,
             debug_draw_enabled=debug_draw,
             occlusion_enabled=occlusion_enabled,

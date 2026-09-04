@@ -47,6 +47,11 @@ class AudioArraySensor(SensorBase):
             raise ValueError(
                 "energy_threshold_dbfs is not supported by the entity binding."
             )
+        if self.cfg.doa_enabled:
+            raise ValueError(
+                "doa_enabled is not supported by the entity binding because it "
+                "does not produce microphone waveforms."
+            )
         self._entity_binding = EntityBinding(scene, cfg)
         self._reference_backend = None
         self._reference_frame_indices = None
@@ -76,6 +81,7 @@ class AudioArraySensor(SensorBase):
             analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
             max_observations=int(self.cfg.max_observations),
             energy_threshold_dbfs=float(self.cfg.energy_threshold_dbfs),
+            doa_enabled=bool(self.cfg.doa_enabled),
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,

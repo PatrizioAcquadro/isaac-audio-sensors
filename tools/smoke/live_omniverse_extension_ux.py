@@ -163,6 +163,7 @@ EXPECTED_INT_FIELDS = ("max_observations", "sample_rate_hz", "source_loop_count"
 EXPECTED_BOOL_FIELDS = (
     "author_child_microphones",
     "debug_overlay_enabled",
+    "doa_enabled",
     "follow_viewport_selection",
     "live_sync_array_pose",
     "live_sync_source_pose",
@@ -2061,11 +2062,13 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     package_jsonl = recording.get("package_jsonl", {})
     replicator = recording.get("replicator", {})
     activity_detection = payload.get("activity_detection", {})
+    direction_estimation = payload.get("direction_estimation", {})
     return {
         "backend": payload.get("backend"),
         "energy_threshold_dbfs": activity_detection.get(
             "energy_threshold_dbfs"
         ),
+        "doa_enabled": direction_estimation.get("enabled"),
         "array_prim_path": array.get("prim_path"),
         "array_position_world": array.get("position_world"),
         "array_orientation_world_quat": array.get("orientation_world_quat"),
@@ -2104,6 +2107,7 @@ def _observed_config_state(controller: ExtensionController) -> dict[str, Any]:
     return {
         "backend": state.backend,
         "energy_threshold_dbfs": state.energy_threshold_dbfs,
+        "doa_enabled": state.doa_enabled,
         "array_prim_path": state.array_prim_path,
         "array_position_world": [
             state.array_position_x_m,
@@ -3359,13 +3363,15 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
             f"{name} rig profile was not authored on the array: {rig_application}"
         )
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    if config.get("schema_version") != "ias.omni_extension_binding.v6":
-        raise RuntimeError(f"{name} did not export binding v6.")
+    if config.get("schema_version") != "ias.omni_extension_binding.v7":
+        raise RuntimeError(f"{name} did not export binding v7.")
     if config.get("activity_detection") != {
         "detector_id": "auditok",
         "energy_threshold_dbfs": -60.0,
     }:
         raise RuntimeError(f"{name} did not preserve Auditok activity settings.")
+    if config.get("direction_estimation") != {"enabled": False}:
+        raise RuntimeError(f"{name} did not preserve DOA opt-in state.")
     array_binding_config = config.get("array_binding", {})
     if array_binding_config.get("attached") is not True:
         raise RuntimeError(f"{name} config did not preserve array attachment.")

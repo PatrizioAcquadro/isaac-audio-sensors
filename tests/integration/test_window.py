@@ -21,6 +21,7 @@ def test_kit_window_builds_and_refreshes(monkeypatch) -> None:
     assert window is not None
     assert controller.ui_available is True
     assert "energy_threshold_dbfs" in window._float_fields
+    assert "doa_enabled" in window._bool_fields
 
     controller.state.status_message = "Host refresh complete"
     controller.refresh_window()

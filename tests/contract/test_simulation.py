@@ -155,3 +155,34 @@ def test_simulate_from_config_rejects_invalid_explicit_threshold(threshold) -> N
             "examples/configs/isaac_audio_sensors_demo.toml",
             energy_threshold_dbfs=threshold,
         )
+
+
+def test_simulate_from_config_doa_is_explicitly_opt_in() -> None:
+    default_frame = simulate_from_config(
+        "examples/configs/isaac_audio_sensors_demo.toml",
+        energy_threshold_dbfs=-60.0,
+    )
+    enabled_frame = simulate_from_config(
+        "examples/configs/isaac_audio_sensors_demo.toml",
+        energy_threshold_dbfs=-60.0,
+        doa_enabled=True,
+    )
+
+    assert default_frame.observations[0].doa is None
+    assert enabled_frame.observations[0].doa is not None
+    diagnostics = enabled_frame.observations[0].diagnostics["doa_estimator"]
+    assert diagnostics["selection"] == {
+        "policy": "maintained_roles_v1",
+        "role": "primary_planar_doa",
+        "selected_estimator_id": "pyroomacoustics_srp",
+    }
+    assert diagnostics["consumer"]["causal"] is True
+
+
+def test_simulate_from_config_rejects_non_boolean_doa_opt_in() -> None:
+    with pytest.raises(ConfigValidationError, match="doa_enabled"):
+        simulate_from_config(
+            "examples/configs/isaac_audio_sensors_demo.toml",
+            energy_threshold_dbfs=-60.0,
+            doa_enabled="true",
+        )

@@ -43,6 +43,7 @@ def test_extension_controller_config_paths_use_output_root_env(
     controller.state.source_local_offset_y_m = 0.5
     controller.state.source_local_offset_z_m = 0.75
     controller.state.energy_threshold_dbfs = -47.5
+    controller.state.doa_enabled = True
 
     controller.state.config_export_path = "gui_manual_binding.json"
     path = controller.export_config_summary()
@@ -64,6 +65,8 @@ def test_extension_controller_config_paths_use_output_root_env(
         "detector_id": "auditok",
         "energy_threshold_dbfs": -47.5,
     }
+    assert summary["schema_version"] == "ias.omni_extension_binding.v7"
+    assert summary["direction_estimation"] == {"enabled": True}
 
     imported = ExtensionController()
     imported.state.config_import_path = "gui_manual_binding.json"
@@ -78,6 +81,7 @@ def test_extension_controller_config_paths_use_output_root_env(
     assert imported.state.source_local_offset_y_m == 0.5
     assert imported.state.source_local_offset_z_m == 0.75
     assert imported.state.energy_threshold_dbfs == -47.5
+    assert imported.state.doa_enabled is True
 
     controller.state.config_export_path = "manual/binding.json"
     assert controller.export_config_summary() == output_root / "manual" / "binding.json"
@@ -227,7 +231,7 @@ def test_config_import_rejects_boolean_gain_before_mutating_state(tmp_path) -> N
         ),
     ),
 )
-def test_binding_v6_requires_valid_activity_detection_before_mutation(
+def test_binding_v7_requires_valid_activity_detection_before_mutation(
     tmp_path,
     activity_detection,
     message,
@@ -237,6 +241,32 @@ def test_binding_v6_requires_valid_activity_detection_before_mutation(
     payload["array"]["array_id"] = "must_not_apply"
     payload["activity_detection"] = activity_detection
     path = tmp_path / "invalid_activity_detection.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert controller.import_config_summary(path) is None
+    assert controller.state.array_id == "rig_front"
+    assert message in str(controller.state.error_message)
+
+
+@pytest.mark.parametrize(
+    ("direction_estimation", "message"),
+    (
+        (None, "direction_estimation must be a JSON object"),
+        ({}, "missing required keys"),
+        ({"enabled": False, "estimator": "srp_phat"}, "unknown keys"),
+        ({"enabled": 1}, "enabled must be a boolean"),
+    ),
+)
+def test_binding_v7_requires_exact_direction_estimation_before_mutation(
+    tmp_path,
+    direction_estimation,
+    message,
+):
+    controller = ExtensionController()
+    payload = controller.config_summary_dict()
+    payload["array"]["array_id"] = "must_not_apply"
+    payload["direction_estimation"] = direction_estimation
+    path = tmp_path / "invalid_direction_estimation.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
 
     assert controller.import_config_summary(path) is None
@@ -388,7 +418,7 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     assert imported.state.applied_array_rig_profile["profile_id"] == ("stereo_y_100mm")
 
     legacy_payload = {
-        "schema_version": "ias.omni_extension_binding.v5",
+        "schema_version": "ias.omni_extension_binding.v6",
         "backend": "analytic_acoustics",
         "array": {"prim_path": "/World/Rig/AudioArray", "array_id": "legacy_rig"},
         "source": {"prim_path": "/World/Sources/SpeakerA"},
@@ -400,12 +430,12 @@ def test_extension_controller_rig_profile_select_apply_and_config_roundtrip(
     )
     assert legacy.import_config_summary(legacy_path) is None
     assert legacy.state.error_message is not None
-    assert "ias.omni_extension_binding.v6" in legacy.state.error_message
+    assert "ias.omni_extension_binding.v7" in legacy.state.error_message
     assert "older bindings have no compatibility path" in legacy.state.error_message
     assert legacy.state.array_id == "rig_front"
 
 
-def test_binding_v6_rejects_removed_ambiguity_policy_before_mutation(tmp_path):
+def test_binding_v7_rejects_removed_ambiguity_policy_before_mutation(tmp_path):
     controller = ExtensionController()
     payload = controller.config_summary_dict()
     payload["array"]["array_id"] = "must_not_apply"

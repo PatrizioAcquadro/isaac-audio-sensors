@@ -98,6 +98,25 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
     assert reference.num_mics == len(selected.microphones)
 
 
+def test_reference_backend_supports_standard_doa_opt_in() -> None:
+    array = create_microphone_array(
+        array_id="array",
+        prim_path="/World/Array",
+        layout_name="quad_front",
+    )
+    reference = ReferenceBackend(
+        backend_id="analytic_acoustics",
+        max_observations=8,
+        energy_threshold_dbfs=-60.0,
+        doa_enabled=True,
+        effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+        snapshots=(_snapshot(array, ()),),
+        array_ids=("array",),
+    )
+
+    assert reference._perception[0]._doa_estimator is not None
+
+
 def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
     array = create_microphone_array(
         array_id="array",
@@ -203,22 +222,33 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
         AudioArraySensorCfg(
             prim_path="/World/Audio", energy_threshold_dbfs=float("nan")
         ).validate()
+    with pytest.raises(TypeError, match="doa_enabled"):
+        AudioArraySensorCfg(
+            prim_path="/World/Audio", doa_enabled=1
+        ).validate()
 
 
 def test_lab_bindings_enforce_threshold_ownership() -> None:
     entity_sensor = SimpleNamespace(
         is_initialized=False,
-        cfg=SimpleNamespace(energy_threshold_dbfs=-60.0),
+        cfg=SimpleNamespace(energy_threshold_dbfs=-60.0, doa_enabled=False),
     )
     with pytest.raises(ValueError, match="not supported by the entity binding"):
         AudioArraySensor.bind_entities(entity_sensor, object(), object())
 
     reference_sensor = SimpleNamespace(
         is_initialized=False,
-        cfg=SimpleNamespace(energy_threshold_dbfs=None),
+        cfg=SimpleNamespace(energy_threshold_dbfs=None, doa_enabled=False),
     )
     with pytest.raises(ValueError, match="required by the reference binding"):
         AudioArraySensor.bind_reference(reference_sensor, (), ())
+
+    doa_entity_sensor = SimpleNamespace(
+        is_initialized=False,
+        cfg=SimpleNamespace(energy_threshold_dbfs=None, doa_enabled=True),
+    )
+    with pytest.raises(ValueError, match="does not produce microphone waveforms"):
+        AudioArraySensor.bind_entities(doa_entity_sensor, object(), object())
 
 
 def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():

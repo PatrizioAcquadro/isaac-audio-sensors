@@ -89,6 +89,7 @@ class SensorSession(ControllerService):
         update_period_s: float | None = None,
         max_observations: int | None = None,
         energy_threshold_dbfs: float | None = None,
+        doa_enabled: bool | None = None,
         debug_draw: bool | None = None,
         occlusion: bool | None = None,
         writer_path: str | Path | None = None,
@@ -106,6 +107,8 @@ class SensorSession(ControllerService):
                 self.state.max_observations = int(max_observations)
             if energy_threshold_dbfs is not None:
                 self.state.energy_threshold_dbfs = energy_threshold_dbfs
+            if doa_enabled is not None:
+                self.state.doa_enabled = doa_enabled
             if debug_draw is not None:
                 self.state.debug_overlay_enabled = bool(debug_draw)
             if occlusion is not None:
@@ -431,6 +434,7 @@ class SensorSession(ControllerService):
                 update_period_s=state.update_period_s,
                 max_observations=state.max_observations,
                 energy_threshold_dbfs=state.energy_threshold_dbfs,
+                doa_enabled=state.doa_enabled,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,
@@ -455,6 +459,7 @@ class SensorSession(ControllerService):
                 update_period_s=state.update_period_s,
                 max_observations=state.max_observations,
                 energy_threshold_dbfs=state.energy_threshold_dbfs,
+                doa_enabled=state.doa_enabled,
                 debug_draw=state.debug_overlay_enabled,
                 occlusion_enabled=state.occlusion_enabled,
                 environment=environment,

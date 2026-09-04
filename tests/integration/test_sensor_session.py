@@ -18,6 +18,7 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     )
     controller.state.backend = "analytic_acoustics"
     controller.state.environment_resolution_mode = "manual_free_field"
+    controller.state.doa_enabled = True
     controller.state.jsonl_trace_path = str(tmp_path / "frames.jsonl")
     controller.state.latest_frame_export_path = str(tmp_path / "latest.json")
     controller.state.config_export_path = str(tmp_path / "binding.json")
@@ -55,12 +56,15 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     trace_lines = (tmp_path / "frames.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(trace_lines) == 1
     summary = json.loads(config_path.read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "ias.omni_extension_binding.v6"
+    assert summary["schema_version"] == "ias.omni_extension_binding.v7"
     assert summary["activity_detection"] == {
         "detector_id": "auditok",
         "energy_threshold_dbfs": -60.0,
     }
+    assert summary["direction_estimation"] == {"enabled": True}
     assert imported.state.energy_threshold_dbfs == -60.0
+    assert imported.state.doa_enabled is True
+    assert sensor.doa_enabled is True
     assert summary["environment"]["mode"] == "manual_free_field"
     assert summary["environment"]["resolved"]["kind"] == "free_field"
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"

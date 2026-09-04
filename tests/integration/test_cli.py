@@ -138,6 +138,30 @@ def test_simulate_higher_threshold_is_inactive(capsys):
     assert frame["observations"] == []
     assert frame["diagnostics"]["perception"]["activity_detected"] is False
 
+
+def test_simulate_enable_doa_routes_the_planar_array(capsys):
+    assert (
+        main(
+            [
+                "simulate",
+                str(CONFIG),
+                "--energy-threshold-dbfs",
+                "-60",
+                "--enable-doa",
+            ]
+        )
+        == 0
+    )
+    frame = json.loads(capsys.readouterr().out)
+
+    observation = frame["observations"][0]
+    assert observation["doa"] is not None
+    assert observation["diagnostics"]["doa_estimator"]["selection"] == {
+        "policy": "maintained_roles_v1",
+        "role": "primary_planar_doa",
+        "selected_estimator_id": "pyroomacoustics_srp",
+    }
+
 def test_dataset_commands_delegate_to_recording_services(tmp_path, capsys):
     assert main(["dataset", "validate", str(REFERENCE), "--json", "-"]) == 0
     assert json.loads(capsys.readouterr().out) == validate_dataset(REFERENCE).to_dict()

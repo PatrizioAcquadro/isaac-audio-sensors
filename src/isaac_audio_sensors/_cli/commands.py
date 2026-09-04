@@ -43,6 +43,7 @@ def _simulate(args: argparse.Namespace) -> int:
             end_time_s=args.end_time_s,
             energy_threshold_dbfs=args.energy_threshold_dbfs,
             max_observations=args.max_observations,
+            doa_enabled=args.enable_doa,
         )
         if args.out is not None:
             write_frame_trace(frame, args.out)

@@ -40,6 +40,7 @@ class ValidationState(Protocol):
     update_period_s: float
     max_observations: int
     energy_threshold_dbfs: float
+    doa_enabled: bool
     analytic_max_order: int
     analytic_air_absorption: bool
     analytic_ray_tracing: bool
@@ -148,6 +149,12 @@ def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]
             "energy_threshold_dbfs_finite",
             "energy_threshold_dbfs must be finite.",
             "energy_threshold_dbfs",
+        )
+    if not isinstance(state.doa_enabled, bool):
+        return _error(
+            "doa_enabled_boolean",
+            "doa_enabled must be a boolean.",
+            "doa_enabled",
         )
     environment_findings = check_environment_resolution(
         state.environment_resolution_mode,
@@ -609,10 +616,10 @@ def check_environment_resolution(
 
 
 def check_config_schema_version(value: object) -> tuple[ValidationFinding, ...]:
-    if value != "ias.omni_extension_binding.v6":
+    if value != "ias.omni_extension_binding.v7":
         return _error(
             "config_schema_version_supported",
-            "Config import requires schema_version 'ias.omni_extension_binding.v6'; "
+            "Config import requires schema_version 'ias.omni_extension_binding.v7'; "
             "older bindings have no compatibility path.",
             "schema_version",
         )

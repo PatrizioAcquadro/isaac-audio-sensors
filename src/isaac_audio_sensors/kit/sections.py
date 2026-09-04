@@ -723,6 +723,7 @@ def build_control_section(window: OmniReferenceWindow) -> None:
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
         window._float_row("Period s", "update_period_s")
         window._float_row("Activity dBFS", "energy_threshold_dbfs")
+        window._bool_row("DOA", "doa_enabled")
         window._int_row("Max Observations", "max_observations")
         window._bool_row("Overlay", "debug_overlay_enabled")
         window._bool_row("Occlusion", "occlusion_enabled")

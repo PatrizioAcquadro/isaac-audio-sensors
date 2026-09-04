@@ -22,6 +22,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
     backend: str = "analytic_acoustics"
     max_observations: int = 8
     energy_threshold_dbfs: float | None = None
+    doa_enabled: bool = False
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
@@ -48,6 +49,8 @@ class AudioArraySensorCfg(SensorBaseCfg):
                 raise TypeError("energy_threshold_dbfs must be a real number.")
             if not math.isfinite(float(self.energy_threshold_dbfs)):
                 raise ValueError("energy_threshold_dbfs must be finite.")
+        if not isinstance(self.doa_enabled, bool):
+            raise TypeError("doa_enabled must be a boolean.")
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0
