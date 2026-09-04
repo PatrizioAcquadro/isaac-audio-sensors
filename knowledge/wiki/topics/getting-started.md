@@ -49,7 +49,7 @@ isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.to
 Generate a deterministic analytic frame:
 
 ```bash
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --energy-threshold-dbfs -60
 ```
 
 The maintained configuration uses `free_field`, so neither command needs Isaac, a GPU, or the optional `room` extra.
@@ -57,11 +57,11 @@ The maintained configuration uses `free_field`, so neither command needs Isaac, 
 Export an analytic trace and the public frame schema:
 
 ```bash
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --out build/validation/isaac_audio_sensors/analytic_trace.json
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --energy-threshold-dbfs -60 --out build/validation/isaac_audio_sensors/analytic_trace.json
 isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v3.schema.json
 ```
 
-Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still renders the complete soundscape and aggregate RMS. Subphase 03.2 registers the fixed-threshold Auditok detector, but default commands do not select it until 03.3 and therefore intentionally emit zero observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.
+Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. `simulate` requires `--energy-threshold-dbfs` and resolves the registered Auditok detector at runtime. The value does not belong to TOML, and `-60` is specific to the maintained generated-signal example rather than a universal default. Auditok's initial 100 ms minimum activity means a first 50 ms block may legitimately have no observation. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still runs detection and renders the complete soundscape and aggregate RMS while suppressing final observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.
 
 The CLI also exposes capability reporting, dataset validation/statistics/splitting, and the guided headless workflow; run `isaac-audio-sensors --help` and the relevant subcommand help for the current arguments.
 

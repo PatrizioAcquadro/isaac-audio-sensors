@@ -1,6 +1,6 @@
 # Implementation Plan 03 — Audio Activity Detection
 
-Status: 03.1–03.2 completed on 2026-09-03; 03.3 remains planned.
+Status: complete. Subphases 03.1–03.2 completed on 2026-09-03 and 03.3 completed on 2026-09-04.
 
 ## Objective
 
@@ -41,7 +41,7 @@ The contract does not select an algorithm, threshold, temporal profile, or autom
 
 IAS `[channel, sample]` values are converted to native-endian IEEE-754 `float32` bytes in sample-major/channel-interleaved order. Auditok 0.5.2 interprets `sample_width=4` as float samples, converts them to `float64`, and multiplies them by 32768. The adapter therefore converts IAS dBFS thresholds to Auditok's scale by adding `20 log10(32768)` and subtracts the same reference from reported energy. The payload is not described as integer PCM. Diagnostics contain the fixed profile, Auditok version, current-block energy, threshold and margin in dBFS, temporal parameters, and the explicit `any`-channel policy; `activity_probability` remains `None`.
 
-The built-in registry exposes `auditok` for both runtime profiles and requires factory kwargs containing the threshold. Importing `core.plugins` does not import Auditok. Standard Python declares `auditok>=0.5.2,<0.6` as a Core dependency; the Kit archive locks and audits the exact 0.5.2 pure-Python wheel, metadata, and MIT license as its sixth bundled distribution. No Core, Isaac, Lab, Kit, CLI, or configuration default selects the detector before 03.3.
+The built-in registry exposes `auditok` for both runtime profiles and requires factory kwargs containing the threshold. Importing `core.plugins` does not import Auditok. Standard Python declares `auditok>=0.5.2,<0.6` as a Core dependency; the Kit archive locks and audits the exact 0.5.2 pure-Python wheel, metadata, and MIT license as its sixth bundled distribution. At the 03.2 boundary, no Core, Isaac, Lab, Kit, CLI, or configuration default selected the detector; 03.3 later integrated it into maintained scalar consumers.
 
 Fixed threshold and initial calibration received separate verdicts. `fixed_threshold` passes the blocking current-block, causality, reset, multichannel, determinism, float-format/scale, packaging, and supported-runtime gates. `initial_calibration` is not admitted as an in-band detector mode: the Boolean contract cannot represent “not ready,” and `active=False` would incorrectly mean inactive. An explicit pre-stream experiment may estimate a number and then construct a fresh fixed-threshold detector, but percentile 10, 6 dB margin, -50 dBFS floor, and 3 s duration remain unconfirmed initial values rather than runtime defaults.
 
@@ -64,23 +64,38 @@ For 500 four-channel, 48 kHz, 50 ms blocks, the host qualification run measured 
 
 #### Implementation
 
-Emit no `AudioObservation` when inactive. When active, emit `origin=signal_derived`, the selected `detector_id`, and optional `detection_score` only when its interpretation is explicit. Energy, threshold, and margin may remain diagnostics. Initially support one dominant event without inventing source identity, class, or simulated source count.
+`simulate_from_config()` and CLI `simulate` now require an explicit runtime `energy_threshold_dbfs`. They resolve `auditok` through the built-in registry and compose the standard scalar perception pipeline without adding a detector or threshold to `AudioSensorConfig`, TOML, frame schema v3, `simulate_frame()`, or the low-level `AudioPerceptionPipeline`. The maintained examples and safe deterministic Kit presets use `-60 dBFS` because their generated signal measures about `-55.3 dBFS`; this is demonstration configuration, not a package-wide threshold for arbitrary scenes.
 
-Do not recreate `signal_energy` as a mode. After integration, remove rejected, duplicate, legacy-energy, and test-only detector paths with their unused supporting surfaces. Keep another detector only for a distinct verified role.
+`IsaacAudioArraySensor` and both stage factories use the same fail-closed ownership rule. A sensor constructing the standard pipeline requires `energy_threshold_dbfs`; a caller injecting a custom pipeline must omit it. Reset and close retain their previous lifecycle ownership, and a live change to the selected array's stream-defining identity, sample rate, convention, or microphone layout resets perception before the next frame.
+
+The Isaac Lab configuration adds optional `energy_threshold_dbfs` only as binding-owned state. `bind_reference()` requires it and creates one independent Auditok detector and perception pipeline per environment, including selective reset. `bind_entities()` rejects it because that path has no microphone signal. Both bindings intentionally preserve the existing six public tensors and zero-filled results until [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]]; running the reference detector does not project source truth or prematurely change the learning interface.
+
+Kit state, UI, maintained presets, headless summaries, validation, sensor construction, import, and export carry the explicit threshold. The configuration contract is now `ias.omni_extension_binding.v6`, with an exact required `activity_detection` object containing `detector_id="auditok"` and finite real `energy_threshold_dbfs`; v5 and older inputs are rejected. Export, JSONL, guided recording, Replicator, OmniGraph, and live instruments retain the resulting frame observations.
+
+Inactive and warm-up frames emit no `AudioObservation`. Once Auditok's default 100 ms minimum activity has been met, an active frame emits at most one observation with `origin=signal_derived`, `detector_id="auditok"`, and `detection_score=None`; threshold, energy, and margin remain diagnostics. No source identity, class, simulated source count, DOA, or oracle state is invented. `max_observations=0` still runs the detector and preserves waveform and aggregate RMS while suppressing the final observation sequence.
+
+`auditok` is the only maintained generic detector. No `signal_energy`, alternate default, compatibility alias, legacy-energy path, or test-only production detector was added or retained.
 
 #### Key Decisions
 
 - Absence of an observation is the normal inactive result.
 - Detection score and DOA confidence are separate.
-- Generic activity has one canonical detector path by default.
+- Generic activity has one canonical detector path in maintained scalar runtimes.
+- The threshold is application-owned runtime state, not TOML or a universal package default.
+- Low-level pipeline composition remains explicit so downstream detectorless consumers preserve their contract.
+- Isaac Lab tensor semantics remain a Phase 07 responsibility even though the scalar reference path now executes the detector.
 
 #### Problems / Limitations
 
-Short impulses and continuous machinery may need different supported profiles; a second implementation requires measured non-overlapping value.
+The default 50 ms analysis, 100 ms minimum activity, and 100 ms maximum silence can suppress a first active block and short impulses. Low SNR and changing noise floors can still cause misses or sustained activity, and a fixed threshold requires scenario-specific tuning. A second implementation or temporal profile requires measured non-overlapping value.
+
+The official Isaac runtime does not inherit the project's Python dependencies by default. Source validation therefore exposes the project environment's site-packages to the official launcher so its registered Auditok dependency is available; a bare launcher correctly fails closed when Auditok is absent.
 
 ## Artifacts
 
-Subphase 03.1 produced the public decision/protocol contract, registry validation, and typed pipeline seam. Subphase 03.2 adds one qualified fixed-threshold Auditok adapter, focused qualification coverage, exact Python and Kit dependency boundaries, and documented calibration and operating limits. Signal-derived default integration and final detector cleanup remain in 03.3.
+Subphase 03.1 produced the public decision/protocol contract, registry validation, and typed pipeline seam. Subphase 03.2 added one qualified fixed-threshold Auditok adapter, focused qualification coverage, exact Python and Kit dependency boundaries, and documented calibration and operating limits. Subphase 03.3 integrated that one detector into maintained scalar consumers, advanced the Kit binding to v6, preserved the Lab tensor contract for Phase 07, and closed live GPU and downstream compatibility gates.
+
+The 03.3 closeout passes `make check` with 579 unit/contract tests, 221 integration tests, and 58 release tests; optional audio; 96 tests in the supported Isaac runtime; and live Isaac Sim, Isaac Lab, and Kit gates on the RTX 4090. The Lab smoke preserves zero-filled entity/reference tensor parity and selective reset over 4096 environments at 0.131 ms/step mean against the 20 ms budget. Seventy focused SquadBot consumer tests pass with one skip and no downstream changes.
 
 ## Files
 
@@ -88,8 +103,13 @@ Subphase 03.1 produced the public decision/protocol contract, registry validatio
 - `src/isaac_audio_sensors/core/plugins/protocols.py`
 - `src/isaac_audio_sensors/core/plugins/auditok.py`
 - `src/isaac_audio_sensors/core/perception.py`
+- `src/isaac_audio_sensors/core/simulation.py`
+- `src/isaac_audio_sensors/isaac/sensor.py`
+- `src/isaac_audio_sensors/lab/reference_backend.py`
+- `src/isaac_audio_sensors/kit/configuration.py`
 
 ## Version Notes
 
 - 2026-09-03: Implemented Subphase 03.1 with a bounded activity-probability decision, stateful detector plugin protocol, registry validation, typed pipeline integration, explicit reset ownership, and no concrete default detector or schema change.
 - 2026-09-03: Qualified Auditok 0.5.2 for explicit fixed-threshold use, kept initial calibration outside the Boolean streaming contract, added exact float32/dBFS adaptation and Core/Kit packaging, and preserved zero-observation defaults until 03.3.
+- 2026-09-04: Completed Subphase 03.3 with explicit-threshold Auditok integration across maintained scalar runtimes, Kit binding v6, detector state per Lab reference environment, unchanged Phase 07 tensor semantics, live RTX 4090 validation, and focused downstream compatibility.

@@ -8,7 +8,7 @@ After launch, `AudioArraySensorCfg` directly inherits `SensorBaseCfg` and `Audio
 
 ## Configuration
 
-`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_observations`, `effects`, `speed_of_sound_mps`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers, `max_detections`, estimator selection, and sensor-side ambiguity policies are absent.
+`AudioArraySensorCfg` retains the inherited `prim_path`, `update_period`, and `debug_vis` fields plus `backend`, `max_observations`, optional `energy_threshold_dbfs`, `effects`, `speed_of_sound_mps`, `analytic_max_order`, `analytic_air_absorption`, and `analytic_ray_tracing`. The backend defaults to `analytic_acoustics`; legacy backend identifiers, `max_detections`, estimator selection, and sensor-side ambiguity policies are absent. The threshold must be a finite real value when present.
 
 The active `SimulationContext` is the only device authority. `debug_vis=True` fails explicitly because the sensor has no real visualization implementation.
 
@@ -23,7 +23,7 @@ The active `SimulationContext` is the only device authority. `debug_vis=True` fa
 - `per_mic_rms [N,E,M] float32`
 - `ambiguity_mask [N,E] bool`
 
-Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. During the deliberate Plan 02.2-to-Phase 03 interval, all slots are unused because no concrete activity detector is registered. `max_observations` controls only fixed tensor capacity; neither entity nor reference binding derives presence, bearing, confidence, ambiguity, or per-observation RMS from scene source truth.
+Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and RMS values. Subphase 03.3 deliberately leaves all slots unused until Phase 07, even though the scalar reference binding now executes Auditok. `max_observations` controls only fixed tensor capacity; neither entity nor reference binding derives presence, bearing, confidence, ambiguity, or per-observation RMS from scene source truth.
 
 ## Entity Binding
 
@@ -33,13 +33,13 @@ Unused slots have false masks, `NaN` bearings, and zero confidence, sector, and 
 
 Inputs must already be rank-correct `float32` tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive exactly one explicit origin offset. WXYZ state quaternions convert to the package XYZW convention before relative poses are composed.
 
-Entity mode currently supports only `analytic_acoustics` over explicit `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. It validates and resolves array/source entity state on the sensor device but returns a correctly padded zero-observation result. Source poses and schedules are not converted into observations. Invalid directivity, orientation, gain, topology, options, devices, shapes, or dtypes still fail explicitly; there is no CUDA-to-CPU fallback.
+Entity mode currently supports only `analytic_acoustics` over explicit `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. It rejects `energy_threshold_dbfs` because no microphone signal exists on this path, validates and resolves array/source entity state on the sensor device, and returns a correctly padded zero-observation result. Source poses and schedules are not converted into observations. Invalid directivity, orientation, gain, topology, options, devices, shapes, or dtypes still fail explicitly; there is no CUDA-to-CPU fallback.
 
 The current zero-observation path allocates and scatters fixed-shape tensors on the selected device. It does not loop over environments, transfer tensors to the CPU, or produce waveforms, reverberation, occlusion, SPL, calibration, closed-room behavior, or per-environment acoustic randomization.
 
 ## Reference Binding
 
-`bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The reference path executes the selected Core backend through `simulate_frame()` with one persistent perception pipeline per environment and resets only selected environments. It intentionally returns zero-observation tensors until the qualified Auditok detector is integrated in 03.3.
+`bind_reference(snapshots, array_ids)` requires `AudioArraySensorCfg.energy_threshold_dbfs` and accepts equal non-empty sequences of pure `AudioSceneSnapshot` values and string selectors. Each selected array must exist in its corresponding snapshot, and selected arrays must share one microphone count. The reference path executes the selected Core backend through `simulate_frame()` with one independent persistent Auditok pipeline per environment and resets only selected environments. Detector decisions are intentionally not projected into the six tensors until Phase 07, so the current result remains zero-filled.
 
 This path remains a scalar lifecycle/debug boundary rather than an oracle reference. It does not inspect a USD stage, accept a scene/provider object, retain parallel `MicrophoneArraySpec` inputs, or turn snapshot source data into activity or direction labels.
 
@@ -53,6 +53,6 @@ The sensor uses the current Isaac Lab lifecycle unchanged: `update(dt, force_rec
 
 USD discovery, pose resolution, environment anchoring, occlusion, and live stage state belong to `isaac_audio_sensors.isaac`. Legacy trace diagnostics remain readable but are not part of Lab observation state.
 
-`make test-isaac` covers deterministic imports, contracts, zero-observation parity, frame transforms, reset, and failure behavior. `make smoke-isaac-lab` is the required live RTX 4090 gate for true `SensorBase` lifecycle, CUDA device placement, entity/reference parity, partial reset, and mean 4096-environment step time below 20 ms. CPU execution is not a substitute for that live gate.
+`make test-isaac` covers deterministic imports, contracts, binding-specific threshold ownership, independent reference detectors, zero-observation tensor parity, frame transforms, selective reset, and failure behavior. `make smoke-isaac-lab` is the required live RTX 4090 gate for true `SensorBase` lifecycle, CUDA device placement, entity/reference parity, partial reset, and mean 4096-environment step time below 20 ms. CPU execution is not a substitute for that live gate.
 
-The Plan 02.2 closeout passes 90 Isaac-runtime tests and the live smoke on the RTX 4090. Entity/reference zero-observation parity, partial reset, and all CUDA tensor contracts pass; 50 steps over 4096 environments average 0.131 ms/step against the 20 ms budget.
+The Subphase 03.3 closeout passes 96 Isaac-runtime tests and the live smoke on the RTX 4090. Entity/reference zero-filled tensor parity, independent reference-detector state, partial reset, and all CUDA tensor contracts pass; 50 steps over 4096 environments average 0.131 ms/step against the 20 ms budget.

@@ -2,10 +2,13 @@
 
 ## 3.0.0 - Unreleased
 
-- Bundle and runtime-check Auditok 0.5.2 as the qualified fixed-threshold activity detector while retaining the extension's zero-observation default until Plan 03.3.
+- Integrate Auditok into the standard extension sensor with an explicit finite `Activity dBFS` field, signal-derived observations after causal warm-up, and reset on stream-defining array-layout changes.
+- Breaking: import and export `ias.omni_extension_binding.v6` with required exact `activity_detection.detector_id="auditok"` and `activity_detection.energy_threshold_dbfs`; reject v5 and older inputs without compatibility parsing.
+- Preserve signal-derived observations through frame export, JSONL, guided recording, Replicator, OmniGraph, headless summaries, presets, and configuration round trips without inventing score, DOA, source identity, class, or occlusion events.
+- Bundle and runtime-check Auditok 0.5.2 as the qualified fixed-threshold activity detector; consumer integration is completed by Plan 03.3.
 - Breaking: migrate sensor state, configuration, Replicator, OmniGraph, export, instruments, and recording summaries from detections/backend naming to frame-v3 observations/producer naming.
-- Show valid waveform and RMS output with an explicit empty-observation state until Phase 03; do not derive compass, timeline, source identity, or occlusion events from USD source truth.
-- Breaking: remove sensor-side DOA ambiguity policy state and import/export `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs are rejected without compatibility parsing.
+- Show valid waveform and RMS output during inactive, warm-up, and post-reset empty-observation states; do not derive compass, timeline, source identity, or occlusion events from USD source truth.
+- Breaking: remove sensor-side DOA ambiguity policy state and introduce `ias.omni_extension_binding.v5`; v4 and saved `lifecycle.ambiguity_policy` inputs were rejected, and Plan 03.3 later superseded v5 with v6.
 - Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
 - Export and import the analytic backend, solver options, environment mode, anchor, tolerance, resolved result, and provenance without any contextual direction prior.
 - Breaking: removed all four legacy backend choices and renamed room-specific UI/configuration fields to their analytic equivalents.

@@ -664,3 +664,17 @@ Verified 576 unit/contract tests, 213 integration tests, 58 release tests,
 Python 3.10/3.12 and Isaac-runtime detection, exact six-wheel hashes, complete
 sdist/wheel/Kit audits, extracted-ZIP Auditok and first-party origins, resolved
 wiki links, unchanged schemas and raw knowledge, Ruff, and whitespace.
+
+## 2026-09-04 — update: Subphase 03.3 observation integration and cleanup
+
+Recorded explicit-threshold Auditok integration in maintained scalar runtimes,
+Kit binding v6, per-environment Lab reference state with deferred Phase 07
+tensors, live array-layout reset, causal observation semantics, and completed
+GPU and downstream closeout.
+
+## 2026-09-04 — lint: Subphase 03.3 complete closeout
+
+Verified 579 unit/contract tests, 221 integration tests, 58 release tests, 96
+tests in the supported Isaac runtime, optional audio, resolved wiki links,
+Ruff, whitespace, live Isaac Sim/Lab/Kit on the RTX 4090, and 70 focused
+SquadBot consumer tests without downstream changes.

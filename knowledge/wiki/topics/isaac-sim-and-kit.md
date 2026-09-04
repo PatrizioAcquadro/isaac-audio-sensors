@@ -2,7 +2,7 @@
 
 ## Live Stage Integration
 
-`IsaacAudioArraySensor` in `isaac_audio_sensors.isaac.sensor` binds an explicit array on a live stage or discovers authored sources and arrays from configured USD roots. There is no offline `from_config()` path.
+`IsaacAudioArraySensor` in `isaac_audio_sensors.isaac.sensor` binds an explicit array on a live stage or discovers authored sources and arrays from configured USD roots. There is no offline `from_config()` path. The standard sensor pipeline requires an explicit `energy_threshold_dbfs` and resolves Auditok through the registry; a caller injecting a custom `AudioPerceptionPipeline` must omit the threshold.
 
 Discovery uses `ias:*` metadata, compatible native sound attributes, USD type/name signals, child microphone prims, optional object/base context, filters, and deterministic preference rules.
 
@@ -90,15 +90,15 @@ The headless path is `isaac_audio_sensors.kit.headless.HeadlessGuidedSession`; c
 
 Live Monitor shows sensor state, producer, frame freshness, observation count, and waveform availability on separate rows. Frame freshness uses an internal monotonic UI receipt clock, while the full frame ID and simulated timestamp remain in Advanced Tools. One compact contextual button starts or stops the sensor.
 
-The live instruments separate observed bearing, sector, and confidence below the compass. Up to eight microphone RMS meters use a native `-60 ... 0 dBFS` scale with adjacent values and no percentages. Recent observations occupy zero to three rows without an internal scroll area, and the empty states distinguish no frame from a valid frame with no observations. Until Phase 03, default frames populate the RMS meters while compass and observation timeline remain empty.
+The live instruments separate observed bearing, sector, and confidence below the compass. Up to eight microphone RMS meters use a native `-60 ... 0 dBFS` scale with adjacent values and no percentages. Recent observations occupy zero to three rows without an internal scroll area, and the empty states distinguish no frame from a valid inactive, warm-up, or post-reset frame with no observations. Active Auditok output adds one signal-derived timeline row without populating DOA fields.
 
 ## Advanced Tools
 
 Advanced Tools contains the specialist controls for stage and selection, array, source, sensor settings and debug, acoustic environment, Sensor WAV output, Kit scene audition, Replicator, export, and configuration. The environment section selects `unconfigured`, `manual_free_field`, `anchor`, or `auto`, exposes the anchor and containment tolerance where applicable, and retains the three PyRoom solver settings. `unconfigured` blocks validation and sensor start; there is no array-centered fallback. Stage binding uses one `Bind selection as` selector and `Bind Selected`; position authoring uses a preset selector and `Apply Position Preset`. Known profiles and rigs are selected with combo boxes and validated by Apply rather than duplicate selection buttons.
 
-Numeric settings use drag widgets, enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
+Numeric settings use drag widgets, including the required finite `Activity dBFS` threshold; enumerated choices use combo boxes, and string fields remain limited to identifiers, paths, and free text. Source directivity is the shared four-value enum selector rather than free text. Saved configuration and sound-profile directivity/gain are validated before UI state or USD is mutated. Color styling distinguishes editable, action-populated, read-only, and invalid fields. Preset, binding, transform-read, and config-import changes are tracked only as transient window state; a manual edit restores the normal editable style. Invalid fields remain highlighted until a valid correction, without opening or changing accordions automatically. All maintained controller capabilities remain reachable here without duplicating lifecycle controls that are simultaneously visible in Live Monitor.
 
-Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v5` configuration. Binding v5 includes `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance, with no ambiguity-policy state; v2-v4 are rejected without compatibility parsers.
+Replicator controls the optional Omniverse writer; Export writes the latest frame, JSONL streams, and reusable `ias.omni_extension_binding.v6` configuration. Binding v6 requires exact `activity_detection` state for `auditok` plus its finite dBFS threshold, and includes `analytic_acoustics`, analytic solver options, environment mode, anchor, tolerance, resolved result, and provenance, with no ambiguity-policy state. Binding v5 and older inputs are rejected without compatibility parsers.
 
 Viewport follow-selection and live pose synchronization let manipulator edits update the selected stage entities without copying transforms into task-specific code.
 
@@ -128,6 +128,7 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 ## Version Notes
 
+- 2026-09-04: Integrated explicit-threshold Auditok observations through the standard sensor, UI, presets, headless workflow, recording, Replicator, OmniGraph, and binding v6; live layout changes reset stateful perception.
 - 2026-09-03: Added persistent sensor perception and latest-block ownership; guided dataset recording now consumes that block without depending on WAV output.
 - 2026-09-02: Removed sensor-side ambiguity policy and introduced `ias.omni_extension_binding.v5`; v2-v4 have no runtime parser.
 - 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission with the then-current v4 binding.

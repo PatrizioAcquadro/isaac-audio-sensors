@@ -8,7 +8,7 @@
 
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
 - [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — continue from the completed signal boundary and R9.4 qualification into observation contracts, consumer migration, and detection-architecture removal.
-- [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — qualify one maintained generic detector and remove rejected or duplicate detector surfaces.
+- [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — align observations and truth without leakage or overlapping maintained dataset models.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — unify simulation and physical capture behind one signal contract and remove duplicate domain paths.

@@ -75,7 +75,7 @@ Scene source identity, source pose, oracle geometry, asset references, occlusion
 
 External observations must already be typed with `origin=external_system`. IDs are checked for uniqueness before the cap; the signal-derived observation precedes external observations deterministically; and `max_observations` truncates only that final order without comparing scores from different producers.
 
-The temporary `simulate()` bridge emitted valid frame-v3 records with zero observations at the end of 02.2. Core, CLI, recording/replay, Replicator, Isaac, Lab, Kit, examples, and statistics used the new names. Until Phase 03 provides a concrete activity detector, all maintained default consumers intentionally produce waveform/RMS/frame output with zero observations and no oracle substitute.
+The temporary `simulate()` bridge emitted valid frame-v3 records with zero observations at the end of 02.2. Core, CLI, recording/replay, Replicator, Isaac, Lab, Kit, examples, and statistics used the new names. At that phase boundary, maintained default consumers intentionally produced waveform/RMS/frame output with zero observations and no oracle substitute. Subphase 03.3 later integrated Auditok into maintained scalar consumers.
 
 Migrate the former modes directly:
 
@@ -101,7 +101,7 @@ At the end of 02.2, the temporary scene-to-frame bridge still owned rendering an
 
 #### Implementation
 
-`core.simulation.simulate_frame()` is the single maintained scene-to-frame orchestrator. It resolves the exact array from the snapshot, calls `PropagationBackend.propagate()` once, creates deterministic frame identity, passes the resulting immutable block and explicit array to `AudioPerceptionPipeline`, optionally passes that same block object to a `WaveformSink`, and returns `(frame, block)`. `simulate_from_config()` keeps its existing API and frame return while composing the default zero-observation pipeline through this path.
+`core.simulation.simulate_frame()` is the single maintained scene-to-frame orchestrator. It resolves the exact array from the snapshot, calls `PropagationBackend.propagate()` once, creates deterministic frame identity, passes the resulting immutable block and explicit array to `AudioPerceptionPipeline`, optionally passes that same block object to a `WaveformSink`, and returns `(frame, block)`. At completion of 02.3, `simulate_from_config()` retained its prior API and composed a detectorless pipeline through this path; Subphase 03.3 later added its required runtime threshold and standard Auditok composition without changing `simulate_frame()`.
 
 `AudioPerceptionPipeline.reset()` resets each injected stateful detector or estimator object once, even if the same object fills both roles. Frame diagnostics copy the block diagnostics and add the `perception` namespace; the pipeline still performs no IO.
 
@@ -123,7 +123,7 @@ SquadBot migrated through its project-owned adapter without changing IAS schemas
 
 #### Problems / Limitations
 
-No concrete detector or DOA estimator is selected, so default frames and Lab tensors remain deliberately empty until Phase 03. This is the intended completed 02.3 behavior, not a fallback. Live validation requires the supported Isaac runtime and a visible GPU; the final RTX 4090 gate passed.
+No concrete detector or DOA estimator was selected in Plan 02, so its default frames and Lab tensors were deliberately empty. This was the intended completed 02.3 behavior, not a fallback. Subphase 03.3 later selected Auditok for maintained scalar consumers while preserving the Lab tensors for Phase 07. Live validation requires the supported Isaac runtime and a visible GPU; the final RTX 4090 gate passed.
 
 ## Artifacts
 
@@ -150,5 +150,5 @@ Current cross-cutting contract ownership is described by [[topics/public-contrac
 - 2026-09-03: Implemented Subphase 02.1 with the exact-window microphone-signal contract and analytic producer while retaining one temporary legacy frame bridge.
 - 2026-09-03: Sequenced the bounded R9.4 selected-provider qualification after the completed 02.1 boundary and before 02.2 without changing executable behavior.
 - 2026-09-03: Completed R9.4 without changing the Plan 02 signal boundary; Plan 02 resumes at 02.2.
-- 2026-09-03: Implemented Subphase 02.2 with perception-owned observed-only frames, frame schema v3, migrated consumers, and intentional zero default observations until Phase 03; Subphase 02.3 remains planned.
+- 2026-09-03: Implemented Subphase 02.2 with perception-owned observed-only frames, frame schema v3, migrated consumers, and intentional zero default observations at that phase boundary; Subphase 02.3 remained planned.
 - 2026-09-03: Completed Subphase 02.3 with one signal-to-frame orchestrator, direct block recording, lifecycle-owned perception reset, analytic bridge removal, strict downstream frame-v3 migration, clean-source artifacts, and RTX 4090 runtime closeout.

@@ -12,7 +12,7 @@ Current package release: `3.0.0`. This release is not yet published.
 
 - Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with one topology-routed `analytic_acoustics` backend for direct, TDOA, optional room, and per-microphone direct-path occlusion behavior.
 - Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
-- A qualified fixed-threshold Auditok detector plugin with causal multichannel activity decisions, explicit dBFS configuration, and deterministic reset.
+- One maintained Auditok activity detector integrated into the standard scalar runtimes, with causal multichannel decisions, an explicit application-owned dBFS threshold, and deterministic reset.
 - Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
 - Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
 - Audited Python source/wheel distributions plus a reference, self-contained Kit archive.
@@ -42,10 +42,10 @@ From a source checkout, validate the maintained configuration and generate a det
 
 ```bash
 isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.toml
-isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front
+isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --energy-threshold-dbfs -60
 ```
 
-Neither command needs Isaac, a GPU, or the optional `room` extra. Closed-room examples remain available when PyRoom is installed.
+Neither command needs Isaac, a GPU, or the optional `room` extra. The threshold is a required runtime argument rather than a TOML or package default; `-60` is specific to this deterministic example. Auditok's 100 ms activity warm-up means an initial 50 ms frame can legitimately contain no observation. Closed-room examples remain available when PyRoom is installed.
 
 ## Limitations
 
