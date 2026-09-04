@@ -192,7 +192,7 @@ Auditok and `0.06` for PyRoom reliability. Primary planar PyRoom passes with
 synthetic p95, at most 1.45-degree frequency-band p95, and zero held-out
 silence bearings. Two-microphone least-squares passes exact ambiguity semantics,
 95.83% candidate containment, and 7.48-degree candidate-error p95. Composed
-planar compute passes at 5.25/5.23 ms p95 across the two runs. Robustness fails
+planar compute passes below 5.31 ms p95 across both runs. Robustness fails
 independently on synthetic coverage, representative occlusion, and low-level
 coverage; optional 3D remains blocked. The v1 comparative reports remain
 unchanged but are superseded historical evidence.
