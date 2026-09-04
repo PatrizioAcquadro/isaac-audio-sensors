@@ -931,3 +931,10 @@ contiguous activity followed by inactive paused snapshots, preserving UI history
 and Replicator activity coverage. Host, optional-audio, fixture/schema checks,
 99 Isaac tests, and RTX 4090 Sim/Lab/Kit smokes pass. Runtime checks used isolated
 Auditok 0.5.2; no physical-acquisition or calibrated-transfer claim is made.
+
+## 2026-09-04 — lint: Subphase 06.1 completion
+
+All five documentation-boundary checks pass, including links and index coverage.
+Verified canonical wiki structure, implementation references, scope, and completion
+claims; Ruff and Git whitespace checks pass. The existing ignored `.obsidian/`
+settings remain untouched, as do raw evidence, fixtures, and serialized schemas.
