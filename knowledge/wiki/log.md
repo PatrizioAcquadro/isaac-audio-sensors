@@ -951,3 +951,20 @@ WAVs are absent from the retained archive; no substitute or accuracy claim is ma
 Canonical wiki links and index coverage pass all five documentation checks.
 Verified the generic provenance change against code, schema, host gate, and
 downstream live evidence. Raw evidence remains unchanged; Git whitespace passes.
+
+## 2026-09-07 — update: Complete Subphase 06.2 physical acquisition and assessment
+
+Recorded native/SSH raw capture, 17 controlled physical takes, exact paired
+recording/replay, and explicit stream faults. Recovered and hash-verified all
+102 authorized Fit A/Fit B WAVs from the Raspberry; reproduced the historical
+measurements without holdouts or refitting. Current ch1/ch2 gains are rejected
+and ch3 remains inconclusive. Functional orientation and unchanged +1 polarities
+are supported; raw stays enabled. Full cross-domain comparison remains 06.3.
+
+## 2026-09-07 — lint: Subphase 06.2 closure
+
+All five documentation-boundary tests pass, including wiki links and index
+coverage. Phase, status, recording/calibration contract, and downstream
+instructions agree with current code, host/downstream gates, historical audits,
+and controlled physical evidence. Git whitespace checks pass. Protected raw
+evidence remains unchanged.

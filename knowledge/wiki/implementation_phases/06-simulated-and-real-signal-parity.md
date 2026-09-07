@@ -1,6 +1,6 @@
 # Phase 06 — Simulated and Real Signal Parity
 
-Status: 06.1 complete. 06.2 raw integration is implemented; calibration assessment and operator-assisted validation are in progress. 06.3 remains planned.
+Status: 06.1 and 06.2 complete. Raw remains the default; current gain candidates are rejected or inconclusive. 06.3 remains planned.
 
 ## Objective
 
@@ -49,13 +49,25 @@ Unresolved by design: producer declarations cannot prove physical channel mappin
 
 External acquisition now supplies validated `MicrophoneSignalBlock` values through the existing shared perception and recording APIs. Frame v3 and its generated schema add the generic `physical_capture` provenance value without changing field shape or schema version. Older readers with the closed provenance enumeration must upgrade before reading physical frames. Manifest v4 uses its existing `monotonic` time base; the distinct sample-clock domain remains in signal diagnostics and session configuration.
 
-SquadBot owns native ReSpeaker acquisition, explicit device/configuration checks, six-channel PCM16 WAV replay, and the capture command. Raw USB channels 2–5 become four immutable float32 rows at 16 kHz, in contiguous 800-sample windows. Native PCM is retained beside the SDK dataset. No capture driver or hardware dependency is added to this package. Auditok and optional maintained DOA run only through `AudioPerceptionPipeline`.
+SquadBot owns native ReSpeaker acquisition, explicit device/configuration checks, six-channel PCM16 WAV replay, and the capture/assessment commands. Acquisition runs locally or through SSH to the Raspberry, with the same native ALSA settings and workstation SDK pipeline. Raw USB channels 2–5 become four immutable float32 rows at 16 kHz, in contiguous 800-sample windows. Native PCM is retained beside the SDK dataset. No capture driver or hardware dependency is added to this package. Auditok and optional maintained DOA run only through `AudioPerceptionPipeline`.
 
 The consumer stops on ALSA errors, timeout, or truncated reads; it resets perception, retains an explicit fault report and incomplete verified recording, and gives each reopening a new sample clock. The raw WAV retains completed native windows; recorder cancellation retains only published shards and reports accepted versus published frame counts. Digital endpoint clipping is measured before corrections. Unknown drift, absolute delivery latency, and analog clipping remain unknown.
 
-The first native five-second live smoke passes with 100 accepted/published frames, exact PCM-to-dataset sample equality, one recorded reset, no stream fault, and no raw endpoint clipping. Activity and DOA execute through the shared pipeline. This is acquisition evidence, not a controlled accuracy test. The SDK host gate passes 613 unit/contract, 278 integration, and 58 release tests; the downstream focused raw suite passes 14 tests.
+The first native five-second live smoke passes with 100 accepted/published frames, exact PCM-to-dataset sample equality, one recorded reset, no stream fault, and no raw endpoint clipping. Activity and DOA execute through the shared pipeline. This is acquisition evidence, not a controlled accuracy test. The SDK host gate passes 613 unit/contract, 278 integration, and 58 release tests; the downstream suite passes 408 tests, including 26 focused capture/assessment tests. A second native smoke through Raspberry SSH also passes 100 frames. CPU is the supported DSP path; these checks require no new Isaac/GPU qualification.
 
-The corrected S4.5 profile and S4.6 application are being audited separately. Raw remains the default; no calibration correction is enabled by the raw command. The shipped nominal profile remains a contract example.
+The S4.5 audit recovered all 102 authorized original Fit A/Fit B WAVs from the Raspberry and verified their inventory hashes and sizes. Reference validation, active windows, clipping exclusions, and group aggregation reproduce 85 admitted attempts and 32 independent groups (16 per partition), including the original gain, delay, polarity, and selected-mapping observations. Three reference-validation failures, six silence takes, and eight audio/video takes retain their original roles. Frozen decision checks agree with retained/rejected parameters. No holdout audio was opened, no hypothesis selection was repeated, and no parameter was refitted. The Fit A estimates evaluated on Fit B retain their historical level benefit; S4.6 verified application to simulation configuration, not current physical accuracy.
+
+The current controlled comparison contains initial silence and two eight-second takes at each of eight azimuths. The operator confirmed the same bench setup, a MacBook Pro source at 0.60 m and z = −0.135 m, volume 56%, and approximately ±5° angular placement uncertainty. SSH verified source model, original reference WAV hash, volume, and the ReSpeaker USB identity. Both independent pipelines use identical native samples, nominal geometry, Auditok threshold −40.5 dBFS, maintained DOA, windows, and resets. Raw correlation verifies each common 3–7 s analysis interval inside the reference noise segment. Each branch records exactly 2,720 processed blocks; native PCM, frame metadata, and reset replay pass exact checks. All 17 physical captures complete without faults or digital clipping.
+
+Current gain decisions use take aggregates, with no block treated as an independent trial. Admission requires at least 10% median absolute relative-level improvement, p95 worsening no greater than 0.05 dB, signed median no farther from zero, and supporting uncertainty across takes.
+
+| Candidate | Raw → corrected median absolute residual | Current decision |
+| --- | --- | --- |
+| ch1 gain −1.6021 dB | 1.838 → 1.875 dB | Rejected: median residual worsens. |
+| ch2 gain −1.2796 dB | 1.517 → 1.635 dB | Rejected: median, p95, and signed bias worsen. |
+| ch3 gain −1.2136 dB | 1.734 → 1.410 dB | Inconclusive: 18.7% improvement, but the 95% take-bootstrap benefit interval is −0.387 to 1.214 dB. |
+
+The existing functional mapping orientation is supported: all raw per-take median angular errors, including declared placement uncertainty, remain within half the 45° target spacing. Raw median errors range from 1° to 12°, with a median across takes of 3.5°. Raw and gain branches have identical take error summaries, 100% activity and resolved-DOA coverage in the declared source windows, and no abstention there; initial silence has no detected activity. Positive relative polarity is supported on all current takes and all historical groups; +1 changes no waveform. No gain is admitted for live use. Raw remains the default, the corrected branch remains assessment-only, and the shipped nominal profile remains a contract example.
 
 #### Key Decisions
 
@@ -67,9 +79,9 @@ The corrected S4.5 profile and S4.6 application are being audited separately. Ra
 
 #### Problems / Limitations
 
-A successful device read does not establish timing quality or acoustic calibration, and operating-system latency may vary. The current microphone-position association is inherited functional evidence with nominal centers; current physical orientation remains operator-verified.
+A successful device read does not establish timing quality or acoustic calibration, and operating-system/network latency may vary. The eight-azimuth review supports the orientation of the existing functional association; microphone centers remain nominal, without traced wiring or measured geometry. The orientation criterion distinguishes the declared directions; it is not an acoustic-accuracy qualification.
 
-The local archive contains the S4.5 reports and authorized inventory but none of its 102 Fit A/Fit B WAVs. Recalculation from retained group measurements confirms the historical gain-residual arithmetic; independent waveform reconstruction remains blocked on those exact audio inputs. No holdout audio is substituted. Controlled current raw/corrected and mapping comparisons remain pending.
+Relative-level residuals include source directivity, placement, and room paths; they do not isolate microphone sensitivity. The bootstrap describes variation among these takes, while declared placement uncertainty is separate. No gain-level benefit becomes a claim of improved DOA. Delays, angular offsets, frequency response, confidence calibration, SPL, absolute latency, measured drift, and analog saturation receive no new correction or calibration claim. Historical evidence stays unchanged; recovered authorized WAVs and current acquisitions are downstream ignored outputs.
 
 ## Subphase 06.3 — Cross-Domain Validation and Cleanup
 
@@ -95,7 +107,7 @@ An extensible contract does not establish universal hardware compatibility or ac
 
 06.1 delivers the common runtime contract, one shared continuity owner, migrated consumers, and maintained validation tests. Local ignored evidence is under `build/validation/phase06_1/` (host, optional-audio/schema, and runtime logs) and `build/validation/isaac_audio_sensors/` (live smoke JSON and media). No physical recording or transfer evidence is produced.
 
-06.2 live raw evidence is downstream under `outputs/phase06_2/live_raw_smoke/`; the SDK host gate is under `build/validation/phase06_2/`. Controlled correction assessment is pending. Full sim-versus-real comparison remains 06.3.
+06.2 evidence is downstream under `outputs/phase06_2/`: local/SSH raw smokes, `recovered_fit/`, the two S4.5 audit reports, `reference_campaign/`, `paired_assessment/`, sample/metadata/reset verification, and `orientation_review.json`. Operational commands and current results are in SquadBot `docs/respeaker-capture.md`. The SDK host gate is under `build/validation/phase06_2/`. Acquisition, shared perception, recording, replay, and fault handling close 06.2 independently of correction admission. Full sim-versus-real comparison remains 06.3.
 
 ## Files
 

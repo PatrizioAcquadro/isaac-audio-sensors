@@ -149,7 +149,7 @@ The maintained `examples/core/learning_samples.py` example records generated sig
 
 The calibration contract stores versioned, unit-explicit array and microphone corrections with provenance and validation rather than asserting unmeasured physical truth. Calibration gain remains data-only and is not injected automatically into runtime amplitude.
 
-Applying relative geometry, gain, delay, polarity, response, confidence, or timing information requires values supported by the profile; absolute physical calibration and sim-to-real validity require external measurements and evidence.
+Applying relative geometry, gain, delay, polarity, response, confidence, or timing information requires values supported by the profile; absolute physical calibration and sim-to-real validity require external measurements and evidence. Downstream comparison uses the same original samples, geometry, plugin settings, and independent resets, retaining clipping measured before corrections. Historical profile validity does not establish benefit in a current setup; correction admission and functional mapping verification remain separate from raw integration. [[implementation_phases/06-simulated-and-real-signal-parity|Plan 06]] records the physical reference case.
 
 ## Audio Asset References
 
