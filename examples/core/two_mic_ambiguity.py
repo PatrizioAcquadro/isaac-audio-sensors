@@ -7,6 +7,7 @@ from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
 from isaac_audio_sensors.core.microphone_array import create_microphone_array
 from isaac_audio_sensors.core.plugins import AuditokActivityDetector
+from isaac_audio_sensors.core.plugins.standard_doa import MaintainedDoaEstimator
 from isaac_audio_sensors.core.types import (
     AudioSceneSnapshot,
     AudioSourceSpec,
@@ -46,7 +47,8 @@ block = AnalyticAcoustics().propagate(
     ),
 )
 frame = AudioPerceptionPipeline(
-    activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0)
+    activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0),
+    doa_estimator=MaintainedDoaEstimator(),
 ).process(
     block,
     array,
@@ -56,6 +58,8 @@ print(
     {
         "producer": frame.producer_id,
         "observations": len(frame.observations),
-        "note": "Activity detection does not invent a source identity or DOA.",
+        "candidate_bearing_deg": frame.observations[0].doa.candidate_bearing_deg,
+        "estimated_bearing_deg": frame.observations[0].doa.estimated_bearing_deg,
+        "note": "Two microphones preserve front/back ambiguity.",
     }
 )

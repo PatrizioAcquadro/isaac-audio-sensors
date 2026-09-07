@@ -203,19 +203,20 @@ def test_simulate_from_config_rejects_non_boolean_doa_opt_in() -> None:
 
 
 @pytest.mark.parametrize(
-    ("layout", "rate"), (("mono", 8000), ("stereo_y", 16000), ("quad_cross", 48000))
+    ("layout", "rate"),
+    (("mono", 8000), ("stereo_y", 16000), ("quad_cross", 16000), ("quad_cross", 48000)),
 )
 def test_observation_semantics_do_not_depend_on_signal_provenance(layout, rate) -> None:
     from dataclasses import replace
 
     from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
     from isaac_audio_sensors.core.microphone_array import create_microphone_array
-    from isaac_audio_sensors.core.plugins import (
-        AuditokActivityDetector,
-        GccPhatLeastSquaresEstimator,
-    )
+    from isaac_audio_sensors.core.plugins import AuditokActivityDetector
+    from isaac_audio_sensors.core.plugins.standard_doa import MaintainedDoaEstimator
     from tests.helpers import source
 
+    if layout == "quad_cross":
+        pytest.importorskip("pyroomacoustics")
     array = create_microphone_array(
         array_id="parity",
         prim_path="/Parity",
@@ -236,7 +237,7 @@ def test_observation_semantics_do_not_depend_on_signal_provenance(layout, rate) 
     supplied = replace(
         block,
         producer_id="external_pcm",
-        provenance="replay/trace",
+        provenance="physical_capture",
         clock_domain="device:take_1",
         channel_clipping=(None,) * len(array.microphones),
         diagnostics={"acquisition": {"calibration": None, "buffer_latency_s": 0.1}},
@@ -245,7 +246,7 @@ def test_observation_semantics_do_not_depend_on_signal_provenance(layout, rate) 
     def process(value):
         return AudioPerceptionPipeline(
             activity_detector=AuditokActivityDetector(energy_threshold_dbfs=-60.0),
-            doa_estimator=GccPhatLeastSquaresEstimator() if layout != "mono" else None,
+            doa_estimator=MaintainedDoaEstimator() if layout != "mono" else None,
         ).process(value, array, frame_id="same_observation")
 
     simulated, external = process(block), process(supplied)

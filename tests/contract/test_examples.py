@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 import sys
@@ -30,3 +31,7 @@ def test_public_example_runs_against_installed_package(relative_path):
     )
 
     assert completed.returncode == 0, completed.stderr
+    if relative_path == "examples/core/two_mic_ambiguity.py":
+        result = ast.literal_eval(completed.stdout.strip())
+        assert result["estimated_bearing_deg"] is None
+        assert result["candidate_bearing_deg"] == (0.0, 180.0)
