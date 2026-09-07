@@ -938,3 +938,16 @@ All five documentation-boundary checks pass, including links and index coverage.
 Verified canonical wiki structure, implementation references, scope, and completion
 claims; Ruff and Git whitespace checks pass. The existing ignored `.obsidian/`
 settings remain untouched, as do raw evidence, fixtures, and serialized schemas.
+
+## 2026-09-07 — update: Subphase 06.2 raw physical integration
+
+Added generic physical-capture provenance to frame v3 and its generated schema.
+Documented the downstream raw producer, shared perception/recording, native live
+round-trip, explicit faults, and pending correction assessment. Historical fit
+WAVs are absent from the retained archive; no substitute or accuracy claim is made.
+
+## 2026-09-07 — lint: Subphase 06.2 raw integration
+
+Canonical wiki links and index coverage pass all five documentation checks.
+Verified the generic provenance change against code, schema, host gate, and
+downstream live evidence. Raw evidence remains unchanged; Git whitespace passes.

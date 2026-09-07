@@ -1,6 +1,6 @@
 # Phase 06 — Simulated and Real Signal Parity
 
-Status: 06.1 complete. 06.2 and 06.3 remain planned.
+Status: 06.1 complete. 06.2 raw integration is implemented; calibration assessment and operator-assisted validation are in progress. 06.3 remains planned.
 
 ## Objective
 
@@ -47,9 +47,15 @@ Unresolved by design: producer declarations cannot prove physical channel mappin
 
 #### Implementation
 
-Enable external acquisition producers to supply validated `MicrophoneSignalBlock` values to the SDK's shared perception and recording path. The SDK owns common contracts, validation, and reusable signal handling; hardware-specific drivers, device configuration, channel mapping, mounting geometry, calibration data, and acquisition campaigns remain in SquadBot or the consuming project. Activity and DOA remain exclusively in `AudioPerceptionPipeline`.
+External acquisition now supplies validated `MicrophoneSignalBlock` values through the existing shared perception and recording APIs. Frame v3 and its generated schema add the generic `physical_capture` provenance value without changing field shape or schema version. Older readers with the closed provenance enumeration must upgrade before reading physical frames. Manifest v4 uses its existing `monotonic` time base; the distinct sample-clock domain remains in signal diagnostics and session configuration.
 
-Use the user's four-microphone ReSpeaker XVF3800 to verify this boundary through downstream acquisition, reusing existing S-phase and SquadBot work without importing its hardware integration into the SDK. The shipped nominal calibration profile is a contract example, not measured calibration.
+SquadBot owns native ReSpeaker acquisition, explicit device/configuration checks, six-channel PCM16 WAV replay, and the capture command. Raw USB channels 2–5 become four immutable float32 rows at 16 kHz, in contiguous 800-sample windows. Native PCM is retained beside the SDK dataset. No capture driver or hardware dependency is added to this package. Auditok and optional maintained DOA run only through `AudioPerceptionPipeline`.
+
+The consumer stops on ALSA errors, timeout, or truncated reads; it resets perception, retains an explicit fault report and incomplete verified recording, and gives each reopening a new sample clock. The raw WAV retains completed native windows; recorder cancellation retains only published shards and reports accepted versus published frame counts. Digital endpoint clipping is measured before corrections. Unknown drift, absolute delivery latency, and analog clipping remain unknown.
+
+The first native five-second live smoke passes with 100 accepted/published frames, exact PCM-to-dataset sample equality, one recorded reset, no stream fault, and no raw endpoint clipping. Activity and DOA execute through the shared pipeline. This is acquisition evidence, not a controlled accuracy test. The SDK host gate passes 613 unit/contract, 278 integration, and 58 release tests; the downstream focused raw suite passes 14 tests.
+
+The corrected S4.5 profile and S4.6 application are being audited separately. Raw remains the default; no calibration correction is enabled by the raw command. The shipped nominal profile remains a contract example.
 
 #### Key Decisions
 
@@ -61,7 +67,9 @@ Use the user's four-microphone ReSpeaker XVF3800 to verify this boundary through
 
 #### Problems / Limitations
 
-A successful device read does not establish timing quality or acoustic calibration, and operating-system latency may vary.
+A successful device read does not establish timing quality or acoustic calibration, and operating-system latency may vary. The current microphone-position association is inherited functional evidence with nominal centers; current physical orientation remains operator-verified.
+
+The local archive contains the S4.5 reports and authorized inventory but none of its 102 Fit A/Fit B WAVs. Recalculation from retained group measurements confirms the historical gain-residual arithmetic; independent waveform reconstruction remains blocked on those exact audio inputs. No holdout audio is substituted. Controlled current raw/corrected and mapping comparisons remain pending.
 
 ## Subphase 06.3 — Cross-Domain Validation and Cleanup
 
@@ -87,7 +95,7 @@ An extensible contract does not establish universal hardware compatibility or ac
 
 06.1 delivers the common runtime contract, one shared continuity owner, migrated consumers, and maintained validation tests. Local ignored evidence is under `build/validation/phase06_1/` (host, optional-audio/schema, and runtime logs) and `build/validation/isaac_audio_sensors/` (live smoke JSON and media). No physical recording or transfer evidence is produced.
 
-06.2–06.3 still target downstream acquisition integration and measured sim-versus-real comparisons with explicit limits.
+06.2 live raw evidence is downstream under `outputs/phase06_2/live_raw_smoke/`; the SDK host gate is under `build/validation/phase06_2/`. Controlled correction assessment is pending. Full sim-versus-real comparison remains 06.3.
 
 ## Files
 

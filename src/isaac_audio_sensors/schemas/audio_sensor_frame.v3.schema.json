@@ -248,6 +248,7 @@
       "description": "Stable producer provenance namespace.",
       "enum": [
         "isaac_live",
+        "physical_capture",
         "replay/trace",
         "room_acoustics",
         "synthetic/core"

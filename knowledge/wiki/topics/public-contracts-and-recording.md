@@ -86,6 +86,8 @@ The built-in propagation registry contains only `analytic_acoustics`, and the bu
 
 ## Trace IO
 
+External physical producers use `provenance="physical_capture"`. This additive frame-v3 enum entry requires readers whose provenance list predates 06.2 to upgrade. Device/file identity stays in acquisition diagnostics; replayed physical samples retain their acquisition origin. Physical sessions use manifest `time_base="monotonic"`, with the sample-clock domain separately recorded.
+
 JSON frame files and JSONL streams use deterministic serialization and round-trip through the public frame model.
 
 Readers require the exact v3 frame shape; writers emit that same deterministic shape. A reader reconstructs the frame from `start_time_s` and rejects any serialized `timestamp_ms` that does not equal the derived value. Frame v1/v2 resources and compatibility parsing are absent from the current package. Recorded producer identifiers describe provenance but do not become runtime selectors.

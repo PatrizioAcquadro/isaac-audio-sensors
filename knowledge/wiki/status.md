@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-04. Package version: `3.0.0`.
+Updated: 2026-09-07. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -279,7 +279,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- Steam Audio is selected but not yet integrated. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, but no public Geometry Acoustics or physical-capture producer uses it yet.
+- Steam Audio is selected but not yet integrated. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, and a downstream physical-capture producer uses it; no public Geometry Acoustics producer exists yet.
 
 ## Next Work
 
@@ -290,7 +290,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.3 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Subphase 06.1 common signal semantics is implemented. Next is 06.2 downstream physical capture integration, then 06.3 comparison, Lab tensor projection, and the selected Geometry Acoustics provider.
+Subphases 04.1–04.3 of [[implementation_phases/04-observed-direction-estimation|Plan 04]] and 05.1–05.3 of [[implementation_phases/05-ground-truth-and-learning-datasets|Plan 05]] are complete. Subphase 06.1 common signal semantics is implemented. 06.2 downstream raw physical capture now passes a five-second ReSpeaker-to-perception-to-dataset smoke with exact sample round-trip; correction assessment and operator-assisted checks remain in progress. See Plan 06 for the unavailable historical Fit A/Fit B WAVs and current evidence limits. Next are 06.3 comparison, Lab tensor projection, and the selected Geometry Acoustics provider.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

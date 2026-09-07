@@ -147,6 +147,24 @@ def test_inactive_and_detector_free_frames_have_no_observations() -> None:
     assert detector_free.waveform_paths == ()
 
 
+def test_external_physical_signal_preserves_provenance_through_frame_schema() -> None:
+    import jsonschema
+
+    from isaac_audio_sensors.core.io.traces import (
+        frame_from_trace_dict,
+        frame_to_trace_dict,
+    )
+    from isaac_audio_sensors.schemas.generate import audio_sensor_frame_json_schema
+
+    block = _block(provenance="physical_capture", producer_id="external_microphones")
+    frame = AudioPerceptionPipeline().process(block, _array(), frame_id="physical")
+    payload = frame_to_trace_dict(frame)
+    jsonschema.validate(payload, audio_sensor_frame_json_schema())
+    assert frame_to_trace_dict(frame_from_trace_dict(payload)) == payload
+    assert frame.provenance == "physical_capture"
+    assert frame.producer_id == "external_microphones"
+
+
 def test_reset_reaches_each_stateful_component_once_by_identity() -> None:
     shared = StatefulPerceptionComponent()
     pipeline = AudioPerceptionPipeline(

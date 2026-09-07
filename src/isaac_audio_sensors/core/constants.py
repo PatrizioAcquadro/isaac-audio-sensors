@@ -100,6 +100,7 @@ FRAME_PROVENANCE_VALUES = frozenset(
         "synthetic/core",
         "room_acoustics",
         "isaac_live",
+        "physical_capture",
         "replay/trace",
     }
 )
