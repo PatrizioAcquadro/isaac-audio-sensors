@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Qualified identical-sample signal/recording parity across maintained mono, stereo, and planar-array roles, including clipping, discontinuities, and resets. The public two-microphone example now shows the maintained estimator's direction candidates. Physical comparison and capture tooling remain downstream; SDK APIs and serialized schemas are unchanged by Subphase 06.3.
+
 - Breaking (Subphase 05.3): migrated to manifest v4 and removed unused episode poses, episode labels, visual-sync references/assets, `ManifestPose`, and corresponding statistics/JSON fields. Manifest v1–v3 and removed fields are rejected without compatibility readers; per-frame truth and annotations remain separate from observations.
 
 - Breaking (Subphase 05.1): moved truth from `EpisodeRecord.source_truth` into atomic frame-record v2 rows beside frame v3, migrated manifests to v2, and removed `SourceTruth` and legacy dataset readers. Recorder, loader, replay, recovery, and FLAC preserve optional truth and separate annotations.

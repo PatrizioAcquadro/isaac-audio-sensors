@@ -968,3 +968,21 @@ coverage. Phase, status, recording/calibration contract, and downstream
 instructions agree with current code, host/downstream gates, historical audits,
 and controlled physical evidence. Git whitespace checks pass. Protected raw
 evidence remains unchanged.
+
+## 2026-09-07 — update: Complete Subphase 06.3 comparison and cleanup
+
+Recorded exact maintained-role signal/recording parity and the downstream
+25-take real-versus-nominal comparison, including eight new operator-confirmed
+captures, pair ambiguity replay, and separate host timing. Documented weak-signal
+activity and level/noise differences without fitted corrections or an absolute
+latency claim. Retired the S4.5-only executable path while retaining historical
+evidence. Updated current status and evidence priorities for the still-planned
+Plan 09. SDK APIs and serialized schemas remain unchanged.
+
+## 2026-09-07 — lint: Subphase 06.3 closure
+
+All five documentation-boundary checks pass, including links and index coverage.
+Verified Phase 06, current status, contract guidance, and planned Plan 09 priorities
+against the final comparison reports and validation logs. Ruff and Git whitespace
+checks pass. Only the approved phase documentation changed; schemas, historical
+evidence, and protected raw material remain unchanged.

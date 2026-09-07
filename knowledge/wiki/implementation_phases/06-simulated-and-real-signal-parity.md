@@ -1,6 +1,6 @@
 # Phase 06 — Simulated and Real Signal Parity
 
-Status: 06.1 and 06.2 complete. Raw remains the default; current gain candidates are rejected or inconclusive. 06.3 remains planned.
+Status: 06.1–06.3 complete. Software parity passes and 25 physical takes have nominal free-field comparisons. Raw remains enabled; no correction or absolute physical calibration is admitted.
 
 ## Objective
 
@@ -57,9 +57,9 @@ The first native five-second live smoke passes with 100 accepted/published frame
 
 The S4.5 audit recovered all 102 authorized original Fit A/Fit B WAVs from the Raspberry and verified their inventory hashes and sizes. Reference validation, active windows, clipping exclusions, and group aggregation reproduce 85 admitted attempts and 32 independent groups (16 per partition), including the original gain, delay, polarity, and selected-mapping observations. Three reference-validation failures, six silence takes, and eight audio/video takes retain their original roles. Frozen decision checks agree with retained/rejected parameters. No holdout audio was opened, no hypothesis selection was repeated, and no parameter was refitted. The Fit A estimates evaluated on Fit B retain their historical level benefit; S4.6 verified application to simulation configuration, not current physical accuracy.
 
-The current controlled comparison contains initial silence and two eight-second takes at each of eight azimuths. The operator confirmed the same bench setup, a MacBook Pro source at 0.60 m and z = −0.135 m, volume 56%, and approximately ±5° angular placement uncertainty. SSH verified source model, original reference WAV hash, volume, and the ReSpeaker USB identity. Both independent pipelines use identical native samples, nominal geometry, Auditok threshold −40.5 dBFS, maintained DOA, windows, and resets. Raw correlation verifies each common 3–7 s analysis interval inside the reference noise segment. Each branch records exactly 2,720 processed blocks; native PCM, frame metadata, and reset replay pass exact checks. All 17 physical captures complete without faults or digital clipping.
+The 06.2 controlled comparison contains initial silence and two eight-second takes at each of eight azimuths. The operator confirmed the same bench setup, a MacBook Pro source at 0.60 m and z = −0.135 m, volume 56%, and approximately ±5° angular placement uncertainty. SSH verified source model, original reference WAV hash, volume, and the ReSpeaker USB identity. Both independent pipelines use identical native samples, nominal geometry, Auditok threshold −40.5 dBFS, maintained DOA, windows, and resets. Raw correlation verifies each common 3–7 s analysis interval inside the reference noise segment. Each branch records exactly 2,720 processed blocks; native PCM, frame metadata, and reset replay pass exact checks. All 17 physical captures complete without faults or digital clipping.
 
-Current gain decisions use take aggregates, with no block treated as an independent trial. Admission requires at least 10% median absolute relative-level improvement, p95 worsening no greater than 0.05 dB, signed median no farther from zero, and supporting uncertainty across takes.
+The 06.2 gain decisions use take aggregates, with no block treated as an independent trial. Admission requires at least 10% median absolute relative-level improvement, p95 worsening no greater than 0.05 dB, signed median no farther from zero, and supporting uncertainty across takes.
 
 | Candidate | Raw → corrected median absolute residual | Current decision |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ Current gain decisions use take aggregates, with no block treated as an independ
 | ch2 gain −1.2796 dB | 1.517 → 1.635 dB | Rejected: median, p95, and signed bias worsen. |
 | ch3 gain −1.2136 dB | 1.734 → 1.410 dB | Inconclusive: 18.7% improvement, but the 95% take-bootstrap benefit interval is −0.387 to 1.214 dB. |
 
-The existing functional mapping orientation is supported: all raw per-take median angular errors, including declared placement uncertainty, remain within half the 45° target spacing. Raw median errors range from 1° to 12°, with a median across takes of 3.5°. Raw and gain branches have identical take error summaries, 100% activity and resolved-DOA coverage in the declared source windows, and no abstention there; initial silence has no detected activity. Positive relative polarity is supported on all current takes and all historical groups; +1 changes no waveform. No gain is admitted for live use. Raw remains the default, the corrected branch remains assessment-only, and the shipped nominal profile remains a contract example.
+The existing functional mapping orientation is supported: all raw per-take median angular errors, including declared placement uncertainty, remain within half the 45° target spacing. Raw median errors range from 1° to 12°, with a median across takes of 3.5°. Raw and gain branches have identical take error summaries, 100% activity and resolved-DOA coverage in the declared source windows, and no abstention there; initial silence has no detected activity. Positive relative polarity is supported on all current takes and all historical groups; +1 changes no waveform. No gain is admitted for live use. At 06.2 closure, raw remained the default and the corrected branch was assessment-only; 06.3 retires that executable branch. The shipped nominal profile remains a contract example.
 
 #### Key Decisions
 
@@ -87,27 +87,63 @@ Relative-level residuals include source directivity, placement, and room paths; 
 
 #### Implementation
 
-Establish contract generality across representative supported configurations and physical behavior on the reference hardware. Compare level, noise, clipping, continuity, activity, DOA, ambiguity, and latency without making one device, task, or estimator the definition of realism.
+SquadBot now owns one `scripts.compare_audio_domains` command accepting recorded real sessions, the array configuration, the original source WAV, and assessment-owned take references. It verifies native PCM against every recorded block, reprocesses the recorded observations exactly, and records corresponding `AnalyticAcoustics` sessions in `free_field`. Both domains use declared positions, nominal unity gains, original WAV amplitude, and no added effects, normalization, or fitted corrections. Acquisition and campaign orchestration stay downstream. `MicrophoneSignalBlock`, frame v3, manifest v4, and calibration v1 are unchanged.
 
-Use measured differences to guide [[implementation_phases/09-practical-realism-and-randomization|Plan 09]]. Practical realism preserves relevant physical relationships and multichannel coherence through the simplest useful representation; added detail must justify its benefit and cost. This principle guides the earlier subphases, while realism implementation remains in Plan 09.
+The recorder and comparator construct `AudioPerceptionPipeline` through one downstream factory: Auditok at −40.5 dBFS, `MaintainedDoaEstimator`, and 50 ms blocks. Every take and domain has independent state with corresponding resets. The ch0/ch1 views retain the actual ordered pair geometry and run independent pipelines without new acquisition. Recording/replay equality uses exact samples and the canonical serialized observation content, including perception diagnostics. Assessment angles and intervals never enter perception.
 
-Consolidate common signal handling and remove superseded frame paths, hardware-specific perception, duplicate conversions, obsolete capture wrappers, and their unused supporting surfaces. Keep producer-specific code only for real provider or device differences, never only for tests.
+The original 17 captures and eight new captures yield 5,440 real windows and 5,440 recorded four-channel simulated windows. All native/sample, observation, simulation round-trip, and continuity checks pass. Every physical take is complete, with no stream fault or digital endpoint clipping. No acquisition needed repetition or exclusion. The eight new takes comprise 8-second ambient silence before and after the campaign and three 20-second takes at each of 0° and 90°. The operator confirmed each position at the same 0.60 m radius, −0.135 m height, 56% MacBook volume, and ±5° placement uncertainty.
+
+Each source take plays a 15-second sequence derived from the original reference noise: one second of silence, a one-second nominal marker, another second of silence, then four two-second segments at 0, −3, −6, and −12 dB separated by one-second silences. Correlation on the original raw PCM establishes one common received reference origin across channels; every new source take aligns on all four channels. The simulated emission schedule subtracts only nominal center propagation time to align received reference origins. This does not measure physical emission latency or correct individual channel delays.
+
+Reports contain per-take dBFS and relative channel levels, source-off noise, declared clipping/unknown clipping, validity and resets, activity, resolved DOA coverage, candidate errors, ambiguity, and abstention. Aggregates use takes, not consecutive blocks, as the unit of comparison. The nearest-rank p95 and full ranges are descriptive; at six takes the p95 is the observed maximum.
+
+| Source analysis | Real take-median angular error: median / p95 [range] | Simulated: median / p95 [range] |
+| --- | --- | --- |
+| Original 16 source takes, eight azimuths | 3.5° / 12° [1–12°] | 0.5° / 1° [0–1°] |
+| New six source takes, nominal segment | 2° / 2° [2–2°] | 0° / 0° [0–0°] |
+
+The original source intervals have 100% activity and resolved DOA in both four-channel domains. New activity coverage equals resolved DOA coverage within the assessed source segments:
+
+| New segment | Real coverage: median / p95 [take range] | Simulated coverage: median / p95 [take range] |
+| --- | --- | --- |
+| 0 dB | 100% / 100% [97.4–100%] | 98.7% / 100% [97.4–100%] |
+| −3 dB | 97.4% / 100% [97.4–100%] | 0% / 0% [0–0%] |
+| −6 dB | 25.6% / 38.5% [17.9–38.5%] | 0% / 0% [0–0%] |
+| −12 dB | 0% / 0% [0–0%] | 0% / 0% [0–0%] |
+
+Across the original source takes, median real-minus-simulated channel levels are +0.17, +2.04, +0.24, and +1.93 dB for ch0–ch3; the respective p95 values are +3.29, +4.29, +2.92, and +5.47 dB. The reports retain the signed ranges and relative-to-ch0 measurements. New before/after ambient levels have channel medians −48.37, −46.84, −48.49, and −47.28 dBFS; the corresponding p95 values are −48.19, −46.67, −48.34, and −47.11 dBFS. Both ambient takes have no detected activity. Nominal simulation has digital silence and therefore no finite noise dBFS; it does not model measured microphone self-noise.
+
+The pair replay preserves ambiguity: the original source windows have no selected pair bearing, and median ambiguous coverage is 100% in both domains. New nominal segments likewise have no selected pair bearing; real median ambiguous coverage is 98.7%. Candidate errors and abstention remain separate from a resolved angular error. The public two-microphone example now executes the maintained estimator and shows its two candidates.
+
+Host-monotonic timing stays in capture/comparison reports, outside sensor frames. It separates `process()`, delivered-block-to-frame response, and delivery intervals, excluding the first five blocks. In the six new source takes, processing medians range from 0.58 to 0.62 ms and processing p95 from 5.71 to 5.90 ms. There are zero processing overruns among all 2,680 post-initialization blocks, including ambient captures; the largest processing duration is 12.66 ms against the 50 ms period. Source-take delivery-to-frame p95 ranges from 5.84 to 6.10 ms; delivery-interval p95 ranges from 50.13 to 50.18 ms. Offline processing measurements remain explicitly separate from live delivery.
+
+Relative to the aligned received reference, nominal-segment activity onset has real median/p95 96/108 ms [73–108 ms] and simulated 100/123 ms [90–123 ms]. These are sample-timeline responses with 50 ms frame resolution, not acoustic latency. The real activity-offset p95 reaches 500 ms; source-off intervals can include continued activity and elevated ambient energy. Arbitrary historical analysis-window boundaries produce no onset/offset measurement. At weaker levels, intermittent or absent detection remains explicit rather than becoming a fixed latency estimate.
+
+SDK equivalence tests cover mono/8 kHz, stereo/16 kHz, and four-microphone planar arrays at 16 and 48 kHz, including identical-sample producers, recording/replay, known and unknown clipping, discontinuities, invalid channels, and reset recovery. `make check` passes 614 unit/contract, 282 integration, and 58 release tests; optional audio passes with PyRoom 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The downstream suite passes 410 tests, including local UDP checks outside the sandbox. DSP/Core uses its supported CPU path; no Isaac consumer changed and no new GPU qualification is claimed.
+
+Cleanup retires the completed S4.5 gain adapter, assessment command, recorder correction argument, and campaign-only tests. Reusable comparison metrics and necessary SSH, PCM, fault, and replay checks remain. The historical corrected-branch evidence described in 06.2 is preserved, but its executable campaign path is no longer maintained. [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] receives priorities from these measured differences; its realism implementation remains planned.
 
 #### Key Decisions
 
 - Real recordings are required for transfer claims.
 - Shared behavior has one owner and one downstream perception path.
 - Producer-specific code and dependencies require a supported role.
+- Software acceptance requires exact controlled equivalence. Physical acceptance requires valid acquisitions and verifiable differences, not numerical equality between reality and nominal simulation.
+- Raw amplitude and geometry remain unchanged; no gain, threshold, timing, or angle is fitted to improve the comparison.
 
 #### Problems / Limitations
 
-An extensible contract does not establish universal hardware compatibility or acoustic accuracy. Physical claims remain bounded to tested conditions. Check device and recorded-data consumers before consolidating driver-specific behavior.
+Physical claims remain bounded to this bench and campaign. ±5° placement uncertainty and nominal microphone centers limit interpretation of angular differences; the new 2° result does not establish a 2° accuracy specification. Received levels mix source directivity, room paths, ambient sound, and device response. They do not isolate microphone sensitivity or calibrate source SPL. Quiet ambient recording does not isolate self-noise; source-off energy does not by itself identify reverberation or detector delay.
+
+Positive clipping remains verified deterministically because none occurred physically. Analog saturation, absolute acoustic/transport latency, measured clock drift, and calibrated SPL remain unknown. Correlation alignment is a common time origin, not measured clock synchronization. Timing p95 supports this host pipeline under the observed workload, not a hard real-time or transport guarantee. Pair ambiguity is retained evidence; no contextual direction selection is added. More detailed acoustics or corrections require new evidence of useful benefit.
 
 ## Artifacts
 
 06.1 delivers the common runtime contract, one shared continuity owner, migrated consumers, and maintained validation tests. Local ignored evidence is under `build/validation/phase06_1/` (host, optional-audio/schema, and runtime logs) and `build/validation/isaac_audio_sensors/` (live smoke JSON and media). No physical recording or transfer evidence is produced.
 
-06.2 evidence is downstream under `outputs/phase06_2/`: local/SSH raw smokes, `recovered_fit/`, the two S4.5 audit reports, `reference_campaign/`, `paired_assessment/`, sample/metadata/reset verification, and `orientation_review.json`. Operational commands and current results are in SquadBot `docs/respeaker-capture.md`. The SDK host gate is under `build/validation/phase06_2/`. Acquisition, shared perception, recording, replay, and fault handling close 06.2 independently of correction admission. Full sim-versus-real comparison remains 06.3.
+06.2 evidence is downstream under `outputs/phase06_2/`: local/SSH raw smokes, `recovered_fit/`, the two S4.5 audit reports, `reference_campaign/`, `paired_assessment/`, sample/metadata/reset verification, and `orientation_review.json`. Operational commands and current results are in SquadBot `docs/respeaker-capture.md`. The SDK host gate is under `build/validation/phase06_2/`. Acquisition, shared perception, recording, replay, and fault handling close 06.2 independently of correction admission.
+
+06.3 evidence is downstream under `outputs/phase06_3/`: `reference_campaign/` retains the stimulus, protocol, eight original captures, playback/alignment reports, and take references; `existing_comparison_final/` and `targeted_comparison/` retain the authoritative JSON reports and simulated sessions. `summary.md` links the results and validation logs. The earlier `existing_comparison/` report is superseded because historical analysis boundaries are not source onsets. SDK gate logs are under `build/validation/phase06_3/`. All acquisition and generated evidence stays ignored; protected historical/raw material remains unchanged.
 
 ## Files
 
@@ -121,6 +157,8 @@ Main 06.1 implementation files:
 - `tools/smoke/live_omniverse_extension_ux.py` — contiguous activity and paused-snapshot runtime checks.
 
 ReSpeaker-specific files remain downstream.
+
+Main 06.3 SDK files are `tests/integration/test_signal_domain_parity.py`, `tests/contract/test_simulation.py`, and `examples/core/two_mic_ambiguity.py`. The downstream comparator and capture timing do not add a device-specific SDK surface.
 
 Existing reference material:
 
