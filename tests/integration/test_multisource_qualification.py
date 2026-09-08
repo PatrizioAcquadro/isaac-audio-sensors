@@ -252,3 +252,32 @@ def test_missing_transition_response_cannot_pass_admission():
     assert "unresolved_transition" in diagnostic_failures(result, protocol)
     result["responses"][2]["delay_ms"] = 300
     assert diagnostic_failures(result, protocol) == []
+
+
+def test_progressive_conditions_are_paired_and_not_final_qualification():
+    import json
+
+    from tools.qualification.doa_04_4.progressive import PROTOCOL, episode
+
+    protocol = json.loads(PROTOCOL.read_text())
+    assert protocol["purpose"] == "paired_development_diagnosis_not_final_qualification"
+    stages = {s["name"]: s for s in protocol["stages"]}
+    for name in ("room_020", "room_030", "room_050"):
+        assert {k: v for k, v in stages[name].items() if k not in ("name", "rt60")} == {
+            k: v for k, v in stages["direct"].items() if k not in ("name", "rt60")
+        }
+    first = episode("raised", "speech", 0, protocol["seed_base"])
+    repeated = episode("raised", "speech", 0, protocol["seed_base"])
+    for key in ("noise", "sources", "dims", "center", "origin", "tangent"):
+        np.testing.assert_array_equal(first[key], repeated[key])
+    assert len(set(first["assets"])) == 2
+    fresh = episode("raised", "speech", 0, protocol["seed_base"] + 10000)
+    assert not np.array_equal(first["noise"], fresh["noise"])
+
+
+def test_progressive_decay_measurement_recovers_exponential_tail():
+    from tools.qualification.doa_04_4.progressive import FS, decay_t20
+
+    time = np.arange(FS) / FS
+    rir = np.exp(-3 * np.log(10) * time / 0.3)
+    assert decay_t20(rir) == pytest.approx(0.3, abs=0.001)

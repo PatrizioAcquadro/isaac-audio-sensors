@@ -1118,3 +1118,7 @@ Document the prospective direct-path GO on 1,728 independent cases and 16 new sp
 ## 2026-09-08 — lint: Practical multisource closeout
 
 All wiki links and index coverage pass; historical broad-domain failures remain distinct from the bounded reference GO. Raw material and pre-existing ONR production content are preserved. Host validation passes 638 unit/contract, 302 integration and 58 release tests; supported-runtime Isaac validation passes 116 tests. The actual RTX 4090 Lab smoke passes.
+
+## 2026-09-08 — update: Progressive room-only multisource diagnosis
+
+Fix paired room-decay, isolated-difficulty and cumulative comparisons before evaluation. Preserve the integrated direct-path reference and previous qualification evidence; do not claim indoor robustness from its GO.

@@ -1,0 +1,276 @@
+"""Paired room-robustness diagnosis; all scene facts stay evaluator-owned."""
+
+import argparse
+import hashlib
+import json
+import time
+from pathlib import Path
+
+import numpy as np
+import pyroomacoustics as pra
+from scipy.signal import fftconvolve
+
+from .cases import ARRAYS, ASSETS, FS, ROOT, match, summary, wave
+from .evaluate import construct
+
+PROTOCOL = Path(__file__).with_name("progressive_protocol.json")
+
+
+def decay_t20(rir):
+    energy = np.cumsum(np.square(rir)[::-1])[::-1]
+    if not energy[0]:
+        return None
+    db = 10 * np.log10(np.maximum(energy / energy[0], 1e-30))
+    fit = (db <= -5) & (db >= -25)
+    if fit.sum() < 10:
+        return None
+    slope = np.polyfit(np.arange(len(rir))[fit] / FS, db[fit], 1)[0]
+    return float(-60 / slope) if slope < 0 else None
+
+
+def episode(array, content, repeat, seed_base):
+    seed = (
+        seed_base
+        + (
+            list(ARRAYS).index(array) * 3
+            + ("speech", "noise", "disjoint").index(content)
+        )
+        * 100
+        + repeat
+    )
+    room_rng, signal_rng, noise_rng = [
+        np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3)
+    ]
+    dims = np.array([6, 5, 4]) + room_rng.uniform(-0.3, 0.3, 3)
+    center = dims / 2 + room_rng.uniform(-0.2, 0.2, 3)
+    az = room_rng.uniform(-np.pi, np.pi)
+    el = room_rng.uniform(-np.pi / 4, np.pi / 4) if array in ("raised", "tetra") else 0
+    origin = np.array([np.cos(az) * np.cos(el), np.sin(az) * np.cos(el), np.sin(el)])
+    tangent = (
+        np.array([-np.cos(az) * np.sin(el), -np.sin(az) * np.sin(el), np.cos(el)])
+        if array in ("raised", "tetra") and repeat % 2
+        else np.array([-np.sin(az), np.cos(az), 0])
+    )
+    indices = (
+        signal_rng.choice(len(ASSETS["reference"]), 2, replace=False)
+        if content == "speech"
+        else [0, 1]
+    )
+    sources = [wave(content, "reference", int(i), signal_rng, 16000) for i in indices]
+    noise = noise_rng.standard_normal((len(ARRAYS[array]), 4000))
+    noise /= np.sqrt(np.mean(noise**2))
+    return dict(
+        seed=seed,
+        dims=dims,
+        center=center,
+        origin=origin,
+        tangent=tangent,
+        sources=sources,
+        noise=noise,
+        assets=[ASSETS["reference"][i] for i in indices] if content == "speech" else [],
+    )
+
+
+def render_stage(array, content, repeat, stage, seed_base):
+    key = dict(
+        array=array,
+        content=content,
+        repeat=repeat,
+        stage=stage,
+        seed_base=seed_base,
+        renderer="paired_room_v1",
+    )
+    path = (
+        ROOT
+        / "progressive_mixtures"
+        / (
+            hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()[:24]
+            + ".npz"
+        )
+    )
+    if path.exists():
+        with np.load(path) as data:
+            return data["mixtures"], data["truth"], json.loads(str(data["acoustics"]))
+    ep = episode(array, content, repeat, seed_base)
+    angle = np.radians(stage["separation"])
+    truth = np.stack(
+        [ep["origin"], np.cos(angle) * ep["origin"] + np.sin(angle) * ep["tangent"]]
+    )
+    rt = stage["rt60"]
+    absorption, order = pra.inverse_sabine(rt, ep["dims"]) if rt else (1.0, 0)
+
+    def rirs(max_order):
+        room = pra.ShoeBox(
+            ep["dims"], fs=FS, materials=pra.Material(absorption), max_order=max_order
+        )
+        room.add_microphone_array((ARRAYS[array] + ep["center"]).T)
+        for direction in truth:
+            room.add_source(ep["center"] + 1.5 * direction)
+        room.compute_rir()
+        return room.rir
+
+    room_rir = rirs(order)
+    direct_rir = rirs(0) if rt else room_rir
+    stems = []
+    ratios = []
+    decays = []
+    for source, mono in enumerate(ep["sources"]):
+        stem = np.stack(
+            [
+                fftconvolve(mono, room_rir[m][source])[8000:12000]
+                for m in range(len(ARRAYS[array]))
+            ]
+        )
+        stem *= (
+            0.03
+            / np.sqrt(np.mean(stem[0] ** 2))
+            * 10 ** (-stage["imbalance"] * source / 20)
+        )
+        stems.append(stem)
+        reflected = room_rir[0][source].copy()
+        direct = direct_rir[0][source]
+        reflected[: len(direct)] -= direct
+        ratios.append(
+            float(10 * np.log10(np.sum(direct**2) / max(np.sum(reflected**2), 1e-30)))
+        )
+        decays.append(decay_t20(room_rir[0][source]) if rt else None)
+    mixtures = []
+    for count in (0, 1, 2):
+        mix = sum(stems[:count], np.zeros_like(stems[0]))
+        level = (
+            np.sqrt(np.mean(mix**2)) * 10 ** (-stage["snr"] / 20) if count else 0.0001
+        )
+        mixtures.append(mix + ep["noise"] * level)
+    acoustics = dict(
+        seed=ep["seed"],
+        assets=ep["assets"],
+        room_dimensions_m=ep["dims"].tolist(),
+        array_center_m=ep["center"].tolist(),
+        target_rt60_s=rt,
+        t20_extrapolated_s=decays,
+        direct_reflected_energy_db=ratios if rt else [None, None],
+        source_distance_m=1.5,
+    )
+    path.parent.mkdir(exist_ok=True)
+    np.savez_compressed(
+        path,
+        mixtures=np.asarray(mixtures),
+        truth=truth,
+        acoustics=json.dumps(acoustics),
+    )
+    return np.asarray(mixtures), truth, acoustics
+
+
+def grouped(rows, protocol):
+    results = {}
+    for name in sorted({r["candidate"] for r in rows}):
+        results[name] = {}
+        for array in ARRAYS:
+            results[name][array] = {}
+            for stage in protocol["stages"]:
+                subset = [
+                    r
+                    for r in rows
+                    if r["candidate"] == name
+                    and r["array"] == array
+                    and r["stage"] == stage["name"]
+                ]
+                if not subset:
+                    continue
+                st = summary(subset)
+                pairs = [r for r in subset if r["count"] == 2]
+                st["exact_pair_count"] = float(
+                    np.mean([r["count_correct"] for r in pairs])
+                )
+                st["both_localized_without_extras"] = float(
+                    np.mean([r["tp"] == 2 and r["fp"] == 0 for r in pairs])
+                )
+                st["pair_undercounts"] = sum(r["count_error"] < 0 for r in pairs)
+                st["pair_overcounts"] = sum(r["count_error"] > 0 for r in pairs)
+                st["by_count"] = {
+                    str(c): summary([r for r in subset if r["count"] == c])
+                    for c in (0, 1, 2)
+                }
+                st["by_content"] = {
+                    c: summary([r for r in subset if r["content"] == c])
+                    for c in protocol["contents"]
+                }
+                thresholds = protocol["quality_reference"]
+                st["below_reference"] = [
+                    k
+                    for k in ("precision", "recall")
+                    if st[k] is None or st[k] < thresholds["minimum_" + k]
+                ]
+                if st["exact_pair_count"] < thresholds["minimum_pair_count_accuracy"]:
+                    st["below_reference"].append("pair_count")
+                if (
+                    st["angular_p95"] is None
+                    or st["angular_p95"] > thresholds["maximum_angular_p95_deg"]
+                ):
+                    st["below_reference"].append("angle")
+                results[name][array][stage["name"]] = st
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--protocol", type=Path, default=PROTOCOL)
+    args = parser.parse_args()
+    output = ROOT / args.output
+    if output.exists():
+        raise FileExistsError(output)
+    protocol = json.loads(args.protocol.read_text())
+    rows = []
+    for array in ARRAYS:
+        candidate = construct(protocol["candidate"], protocol["threshold"])
+        for content in protocol["contents"]:
+            for repeat in range(protocol["repetitions"]):
+                for stage in protocol["stages"]:
+                    mixtures, truth, acoustics = render_stage(
+                        array, content, repeat, stage, protocol["seed_base"]
+                    )
+                    for count in protocol["counts"]:
+                        samples = np.ascontiguousarray(mixtures[count])
+                        samples.setflags(write=False)
+                        start = time.perf_counter()
+                        pred, diagnostics = candidate.localize(
+                            samples, ARRAYS[array], FS
+                        )
+                        rows.append(
+                            dict(
+                                candidate=protocol["candidate"],
+                                array=array,
+                                content=content,
+                                repeat=repeat,
+                                stage=stage["name"],
+                                count=count,
+                                acoustics=acoustics,
+                                predicted=pred.tolist(),
+                                truth=truth[:count].tolist(),
+                                diagnostics=diagnostics,
+                                compute_ms=1000 * (time.perf_counter() - start),
+                                **match(pred, truth[:count]),
+                            )
+                        )
+            print(array, content, len(rows), flush=True)
+            output.write_text(
+                json.dumps(dict(protocol=protocol, rows=rows), indent=2) + "\n"
+            )
+    result = dict(protocol=protocol, summary=grouped(rows, protocol), rows=rows)
+    output.write_text(json.dumps(result, indent=2) + "\n")
+    for array, stages in result["summary"][protocol["candidate"]].items():
+        for stage, st in stages.items():
+            print(
+                array,
+                stage,
+                round(st["precision"], 3),
+                round(st["recall"], 3),
+                round(st["exact_pair_count"], 3),
+                st["below_reference"],
+                flush=True,
+            )
+
+
+if __name__ == "__main__":
+    main()
