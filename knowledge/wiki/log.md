@@ -1029,3 +1029,11 @@ All five documentation-boundary tests pass, including links and index coverage.
 Reviewed the phase, status, and index for consistent planned-state language and
 candidate-selection order. Whitespace checks pass; only the approved wiki
 pages changed, with no edits to protected raw material or runtime code.
+
+## 2026-09-08 — experiment: 04.4 candidate shortlist
+
+Recorded the three-candidate comparison rationale before implementing the harness: PyRoom SRP with peak rejection, PyRoom MUSIC with observed MDL order, and ODAS SSL with potential rejection. Reviewed ISSL training costs, defined truth isolation, independent partitions, and per-role failure handling. Runtime remains unchanged.
+
+## 2026-09-08 — lint: 04.4 shortlist
+
+All five documentation-boundary tests and whitespace checks pass; the experiment is indexed and protected raw material is unchanged.

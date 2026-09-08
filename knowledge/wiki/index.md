@@ -47,7 +47,7 @@
 
 ## Experiments
 
-No canonical product experiments are currently recorded.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — candidate review and simulation qualification for unknown-count planar and 3D events.
 
 ## Sources
 
