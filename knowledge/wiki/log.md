@@ -1138,3 +1138,11 @@ Completed the four-geometry room-only sweep and gradual imbalance/noise/separati
 ## 2026-09-08 — lint: Progressive localization study
 
 Nineteen qualification integration tests and five documentation-boundary tests pass. Changed Python files pass Ruff and formatting checks; Markdown whitespace and wiki links pass. No maintained runtime or public dependency changed, so the prior consumer/GPU validation is preserved without claiming a new runtime qualification.
+
+## 2026-09-08 — update: Video 1 camera-relative compass correction
+
+Fix the video adapter's mirrored left/right mapping while retaining the actual SDK compass renderer and measured execution. Keep the dial visible during unavailable intervals, retain the latest valid bearing for three seconds, and extend the title to 5.2 seconds. Camera-geometry checks confirm direction; timing and dial-state checks pass. Recompose both complete resolutions using the unchanged microphone soundtrack and preserve the earlier delivery locally.
+
+## 2026-09-08 — lint: Video 1 compass revision
+
+Wiki links, index coverage, and Markdown whitespace checks pass. Both 40-second encodes decode completely at 30 fps with synchronized audio and no clipping. No SDK code, original evidence, or other video is changed.
