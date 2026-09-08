@@ -16,6 +16,7 @@ venv/
 
 # Local evidence, datasets, and generated media
 /evidence/
+/local/
 data/
 generated/
 *.wav

@@ -1227,3 +1227,7 @@ Promoted the fixed WPE/group-sparse covariance path after all 24 joint indoor qu
 ## 2026-09-08 — lint: Indoor perception closeout
 
 Validated all documentation boundaries and whitespace, final Ruff checks, 638 unit/contract tests, 322 integration tests and 58 release tests. The qualified indoor scope and failed rapid-response/original planar operational criteria are explicit in the canonical pages. Protected raw evidence and unrelated ONR work remain preserved.
+
+## 2026-09-08 — update: Retire completed multisource candidate infrastructure
+
+Consolidated the experiment around the maintained indoor reference, preserving historical failures and settings as local evidence and source in Git. Removed retired candidate executors and tests; retained direct numerical and consumer regression coverage. Sixteen fixed-input comparisons preserve events and diagnostics exactly.

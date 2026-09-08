@@ -136,8 +136,7 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 
 ## Files
 
-- `tools/qualification/doa_04_4/`
-- `tests/integration/test_multisource_qualification.py`
+- `tests/integration/test_sparse_localization.py`
 
 - `src/isaac_audio_sensors/core/plugins/pyroomacoustics.py`
 - `src/isaac_audio_sensors/core/plugins/standard_doa.py`
@@ -167,3 +166,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-08: Diagnosed room-only and progressively combined acoustic failures with paired controls; rejected the tested loading, selection and short-context dereverberation corrections without changing the maintained reference or qualification gates.
 
 - 2026-09-08: Confirmed and integrated bounded indoor WPE/group-sparse localization; documented weak-speech errors, slower response and original planar operational regressions. 07.2 remains outside the intervention.
+
+- 2026-09-08: Retired candidate-selection executors and phase-only tests; retained WPE/group-sparse runtime tests and historical result/settings records outside build outputs. Removed unused pairwise steering preparation without changing numerical results.

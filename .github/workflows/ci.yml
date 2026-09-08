@@ -50,5 +50,5 @@ jobs:
           python -m pip install --editable ".[dev,room]"
       - name: Run optional audio gate
         run: |
-          python -m pytest -q tests/integration/test_recording_codecs.py tests/integration/test_audio_output_panel.py tests/contract/test_dataset_truth.py tests/integration/test_multisource_perception.py tests/integration/test_indoor_candidates.py
+          python -m pytest -q tests/integration/test_recording_codecs.py tests/integration/test_audio_output_panel.py tests/contract/test_dataset_truth.py tests/integration/test_multisource_perception.py tests/integration/test_sparse_localization.py
           make smoke-optional PYTHON=python
