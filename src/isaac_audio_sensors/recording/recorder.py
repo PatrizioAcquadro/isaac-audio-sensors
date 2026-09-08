@@ -64,14 +64,12 @@ from isaac_audio_sensors.recording.manifest import (
     _learning_identities,
     _require_id,
 )
-from isaac_audio_sensors.recording.serialization import manifest_to_dict
+from isaac_audio_sensors.recording.serialization import _serialize, manifest_to_dict
 from isaac_audio_sensors.recording.truth import (
     AnnotationRecord,
     FrameTruth,
     _annotations_from_dict,
-    _annotations_to_dict,
     _truth_from_dict,
-    _truth_to_dict,
     _validate_supervision,
 )
 
@@ -733,8 +731,8 @@ class SessionRecorder:
             "audio_sample_count": sample_count,
             "dataset_frame_index": dataset_index,
             "frame": payload,
-            "truth": _truth_to_dict(truth),
-            "annotations": _annotations_to_dict(annotations),
+            "truth": _serialize(truth),
+            "annotations": _serialize(annotations),
             "gap_samples": gap_samples,
             "is_reset": is_reset,
         }

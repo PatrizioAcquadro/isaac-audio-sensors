@@ -15,13 +15,12 @@ from isaac_audio_sensors.core.io.traces import (
     frame_to_trace_dict,
 )
 from isaac_audio_sensors.core.types import AudioSensorFrame
+from isaac_audio_sensors.recording.serialization import _serialize
 from isaac_audio_sensors.recording.truth import (
     AnnotationRecord,
     FrameTruth,
     _annotations_from_dict,
-    _annotations_to_dict,
     _truth_from_dict,
-    _truth_to_dict,
     _validate_supervision,
 )
 
@@ -79,8 +78,8 @@ class DatasetFrameRecord:
             "audio_start_sample": self.audio_start_sample,
             "audio_end_sample": self.audio_end_sample,
             "frame": self.frame,
-            "truth": _truth_to_dict(self.truth),
-            "annotations": _annotations_to_dict(self.annotations),
+            "truth": _serialize(self.truth),
+            "annotations": _serialize(self.annotations),
         }
 
 

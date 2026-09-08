@@ -27,11 +27,10 @@ from isaac_audio_sensors.core.types import (
     SourceOcclusion,
 )
 from isaac_audio_sensors.recording import AnnotationRecord, simulate_dataset_frame
+from isaac_audio_sensors.recording.serialization import _serialize
 from isaac_audio_sensors.recording.truth import (
     _annotations_from_dict,
-    _annotations_to_dict,
     _truth_from_dict,
-    _truth_to_dict,
     _validate_supervision,
 )
 from tests.helpers import CaptureSink, quad_array, source
@@ -70,7 +69,7 @@ def test_empty_truth_and_external_observation_are_independent():
     assert not np.any(block.samples)
     assert all(value == 0.0 for value in truth.mixture_residual_rms.values())
     assert _truth_from_dict(None) is None
-    assert _truth_from_dict(_truth_to_dict(truth)) == truth
+    assert _truth_from_dict(_serialize(truth)) == truth
 
 
 @pytest.mark.parametrize("noise", [False, True])
@@ -119,7 +118,7 @@ def test_single_render_and_exact_observed_parity_with_received_evidence(noise):
         list(truth.mixture_residual_rms.values()), np.sqrt(np.mean(residual**2, axis=1))
     )
     assert set(truth.mixture_residual_rms) == set(prepared.mic_ids)
-    payload = _truth_to_dict(truth)
+    payload = _serialize(truth)
     assert "observations" not in payload
     assert _truth_from_dict(json.loads(json.dumps(payload))) == truth
 
@@ -192,7 +191,7 @@ def test_occlusion_attenuates_received_evidence_without_changing_emission():
     assert max(reflection.truth_events[0].received_rms.values()) > max(
         b.received_rms.values()
     )
-    restored = _truth_from_dict(_truth_to_dict(reflection))
+    restored = _truth_from_dict(_serialize(reflection))
     assert restored == reflection
     occlusion.per_mic_attenuation_db[mic_ids[0]] = 90
     assert b.occlusion.per_mic_attenuation_db[mic_ids[0]] == 40
@@ -218,7 +217,7 @@ def test_motion_preserves_snapshot_geometry_and_canonical_annotations():
         ),
     )
     assert _validate_supervision(frame, truth, annotations) == annotations
-    assert _annotations_from_dict(_annotations_to_dict(annotations)) == annotations
+    assert _annotations_from_dict(_serialize(annotations)) == annotations
     with pytest.raises(ValueError, match="match the frame"):
         _validate_supervision(frame, replace(truth, frame_id="wrong"), annotations)
     with pytest.raises(ValueError, match="unique"):
@@ -236,7 +235,7 @@ def test_motion_preserves_snapshot_geometry_and_canonical_annotations():
         replace(event, schedule_overlap="true")
     with pytest.raises(TypeError):
         event.received_rms["front"] = 100
-    payload = _truth_to_dict(truth)
+    payload = _serialize(truth)
     payload["truth_events"][0]["audible"] = True
     with pytest.raises(ValueError, match="exactly"):
         _truth_from_dict(payload)
@@ -254,10 +253,10 @@ def test_truth_quaternion_serialization_is_idempotent():
         ),
     )
     truth = replace(truth, truth_events=(event,))
-    payload = json.dumps(_truth_to_dict(truth), sort_keys=True)
+    payload = json.dumps(_serialize(truth), sort_keys=True)
     for _ in range(3):
         truth = _truth_from_dict(json.loads(payload))
-        assert json.dumps(_truth_to_dict(truth), sort_keys=True) == payload
+        assert json.dumps(_serialize(truth), sort_keys=True) == payload
 
 
 def test_nonlinear_mixture_does_not_redefine_per_source_received_evidence():

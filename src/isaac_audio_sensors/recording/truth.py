@@ -119,7 +119,7 @@ class TruthEvent:
         if self.occlusion is not None:
             if not isinstance(self.occlusion, SourceOcclusion):
                 raise TypeError("occlusion must be SourceOcclusion or None.")
-            occlusion = _occlusion_from_dict(_occlusion_to_dict(self.occlusion))
+            occlusion = _occlusion_from_dict(_serialize(self.occlusion))
             if occlusion.source_id != self.source_id:
                 raise ValueError("Occlusion source identity does not match truth.")
             if set(occlusion.per_mic_blocked) != set(self.received_rms):
@@ -253,10 +253,6 @@ def _exact(payload: Any, model: type) -> dict[str, Any]:
     return dict(payload)
 
 
-def _occlusion_to_dict(value: SourceOcclusion) -> dict[str, Any]:
-    return _serialize(value)
-
-
 def _occlusion_from_dict(payload: dict[str, Any]) -> SourceOcclusion:
     values = _exact(payload, SourceOcclusion)
     if not isinstance(values["per_mic_blocked"], dict) or any(
@@ -264,10 +260,6 @@ def _occlusion_from_dict(payload: dict[str, Any]) -> SourceOcclusion:
     ):
         raise ValueError("Occlusion blocked values must be Booleans.")
     return SourceOcclusion(**values)
-
-
-def _truth_to_dict(value: FrameTruth | None) -> dict[str, Any] | None:
-    return _serialize(value)
 
 
 def _truth_from_dict(payload: dict[str, Any] | None) -> FrameTruth | None:
@@ -287,10 +279,6 @@ def _truth_from_dict(payload: dict[str, Any] | None) -> FrameTruth | None:
         events.append(TruthEvent(**event))
     values["truth_events"] = tuple(events)
     return FrameTruth(**values)
-
-
-def _annotations_to_dict(values: Sequence[AnnotationRecord]) -> list[dict[str, Any]]:
-    return [_serialize(value) for value in values]
 
 
 def _annotations_from_dict(
