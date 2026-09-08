@@ -1130,3 +1130,11 @@ Complete the approved review corrections with Alex V2 and WSG32/UMI, the user-ma
 ## 2026-09-08 — lint: Corrected video 1 documentation
 
 All wiki links, index coverage, cited local outputs, and Markdown whitespace checks pass. The documented metrics come from the regenerated opposite-position execution. This milestone changes only ONR documentation; concurrent multisource work and original evidence remain separate.
+
+## 2026-09-08 — experiment: Paired indoor localization limits and rejected corrections
+
+Completed the four-geometry room-only sweep and gradual imbalance/noise/separation study, then paired distance controls. Recorded actual decay, direct/reflected energy, distinct-event recovery and content-specific failures. Stronger model-order loading, event-rejection changes and isolated short-context NARA-WPE did not justify promotion. The direct-path reference remains unchanged; the requested indoor-utility review and broader acoustic qualification remain open, and 07.2 has not started.
+
+## 2026-09-08 — lint: Progressive localization study
+
+Nineteen qualification integration tests and five documentation-boundary tests pass. Changed Python files pass Ruff and formatting checks; Markdown whitespace and wiki links pass. No maintained runtime or public dependency changed, so the prior consumer/GPU validation is preserved without claiming a new runtime qualification.

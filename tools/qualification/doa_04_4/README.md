@@ -63,3 +63,20 @@ output directory. `admission` combines quality/idle/response gates and accepts
 alone must not be used as a general promotion decision.
 
 The `reference` partition uses 16 new speakers in `reference_assets.json` and eight repetitions. Its 1,728-case report, independent diagnostics and applicable known-case regression pass all four geometries without changing the algorithm or numerical gates. Combined reverberant failures remain characterized outside this bounded integration domain; original reports are unchanged. `reference-admission.json` admits the candidate scope, while `phase04_4_lab_live_smoke.json` under `build/validation/isaac_audio_sensors/` verifies actual GPU consumers. All partitions are now consumed evidence.
+
+For the subsequent paired indoor-utility development study:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.progressive --output progressive-baseline.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.progressive --output progressive-loading.json --loading 0.0001 --loading 0.001 --loading 0.003 --loading 0.01 --stage direct --stage room_030 --stage combined
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.progressive --output progressive-distance.json --stage direct --stage room_030 --distance 0.5 --distance 1
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.progressive --output progressive-power.json --stage direct --stage room_030 --stage combined --refit-statistic mean --threshold 0.005
+```
+
+Existing reports are preserved; use a new output name when rerunning. Every
+report records the actual comparison settings. Counts and stage variations of an
+episode belong to the same development partition. Measured T20 and direct/reflected
+energy supplement the target RT60; none is a physical validation. The unchanged
+reference remains available, but room-only failures prevent a general indoor
+claim. No tested correction is promoted. Rejected selection and NARA-WPE probes
+are preserved beside their ignored reports, not installed into the SDK.

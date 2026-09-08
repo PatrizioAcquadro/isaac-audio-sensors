@@ -97,6 +97,7 @@ def render_stage(array, content, repeat, stage, seed_base):
         [ep["origin"], np.cos(angle) * ep["origin"] + np.sin(angle) * ep["tangent"]]
     )
     rt = stage["rt60"]
+    distance = stage.get("distance_m", 1.5)
     absorption, order = pra.inverse_sabine(rt, ep["dims"]) if rt else (1.0, 0)
 
     def rirs(max_order):
@@ -105,7 +106,7 @@ def render_stage(array, content, repeat, stage, seed_base):
         )
         room.add_microphone_array((ARRAYS[array] + ep["center"]).T)
         for direction in truth:
-            room.add_source(ep["center"] + 1.5 * direction)
+            room.add_source(ep["center"] + distance * direction)
         room.compute_rir()
         return room.rir
 
@@ -149,7 +150,7 @@ def render_stage(array, content, repeat, stage, seed_base):
         target_rt60_s=rt,
         t20_extrapolated_s=decays,
         direct_reflected_energy_db=ratios if rt else [None, None],
-        source_distance_m=1.5,
+        source_distance_m=distance,
     )
     path.parent.mkdir(exist_ok=True)
     np.savez_compressed(
@@ -216,14 +217,47 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
     parser.add_argument("--protocol", type=Path, default=PROTOCOL)
+    parser.add_argument("--loading", type=float, action="append")
+    parser.add_argument("--stage", action="append")
+    parser.add_argument("--distance", type=float, action="append")
+    parser.add_argument(
+        "--refit-statistic", choices=("product", "mean"), default="product"
+    )
+    parser.add_argument("--threshold", type=float)
     args = parser.parse_args()
     output = ROOT / args.output
     if output.exists():
         raise FileExistsError(output)
     protocol = json.loads(args.protocol.read_text())
+    if args.threshold is not None:
+        protocol["threshold"] = args.threshold
+    protocol["refit_statistic"] = args.refit_statistic
+    if args.stage:
+        unknown = set(args.stage) - {s["name"] for s in protocol["stages"]}
+        if unknown:
+            parser.error(f"Unknown stages: {sorted(unknown)}")
+        protocol["stages"] = [s for s in protocol["stages"] if s["name"] in args.stage]
+    if args.distance:
+        if any(d <= 0 or d > 1.5 for d in args.distance):
+            parser.error("Distances must be in (0, 1.5] m to stay inside every room")
+        protocol["stages"] = [
+            dict(s, name=f"{s['name']}_distance_{d:g}", distance_m=d)
+            for d in args.distance
+            for s in protocol["stages"]
+        ]
+    loadings = args.loading or [0.0001]
+    protocol["compared_relative_loadings"] = loadings
     rows = []
     for array in ARRAYS:
-        candidate = construct(protocol["candidate"], protocol["threshold"])
+        candidates = {}
+        for loading in loadings:
+            candidate = construct(protocol["candidate"], protocol["threshold"])
+            candidate.relative_loading = loading
+            candidate.refit_statistic = args.refit_statistic
+            name = protocol["candidate"] if loading == 0.0001 else f"loading_{loading}"
+            if args.refit_statistic != "product":
+                name += f"_{args.refit_statistic}"
+            candidates[name] = candidate
         for content in protocol["contents"]:
             for repeat in range(protocol["repetitions"]):
                 for stage in protocol["stages"]:
@@ -233,43 +267,46 @@ def main():
                     for count in protocol["counts"]:
                         samples = np.ascontiguousarray(mixtures[count])
                         samples.setflags(write=False)
-                        start = time.perf_counter()
-                        pred, diagnostics = candidate.localize(
-                            samples, ARRAYS[array], FS
-                        )
-                        rows.append(
-                            dict(
-                                candidate=protocol["candidate"],
-                                array=array,
-                                content=content,
-                                repeat=repeat,
-                                stage=stage["name"],
-                                count=count,
-                                acoustics=acoustics,
-                                predicted=pred.tolist(),
-                                truth=truth[:count].tolist(),
-                                diagnostics=diagnostics,
-                                compute_ms=1000 * (time.perf_counter() - start),
-                                **match(pred, truth[:count]),
+                        for name, candidate in candidates.items():
+                            start = time.perf_counter()
+                            pred, diagnostics = candidate.localize(
+                                samples, ARRAYS[array], FS
                             )
-                        )
+                            rows.append(
+                                dict(
+                                    candidate=name,
+                                    array=array,
+                                    content=content,
+                                    repeat=repeat,
+                                    stage=stage["name"],
+                                    count=count,
+                                    acoustics=acoustics,
+                                    predicted=pred.tolist(),
+                                    truth=truth[:count].tolist(),
+                                    diagnostics=diagnostics,
+                                    compute_ms=1000 * (time.perf_counter() - start),
+                                    **match(pred, truth[:count]),
+                                )
+                            )
             print(array, content, len(rows), flush=True)
             output.write_text(
                 json.dumps(dict(protocol=protocol, rows=rows), indent=2) + "\n"
             )
     result = dict(protocol=protocol, summary=grouped(rows, protocol), rows=rows)
     output.write_text(json.dumps(result, indent=2) + "\n")
-    for array, stages in result["summary"][protocol["candidate"]].items():
-        for stage, st in stages.items():
-            print(
-                array,
-                stage,
-                round(st["precision"], 3),
-                round(st["recall"], 3),
-                round(st["exact_pair_count"], 3),
-                st["below_reference"],
-                flush=True,
-            )
+    for candidate, arrays in result["summary"].items():
+        for array, stages in arrays.items():
+            for stage, st in stages.items():
+                print(
+                    candidate,
+                    array,
+                    stage,
+                    st["precision"],
+                    st["recall"],
+                    st["exact_pair_count"],
+                    st["below_reference"],
+                    flush=True,
+                )
 
 
 if __name__ == "__main__":

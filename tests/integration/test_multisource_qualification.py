@@ -281,3 +281,23 @@ def test_progressive_decay_measurement_recovers_exponential_tail():
     time = np.arange(FS) / FS
     rir = np.exp(-3 * np.log(10) * time / 0.3)
     assert decay_t20(rir) == pytest.approx(0.3, abs=0.001)
+
+
+def test_progressive_distance_changes_propagation_without_changing_episode(
+    tmp_path, monkeypatch
+):
+    from tools.qualification.doa_04_4 import progressive
+
+    monkeypatch.setattr(progressive, "ROOT", tmp_path)
+    stage = dict(name="direct", rt60=0, separation=70, imbalance=0, snr=20)
+    far, truth, metadata = progressive.render_stage(
+        "square", "noise", 0, stage, 1800000
+    )
+    near, near_truth, near_metadata = progressive.render_stage(
+        "square", "noise", 0, dict(stage, distance_m=0.5), 1800000
+    )
+    assert metadata["source_distance_m"] == 1.5
+    assert near_metadata["source_distance_m"] == 0.5
+    np.testing.assert_array_equal(truth, near_truth)
+    np.testing.assert_array_equal(far[0], near[0])
+    assert not np.allclose(far[2], near[2])

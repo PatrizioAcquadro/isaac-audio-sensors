@@ -1,6 +1,6 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.3 complete. On 2026-09-08, 04.4 completes the user-directed practical scalar-reference milestone: planar and 3D direct-path simulation GO, common perception integrated, consumers and live RTX 4090 Lab smoke verified. 07.2 may start. Qualification over the original combined reverberant domain remains NO-GO; physical multisource performance is unqualified.
+Status: Subphases 04.1–04.3 complete. On 2026-09-08, 04.4 completes the bounded scalar-reference milestone: planar and 3D direct-path simulation GO, common perception integrated, consumers and live RTX 4090 Lab smoke verified. That reference is technically available for 07.2, which has not started. The subsequent user-requested indoor-utility study measures room-only failures and rejects the tested corrections; acoustic robustness work remains open. Original broad-domain and physical multisource qualification remain incomplete.
 
 ## Objective
 
@@ -122,7 +122,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 Remaining acoustic limits: the original combined 45-degree separation / 6 dB imbalance / 10 dB SNR / 0.3 s target RT60 domain still fails; those plausible conditions have not been declared unrealistic. Close, coherent, out-of-plane planar and arbitrary reverberant mixtures are not qualified. Direct-path case coverage does not prove a complete continuous operating envelope, arbitrary layouts or physical performance. Planar elevation is not observable in this role. Two-source reliability is probabilistic; larger output capacity is not a three-source qualification.
 
-The practical reference is now usable for 07.2 under these explicit limits. Improving difficult-condition cardinality requires a demonstrated application need and new evidence, not an automatic new custom algorithm. 07.2 remains responsible for scalable/stateful Lab work and must preserve the reference's observed-only and uncertainty semantics.
+The practical reference is usable for 07.2 under these explicit limits. The subsequent user-requested paired indoor-utility study now demonstrates a reason for additional acoustic work: even room-only conditions introduce false events, and imbalance worsens second-source recovery. Stronger loading, stricter event rejection, covariance power without spatial contrast, and short-context NARA-WPE do not provide a common correction worth promoting. Close-range results are promising but do not qualify a new domain. The [[experiments/04-4-multisource-localization|progressive experiment]] owns the per-condition results, renderer limits and next intervention. No custom cardinality algorithm is selected. 07.2 has not started and remains responsible for scalable/stateful Lab work, preserving the reference's observed-only and uncertainty semantics.
 
 ## Artifacts
 
@@ -162,3 +162,4 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-08: Continued through regularized covariance, AIC, spectral weighting and independent content partitions; corrected nominal transition propagation. Latest per-run gates pass, but known-case regression retains combined NO-GO and prevents premature consumer integration.
 
 - 2026-09-08: Completed the practical 04.4 scalar-reference milestone, retaining the original broad-domain NO-GO while enabling 07.2 after common consumer and actual GPU projection validation.
+- 2026-09-08: Diagnosed room-only and progressively combined acoustic failures with paired controls; rejected the tested loading, selection and short-context dereverberation corrections without changing the maintained reference or qualification gates.
