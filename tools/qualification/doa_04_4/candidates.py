@@ -324,12 +324,14 @@ class FrequencyOrderCandidate(PyroomCandidate):
         refit_threshold=None,
         refit_statistic="mean",
         refine_peaks=False,
+        order_criterion="mdl",
     ):
         super().__init__("MUSIC", threshold, normalized=True)
         self.relative_loading = relative_loading
         self.refit_threshold = refit_threshold
         self.refit_statistic = refit_statistic
         self.refine_peaks = refine_peaks
+        self.order_criterion = order_criterion
 
     def localize(self, samples, positions, sample_rate):
         samples, positions = _validate_doa_inputs(samples, positions, sample_rate)
@@ -359,7 +361,9 @@ class FrequencyOrderCandidate(PyroomCandidate):
                 n
                 * (m - order)
                 * (np.log(noise.mean(axis=1)) - np.log(noise).mean(axis=1))
-                + 0.5 * order * (2 * m - order) * np.log(n)
+                + order
+                * (2 * m - order)
+                * (1 if self.order_criterion == "aic" else 0.5 * np.log(n))
             )
         counts = np.argmin(costs, axis=0)
         three_d = np.linalg.matrix_rank(positions - positions[0]) == 3

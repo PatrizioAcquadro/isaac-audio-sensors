@@ -1069,3 +1069,7 @@ Diagnosed near-zero-noise order inflation and sidelobe events, compared correcti
 ## 2026-09-08 — experiment: 04.4 weak-source criterion and transition-model correction
 
 Independent verification isolates operational pair counting. Corrected the nominal transition generator's channel-response distortion, retained linear probes as response-mismatch stress evidence, and compared power/contrast rejection and local peak refinement on expanded development. Fixed a new unchanged-gate validation protocol with new speakers and seeds before evaluation; all geometries pass static development at its common setting.
+
+## 2026-09-08 — experiment: 04.4 per-geometry passes and fixed AIC comparison
+
+Bandlimited validation passes complete gates on square/raised-center; triangle/tetrahedron remain below pair-count accuracy. Documented remaining noisy-speech and combined-room failures. Compared the established AIC/MDL count criteria on expanded development and fixed an independent same-case comparison with new speakers and unchanged acceptance gates.

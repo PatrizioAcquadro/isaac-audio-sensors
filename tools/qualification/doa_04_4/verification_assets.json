@@ -22,5 +22,17 @@
     "archive_path": "LibriSpeech/test-clean/260/123440/260-123440-0018.flac",
     "sha256": "a80d66d866b8f9114094301a965a7b6d0a62d9467c96885ff1098a27f5b02cb4",
     "url": "https://www.openslr.org/resources/12/test-clean.tar.gz"
+  },
+  {
+    "name": "7729-102255-0045.flac",
+    "archive_path": "LibriSpeech/test-clean/7729/102255/7729-102255-0045.flac",
+    "sha256": "52b2863422cf066b046facaf8c9608e81179a61be437b8e321c2832b2119805c",
+    "url": "https://www.openslr.org/resources/12/test-clean.tar.gz"
+  },
+  {
+    "name": "2094-142345-0059.flac",
+    "archive_path": "LibriSpeech/test-clean/2094/142345/2094-142345-0059.flac",
+    "sha256": "d9e10be49f95d6c601d63e3c229eeda6cf29a03a040d10078bf6cd0975964554",
+    "url": "https://www.openslr.org/resources/12/test-clean.tar.gz"
   }
 ]

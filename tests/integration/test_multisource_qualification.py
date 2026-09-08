@@ -104,10 +104,12 @@ def test_confirmation_keeps_original_acceptance_criteria():
     confirmation = json.loads((root / "confirmation_protocol.json").read_text())
     verification = json.loads((root / "verification_protocol.json").read_text())
     validation = json.loads((root / "validation_protocol.json").read_text())
+    qualification = json.loads((root / "qualification_protocol.json").read_text())
     for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
         assert initial[field] == confirmation[field]
         assert initial[field] == verification[field]
         assert initial[field] == validation[field]
+        assert initial[field] == qualification[field]
 
 
 @pytest.mark.parametrize("array", ("triangle", "square", "raised", "tetra"))
@@ -176,7 +178,12 @@ def test_bandlimited_transition_propagation_preserves_channel_response():
     assert rms.max() / rms.min() < 1.01
 
 
-def test_covariance_contrast_keeps_a_ten_db_weaker_overlapping_source():
+@pytest.mark.parametrize(
+    "candidate,threshold", (("covariance_contrast", 0.014), ("covariance_aic", 0.011))
+)
+def test_covariance_contrast_keeps_a_ten_db_weaker_overlapping_source(
+    candidate, threshold
+):
     from tools.qualification.doa_04_4.cases import ARRAYS, FS
     from tools.qualification.doa_04_4.evaluate import construct
 
@@ -193,7 +200,7 @@ def test_covariance_contrast_keeps_a_ten_db_weaker_overlapping_source():
         )
     samples = np.fft.irfft(spectrum, n=8192)[:, 2000:6000]
     samples += rng.normal(0, 0.001, samples.shape)
-    localizer = construct("covariance_contrast", 0.014)
+    localizer = construct(candidate, threshold)
     found, _ = localizer.localize(samples, positions, FS)
     result = match(found, truth)
     assert result["count_correct"] and result["tp"] == 2

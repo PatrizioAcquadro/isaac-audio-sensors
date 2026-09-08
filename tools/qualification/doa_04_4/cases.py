@@ -35,6 +35,7 @@ ASSETS = {
     "confirmation": ("cmu_arctic_us_aew_a0003.wav", "cmu_arctic_us_axb_a0006.wav"),
     "verification": ("6930-75918-0000.flac", "1320-122617-0003.flac"),
     "validation": ("5639-40744-0032.flac", "260-123440-0018.flac"),
+    "qualification": ("7729-102255-0045.flac", "2094-142345-0059.flac"),
 }
 
 
@@ -60,6 +61,7 @@ def make_cases(split, repetitions=2):
         "confirmation": 200000,
         "verification": 300000,
         "validation": 400000,
+        "qualification": 500000,
     }[split]
     conditions = [
         ("nominal", 70, 0, 20, 0),
