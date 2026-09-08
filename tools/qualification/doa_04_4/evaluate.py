@@ -20,6 +20,14 @@ ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 
 
 def construct(name, threshold):
+    if name == "covariance_contrast":
+        return FrequencyOrderCandidate(
+            0.03,
+            relative_loading=0.0001,
+            refit_threshold=threshold,
+            refit_statistic="product",
+            refine_peaks=True,
+        )
     if name == "covariance_music":
         return FrequencyOrderCandidate(
             0.03, relative_loading=0.0001, refit_threshold=threshold
@@ -99,7 +107,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--split",
-        choices=("development", "evaluation", "confirmation", "verification"),
+        choices=(
+            "development",
+            "evaluation",
+            "confirmation",
+            "verification",
+            "validation",
+        ),
         required=True,
     )
     parser.add_argument("--output", required=True)

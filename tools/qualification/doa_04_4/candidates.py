@@ -317,10 +317,19 @@ class CovarianceCandidate:
 class FrequencyOrderCandidate(PyroomCandidate):
     """Fuse normalized MUSIC spectra with independently observed per-bin order."""
 
-    def __init__(self, threshold=0.2, relative_loading=0.0, refit_threshold=None):
+    def __init__(
+        self,
+        threshold=0.2,
+        relative_loading=0.0,
+        refit_threshold=None,
+        refit_statistic="mean",
+        refine_peaks=False,
+    ):
         super().__init__("MUSIC", threshold, normalized=True)
         self.relative_loading = relative_loading
         self.refit_threshold = refit_threshold
+        self.refit_statistic = refit_statistic
+        self.refine_peaks = refine_peaks
 
     def localize(self, samples, positions, sample_rate):
         samples, positions = _validate_doa_inputs(samples, positions, sample_rate)
@@ -399,6 +408,19 @@ class FrequencyOrderCandidate(PyroomCandidate):
         if self.refit_threshold is not None and len(found):
             from scipy.optimize import nnls
 
+            spatial_strengths = strengths.copy()
+            if self.refine_peaks:
+                refined = []
+                for direction in found:
+                    near = vectors @ direction >= np.cos(np.radians(8))
+                    weights = score[near].copy()
+                    if three_d:
+                        weights *= np.maximum(
+                            np.linalg.norm(vectors[near, :2], axis=1), 0.04
+                        )
+                    direction = np.sum(vectors[near] * weights[:, None], axis=0)
+                    refined.append(direction / np.linalg.norm(direction))
+                found = np.asarray(refined)
             left, right = np.triu_indices(m)
             observed = np.mean(x[left][:, bins] * x[right][:, bins].conj(), axis=2).T
             power = np.mean(np.abs(x[:, bins]) ** 2, axis=(0, 2))
@@ -422,6 +444,8 @@ class FrequencyOrderCandidate(PyroomCandidate):
                 coefficients.append(coeff)
             coefficients = np.asarray(coefficients)
             strengths = np.mean(coefficients[:, :-2], axis=0)
+            if self.refit_statistic == "product":
+                strengths *= spatial_strengths
             keep = strengths >= self.refit_threshold
             found, strengths = found[keep], strengths[keep]
         return found, {

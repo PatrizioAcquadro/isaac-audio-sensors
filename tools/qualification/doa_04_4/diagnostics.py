@@ -37,7 +37,7 @@ def idle_windows(positions, seed):
         yield "diffuse", values / np.sqrt(np.mean(values**2)) * rms
 
 
-def transition_signal(positions, seed, randomize=False):
+def transition_signal(positions, seed, randomize=False, bandlimited=False):
     rng = np.random.default_rng(seed)
     count_per_phase = (0, 1, 2, 1, 0)
     phase_samples = 12800
@@ -81,6 +81,19 @@ def transition_signal(positions, seed, randomize=False):
                 for p in positions
             ]
         )
+        if bandlimited:
+            frequency = np.fft.rfftfreq(len(mono), 1 / FS)
+            propagated = np.fft.irfft(
+                np.fft.rfft(mono)[None]
+                * np.exp(
+                    2j
+                    * np.pi
+                    * frequency[None]
+                    * (positions @ direction)[:, None]
+                    / 343
+                ),
+                n=len(mono),
+            )[:, 128 : 128 + count]
         mask = np.repeat([n > source for n in count_per_phase], phase_samples)
         samples += propagated * mask
     return samples, directions, phase_samples, count_per_phase
@@ -118,12 +131,13 @@ def observability_controls(candidate, positions, seed):
     return results
 
 
-def measure(name, candidate, array, split="evaluation"):
+def measure(name, candidate, array, split="evaluation", bandlimited=False):
     offset = {
         "evaluation": 0,
         "development": -500000,
         "confirmation": 100000,
         "verification": 200000,
+        "validation": 300000,
     }[split]
     positions = ARRAYS[array]
     idle = {
@@ -137,7 +151,10 @@ def measure(name, candidate, array, split="evaluation"):
         idle[kind]["windows"] += 1
         idle[kind]["false_event_windows"] += int(len(found) > 0)
     samples, directions, phase_samples, counts = transition_signal(
-        positions, 920000 + offset, randomize=split in ("development", "verification")
+        positions,
+        920000 + offset,
+        randomize=split in ("development", "verification", "validation"),
+        bandlimited=bandlimited,
     )
     detector = AuditokActivityDetector(energy_threshold_dbfs=-40.5)
     ticks = []
@@ -209,6 +226,7 @@ def measure(name, candidate, array, split="evaluation"):
         },
         "context_ms": 250,
         "update_interval_ms": 50,
+        "transition_propagation": "bandlimited" if bandlimited else "linear",
     }
 
 
@@ -243,7 +261,13 @@ def main():
                     ),
                 }
             else:
-                result = measure(name, candidate, array, protocol["split"])
+                result = measure(
+                    name,
+                    candidate,
+                    array,
+                    protocol["split"],
+                    protocol.get("transition_bandlimited", False),
+                )
             rows.append(result)
             print(name, array, "complete", flush=True)
             if hasattr(candidate, "close"):

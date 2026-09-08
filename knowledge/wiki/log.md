@@ -1065,3 +1065,7 @@ Full `make check` passes: 614 unit/contract, 289 integration and 58 release test
 ## 2026-09-08 — experiment: Continued 04.4 correction and independent verification protocol
 
 Diagnosed near-zero-noise order inflation and sidelobe events, compared corrective variants on development, and retained regularized MUSIC with full-covariance/noise refitting. Fixed unchanged acceptance gates and new LibriSpeech assets/cases before verification. Added noiseless single/pair regression coverage and off-grid transition generation. Public perception remains unchanged pending admission.
+
+## 2026-09-08 — experiment: 04.4 weak-source criterion and transition-model correction
+
+Independent verification isolates operational pair counting. Corrected the nominal transition generator's channel-response distortion, retained linear probes as response-mismatch stress evidence, and compared power/contrast rejection and local peak refinement on expanded development. Fixed a new unchanged-gate validation protocol with new speakers and seeds before evaluation; all geometries pass static development at its common setting.

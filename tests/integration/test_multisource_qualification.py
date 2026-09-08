@@ -103,9 +103,11 @@ def test_confirmation_keeps_original_acceptance_criteria():
     initial = json.loads((root / "final_protocol.json").read_text())
     confirmation = json.loads((root / "confirmation_protocol.json").read_text())
     verification = json.loads((root / "verification_protocol.json").read_text())
+    validation = json.loads((root / "validation_protocol.json").read_text())
     for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
         assert initial[field] == confirmation[field]
         assert initial[field] == verification[field]
+        assert initial[field] == validation[field]
 
 
 @pytest.mark.parametrize("array", ("triangle", "square", "raised", "tetra"))
@@ -161,3 +163,37 @@ for _ in range(2):
         timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_bandlimited_transition_propagation_preserves_channel_response():
+    from tools.qualification.doa_04_4.cases import ARRAYS
+    from tools.qualification.doa_04_4.diagnostics import transition_signal
+
+    samples, _, _, _ = transition_signal(
+        ARRAYS["raised"], 1120000, randomize=True, bandlimited=True
+    )
+    rms = np.sqrt(np.mean(samples[:, 14000:25000] ** 2, axis=1))
+    assert rms.max() / rms.min() < 1.01
+
+
+def test_covariance_contrast_keeps_a_ten_db_weaker_overlapping_source():
+    from tools.qualification.doa_04_4.cases import ARRAYS, FS
+    from tools.qualification.doa_04_4.evaluate import construct
+
+    positions = ARRAYS["square"]
+    rng = np.random.default_rng(143)
+    frequencies = np.fft.rfftfreq(8192, 1 / FS)
+    spectrum = np.zeros((len(positions), len(frequencies)), dtype=complex)
+    truth = [unit(-35), unit(60)]
+    for index, direction in enumerate(truth):
+        source = rng.standard_normal(8192) * 0.03 * 10 ** (-index / 2)
+        delay = positions @ direction / 343
+        spectrum += np.fft.rfft(source)[None] * np.exp(
+            2j * np.pi * frequencies[None] * delay[:, None]
+        )
+    samples = np.fft.irfft(spectrum, n=8192)[:, 2000:6000]
+    samples += rng.normal(0, 0.001, samples.shape)
+    localizer = construct("covariance_contrast", 0.014)
+    found, _ = localizer.localize(samples, positions, FS)
+    result = match(found, truth)
+    assert result["count_correct"] and result["tp"] == 2
