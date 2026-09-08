@@ -32,7 +32,7 @@
 
 ## Topics
 
-- [[topics/onr-video-production|ONR Video Production]] — shared cinematic standards, full-body Alex V2 video 1, scripted-scan versus measured-audio video 2, validated 1440p/1080p deliveries, and deferred per-video critiques.
+- [[topics/onr-video-production|ONR Video Production]] — shared cinematic standards, full-body Alex V2 video 1, scripted-scan versus measured-audio video 2 with revised sound and paired instruments, validated 1440p/1080p deliveries, and deferred per-video critiques.
 
 - [[topics/getting-started|Getting Started]] — installation, CLI, examples, Isaac runtime launch, and contribution workflow.
 - [[topics/system-architecture|System Architecture]] — package layers, data flow, lazy dependencies, and downstream ownership.

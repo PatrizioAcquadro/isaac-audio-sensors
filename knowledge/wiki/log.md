@@ -1187,3 +1187,11 @@ Produced the approved 16-second scripted visual scan versus measured audio-guide
 ## 2026-09-08 — lint: ONR video 2 delivery
 
 Five documentation-boundary checks and changed-file whitespace checks pass. Both 16-second encodes decode completely; microphone gain, causal compass expiry, matched traces and native recording replay pass. Full contact-sheet review and browser playback with audio are complete. User review of the new video remains pending.
+
+## 2026-09-08 — update: ONR video 2 sound and layout corrections
+
+Replaced the rejected creak with a CC0 wooden-door recording, removed speech-bearing ambience, and added restrained end-stop Foley. Regenerated measured audio guidance and its camera renders: arrival is now 3.15 s versus 5.00 s after opening. Strengthened the vertical mode divider and duplicated the synchronized SDK direction panel in the robot view. Preserved the first delivery and video 1; no SDK change.
+
+## 2026-09-08 — lint: ONR video 2 review corrections
+
+Five documentation-boundary tests and whitespace checks pass. Both complete encodes, constant microphone gain, speech-free opening, causal expiry, 480 matching direction-panel states, and browser playback pass. Full contact-sheet and representative-image inspection are complete. The replacement sound remains subject to user listening review.
