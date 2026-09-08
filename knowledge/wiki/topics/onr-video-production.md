@@ -26,6 +26,26 @@ Target approximately 40 seconds at 30 fps: establish context, door knocks, telep
 
 Review three frames (robot camera, rear view, room corner) and an 8–12 second excerpt with cuts and candidate audio before the full render. Final target: 1440p master and 1080p presentation copy. Recompute observations, poses, and results after robot/array/source changes; do not carry old metrics forward.
 
+## Current Review Evidence — September 8, 2026
+
+The review package is ready at `evidence/onr_video1_revision/index.html`: three 1080p frames, a continuous 12-second excerpt at 30 fps with four camera segments, and separate door/telephone/radio source auditions. The excerpt covers the opening and door response. The 40-second sensor execution has been regenerated; the full 1440p/1080p videos have **not** been rendered and await the user's review.
+
+The selected location is an existing furnished private office within NVIDIA Office, with original desk, chairs, cabinets, blinds, artwork, and open access door. Lighting was adjusted; the room was not rebuilt. Alex Purdue uses the sibling repository's WSG32/UMI configuration and measured pedestal dimensions. GPU execution confirmed that this model has head yaw but no torso yaw joint; the controller uses `NECK_Z` only, with fixed torso and base. The actual head-camera mount, including its downward tilt, is retained. Camera FOV membership is a geometric scene reference, not recognition or an occlusion test.
+
+Four microphone centers lie on the nominal 35 mm circle, consistently attached to the measured head pose for propagation, estimation, and rendering. Recorded GPU poses drive RTX replay; external editing cameras leave the microphone channel and simulation time unchanged. `presentation.py` contains the reusable neutral layout and actual GUI instruments; `video1_edit.json` holds the title and event/shot timing, outside the SDK. The soundtrack uses the front microphone and one gain fixed from the complete run. Candidate audio comes from four CC0 source pages documented in `audio_sources.json`; source auditions are explicitly separate from microphone playback.
+
+Technical preview checks passed on the RTX 4090 articulation/rendering run and subsequent recording/media checks: 800 audio windows over 40 seconds, 1,200 finite pose frames, fixed base, and all 800 audio windows reloaded sample-identically through `SessionDataset`. The initial quiet interval produced no detections. All three target points entered the actual camera FOV following observed-direction head commands. The 12-second delivery contains 360 decoded 1080p frames, equal audio/video durations, and no clipping; browser playback reached the end. These checks do not replace subjective sound/visual acceptance.
+
+| Event | Emitting windows | Resolved direction windows | Median error when resolved | First target in camera FOV |
+| --- | --- | --- | --- | --- |
+| Door, onset 4 s | 84 | 28 | 1.01° | 5.15 s |
+| Telephone, onset 15 s | 140 | 39 | 0.40° | 15.45 s |
+| Radio, onset 27 s | 58 | 24 | 1.77° | 27.95 s |
+
+Intermittent estimates remain unavailable between resolved windows; the presentation does not fill them with scene truth. This basic recording uses the existing CPU direct-path acoustic backend while articulation and rendering use GPU. Furnishings do not contribute reflections or material acoustics in this run. It is a controlled sensing/pointing example, not room-acoustics or navigation qualification. Full results and the bounded check scope are in `evidence/onr_video1_revision/validation.json`.
+
+Next: review the furnished setting, camera mounting/framing, graphic size, and candidate sound with the user; apply requested corrections, regenerate measurements if geometry or audio changes, then render and inspect the approved full 1440p master and 1080p copy. Original videos remain preserved, including videos 6 and 9.
+
 ## Per-Video Checklist
 
 Numbers below follow the user's revised order. Old numbers identify the existing package only.

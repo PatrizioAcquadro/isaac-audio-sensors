@@ -1100,3 +1100,11 @@ Verified new-page links, index coverage, source paths, deferred-video boundaries
 ## 2026-09-08 — update: Practical multisource reference milestone
 
 Record the user-directed path to 07.2: retain the fixed localizer and historical broad-domain failures, evaluate the prospective direct-path domain on 16 new speakers, then verify common event sequences and GPU Lab consumers. A new custom algorithm is not a prerequisite.
+
+## 2026-09-08 — update: Video 1 preview and measured scope
+
+Recorded the furnished Office/Purdue WSG32 review package, shared presentation components, actual camera/head-joint constraints, and verified recording/media results in [[topics/onr-video-production|ONR Video Production]]. The 12-second excerpt and three frames are ready for user review; full rendering remains pending. Videos 6 and 9 and all original media are preserved.
+
+## 2026-09-08 — lint: Video 1 review documentation
+
+Verified all wiki links and index coverage, checked the preview paths and reported measurements, and passed Markdown whitespace checks. Only ONR documentation is included in this milestone; concurrent multisource implementation remains separate.
