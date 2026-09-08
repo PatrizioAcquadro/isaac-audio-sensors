@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-07. Package version: `3.0.0`.
+Updated: 2026-09-08. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -9,6 +9,8 @@ Updated: 2026-09-07. Package version: `3.0.0`.
 Robot-specific assets and mounts, downstream adapters and policies, task orchestration, measurement campaigns, holdouts, acceptance criteria, and experiment evidence remain outside the distributed product.
 
 ## Verified Capabilities
+
+- Subphase 07.1 implements observed-only Lab tensor projection with configurable observation/candidate capacity, finite zero padding, independent validity/DOA/ambiguity masks, and explicit truncation counts. Reference binding now exposes scalar activity and optional DOA, with independent environment state and sample-clock-aligned windows. The example applies only masked fixed angle scaling. The old six-tensor contract is removed without aliases; entity sensing stays empty pending 07.2. The RTX 4090 live gate passes scalar/reference parity, detector/DOA warm-up, resolved directions, silence, and partial reset; 4096 empty entity environments average 0.212 ms/step, not a perception-throughput claim. See [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]].
 
 - Phase 06 is complete. The downstream raw producer and nominal analytic producer share perception and recording; exact controlled equivalence covers mono/8 kHz, stereo/16 kHz, and planar four-microphone arrays at 16/48 kHz, including clipping, faults, and resets. The 25-take physical comparison passes sample/replay checks with no capture fault or digital clipping, while documenting level/noise and weak-signal activity differences. New source-take processing p95 is 5.71–5.90 ms against 50 ms, with no overruns. Current host gates pass 614 unit/contract, 282 integration, 58 release, optional audio, and 410 downstream tests. APIs/schemas are unchanged by 06.3; the S4.5-only executable path is retired and raw evidence is preserved. See [[implementation_phases/06-simulated-and-real-signal-parity|Phase 06]] for measurements and limits.
 
@@ -43,14 +45,14 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 - Kit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes with fail-closed validation/start, explicit free-field safe presets, no implicit shoebox, and exact `ias.omni_extension_binding.v7` import/export with required Auditok threshold and `direction_estimation.enabled` state. Binding v6 has no parser, and no estimator ID or ambiguity-policy state is serialized.
 - Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, finite/infinite loop, spatial, and listener-orientation semantics; non-spatial sources are excluded with diagnostics even during strict scans unless explicitly selected, and deprecated `Sound` and `Listener` remain read-compatible.
 - Separate Kit scene audition and qualitative device-mix capture from a compatible direct array-child listener, creating a session-layer child when needed, with verified WAV metadata, lifecycle cleanup, manual-listener override preservation, and no path into microphone-array frames, datasets, or Isaac Lab observations.
-- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. The scalar reference path requires an explicit threshold and owns one independent resettable Auditok pipeline per environment, with standard DOA available by opt-in; the entity path rejects both threshold and DOA because it invents no signal block. Both preserve the six zero-filled tensors until Phase 07.
+- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. The scalar reference path requires an explicit threshold and owns one independent resettable Auditok pipeline per environment, with standard DOA available by opt-in; the entity path rejects both threshold and DOA because it invents no signal block. The reference now projects actual observations through the finite masked 07.1 contract; entity output remains empty until 07.2.
 - Python source and universal wheel distributions with Auditok as an audited Core dependency, plus a self-contained Kit Community Registry archive with six locked Auditok, room, and FLAC distributions while NumPy remains Kit-owned.
 - Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
 - R5.1 core root limited to curated fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas; 03.1 adds the public activity-decision model without widening runtime dependencies.
 - R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
 - R5.3 minimal recording API, strict canonical manifests, one streaming session authority, composed recorder internals, structured corruption findings, and consolidated black-box coverage with compatible v1 artifacts.
 - R5.4 live-only Isaac sensor, Kit-owned profiles/validation/output workflow, shared lazy lifecycle helpers, domain-owned room/occlusion state, and exact import-safe Isaac exports.
-- R5.5 five-name Lab API, vectorized entity training path, pure-snapshot reference path, six-tensor data contract, current Warp-mask lifecycle, and removal of stage/fallback/metadata compatibility paths.
+- R5.5 established the five-name Lab API, entity and pure-snapshot bindings, Warp-mask lifecycle, and removal of stage/fallback/metadata compatibility paths. Subphase 07.1 replaces its six-tensor data contract with the observed-only projection.
 - R5.6 composed Kit services, thin controller/view/entrypoint boundaries, stateful-only validation controller, complete best-effort shutdown, and focused service tests.
 - R5.7 lazy CLI leaf handlers, subsystem-owned config simulation, frozen v2 command inventory, one trace-export path, consistent exit codes, and consolidated command tests.
 - R5.8 exact curated v2 entrypoint inventory, minimal Kit/schema roots, one maintained root example set, installed-package execution coverage, and no duplicate example documentation.
@@ -171,8 +173,8 @@ qualification harness and its tests are no longer maintained.
 Plans 02 and 03 establish one immutable microphone-signal boundary, frame v3
 observations, shared propagation-to-perception orchestration, direct recording,
 lifecycle-owned reset, and one fixed-threshold Auditok detector for maintained
-scalar consumers. Isaac Lab reference mode owns one detector per environment
-but intentionally keeps its six public tensors zero-filled until Phase 07.
+scalar consumers. At the 03.3 closeout, Isaac Lab reference mode owned one detector per environment
+and kept six zero-filled tensors. Subphase 07.1 now projects the actual observations.
 SquadBot consumes the strict frame-v3 boundary through its project-owned adapter.
 
 The latest cleanup host gate passes 536 unit/contract tests, 221 integration
@@ -274,7 +276,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 
 - Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
 - Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
-- `analytic_acoustics` does not accept `surface_set`. Isaac Lab intentionally keeps its six observation tensors zero-filled until Phase 07 even though the scalar reference path executes Auditok; it does not yet project observed activity, bearing, confidence, waveform, reverberation, occlusion, SPL, calibration, closed-topology, or per-environment randomization behavior.
+- `analytic_acoustics` does not accept `surface_set`. Isaac Lab reference mode projects scalar observed activity and optional DOA. Entity mode still returns empty observations; scalable waveform/features, per-environment acoustic variation, and multisource sensing remain unqualified. Policy tensors contain no waveform, mixture RMS, SPL, or calibration values.
 - Auditok's fixed threshold requires application-specific tuning. No calibration mode is maintained; low SNR, changing noise floors, and impulses shorter than the temporal profile remain operating limits.
 - PyRoom SRP is selected only by explicit standard DOA opt-in for the qualified primary planar role on `pyroomacoustics>=0.10.1,<0.11`; absence fails actionably with the `room` extra and never falls back. Its 250 ms causal observation can smear motion, robustness is not qualified, and real evidence has ±5-degree placement tolerance, nominal microphone centers, and only within-campaign take-level validation. Reliability remains estimator-local. Optional 3D stays injection-only and unqualified. Generic two-microphone ambiguity is qualified, but particular-hardware performance remains consumer-owned.
 - Raycast partition transmission remains direct-path-only; it does not model diffraction, structural wall physics, or establish measured material behavior.
@@ -293,13 +295,14 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Plans [[implementation_phases/04-observed-direction-estimation|04]], [[implementation_phases/05-ground-truth-and-learning-datasets|05]], and [[implementation_phases/06-simulated-and-real-signal-parity|06]] are complete. Next are [[implementation_phases/07-isaac-lab-observation-integration|Lab tensor projection]] and the selected Geometry Acoustics provider. [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned: the physical comparison prioritizes received level, ambient interference, coherent channel variation, and activity near threshold before expensive acoustic detail. Historical gain decisions remain rejected/inconclusive; no correction is enabled.
+Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. Next, [[implementation_phases/04-observed-direction-estimation|04.4]] must qualify actual zero/one/two-source detection and simultaneous localization before 07.2. It advances localization from 11.3, without advancing tracking or audio separation. Two sources are the first validation milestone, not a structural limit. The selected Geometry Acoustics provider remains separate planned work. [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned: the physical comparison prioritizes received level, ambient interference, coherent channel variation, and activity near threshold before expensive acoustic detail. Historical gain decisions remain rejected/inconclusive; no correction is enabled.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
 The plan structure is intentionally compact: Plan 01 records two completed R9
-subphases plus the bounded post-selection R9.4 follow-up, while Plans 02–11 use
-three coherent outcomes each. Cleanup is
+subphases plus the bounded post-selection R9.4 follow-up. Phase 04 adds the
+explicit 04.4 multisource qualification before 07.2; the other plans retain
+their existing coherent outcomes. Cleanup is
 part of the final functional outcome rather than a separate administrative
 phase; implementation agents may still use smaller internal tasks and atomic
 commits.

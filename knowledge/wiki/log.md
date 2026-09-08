@@ -986,3 +986,30 @@ Verified Phase 06, current status, contract guidance, and planned Plan 09 priori
 against the final comparison reports and validation logs. Ruff and Git whitespace
 checks pass. Only the approved phase documentation changed; schemas, historical
 evidence, and protected raw material remain unchanged.
+
+## 2026-09-08 — update: Complete 07.1 and advance multisource qualification
+
+Documented finite observed-only Lab tensors, explicit masks and truncation,
+reference/scalar projection, sample-clock alignment, masked angle scaling,
+and partial reset. Recorded the replacement of the six-tensor contract and
+kept empty entity performance separate from real perception throughput.
+Validation passes 614 unit/contract, 282 integration, 58 release, and 116
+supported-runtime Isaac tests. The RTX 4090 live gate passes scalar parity,
+activity/DOA warm-up, resolved direction, silence, and selected reset;
+4096 empty entity environments average 0.212 ms/step over 50 updates.
+
+Added planned 04.4 zero/one/two-source localization with unknown count before
+07.2, advancing only the localization portion of 11.3. Common sequence output,
+per-event semantics, temporal handling, calibration/evaluation separation,
+false detections, misses, angular error, latency, and operating limits remain
+explicit future qualification work. No multisource plugin or dependency was
+added. Updated canonical status, architecture, Lab guidance, index, and README;
+Core schemas and protected raw evidence remain unchanged.
+
+## 2026-09-08 — lint: Subphase 07.1 and 04.4 roadmap
+
+All five documentation-boundary checks pass, including internal wikilinks and
+index coverage. Reviewed affected phase headings, code references, current
+status, and historical attribution against implementation, test logs, and the
+live GPU report. Ruff and whitespace checks pass. Only phases 04, 07, and 11
+changed; no knowledge tree expansion or protected raw edits occurred.

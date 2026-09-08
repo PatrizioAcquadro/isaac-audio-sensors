@@ -1,6 +1,6 @@
 # Implementation Plan 11 — Future Semantic Perception
 
-Status: Explicitly deferred until generic activity and observed DOA are stable across simulation and hardware.
+Status: Classification, tracking, speech-specific processing, beamforming, and separation remain deferred. Simultaneous localization is now planned in 04.4 before 07.2.
 
 ## Objective
 
@@ -44,14 +44,16 @@ Crossing sources, silence, reverberation, and robot motion can create track swit
 
 #### Implementation
 
-Evaluate speech VAD, ODAS, multi-peak localization, beamforming, and source separation as optional plugins when a real use case requires them. Preserve the same final-mixture input boundary and do not make specialized native runtimes mandatory for generic activity and dominant-direction sensing.
+The simultaneous-localization evaluation, including unknown source count, multi-peak processing, and ODAS as an optional candidate, is now owned by [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. Its first target is zero/one/two-source detection and localization before 07.2, not tracking or separated audio.
+
+Evaluate speech VAD, beamforming, and source separation separately when a concrete task requires them. Preserve the final-mixture input boundary and do not make specialized native runtimes mandatory for generic activity and dominant-direction sensing.
 
 For every capability eventually authorized, select the smallest supported implementation and remove rejected experiments, unused models or plugins, placeholders, and their supporting surfaces. Do not retain semantic or multi-source code only for tests or possible future use.
 
 #### Key Decisions
 
 - Speech-focused detection does not replace generic acoustic activity.
-- ODAS is a candidate for optional localization, tracking, and separation rather than a mandatory Core dependency.
+- ODAS localization evaluation belongs to 04.4. Its tracking and separation roles remain optional future work, not mandatory Core dependencies.
 - Multi-source output is added only with honest observability, association, and evaluation semantics.
 - Active ultrasound remains a separate product capability.
 - Each retained future component requires a concrete application and measured value.

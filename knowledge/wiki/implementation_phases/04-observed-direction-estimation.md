@@ -1,6 +1,6 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.3 complete on 2026-09-04.
+Status: Subphases 04.1–04.3 complete on 2026-09-04. Subphase 04.4 planned on 2026-09-08, before 07.2.
 
 ## Objective
 
@@ -69,7 +69,7 @@ The maintained consumer owns an exact trailing 250 ms causal window. Every valid
 
 Resolved bearings use one fail-closed temporal rule. A circular jump of at least 150 degrees becomes unresolved `temporal_instability`, never reuses the old bearing, and records a pending lobe. The next active tick confirms that lobe only within 30 degrees; otherwise the pending result is discarded and output remains unresolved. Diagnostics preserve selected role and estimator, estimator-local reliability, abstention, and temporal stability. One canonical `perception.doa_context` records causal ownership, exact duration, sample count, completeness, and reset reason.
 
-Standard Core, CLI, Isaac Sim, Isaac Lab reference, and Kit entry points expose `doa_enabled=False`; the CLI spelling is `--enable-doa`. A caller-owned `AudioPerceptionPipeline` cannot be combined with standard activation. Lab entity binding rejects DOA because it has no waveform, while reference binding executes it without projecting tensors before Phase 07. Kit binding `ias.omni_extension_binding.v7` requires exact `direction_estimation: {"enabled": bool}` and has no v6 parser. Core TOML, frame v3, `DoaEstimate`, and the qualified PyRoom `0.06` threshold remain unchanged.
+Standard Core, CLI, Isaac Sim, Isaac Lab reference, and Kit entry points expose `doa_enabled=False`; the CLI spelling is `--enable-doa`. A caller-owned `AudioPerceptionPipeline` cannot be combined with standard activation. Lab entity binding rejects DOA because it has no waveform, while reference binding initially executed it without projecting tensors; the later 07.1 implementation adds that projection. Kit binding `ias.omni_extension_binding.v7` requires exact `direction_estimation: {"enabled": bool}` and has no v6 parser. Core TOML, frame v3, `DoaEstimate`, and the qualified PyRoom `0.06` threshold remain unchanged.
 
 The internal `srp_phat` module, adapter/export, registry declaration, stale constant, and dedicated tests are removed. PyRoom's estimator diagnostics retain their accurate internal SRP-PHAT terminology.
 
@@ -85,7 +85,33 @@ The internal `srp_phat` module, adapter/export, registry declaration, stale cons
 
 #### Problems / Limitations
 
-The 250 ms context can smear fast motion. The confirmation rule blocks abrupt reversals but does not turn the failed 04.2 robustness role into a qualified capability. Occlusion, low SNR, low-level input, particular two-microphone hardware, and rank-3 operation still require separate evidence. Phase 07 remains responsible for projecting observed results into Isaac Lab tensors.
+The 250 ms context can smear fast motion. The confirmation rule blocks abrupt reversals but does not turn the failed 04.2 robustness role into a qualified capability. Occlusion, low SNR, low-level input, particular two-microphone hardware, and rank-3 operation still require separate evidence. Observed-result projection into Isaac Lab tensors was subsequently implemented in 07.1.
+
+## Subphase 04.4 — Multi-Source Localization Qualification
+
+#### Implementation
+
+Planned next after 07.1 and before [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
+
+Evaluate the smallest multi-peak solution using the existing PyRoom stack first, with ODAS as an optional alternative if needed. The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
+
+Common perception must support a sequence of signal-derived events rather than hard-code one `AudioObservation` around one `DoaEstimate`. Define the smallest sequence-returning localization/perception boundary after candidate evaluation; keep per-event DOA ambiguity separate from multiple events. Auditok may gate global acoustic activity, but it neither counts sources nor supplies justified individual-event scores. Preserve causal audio context, geometry/channel validation, stream-fault resets, and deterministic output ordering. Replace the selected multisource path's single-bearing stable/pending state with appropriate multi-event operating semantics; do not implicitly introduce persistent tracks, truth associations, or copy the global activity score to every event. Evaluate existing `AudioObservation` and frame-sequence reuse before changing serialized schemas.
+
+The evaluator owns truth and one-to-one matching. Report false detections, missed sources, cardinality errors, matched circular angular error, abstention, and compute/end-to-end latency separately. Vary angular separation, relative received levels, SNR, content and spectral overlap, and reverberation; include silence, single-source controls, simultaneous pairs, and weak/unresolvable cases. Calibration and evaluation must use separate assets/cases; set justified acceptance thresholds and the intended operating domain before final evaluation, then report failures and limits without threshold adjustment on evaluation data.
+
+Simulation and physical results are separate claims. Existing single-source physical evidence does not qualify simultaneous localization. Integrate only a candidate that meets its declared operating criteria; otherwise record NO-GO or a concrete evidence blocker. Validate the selected common perceiver before claiming multisource Lab behavior, regardless of allocated tensor capacity.
+
+#### Key Decisions
+
+- Real simultaneous localization is the objective; more slots or a supplied source count are insufficient.
+- Event count is inferred from observed mixtures; evaluator truth never configures the perceiver.
+- Two candidate bearings of one ambiguous event are not two localized sources.
+- Tracking and beamforming/separation are evaluated separately when a task requires them.
+- 07.1 adds no speculative multisource plugin, interface, model, or dependency.
+
+#### Problems / Limitations
+
+Unresolved/planned: the current protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Two-source observability, practical separation limits, unknown-count reliability, physical performance, and compute cost are not qualified. Evaluation must resolve these limitations before production integration; this roadmap is not implementation evidence.
 
 ## Artifacts
 
@@ -110,3 +136,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-04: Removed the synthetic split/SNR confounding by gating the complete independent primary matrix, relabeled the real partition as within-campaign take-level validation, and made two-microphone hardware and optional 3D limitations consumer-generic.
 - 2026-09-04: Integrated explicit standard DOA selection, exact rolling context, temporal reversal abstention, default-off Core/Isaac/Lab/Kit consumers, Kit binding v7, internal SRP removal, and the passing rolling 20 Hz gate.
 - 2026-09-04: Removed the completed qualification runners and their test-only coverage, retained ignored reports as local historical evidence, and reduced runtime diagnostics to one causal context record plus maintained selection, reliability, abstention, and temporal state.
+
+- 2026-09-08: Planned 04.4 unknown-count simultaneous localization before 07.2, advancing localization from 11.3 while keeping tracking and separation deferred.

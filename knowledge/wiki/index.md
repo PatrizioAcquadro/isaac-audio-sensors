@@ -9,14 +9,14 @@
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
 - [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — continue from the completed signal boundary and R9.4 qualification into observation contracts, consumer migration, and detection-architecture removal.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
-- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — qualify mixture-only DOA, preserve honest ambiguity, and remove estimators without a distinct maintained role.
+- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed dominant-DOA 04.1–04.3; planned 04.4 qualifies unknown-count simultaneous localization before 07.2.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — migrate to observed fixed tensors and retain execution paths only for distinct validated scale roles.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1 finite masked observation tensors and scalar projection; scalable/stateful 07.2 follows 04.4.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — planned signal variation with measurable application value; 06.3 prioritizes received levels, ambient interference, and weak-signal activity.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
-- [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — add no placeholders and retain future semantic capabilities only after application-backed qualification.
+- [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — classification, tracking, speech and separation remain deferred; simultaneous localization moves to 04.4.
 
 ### Completed and Existing Phase Records
 
