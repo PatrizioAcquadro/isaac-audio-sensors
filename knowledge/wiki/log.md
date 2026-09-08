@@ -1122,3 +1122,11 @@ All wiki links and index coverage pass; historical broad-domain failures remain 
 ## 2026-09-08 — update: Progressive room-only multisource diagnosis
 
 Fix paired room-decay, isolated-difficulty and cumulative comparisons before evaluation. Preserve the integrated direct-path reference and previous qualification evidence; do not claim indoor robustness from its GO.
+
+## 2026-09-08 — update: Corrected full-body video 1 delivery
+
+Complete the approved review corrections with Alex V2 and WSG32/UMI, the user-marked opposite position beside the blinds, closed door, visible radio on existing furniture, revised camera framing, continuous radio excerpt, causal instrument smoothing, and extended RMS detail. Regenerate the GPU execution and validate both 40-second 1440p/1080p encodes, recording replay, and browser completion. Preserve earlier media and leave videos 6 and 9 deferred.
+
+## 2026-09-08 — lint: Corrected video 1 documentation
+
+All wiki links, index coverage, cited local outputs, and Markdown whitespace checks pass. The documented metrics come from the regenerated opposite-position execution. This milestone changes only ONR documentation; concurrent multisource work and original evidence remain separate.
