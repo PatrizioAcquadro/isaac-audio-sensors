@@ -1085,3 +1085,13 @@ Latest independent assessment passes every gate, but the fixed candidate still f
 ## 2026-09-08 — lint: Continued 04.4 qualification closeout
 
 Full `make check` passes: 614 unit/contract, 298 integration and 58 release tests, repository Ruff, version synchronization and whitespace. Scoped formatting passes; new protocol criteria remain identical to the original, and known-case admission includes unresolved-response failures. Canonical phase/status/index agree on partial implementation and combined NO-GO. No public runtime, dependency declaration, raw evidence or historical report was changed.
+
+
+## 2026-09-08 — update: ONR video production standard
+
+Documented the agreed cinematic standard and video 1 review gate, the revised nine-video checklist, and current evidence limitations for deferred videos 6 and 9. Original media remain preserved.
+
+
+## 2026-09-08 — lint: ONR production page
+
+Verified new-page links, index coverage, source paths, deferred-video boundaries, and Markdown whitespace.
