@@ -1207,3 +1207,11 @@ Five documentation-boundary tests and scoped whitespace checks pass. Static cont
 ## 2026-09-08 — experiment: Freeze group-sparse indoor confirmation
 
 Documented the established WPE/group-sparse covariance follow-up, its mixture-only adaptations, validated solver, full joint development comparison and fresh two-block confirmation protocol. Candidate parameters are fixed before opening new outcomes. Public localization is unchanged; 07.2 remains excluded, and the quality/response tradeoff is explicit.
+
+## 2026-09-08 — update: Final ONR supplied-audio comparison
+
+Completed the user-authorized sensitivity calibration and larger-advantage revision. Removed the quiet first source second, fixed activity detection at -70 dBFS, and synchronized the final contact to 8.31 s. The actual audio-guided robot arrives 2.15 s after opening versus the unchanged scripted scan's 5.00 s. Delivered continuous 1440p/1080p movies with the approved sound and paired SDK instruments. Previous pilots, user files and video 1 are preserved.
+
+## 2026-09-08 — lint: Final ONR supplied-audio delivery
+
+Five documentation-boundary tests and scoped whitespace checks pass. Both 480-frame encodes, 320-window recording replay, causal instrument expiry and browser playback pass. Audio continuity and codec fidelity checks specifically cover the earlier missed stuttering defect. Complete contact-sheet and arrival-image reviews are finished. Only production artifacts and ONR documentation are changed by this task.

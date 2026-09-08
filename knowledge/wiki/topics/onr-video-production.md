@@ -2,7 +2,7 @@
 
 ## Current Revision
 
-Video 1 has a revised delivery. Video 2 production is stopped at the supplied-audio pilot: continuity is corrected, but both modes arrive together and no replacement video has been rendered. Video 2 is a 16-second matched opening-door comparison. The user accepted its composition and requested the sound, divider, and paired-instrument corrections documented below. For video 1, the user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
+Video 1 has a revised delivery. Video 2 is complete with the approved supplied sound, continuous microphone audio, and a 2.85 s measured arrival advantage. Both final encodes and browser playback pass. Video 2 is a 16-second matched opening-door comparison. The user accepted its composition and requested the sound, divider, and paired-instrument corrections documented below. For video 1, the user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
 
 The series demonstrates generic audio sensing and controlled downstream camera pointing. It must distinguish sensor observations, scene references, and downstream behavior. No navigation, sound classification, learned visual recognition, or field-readiness claim is implied.
 
@@ -76,7 +76,7 @@ A 25-pixel charcoal vertical divider with a light-gray center separates the mode
 
 The corrected files replace the active `evidence/onr_video2/` delivery while preserving the previous edit separately. The pilot, full-resolution layout, and complete contact sheet were inspected. Both encodes decode all 480 frames with synchronized 16-second audio/video; browser playback reaches the end with audio enabled and no media error. The opening is silent in the source, measured microphones, and decoded soundtrack. Checks are recorded in the corrected delivery's validation report. Video 1, the public SDK and downstream interfaces remain unchanged.
 
-## Video 2 — Supplied Audio and Continuity Gate
+## Video 2 — Initial Supplied-Audio Pilot and Continuity Correction
 
 The user rejected the replacement creak and audible stuttering, then supplied `DoorCreaking.mp3` and `DoorOpening.mp3` in `evidence/onr_video2/`. The original MP3 files remain intact. The new pilot uses only the supplied creak, preserving pitch and speed; its final contact at source time 6.31 s sets the animated end stop at video time 9.31 s after a 3 s onset. Source licensing was not supplied and is not attributed to CC0.
 
@@ -84,9 +84,19 @@ The previous recorded microphone had about 15 ms of silence at the beginning of 
 
 A local production adapter adds 50 ms of causal source history before propagation and then crops the required recording window. The same samples feed actual SDK perception and the soundtrack. At fixed poses, 320 concatenated windows exactly match one continuous render. The new moving pilot has no exact-silence run during the active 4–10 s interval. The adapter is limited to this direct-path scene, with poses held within each window; it is not a general SDK streaming repair.
 
-The RTX 4090 pilot records 12 valid directions, first at 5.35 s. Both modes arrive at 8.00 s, or 5.00 s after opening. Commands and camera poses match before the cue, speed limits remain equal, and all 320 audio blocks reload sample-identically. The comparison gate is **NO-GO** because the measured direction arrives too late to show an arrival advantage. Full rendering is stopped under the approved plan's rule. Detector/input-level calibration is a possible next pilot, not a validated fix.
+The RTX 4090 pilot records 12 valid directions, first at 5.35 s. Both modes arrive at 8.00 s, or 5.00 s after opening. Commands and camera poses match before the cue, speed limits remain equal, and all 320 audio blocks reload sample-identically. The comparison gate is **NO-GO** because the measured direction arrives too late to show an arrival advantage. Full rendering was initially stopped under the approved plan's rule; the subsequent calibrated pilots and final delivery are documented below.
 
-Evidence, corrected microphone previews and method are in `build/onr_video2/user_audio_v1/`. The rejected prior delivery is preserved in `build/onr_video2/second_delivery/`; the active MP4 files remain that old edit and are explicitly marked as rejected in the local page/report. User-supplied files, video 1 and public SDK code remain unchanged.
+Evidence, corrected microphone previews and method are in `build/onr_video2/user_audio_v1/`. The rejected prior delivery is preserved in `build/onr_video2/second_delivery/`; at that stop the active MP4 files still held the rejected edit; they are now superseded by the final delivery below. User-supplied files, video 1 and public SDK code remain unchanged.
+
+## Video 2 — Calibrated Supplied Audio
+
+The user approved the continuous microphone sound and authorized activity-threshold calibration. The first rerun at -66 dBFS produced a 4.10 s cue and a 6.75 s arrival versus the baseline's 8.00 s. The user then requested a larger visible advantage, explicitly allowing removal of the quiet audio lead-in and greater sensitivity.
+
+The final source removes only the first quiet second of `DoorCreaking.mp3`; pitch and playback speed are unchanged. The existing downmix, resampling, constant gain and edge fades remain. `DoorOpening.mp3` is unused. The original user files remain intact. Opening still begins at video time 3 s; the supplied final contact now aligns with the animated end stop at 8.31 s. Both runs share this animation.
+
+The activity threshold is fixed at -70 dBFS throughout the run. It is a documented scene-specific setting, not an event-timed trigger or a noise-robustness qualification. The actual SDK direction estimator still supplies every audio pointing goal. In `build/onr_video2/user_audio_v3/`, the first measured cue is at 3.10 s and audio arrival is at 5.15 s. Visual arrival remains at 8.00 s: 2.15 s versus 5.00 s after opening, an illustrated advantage of 2.85 s. The baseline's full pose/command arrays are identical to the earlier pilot, and both branches retain the same 35-degree-per-second command limit.
+
+The pilot has 104 resolved direction windows, zero pre-event detections and 320 sample-identical replayed microphone blocks. Actual camera images confirm a clear opening in the audio branch while the visual-only branch continues its scan. The causal pre-roll correction supplies the same continuous signal to perception, recording and presentation. The prominent vertical divider and synchronized SDK direction panels remain in both audio-guided views. The completed `evidence/onr_video2/` delivery contains 1440p and 1080p movies, both 16 s at 30 fps. Both encodes fully decode, browser playback reaches the end with audio enabled, and complete contact-sheet review passes. The AAC soundtrack has 47.07 dB signal-to-codec-error ratio, a 0.739 peak and no periodic zero gaps. All 480 direction-panel overlay states match across the two audio views. The method declares source trimming, fixed threshold, scripted arrival and the direct-path pre-roll limitation.
 
 ## Per-Video Checklist
 
@@ -95,7 +105,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | New | Video | Existing video | Requested focus | State |
 | --- | --- | --- | --- | --- |
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
-| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Stopped: supplied-audio continuity passes; comparison pilot NO-GO |
+| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Final supplied-audio delivery verified; 2.85 s illustrative advantage |
 | 3 | Moving source | 4 | Following during emission; clearer instruments; discuss Doppler scope | Discuss individually |
 | 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
