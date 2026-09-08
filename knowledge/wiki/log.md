@@ -1203,3 +1203,7 @@ Diagnosed periodic missing propagation history in the prior 50 ms microphone win
 ## 2026-09-08 — lint: ONR supplied-audio pilot stop
 
 Five documentation-boundary tests and scoped whitespace checks pass. Static continuous-versus-chunked rendering matches exactly, 320 native recording blocks replay identically, and the moving creak has no periodic zero gaps. The MP3 preview is 16 s without clipping and has 55.3 dB signal-to-codec-error ratio. No new movie rendering or successful arrival advantage is claimed.
+
+## 2026-09-08 — experiment: Freeze group-sparse indoor confirmation
+
+Documented the established WPE/group-sparse covariance follow-up, its mixture-only adaptations, validated solver, full joint development comparison and fresh two-block confirmation protocol. Candidate parameters are fixed before opening new outcomes. Public localization is unchanged; 07.2 remains excluded, and the quality/response tradeoff is explicit.

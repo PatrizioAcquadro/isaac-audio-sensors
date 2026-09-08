@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -13,10 +14,26 @@ from .progressive import grouped, render_stage
 PROTOCOL = Path(__file__).with_name("indoor_protocol.json")
 
 
+def load_protocol(path, block=None):
+    protocol = json.loads(path.read_text())
+    if "blocks" in protocol:
+        if block not in protocol["blocks"]:
+            raise ValueError("Choose a named independent protocol block")
+        chosen = protocol.pop("blocks")[block]
+        protocol.update(chosen, block=block)
+    elif block is not None:
+        raise ValueError("This protocol has no named blocks")
+    return protocol
+
+
 def candidate(setting):
     parameters = setting.get("parameters", {})
     if setting["method"] == "music":
         return construct("weighted_covariance_aic", **parameters)
+    if setting["method"] == "wpe_group_sparse":
+        from .sparse_covariance import WpeSparseCovariance
+
+        return WpeSparseCovariance(**parameters)
     factories = {"dprtf": DirectPathRtf, "srp_histogram": WeightedHistogramSrp}
     return factories[setting["method"]](**parameters)
 
@@ -28,11 +45,15 @@ def main():
     parser.add_argument("--candidate", action="append")
     parser.add_argument("--stage", action="append")
     parser.add_argument("--repetitions", type=int)
+    parser.add_argument("--dependency-path", type=Path)
+    parser.add_argument("--block")
     args = parser.parse_args()
+    if args.dependency_path:
+        sys.path.insert(0, str(args.dependency_path.resolve()))
     path = ROOT / args.output
     if path.exists():
         raise FileExistsError(path)
-    protocol = json.loads(args.protocol.read_text())
+    protocol = load_protocol(args.protocol, args.block)
     for option, field in ((args.candidate, "candidates"), (args.stage, "stages")):
         if option:
             unknown = set(option) - {s["name"] for s in protocol[field]}
@@ -57,6 +78,7 @@ def main():
                         stage,
                         protocol["seed_base"],
                         history_samples=history,
+                        speech_assets=protocol.get("speech_assets"),
                     )
                     for count in protocol["counts"]:
                         for setting in protocol["candidates"]:

@@ -107,3 +107,17 @@ Omitting the restrictions runs the complete development protocol. This consumes
 existing development assets; it is not an independent confirmation. The DP-RTF
 and SRP implementations contain explicit adaptations described in the canonical
 experiment. Neither is currently admitted into common perception.
+
+The subsequent fixed WPE/group-sparse covariance confirmation reuses that runner:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.indoor --protocol tools/qualification/doa_04_4/indoor_confirmation_protocol.json --block block_a --dependency-path build/qualification/doa/04_4/wpe_deps --output indoor-confirmation-a.json
+```
+
+Run `block_b` with a different output filename for the second independent block.
+`indoor_diagnostics` accepts the same protocol/block/dependency/output options;
+it measures 100 ms updates with 750 ms past memory, room tails, weak-source
+removal and a same-count direction change. Missing responses remain null failures,
+and reported response includes computation and two consecutive correct sets.
+The new speech assets are recorded in the protocol; old consumed assets and
+all prior evidence remain intact.

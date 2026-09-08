@@ -104,10 +104,10 @@ def make_cases(split, repetitions=2):
     return cases
 
 
-def wave(kind, split, index, rng, length):
+def wave(kind, split, index, rng, length, *, asset_name=None):
     if kind == "speech":
         data, rate = sf.read(
-            ROOT / "assets" / ASSETS[split][index % len(ASSETS[split])]
+            ROOT / "assets" / (asset_name or ASSETS[split][index % len(ASSETS[split])])
         )
         if rate != FS:
             data = signal.resample_poly(data, FS, rate)

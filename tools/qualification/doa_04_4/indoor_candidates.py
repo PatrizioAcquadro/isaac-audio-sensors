@@ -18,10 +18,13 @@ from .candidates import directions
 
 
 class SpatialEvidence:
-    def __init__(self, threshold=0.025, nfft=512, hop=128, smoothing_deg=10):
+    def __init__(
+        self, threshold=0.025, nfft=512, hop=128, smoothing_deg=10, sphere_points=1650
+    ):
         self.threshold = threshold
         self.nfft, self.hop = nfft, hop
         self.smoothing_deg = smoothing_deg
+        self.sphere_points = sphere_points
         self.cache = {}
 
     def prepare(self, samples, positions, sample_rate):
@@ -37,7 +40,7 @@ class SpatialEvidence:
             if three_d:
                 from pyroomacoustics.doa import GridSphere
 
-                vectors = GridSphere(n_points=1650).cartesian.T
+                vectors = GridSphere(n_points=self.sphere_points).cartesian.T
             else:
                 vectors = directions(False)
             left, right = np.triu_indices(len(positions), 1)

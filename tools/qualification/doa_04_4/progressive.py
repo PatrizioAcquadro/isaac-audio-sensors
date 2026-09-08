@@ -28,7 +28,7 @@ def decay_t20(rir):
     return float(-60 / slope) if slope < 0 else None
 
 
-def episode(array, content, repeat, seed_base):
+def episode(array, content, repeat, seed_base, *, speech_assets=None):
     seed = (
         seed_base
         + (
@@ -56,7 +56,30 @@ def episode(array, content, repeat, seed_base):
         if content == "speech"
         else [0, 1]
     )
-    sources = [wave(content, "reference", int(i), signal_rng, 16000) for i in indices]
+    assets = [ASSETS["reference"][i] for i in indices] if content == "speech" else []
+    if content == "speech" and speech_assets is not None:
+        # Pair different speakers; utterances from a speaker remain in one block.
+        speakers = sorted({a["speaker"] for a in speech_assets})
+        chosen = signal_rng.choice(speakers, 2, replace=False)
+        assets = [
+            str(
+                signal_rng.choice(
+                    [a["name"] for a in speech_assets if a["speaker"] == s]
+                )
+            )
+            for s in chosen
+        ]
+    sources = [
+        wave(
+            content,
+            "reference",
+            int(i),
+            signal_rng,
+            16000,
+            asset_name=assets[source] if assets else None,
+        )
+        for source, i in enumerate(indices)
+    ]
     noise = noise_rng.standard_normal((len(ARRAYS[array]), 4000))
     noise /= np.sqrt(np.mean(noise**2))
     return dict(
@@ -67,39 +90,12 @@ def episode(array, content, repeat, seed_base):
         tangent=tangent,
         sources=sources,
         noise=noise,
-        assets=[ASSETS["reference"][i] for i in indices] if content == "speech" else [],
+        assets=assets,
     )
 
 
-def render_stage(array, content, repeat, stage, seed_base, *, history_samples=4000):
-    if not 4000 <= history_samples <= 12000:
-        raise ValueError("History must contain 4000 to 12000 samples")
-    key = dict(
-        array=array,
-        content=content,
-        repeat=repeat,
-        stage=stage,
-        seed_base=seed_base,
-        renderer="paired_room_v1",
-    )
-    if history_samples != 4000:
-        key["history_samples"] = history_samples
-    path = (
-        ROOT
-        / "progressive_mixtures"
-        / (
-            hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()[:24]
-            + ".npz"
-        )
-    )
-    if path.exists():
-        with np.load(path) as data:
-            return data["mixtures"], data["truth"], json.loads(str(data["acoustics"]))
-    ep = episode(array, content, repeat, seed_base)
-    angle = np.radians(stage["separation"])
-    truth = np.stack(
-        [ep["origin"], np.cos(angle) * ep["origin"] + np.sin(angle) * ep["tangent"]]
-    )
+def room_responses(ep, array, stage, truth):
+    """Room and direct responses shared by steady and transition evaluations."""
     rt = stage["rt60"]
     distance = stage.get("distance_m", 1.5)
     absorption, order = pra.inverse_sabine(rt, ep["dims"]) if rt else (1.0, 0)
@@ -115,7 +111,52 @@ def render_stage(array, content, repeat, stage, seed_base, *, history_samples=40
         return room.rir
 
     room_rir = rirs(order)
-    direct_rir = rirs(0) if rt else room_rir
+    return room_rir, rirs(0) if rt else room_rir
+
+
+def render_stage(
+    array,
+    content,
+    repeat,
+    stage,
+    seed_base,
+    *,
+    history_samples=4000,
+    speech_assets=None,
+):
+    if not 4000 <= history_samples <= 12000:
+        raise ValueError("History must contain 4000 to 12000 samples")
+    key = dict(
+        array=array,
+        content=content,
+        repeat=repeat,
+        stage=stage,
+        seed_base=seed_base,
+        renderer="paired_room_v1",
+    )
+    if history_samples != 4000:
+        key["history_samples"] = history_samples
+    if speech_assets is not None and content == "speech":
+        key["speech_assets"] = speech_assets
+    path = (
+        ROOT
+        / "progressive_mixtures"
+        / (
+            hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()[:24]
+            + ".npz"
+        )
+    )
+    if path.exists():
+        with np.load(path) as data:
+            return data["mixtures"], data["truth"], json.loads(str(data["acoustics"]))
+    ep = episode(array, content, repeat, seed_base, speech_assets=speech_assets)
+    angle = np.radians(stage["separation"])
+    truth = np.stack(
+        [ep["origin"], np.cos(angle) * ep["origin"] + np.sin(angle) * ep["tangent"]]
+    )
+    rt = stage["rt60"]
+    distance = stage.get("distance_m", 1.5)
+    room_rir, direct_rir = room_responses(ep, array, stage, truth)
     stems = []
     ratios = []
     decays = []
@@ -337,3 +378,38 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def render_transitions(array, content, repeat, seed_base, stage, *, speech_assets=None):
+    """Causal room tails for 0/1/2 changes and a one-source direction replacement."""
+    ep = episode(array, content, repeat, seed_base, speech_assets=speech_assets)
+    angle = np.radians(stage["separation"])
+    truth = np.stack(
+        [ep["origin"], np.cos(angle) * ep["origin"] + np.sin(angle) * ep["tangent"]]
+    )
+    responses, _ = room_responses(ep, array, stage, truth)
+    # The final 1 -> 1 switch replaces the bearing without changing cardinality.
+    active_sets = ((), (0,), (0, 1), (0,), (), (0, 1), (), (0,), (1,), ())
+    phase_samples = 24000
+    length = len(active_sets) * phase_samples
+    rng = np.random.default_rng(np.random.SeedSequence([ep["seed"], 17]))
+    samples = rng.standard_normal((len(ARRAYS[array]), length)) * 0.003
+    for source, mono in enumerate(ep["sources"]):
+        dry = np.tile(mono, int(np.ceil(length / len(mono))))[:length]
+        reference = fftconvolve(dry, responses[0][source])[24000:48000]
+        scale = (
+            0.03
+            * 10 ** (-stage["imbalance"] * source / 20)
+            / np.sqrt(np.mean(reference**2))
+        )
+        dry *= (
+            np.repeat([source in active for active in active_sets], phase_samples)
+            * scale
+        )
+        samples += np.stack(
+            [
+                fftconvolve(dry, responses[m][source])[:length]
+                for m in range(len(ARRAYS[array]))
+            ]
+        )
+    return samples, [truth[list(active)] for active in active_sets], phase_samples

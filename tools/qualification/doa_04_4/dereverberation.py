@@ -15,17 +15,19 @@ from .evaluate import construct
 from .progressive import PROTOCOL, grouped, render_stage
 
 
-def preprocess(samples, taps, implementation):
+def preprocess(
+    samples, taps, implementation, *, nfft=512, hop=128, delay=3, output_samples=4000
+):
     """Fit only supplied past audio; emit the current trailing window."""
     _, _, spectrum = stft(
-        samples, fs=FS, nperseg=512, noverlap=384, boundary="zeros", padded=True
+        samples, fs=FS, nperseg=nfft, noverlap=nfft - hop, boundary="zeros", padded=True
     )
     if taps:
         spectrum = implementation(
-            spectrum.transpose(1, 0, 2), taps=taps, delay=3, iterations=3
+            spectrum.transpose(1, 0, 2), taps=taps, delay=delay, iterations=3
         ).transpose(1, 0, 2)
-    _, result = istft(spectrum, fs=FS, nperseg=512, noverlap=384, boundary=True)
-    current = np.ascontiguousarray(result[:, : samples.shape[-1]][:, -4000:])
+    _, result = istft(spectrum, fs=FS, nperseg=nfft, noverlap=nfft - hop, boundary=True)
+    current = np.ascontiguousarray(result[:, : samples.shape[-1]][:, -output_samples:])
     if not np.isfinite(current).all():
         raise ValueError("Non-finite dereverberation output")
     return current

@@ -23,17 +23,17 @@ def diffuse_factor(positions, size=4000):
     return vectors * np.sqrt(np.maximum(eigen, 0))[:, None, :]
 
 
-def idle_windows(positions, seed):
+def idle_windows(positions, seed, *, size=4000, repetitions=100):
     rng = np.random.default_rng(seed)
-    factor = diffuse_factor(positions)
-    yield "silence", np.zeros((len(positions), 4000))
-    for i in range(100):
+    factor = diffuse_factor(positions, size)
+    yield "silence", np.zeros((len(positions), size))
+    for i in range(repetitions):
         rms = (0.0001, 0.003, 0.03)[i % 3]
-        white = rng.standard_normal((len(positions), 4000))
+        white = rng.standard_normal((len(positions), size))
         yield "uncorrelated", white / np.sqrt(np.mean(white**2)) * rms
-        noise = rng.standard_normal((2001, len(positions), 2))
+        noise = rng.standard_normal((size // 2 + 1, len(positions), 2))
         spectrum = np.einsum("fij,fj->fi", factor, noise[:, :, 0] + 1j * noise[:, :, 1])
-        values = np.fft.irfft(spectrum.T, n=4000)
+        values = np.fft.irfft(spectrum.T, n=size)
         yield "diffuse", values / np.sqrt(np.mean(values**2)) * rms
 
 
