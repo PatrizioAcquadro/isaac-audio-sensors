@@ -66,6 +66,16 @@ _REQUIRED_BUNDLED_TEMPLATES = {
         "{dist_info}/METADATA",
         "{dist_info}/licenses/LICENSE",
     ),
+    "click": (
+        "click/__init__.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/LICENSE.rst",
+    ),
+    "nara_wpe": (
+        "nara_wpe/wpe.py",
+        "{dist_info}/METADATA",
+        "{dist_info}/LICENSE",
+    ),
     "pycparser": (
         "pycparser/__init__.py",
         "{dist_info}/METADATA",

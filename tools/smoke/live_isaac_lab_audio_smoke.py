@@ -250,7 +250,7 @@ def main() -> int:
             for _ in multisource_scenes
         ]
         multi_compute_ms = []
-        for tick in range(8):
+        for tick in range(18):
             started = time.perf_counter()
             multisource_sensor.update(0.0 if tick == 0 else 0.05, force_recompute=True)
             data = multisource_sensor.data
@@ -278,7 +278,7 @@ def main() -> int:
                 device="cuda:0",
             )
             _assert_same(torch, data, expected)
-            if tick < 4:
+            if tick < 14:
                 if data.observation_mask.any():
                     raise RuntimeError("Multisource warm-up invented an event.")
                 continue
@@ -314,7 +314,7 @@ def main() -> int:
         torch.testing.assert_close(multisource_sensor.data.bearing_deg[0], retained)
         if multisource_sensor.data.observation_mask[1].any():
             raise RuntimeError("Multisource partial reset retained old events.")
-        for _ in range(4):
+        for _ in range(14):
             multisource_sensor.update(0.05, force_recompute=True)
         if not multisource_sensor.data.observation_mask[1, :2].all():
             raise RuntimeError(
@@ -349,7 +349,9 @@ def main() -> int:
             "multisource_planar_and_3d": True,
             "multisource_masks_capacity_and_partial_reset": True,
             "multisource_two_environment_update_ms": multi_compute_ms,
-            "multisource_compute_device": "CPU MUSIC; CUDA tensor projection",
+            "multisource_compute_device": (
+                "CPU WPE/group-sparse covariance; CUDA tensor projection"
+            ),
             "reference_activity_and_doa": True,
             "reference_warmup_and_silence": True,
             "performance_role": "empty_entity_lifecycle_only",

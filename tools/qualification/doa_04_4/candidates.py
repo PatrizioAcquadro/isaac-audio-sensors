@@ -8,12 +8,11 @@ from pathlib import Path
 import numpy as np
 import pyroomacoustics as pra
 
-from isaac_audio_sensors.core.plugins._multisource_music import (
-    _FrequencyOrderMusic,
-    select_peaks,
-)
+from isaac_audio_sensors.core.plugins._spatial_evidence import select_peaks
 from isaac_audio_sensors.core.plugins.adapters import _validate_doa_inputs
 from isaac_audio_sensors.core.plugins.pyroomacoustics import _stft
+
+from .music_reference import _FrequencyOrderMusic
 
 ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 

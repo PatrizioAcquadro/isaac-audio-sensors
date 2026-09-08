@@ -389,13 +389,23 @@ class AudioPerceptionPipeline:
             return samples, None
 
         values = np.asarray(samples)
+        duration = self._doa_context_duration_s
+        context_for = getattr(
+            self._doa_component, "consumer_context_duration_s_for", None
+        )
+        if callable(context_for):
+            duration = float(context_for(block.sample_rate_hz, values.shape[0]))
+            if not np.isfinite(duration) or duration <= 0:
+                raise ValueError(
+                    "Consumer context duration must be finite and positive."
+                )
         previous = self._doa_history
         buffered = (
             np.array(values, copy=True, order="C")
             if previous is None
             else np.concatenate((np.asarray(previous), values), axis=1)
         )
-        required_samples = round(self._doa_context_duration_s * block.sample_rate_hz)
+        required_samples = round(duration * block.sample_rate_hz)
         if buffered.shape[1] > required_samples:
             buffered = np.array(
                 buffered[:, -required_samples:],
@@ -406,7 +416,7 @@ class AudioPerceptionPipeline:
         self._doa_history = buffered
         return buffered, {
             "causal": True,
-            "required_duration_s": self._doa_context_duration_s,
+            "required_duration_s": duration,
             "required_sample_count": required_samples,
             "available_duration_s": buffered.shape[1] / block.sample_rate_hz,
             "available_sample_count": int(buffered.shape[1]),

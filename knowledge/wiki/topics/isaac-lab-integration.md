@@ -48,7 +48,7 @@ The empty path allocates and scatters on the sensor device without environment l
 
 `bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure snapshots and string selectors. Each selected array must exist and selected arrays must share a microphone count. Each environment owns an independent persistent standard pipeline. `simulate_frame()` supplies actual observed activity and optional geometry-routed DOA; only `frame.observations` enters the tensor conversion.
 
-The scalar pipeline has no internal observation cap. The tensor converter owns truncation. Standard perception currently emits at most one signal-derived event, regardless of capacity. It needs Auditok's minimum context before activity and the standard causal 250 ms context before resolving DOA.
+The scalar pipeline has no internal observation cap. The tensor converter owns truncation. Standard 16 kHz perception emits independently localized events without an internal two-source ceiling; stereo retains one ambiguous event. It needs Auditok's minimum context before activity and 750 ms past context for the bounded indoor multisource path (250 ms for retained single-event roles). The [[experiments/04-4-multisource-localization|04.4 experiment]] distinguishes memory, warm-up, response, compute and remaining speech errors.
 
 Reference window boundaries are rounded to the selected array's sample clock, avoiding false stream gaps from Warp float32 timestamp rounding. The window duration uses the configured update period, or the existing 1 ms minimum when zero, rounded to at least one sample. Actual discontinuities still reset common perception. Arbitrary update cadences and long-horizon timing/scale qualification remain 07.2 work.
 

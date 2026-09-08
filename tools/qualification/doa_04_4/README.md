@@ -1,6 +1,6 @@
 # 04.4 simulation qualification
 
-This is an active qualification tool. The selected MUSIC computation is shared with the optional common event localizer; experimental alternatives remain isolated. Candidate
+This is an active qualification tool. The selected WPE/group-sparse covariance computation is shared with the optional common event localizer. The unchanged MUSIC reference and other experimental alternatives remain isolated. Candidate
 code receives only mixture samples, ordered valid-channel geometry and sample
 rate. Truth, source assets, propagation and matching belong to the evaluator.
 The canonical protocol and rationale are in the
@@ -121,3 +121,21 @@ removal and a same-count direction change. Missing responses remain null failure
 and reported response includes computation and two consecutive correct sets.
 The new speech assets are recorded in the protocol; old consumed assets and
 all prior evidence remain intact.
+
+
+The maintained indoor revision is frozen in `indoor_confirmation_v2_protocol.json`.
+The first confirmation failed one precision gate and remains preserved. Fetch the
+second revision's exact new assets without building ODAS:
+
+```bash
+.venv/bin/python tools/qualification/doa_04_4/bootstrap.py --indoor-protocol tools/qualification/doa_04_4/indoor_confirmation_v2_protocol.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.indoor --protocol tools/qualification/doa_04_4/indoor_confirmation_v2_protocol.json --block block_a --output indoor-confirmation-v2-a.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.indoor_diagnostics --protocol tools/qualification/doa_04_4/indoor_confirmation_v2_protocol.json --block block_a --output indoor-confirmation-v2-diagnostics-a.json
+```
+
+Repeat both commands for `block_b` with distinct outputs. Install `.[dev,room]`;
+no isolated dependency path is needed for the maintained version. These blocks
+are now consumed evidence and must not be reused as fresh confirmation after
+another change. The final experiment section reports the bounded quality GO,
+remaining weak-speech errors, original direct-path operational regressions and
+failed rapid-response reference. 07.2 and physical validation remain separate.

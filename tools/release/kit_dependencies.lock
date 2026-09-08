@@ -1,4 +1,7 @@
 # Kit owns NumPy and typing_extensions; neither may be bundled or shadowed.
+# WPE's used numerical path needs Click; its CLI/test-only tqdm/bottleneck are unused.
+nara-wpe==0.0.11 --hash=sha256:ce5f51478da5fa87925c85b8f5fecc784d2b4775488ada64e7b36099d3438711
+click==8.1.6 --hash=sha256:fa244bb30b3b5ee2cae3da8f55c9e5e0c0e86093306301fb418eb9dc40fbded5
 auditok==0.5.2 --hash=sha256:ce86c5dff4b5c7e53e67f98500bba17caa3f353fd9ac60e9a636031db01cd45b
 pyroomacoustics==0.10.1 --hash=sha256:c1b1077cfcafed9775d1b826dbbaf25fb4090aa95d21e9bc6dac795f88e8875c
 scipy==1.18.0 --hash=sha256:1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2

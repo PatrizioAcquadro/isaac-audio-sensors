@@ -1219,3 +1219,11 @@ Five documentation-boundary tests and scoped whitespace checks pass. Both 480-fr
 ## 2026-09-08 — experiment: Revise indoor rejection after independent failure
 
 Recorded the first confirmation's tetrahedral precision failure without promoting it. Fixed a single revised evidence threshold and reserved entirely new speakers/seeds for both replacement blocks. The shared numerical implementation matches 36 frozen development outputs; timing failures and stable-source limits remain explicit.
+
+## 2026-09-08 — update: Integrate confirmed indoor stable-source perception
+
+Promoted the fixed WPE/group-sparse covariance path after all 24 joint indoor quality groups pass fresh confirmation. Updated canonical contracts, phase/status, README and measured before/after evidence. Kept speech-family failures, one unresolved weak-source removal, 1–1.5 s responses, 3D compute and original planar operational regressions explicit. Common consumers, host/optional gates, locked package artifacts and actual RTX 4090 Lab projection pass; no 07.2 work or physical claim is included.
+
+## 2026-09-08 — lint: Indoor perception closeout
+
+Validated all documentation boundaries and whitespace, final Ruff checks, 638 unit/contract tests, 322 integration tests and 58 release tests. The qualified indoor scope and failed rapid-response/original planar operational criteria are explicit in the canonical pages. Protected raw evidence and unrelated ONR work remain preserved.

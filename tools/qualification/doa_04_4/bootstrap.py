@@ -1,5 +1,6 @@
 """Download evaluation inputs and build isolated native dependencies on Ubuntu."""
 
+import argparse
 import hashlib
 import json
 import os
@@ -17,32 +18,37 @@ def run(args, **kwargs):
     subprocess.run(args, check=True, **kwargs)
 
 
-def verification_assets(assets):
-    records = [
-        record
-        for name in ("verification_assets.json", "reference_assets.json")
-        for record in json.loads((SOURCE / name).read_text())
-    ]
-    missing = {
-        r["archive_path"]: r for r in records if not (assets / r["name"]).exists()
-    }
-    if missing:
-        with (
-            urllib.request.urlopen(records[0]["url"], timeout=60) as response,
-            tarfile.open(fileobj=response, mode="r|gz") as archive,
-        ):
-            for member in archive:
-                record = missing.pop(member.name, None)
-                if record is None:
-                    continue
-                data = archive.extractfile(member).read()
-                if hashlib.sha256(data).hexdigest() != record["sha256"]:
-                    raise ValueError(f"Upstream asset changed: {record['name']}")
-                (assets / record["name"]).write_bytes(data)
-                if not missing:
-                    break
+def verification_assets(assets, records=None):
+    if records is None:
+        records = [
+            record
+            for name in ("verification_assets.json", "reference_assets.json")
+            for record in json.loads((SOURCE / name).read_text())
+        ]
+    for url in sorted({r["url"] for r in records}):
+        group = [r for r in records if r["url"] == url]
+        missing = {
+            r["archive_path"]: r for r in group if not (assets / r["name"]).exists()
+        }
         if missing:
-            raise ValueError("Verification assets missing from LibriSpeech archive")
+            with (
+                urllib.request.urlopen(url, timeout=60) as response,
+                tarfile.open(fileobj=response, mode="r|gz") as archive,
+            ):
+                for member in archive:
+                    record = missing.pop(member.name, None)
+                    if record is None:
+                        continue
+                    data = archive.extractfile(member).read()
+                    if hashlib.sha256(data).hexdigest() != record["sha256"]:
+                        raise ValueError(f"Upstream asset changed: {record['name']}")
+                    if Path(record["name"]).name != record["name"]:
+                        raise ValueError("Asset name must be a filename")
+                    (assets / record["name"]).write_bytes(data)
+                    if not missing:
+                        break
+            if missing:
+                raise ValueError("Verification assets missing from LibriSpeech archive")
     for record in records:
         data = (assets / record["name"]).read_bytes()
         if hashlib.sha256(data).hexdigest() != record["sha256"]:
@@ -50,6 +56,23 @@ def verification_assets(assets):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--indoor-protocol", type=Path)
+    args = parser.parse_args()
+    if args.indoor_protocol:
+        protocol = json.loads(args.indoor_protocol.read_text())
+        assets = ROOT / "assets"
+        assets.mkdir(parents=True, exist_ok=True)
+        verification_assets(
+            assets,
+            [
+                r
+                for block in protocol["blocks"].values()
+                for r in block["speech_assets"]
+            ],
+        )
+        print("Indoor confirmation assets verified.")
+        return
     vendor = ROOT / "vendor"
     vendor.mkdir(parents=True, exist_ok=True)
     assets = ROOT / "assets"

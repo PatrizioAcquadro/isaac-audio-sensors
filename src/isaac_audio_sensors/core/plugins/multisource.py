@@ -14,25 +14,32 @@ from isaac_audio_sensors.core.types import DoaEstimate
 class MaintainedEventLocalizer:
     """Localize independent frame events; retain no source identities.
 
-    MUSIC supports the tested 16 kHz planar/rank-3 direct-path conditions.
-    Arbitrary reverberant mixtures and exact physical source count are unqualified.
+    WPE/group-sparse covariance supports the bounded 16 kHz indoor reference
+    for relatively stable sources. Memory is 750 ms; measured response can
+    exceed one second. Physical recordings and arbitrary rooms are unqualified.
     Stereo and other planar sample rates keep the existing single-event role.
     All dependencies remain lazy.
     """
 
-    consumer_context_duration_s = 0.25
+    consumer_context_duration_s = 0.75
     consumer_jump_threshold_deg = 150.0
     consumer_confirmation_tolerance_deg = 30.0
 
     def __init__(self, *, runtime_profile: str = DEFAULT_RUNTIME_PROFILE) -> None:
         self._stereo = MaintainedDoaEstimator(runtime_profile=runtime_profile)
-        self._music = None
+        self._spatial = None
         self._geometry: bytes | None = None
 
     def reset(self) -> None:
         # Bound optional steering caches to the current valid-channel geometry.
-        self._music = None
+        self._spatial = None
         self._geometry = None
+
+    def consumer_context_duration_s_for(
+        self, sample_rate_hz: int, channel_count: int
+    ) -> float:
+        """Keep the existing single-event context for stereo/other rates."""
+        return 0.25 if channel_count == 2 or sample_rate_hz != 16000 else 0.75
 
     def localize(
         self,
@@ -46,7 +53,7 @@ class MaintainedEventLocalizer:
         rank = np.linalg.matrix_rank(positions - positions[0])
         if len(positions) == 2 or (sample_rate_hz != 16000 and rank == 2):
             estimate, diagnostics = self._stereo.estimate(
-                values, positions, sample_rate_hz
+                values[:, -round(0.25 * sample_rate_hz) :], positions, sample_rate_hz
             )
             return (estimate,), {
                 **diagnostics,
@@ -61,15 +68,17 @@ class MaintainedEventLocalizer:
             return (), {"status": "unavailable", "reason": "unsupported_geometry"}
         if sample_rate_hz != 16000:
             return (), {"status": "unavailable", "reason": "unsupported_sample_rate"}
-        if values.shape[1] < 4000:
+        if values.shape[1] < 12000:
             return (), {"status": "unavailable", "reason": "insufficient_context"}
         if positions.tobytes() != self._geometry:
             self.reset()
             self._geometry = positions.tobytes()
-        if self._music is None:
+        if self._spatial is None:
             try:
-                from isaac_audio_sensors.core.plugins._multisource_music import (
-                    _FrequencyOrderMusic,
+                from nara_wpe.wpe import wpe_v7  # noqa: F401
+
+                from isaac_audio_sensors.core.plugins._multisource_sparse import (
+                    WpeSparseCovariance,
                 )
                 from isaac_audio_sensors.core.plugins.pyroomacoustics import (
                     _import_supported_pyroomacoustics,
@@ -80,17 +89,9 @@ class MaintainedEventLocalizer:
                 raise OptionalDependencyUnavailable(
                     "Multisource DOA requires isaac-audio-sensors[room]."
                 ) from exc
-            self._music = _FrequencyOrderMusic(
-                0.03,
-                relative_loading=0.0001,
-                refit_threshold=0.010,
-                refit_statistic="product",
-                refine_peaks=True,
-                order_criterion="aic",
-                spectral_weighting=True,
-            )
-        directions, diagnostics = self._music.localize(
-            values[:, -4000:], positions, sample_rate_hz
+            self._spatial = WpeSparseCovariance()
+        directions, diagnostics = self._spatial.localize(
+            values[:, -12000:], positions, sample_rate_hz
         )
         events = tuple(
             DoaEstimate(
@@ -106,9 +107,9 @@ class MaintainedEventLocalizer:
         return events, {
             **diagnostics,
             "status": "events" if events else "no_events",
-            "doa_estimator": "weighted_covariance_music",
+            "doa_estimator": "wpe_group_sparse_covariance",
             "role": "3d" if rank == 3 else "planar",
             "event_confidence_available": False,
             "temporal_policy": "causal_window_event_set",
-            "qualification_scope": "simulated_direct_path_reference",
+            "qualification_scope": "simulated_indoor_stable_sources",
         }

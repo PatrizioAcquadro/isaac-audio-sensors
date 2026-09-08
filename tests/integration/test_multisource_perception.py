@@ -7,6 +7,7 @@ import pytest
 
 pytest.importorskip("pyroomacoustics")
 pytest.importorskip("soundfile")
+pytest.importorskip("nara_wpe")
 
 from isaac_audio_sensors.core.backends.base import get_backend
 from isaac_audio_sensors.core.io.traces import (
@@ -52,7 +53,7 @@ def test_real_multisource_common_consumers(tmp_path, monkeypatch, array_index):
     recorder = SessionRecorder(tmp_path / "session", config, **provenance)
     recorder.begin_episode("scene", "environment", "scene")
     frames = []
-    for i in range(8):
+    for i in range(18):
         frame, block = simulate_frame(
             backend,
             scene,
@@ -64,7 +65,7 @@ def test_real_multisource_common_consumers(tmp_path, monkeypatch, array_index):
         )
         frames.append(frame)
         assert recorder.append_frame(frame, block, is_reset=i == 0).accepted
-        assert len(frame.observations) == (0 if i < 4 else 2)
+        assert len(frame.observations) == (0 if i < 14 else 2)
         assert (
             frame_from_trace_dict(frame_to_trace_dict(frame)).observations
             == frame.observations
@@ -73,7 +74,7 @@ def test_real_multisource_common_consumers(tmp_path, monkeypatch, array_index):
     recorder.finalize()
     assert validate_dataset(tmp_path / "session").status == "passed"
     loaded = list(LearningDataset.open([tmp_path / "session"]).iter_samples())
-    assert [len(s.frame.observations) for s in loaded] == [0, 0, 0, 0, 2, 2, 2, 2]
+    assert [len(s.frame.observations) for s in loaded] == [0] * 14 + [2] * 4
     assert not loaded[-1].policy_inputs["detection_score_mask"].any()
     np.testing.assert_allclose(
         loaded[-1].policy_inputs["bearing_deg"], [20, 100], atol=5
@@ -99,7 +100,7 @@ def test_real_multisource_common_consumers(tmp_path, monkeypatch, array_index):
         energy_threshold_dbfs=-60,
         doa_enabled=True,
     )
-    for i in range(8):
+    for i in range(18):
         captured = sensor.capture(
             start_time_s=i * 0.05, end_time_s=(i + 1) * 0.05, frame_index=i
         )

@@ -2,7 +2,7 @@
 
 ## Objective and Status
 
-**Bounded direct-path scalar-reference GO for planar and 3D; full indoor qualification remains incomplete. Current priority: continue 04.4 acoustic work before 07.2.** Common perception, recording/dataset and Core/Isaac/Kit consumers are integrated and verified, including actual RTX 4090 Lab projection. The prospective direct-path protocol passes on broader independent content. Subsequent paired development finds room-only false events and weak-source misses; loading, event selection, short/long-context dereverberation, bandwidth conditioning and fixed diffuse-covariance corrections are not admitted. The original combined reverberant-domain qualification remains NO-GO; historical results below remain unchanged. Physical multisource performance, tracking, separation and scalable Lab perception are unqualified or outside this experiment. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
+**Confirmed and integrated bounded indoor improvement for relatively stable sources, planar and 3D.** WPE/group-sparse covariance passes all 24 joint geometry/condition quality gates on fresh confirmation and replaces the maintained 16 kHz multisource path. Weak-speech errors, slower response and planar direct-path operational regressions remain explicit in the final section below. Common consumers, actual RTX 4090 Lab projection and package checks pass. Original broad-domain, rapid-response and physical qualification remain incomplete; 07.2 has not started. Historical evidence below is preserved. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
 
 Baseline: `main` at `01eb888`, with no tracked user changes. Historical evidence and `knowledge/raw/` remain untouched. Candidate review below precedes implementation of the comparison.
 
@@ -204,7 +204,7 @@ The qualified case family is the tested 16 kHz direct-path nominal condition (70
 
 All four independent nominal 0→1→2→1→0 probes respond correctly, with maximum observed delay 338.8 ms, including composed compute. The fixed 250 ms context and 20 Hz update remain. White/diffuse-noise and silence gates pass. Known failure cases remain available for later targeted work; the reference partition is now consumed evidence and cannot qualify an evaluation-informed correction again.
 
-The maintained algorithm is shared with the experiment through `_multisource_music.py`, avoiding a copied implementation. No native ODAS dependency is promoted. The new common `EventLocalizer` receives only mixture, ordered valid geometry and sample rate. Tests exercise variable cardinality beyond two, deterministic order/IDs, candidate ambiguity, missing dependencies, malformed outputs, truth isolation, causal context and all reset boundaries. Real analytic direct-path mixtures with two independent WAV sources pass through Core and Isaac, frame serialization, session recording, learning datasets and Kit history on all four layouts. Stereo and other planar sample rates retain their previous single-event behavior; 16 kHz is the explicit multisource reference rate.
+At that milestone, the maintained algorithm was shared through `_multisource_music.py`. The later indoor integration moves this unchanged baseline into `music_reference.py` in the qualification tools. No native ODAS dependency is promoted. The new common `EventLocalizer` receives only mixture, ordered valid geometry and sample rate. Tests exercise variable cardinality beyond two, deterministic order/IDs, candidate ambiguity, missing dependencies, malformed outputs, truth isolation, causal context and all reset boundaries. Real analytic direct-path mixtures with two independent WAV sources pass through Core and Isaac, frame serialization, session recording, learning datasets and Kit history on all four layouts. Stereo and other planar sample rates retain their previous single-event behavior; 16 kHz is the explicit multisource reference rate.
 
 `build/validation/isaac_audio_sensors/phase04_4_lab_live_smoke.json` records a PASS on the actual RTX 4090: planar/spherical two-source scalar/reference parity, masks, finite padding, zero/one-slot capacity loss and independent environment reset. Two-environment warm updates measured 41.2–42.9 ms; the first full localization update took 148.5 ms, measured separately from the 250 ms audio warm-up. These short measurements are smoke evidence, not a throughput qualification. The existing 4,096-empty-environment lifecycle check averages 0.208 ms/step; it does not represent multisource computation at scale. MUSIC executes on CPU because this implementation is CPU-only; tensor projection executes on CUDA.
 
@@ -357,3 +357,77 @@ The first two blocks (`indoor-confirmation-a.json`, `indoor-confirmation-b.json`
 Both first blocks are now consumed evidence. Raising the single, geometry-independent rejection threshold to 0.025 preserves all original joint development gates and removes most extras in the consumed first confirmation. It does not change WPE, the optimizer, grid, source-count policy or any acoustic-condition selector. `indoor_confirmation_v2_protocol.json` fixes that revision before a new pair of blocks: 16 entirely new dev-clean speakers, 48 utterances and new seeds. The first protocol and reports remain intact. Shared computation has been relocated behind the isolated comparison; 36 paired development inputs reproduce the first frozen numerical outputs within 1e-12 at its explicit threshold. The public maintained localizer still uses its existing reference pending fresh confirmation.
 
 The first-block response diagnostic at threshold 0.015 has zero background events in 100 white and 100 diffuse windows per geometry, but shows the real reactivity limitation: finite response p95 is about 0.92–0.97 s, maximum 1.35 s, and two of 432 transitions lack two consecutive correct sets within their 1.5 s phase. These results cannot qualify the revised threshold; its response is measured separately. They support a stable-source use case only, not the original rapid-update reference or general weak-speech robustness.
+
+## Confirmed indoor improvement and maintained integration
+
+**GO for the bounded simulated indoor, relatively stable-source capability.** The revision frozen at `40ed585` passes all 24 geometry/condition quality gates on the second independent confirmation. It is integrated through `MaintainedEventLocalizer`. This completes the requested indoor-improvement intervention; it does not complete the original broad 04.4 domain, physical qualification or rapid-response qualification. 07.2 was not started.
+
+### Independent quality and remaining speech errors
+
+`indoor-confirmation-v2-a.json` and `indoor-confirmation-v2-b.json` each use 12 episodes per content/geometry. Together they contain 24 per family/geometry, 5,184 paired cases and 10,368 estimator calls. Counts 0/1/2 and all six acoustic variations of an episode stay in its block; candidates see the identical current mixture and their specified past context. The 16 dev-clean speakers are disjoint from every consumed partition. Across the 24 geometry/condition groups, precision is 98.2–100%, recall 96.8–99.5%, exact count 95.8–99.5%, both-source localization without extras 87.5–98.6%, and angular p95 1.30–5.53°. Each group pools the three equally represented content families; these are empirical results from finite simulations, not population guarantees or per-family passes.
+
+Both sources localized without extras, all three content families:
+
+| Geometry | RT60 .2 / 0 dB | .2 / 3 dB | .2 / 6 dB | .3 / 0 dB | .3 / 3 dB | .3 / 6 dB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Triangle | 93.1% | 97.2% | 95.8% | 91.7% | 93.1% | 93.1% |
+| Square | 98.6% | 95.8% | 93.1% | 97.2% | 94.4% | 91.7% |
+| Raised | 95.8% | 91.7% | 87.5% | 91.7% | 91.7% | 87.5% |
+| Tetrahedral | 95.8% | 97.2% | 95.8% | 93.1% | 95.8% | 94.4% |
+
+At target RT60 0.3 s, 6 dB imbalance, 70° separation, 20 dB SNR and 1.5 m:
+
+| Geometry | MUSIC clean pairs | Maintained clean pairs | Speech clean pairs: before → after | Weak speech recovered: before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Triangle | 51.4% | 93.1% | 10/24 → 19/24 | 13/24 → 19/24 |
+| Square | 58.3% | 91.7% | 14/24 → 18/24 | 19/24 → 18/24 |
+| Raised | 33.3% | 87.5% | 2/24 → 16/24 | 6/24 → 17/24 |
+| Tetrahedral | 13.9% | 94.4% | 1/24 → 20/24 | 2/24 → 21/24 |
+
+Weak speech remains a material limitation: 3–7 of 24 weak speakers are missed in this condition, and 4–8 pairs have a miss or extra. Square weak-source recall falls by one episode even though its clean-pair reliability improves. The pooled qualification must not be presented as ≥80% clean-pair qualification for weak speech on every geometry. Stationary overlapping and disjoint-band non-speech provide an independently measured part of the improvement; this is not a speech-only method.
+
+Acoustic measurements expose the renderer approximation. Target RT60 0.2 s produces extrapolated Schroeder T20 of 0.121–0.159 s and direct/reflected energy ratios of +2.07 to +6.29 dB. Target 0.3 s produces 0.223–0.279 s and −2.11 to +1.84 dB. These empty uniform shoeboxes are useful controlled indoor simulations, not measured rooms or an assertion that the target equals actual decay.
+
+### Memory, response and computation
+
+The maintained path uses 750 ms of past mixture. A new/reset stream warms up for that duration; after background has filled the buffer, source onset does not wait another fixed 750 ms. Each invocation refits the supplied past window without accumulating overlapping samples or persistent source identities. Stereo and other planar sample rates still request 250 ms and retain their previous temporal semantics.
+
+Two independent diagnostic blocks test 864 transitions at 100 ms updates, using room tails, 6 dB weak sources, speech/non-speech, 0↔1↔2, 0↔2 and same-count direction replacement. A response requires two consecutive correctly localized event sets and includes the current call's compute time. The speech probe repeats an asset-only selected one-second excerpt; it is a controlled transition diagnostic, not natural conversational turn-taking.
+
+| Change | Response p95 across the four geometries | Important observed limit |
+| --- | ---: | --- |
+| 0 → 1 | 297–464 ms | Maximum 644 ms |
+| 1 → 2 | 934–1,322 ms | Maximum 1,490 ms |
+| 2 → 1, weak source disappears | 919–982 ms for resolved cases | One tetrahedral speech change lacks a response within 1.5 s; 23/24 resolve |
+| 0 → 2 | 506–952 ms | Maximum 1,524 ms |
+| 1/2 → 0 | About 400 ms | Includes activity release and the second correct update |
+| One-source direction replacement | 921–1,012 ms | Maximum 1,355 ms |
+
+The original response p95 ≤350 ms / maximum ≤500 ms reference is **not passed**. The user-approved tradeoff supports waiting for sustained acoustic cues, with roughly one to one-and-a-half seconds sometimes needed to recognize a weak addition or change. It does not establish rapid robot/source motion or brief-event performance, and the unresolved weak-source removal remains visible.
+
+Separate composed timing after 20 warmups and 200 measured calls, on one CPU thread per numerical library:
+
+| Geometry | MUSIC compute p95 | Maintained compute p95 |
+| --- | ---: | ---: |
+| Triangle | 3.6 ms | 20.6 ms |
+| Square | 3.5 ms | 28.9 ms |
+| Raised | 40.8 ms | 67.8 ms |
+| Tetrahedral | 33.0 ms | 51.8 ms |
+
+The new path exceeds the 50 ms compute reference in 3D. A 100 ms update period is the measured practical starting point for one array; the consumer still processes the cadence supplied by the application and does not silently throttle. No million-environment or CUDA-native audio throughput claim follows. The GPU Lab smoke measures about 77 ms per warm update for its two scalar square/tetrahedral environments, separately from its empty-entity lifecycle benchmark.
+
+Silence produces zero events. Each geometry also produces zero false-event windows in 200 white and 200 isotropic diffuse-noise windows, at RMS 0.0001, 0.003 and 0.03 across both blocks. These direct-localizer checks do not depend on an activity gate suppressing the noise. The empirical ≤1% reference passes; finite samples do not certify a universal false-alarm probability.
+
+### Regressions and domain boundary
+
+The original direct-path criteria remain unchanged in `indoor-direct-regression.json`. Nominal direct-path quality passes for every geometry. The broader original operational group passes for raised/tetrahedral, but triangle/square now fail its ≥80% exact pair-count criterion when isolated 10 dB imbalance and 5 dB SNR cases are included. This is an explicit regression of the maintained path, not a retained general direct-path GO. The old numerical MUSIC baseline lives only in the qualification tools; the SDK has one maintained multisource path and no benchmark-condition selector or ensemble.
+
+The selected threshold's consumed development controls (`indoor-development-limits.json`) retain the requested harder conditions. Clean pairs for triangle/square/raised/tetrahedral are: RT60 0.5 s, 83.3/100/95.8/95.8%; SNR 10 dB with RT60 0.3 s, 87.5/100/87.5/87.5%; 55° separation, 100/100/100/95.8%; 45°, 100/100/95.8/91.7%. The cumulative RT60 0.3 s / 45° / 6 dB / 10 dB condition falls to 70.8/79.2/87.5/87.5%, failing the planar pair criteria. Favorable development controls do not extend independent qualification. Coherent sources, near-coincident bearings, arbitrary microphone layouts, physical recordings and continuously moving geometry remain unqualified.
+
+### Integration and evidence
+
+The selected computation is shared by the evaluator and optional SDK implementation, with NumPy/SciPy/PyRoom and NARA-WPE 0.0.11. The existing `room` extra supplies WPE; Kit bundles its used numerical path and Click with their original licenses. NARA's unused CLI/test dependencies are not required by the bundled numerical path. Public imports remain lazy, existing schemas are unchanged, event confidence remains unavailable, and no source count or truth reaches perception.
+
+Core/Isaac, recording/dataset, Kit event history, causal availability, stereo and reset checks pass. The actual RTX 4090 Lab smoke verifies planar/3D events, masks, capacities, scalar parity and partial reset (`build/validation/isaac_audio_sensors/indoor_multisource_lab_smoke_v2.json`). Its initial attempt stopped at missing runtime Auditok; rerunning with isolated locked Kit dependencies passes without modifying NVIDIA's installation. Host `make check` passes 638 unit/contract, 322 integration and 58 release tests; optional audio and source/wheel/Kit artifact audits pass. Source wheels are built from the sdist to exclude stale removed modules. None of these checks starts 07.2 or validates physical sensing.
+
+Final ignored evidence under `build/qualification/doa/04_4/`: `indoor-confirmation-v2-a.json`, `indoor-confirmation-v2-b.json`, `indoor-confirmation-v2-diagnostics-a.json`, `indoor-confirmation-v2-diagnostics-b.json`, `indoor-confirmed-summary.json`, `indoor-runtime-timing.json`, `indoor-direct-regression.json`, and `indoor-development-limits.json`. Earlier failed confirmations, development reports and protected raw material remain preserved.

@@ -52,7 +52,7 @@ SCHEMAS = frozenset(
         "audio_sensor_frame.v3.schema.json",
     }
 )
-ROOM_REQUIREMENTS = frozenset({"pyroomacoustics", "scipy", "soundfile"})
+ROOM_REQUIREMENTS = frozenset({"nara-wpe", "pyroomacoustics", "scipy", "soundfile"})
 CORE_REQUIREMENTS = frozenset({"auditok<0.6,>=0.5.2", "numpy>=1.26"})
 SDIST_ROOT_FILES = frozenset(
     {"LICENSE", "NOTICE", "PKG-INFO", "README.md", "pyproject.toml", "setup.cfg"}

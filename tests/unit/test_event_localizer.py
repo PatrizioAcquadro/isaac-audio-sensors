@@ -31,7 +31,7 @@ from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalize
             "unsupported_sample_rate",
         ),
         (
-            np.ones((3, 3999)),
+            np.ones((3, 11999)),
             [[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]],
             16000,
             "insufficient_context",
@@ -50,7 +50,7 @@ def test_missing_optional_dependencies_are_actionable(monkeypatch):
     original = builtins.__import__
 
     def blocked(name, *args, **kwargs):
-        if name == "isaac_audio_sensors.core.plugins._multisource_music":
+        if name == "nara_wpe.wpe":
             raise ImportError("blocked optional stack")
         return original(name, *args, **kwargs)
 
@@ -59,7 +59,9 @@ def test_missing_optional_dependencies_are_actionable(monkeypatch):
         OptionalDependencyUnavailable, match=r"isaac-audio-sensors\[room\]"
     ):
         MaintainedEventLocalizer().localize(
-            np.ones((3, 4000)), np.asarray([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]]), 16000
+            np.ones((3, 12000)),
+            np.asarray([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]]),
+            16000,
         )
 
 

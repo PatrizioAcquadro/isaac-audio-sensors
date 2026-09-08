@@ -21,7 +21,7 @@ def reference_scenes(root: Path):
     assets = []
     for index in range(2):
         path = root / f"source_{index}.wav"
-        sf.write(path, rng.normal(0, 0.08, 16000), 16000, subtype="FLOAT")
+        sf.write(path, rng.normal(0, 0.08, 32000), 16000, subtype="FLOAT")
         assets.append(str(path))
     layouts = {
         "triangle": ((-0.033, -0.033, 0), (-0.033, 0.033, 0), (0.033, 0.033, 0)),
@@ -74,7 +74,7 @@ def reference_scenes(root: Path):
                     position_world=position,
                     orientation_world_quat=(0, 0, 0, 1),
                     start_time_s=0,
-                    duration_s=1,
+                    duration_s=2,
                     gain_db=0,
                 )
             )

@@ -221,6 +221,21 @@ def render_stage(
     return np.asarray(mixtures), truth, acoustics
 
 
+def pair_summary(pairs):
+    result = {}
+    result["exact_pair_count"] = float(np.mean([r["count_correct"] for r in pairs]))
+    result["both_localized_without_extras"] = float(
+        np.mean([r["tp"] == 2 and r["fp"] == 0 for r in pairs])
+    )
+    result["pair_undercounts"] = sum(r["count_error"] < 0 for r in pairs)
+    result["pair_overcounts"] = sum(r["count_error"] > 0 for r in pairs)
+    if pairs and all("matched_truth_indices" in r for r in pairs):
+        result["second_source_recall"] = float(
+            np.mean([1 in r["matched_truth_indices"] for r in pairs])
+        )
+    return result
+
+
 def grouped(rows, protocol):
     results = {}
     for name in sorted({r["candidate"] for r in rows}):
@@ -239,24 +254,16 @@ def grouped(rows, protocol):
                     continue
                 st = summary(subset)
                 pairs = [r for r in subset if r["count"] == 2]
-                st["exact_pair_count"] = float(
-                    np.mean([r["count_correct"] for r in pairs])
-                )
-                st["both_localized_without_extras"] = float(
-                    np.mean([r["tp"] == 2 and r["fp"] == 0 for r in pairs])
-                )
-                st["pair_undercounts"] = sum(r["count_error"] < 0 for r in pairs)
-                st["pair_overcounts"] = sum(r["count_error"] > 0 for r in pairs)
-                if pairs and all("matched_truth_indices" in r for r in pairs):
-                    st["second_source_recall"] = float(
-                        np.mean([1 in r["matched_truth_indices"] for r in pairs])
-                    )
+                st.update(pair_summary(pairs))
                 st["by_count"] = {
                     str(c): summary([r for r in subset if r["count"] == c])
                     for c in (0, 1, 2)
                 }
                 st["by_content"] = {
-                    c: summary([r for r in subset if r["content"] == c])
+                    c: {
+                        **summary([r for r in subset if r["content"] == c]),
+                        **pair_summary([r for r in pairs if r["content"] == c]),
+                    }
                     for c in protocol["contents"]
                 }
                 thresholds = protocol["quality_reference"]

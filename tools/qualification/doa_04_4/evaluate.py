@@ -20,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 
 
 def construct(name, threshold):
+    if name == "wpe_group_sparse":
+        from isaac_audio_sensors.core.plugins._multisource_sparse import (
+            WpeSparseCovariance,
+        )
+
+        return WpeSparseCovariance(threshold=threshold)
     if name == "weighted_covariance_aic":
         return FrequencyOrderCandidate(
             0.03,
@@ -165,7 +171,9 @@ def main():
     rows = []
     for i, case in enumerate(make_cases(args.split, args.repetitions)):
         samples, truth = render(case)
-        values = np.ascontiguousarray(samples[:, 8000:12000])
+        values = np.ascontiguousarray(
+            samples[:, 12000 - protocol["context_samples"] : 12000]
+        )
         values.setflags(write=False)
         role = "planar" if case.array in ("triangle", "square") else "3d"
         for name in protocol["candidates"]:

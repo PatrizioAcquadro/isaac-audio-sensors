@@ -19,6 +19,8 @@ The NVIDIA Kit archive includes these third-party distributions:
 - SoundFile, copyright Bastian Bechtold, BSD 3-Clause License.
 - CFFI, copyright Armin Rigo and Maciej Fijalkowski, MIT No Attribution License.
 - pycparser, copyright Eli Bendersky, BSD 3-Clause License.
+- NARA-WPE, copyright Communications Engineering Group, Paderborn University, MIT License.
+- Click, copyright Pallets, BSD 3-Clause License.
 
 Their license files, including notices for native libraries distributed by
 SciPy and SoundFile/libsndfile, remain in `isaac_audio_sensors/_bundled` inside

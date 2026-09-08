@@ -10,6 +10,7 @@ from tools.qualification.doa_04_4.indoor_candidates import (
     DirectPathRtf,
     WeightedHistogramSrp,
 )
+from tools.qualification.doa_04_4.sparse_covariance import GroupSparseCovariance
 
 
 @pytest.mark.parametrize("factory", (DirectPathRtf, WeightedHistogramSrp))
@@ -27,8 +28,9 @@ def test_candidates_reject_silence_and_unsupported_geometry(factory, array):
 
 
 @pytest.mark.parametrize("array", ("triangle", "tetra"))
-def test_angular_histogram_has_no_two_source_cap(array):
-    estimator = WeightedHistogramSrp()
+@pytest.mark.parametrize("factory", (WeightedHistogramSrp, GroupSparseCovariance))
+def test_angular_histogram_has_no_two_source_cap(array, factory):
+    estimator = factory()
     _, (vectors, _, _, _, _, near) = estimator.prepare(
         np.zeros((len(ARRAYS[array]), 4000)), ARRAYS[array], FS
     )

@@ -152,6 +152,8 @@ def test_required_bundled_members_use_lock_versions():
         "pyroomacoustics": "9.3",
         "scipy": "9.4",
         "soundfile": "9.5",
+        "click": "9.6",
+        "nara_wpe": "9.7",
     }
     dependencies = tuple(
         LockedDependency(name, version, "0" * 64) for name, version in versions.items()

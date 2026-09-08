@@ -29,6 +29,8 @@ BUNDLED_ROOT = PurePosixPath("isaac_audio_sensors/_bundled")
 DEPENDENCY_LOCK = Path(__file__).with_name("kit_dependencies.lock")
 EXPECTED_DISTRIBUTIONS = {
     "auditok",
+    "click",
+    "nara_wpe",
     "cffi",
     "pycparser",
     "pyroomacoustics",

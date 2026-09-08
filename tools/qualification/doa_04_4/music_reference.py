@@ -1,4 +1,4 @@
-"""Shared MUSIC computation; imported only by the optional localizer/tools."""
+"""Unchanged MUSIC reference retained only for qualification comparisons."""
 
 import numpy as np
 import pyroomacoustics as pra
