@@ -199,6 +199,7 @@ def test_occlusion_attenuates_received_evidence_without_changing_emission():
 
 
 def test_motion_preserves_snapshot_geometry_and_canonical_annotations():
+    pytest.importorskip("scipy.signal")
     src = replace(
         source("moving", (1, 0, 0), audio_asset_path="generated://tone"),
         velocity_world_mps=(30, 0, 0),
