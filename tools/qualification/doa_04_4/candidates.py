@@ -10,6 +10,7 @@ import numpy as np
 import pyroomacoustics as pra
 from scipy.spatial import cKDTree
 
+from isaac_audio_sensors.core.plugins.adapters import _validate_doa_inputs
 from isaac_audio_sensors.core.plugins.pyroomacoustics import _stft
 
 ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
@@ -142,6 +143,8 @@ class OdasCandidate:
             ctypes.c_void_p,
         ]
         self.native.ssl_destroy.argtypes = [ctypes.c_void_p]
+        self.native.ssl_destroy.restype = None
+        self.native.ssl_process.restype = None
         self.handles = {}
 
     def close(self):
@@ -150,6 +153,9 @@ class OdasCandidate:
         self.handles.clear()
 
     def localize(self, samples, positions, sample_rate):
+        samples, positions = _validate_doa_inputs(samples, positions, sample_rate)
+        if len(positions) < 3 or np.linalg.matrix_rank(positions - positions[0]) < 2:
+            raise ValueError("ODAS evaluation requires non-collinear geometry")
         if sample_rate != 16000:
             raise ValueError("ODAS trial currently requires 16 kHz")
         with tempfile.TemporaryDirectory(dir=ROOT) as folder:
@@ -305,4 +311,84 @@ class CovarianceCandidate:
         return vectors[selected], {
             "status": "events" if selected else "abstained",
             "scores": strengths,
+        }
+
+
+class FrequencyOrderCandidate(PyroomCandidate):
+    """Fuse normalized MUSIC spectra with independently observed per-bin order."""
+
+    def __init__(self, threshold=0.2):
+        super().__init__("MUSIC", threshold, normalized=True)
+
+    def localize(self, samples, positions, sample_rate):
+        x = _stft(samples, self.nfft, self.hop)
+        frequencies = np.fft.rfftfreq(self.nfft, 1 / sample_rate)
+        bins = np.flatnonzero((frequencies >= 300) & (frequencies <= 6000))
+        energy = np.mean(np.abs(x[:, bins]) ** 2, axis=(0, 2))
+        bins = bins[energy > max(1e-20, 0.005 * energy.max())]
+        if not len(bins):
+            return np.empty((0, 3)), {"status": "no_events", "scores": []}
+        z = x[:, bins].transpose(1, 0, 2)
+        eigen = np.maximum(
+            np.linalg.eigvalsh(z @ z.conj().transpose(0, 2, 1) / z.shape[-1]),
+            1e-20,
+        )
+        n, m = z.shape[-1], z.shape[1]
+        costs = []
+        for order in range(m):
+            noise = eigen[:, : m - order]
+            costs.append(
+                n
+                * (m - order)
+                * (np.log(noise.mean(axis=1)) - np.log(noise).mean(axis=1))
+                + 0.5 * order * (2 * m - order) * np.log(n)
+            )
+        counts = np.argmin(costs, axis=0)
+        three_d = np.linalg.matrix_rank(positions - positions[0]) == 3
+        score = None
+        vectors = None
+        for k in range(1, m):
+            selected_bins = bins[counts == k]
+            if not len(selected_bins):
+                continue
+            key = (positions.tobytes(), sample_rate, k)
+            if key not in self.cache:
+                kwargs = {
+                    "dim": 3 if three_d else 2,
+                    "num_src": k,
+                    "azimuth": np.radians(np.arange(0, 360, 5)),
+                }
+                if three_d:
+                    kwargs["colatitude"] = np.radians(np.arange(0, 181, 5))
+                estimator = pra.doa.MUSIC(
+                    positions.T,
+                    sample_rate,
+                    self.nfft,
+                    frequency_normalization=True,
+                    **kwargs,
+                )
+                estimator.mode_vec = pra.doa.doa.ModeVector(
+                    positions.T,
+                    sample_rate,
+                    self.nfft,
+                    343,
+                    estimator.grid,
+                    precompute=True,
+                )
+                self.cache[key] = estimator
+            estimator = self.cache[key]
+            estimator.locate_sources(x, freq_bins=selected_bins)
+            contrast = np.maximum(
+                estimator.grid.values - np.median(estimator.grid.values), 0
+            )
+            contribution = contrast * len(selected_bins) / len(bins)
+            score = contribution if score is None else score + contribution
+            vectors = estimator.grid.cartesian.T
+        if score is None:
+            return np.empty((0, 3)), {"status": "no_events", "scores": []}
+        found, strengths = select_peaks(vectors, score, self.threshold)
+        return found, {
+            "status": "events" if len(found) else "abstained",
+            "scores": strengths.tolist(),
+            "frequency_order_counts": np.bincount(counts, minlength=m).tolist(),
         }

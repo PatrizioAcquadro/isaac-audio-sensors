@@ -1,0 +1,193 @@
+"""Idle-noise, causal transition, capacity and composed compute diagnostics."""
+
+import argparse
+import json
+import time
+from pathlib import Path
+
+import numpy as np
+
+from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
+
+from .cases import ARRAYS, FS, Case, match, render
+from .evaluate import construct
+
+ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
+
+
+def diffuse_factor(positions, size=4000):
+    distance = np.linalg.norm(positions[:, None] - positions[None, :], axis=-1)
+    frequency = np.fft.rfftfreq(size, 1 / FS)
+    covariance = np.sinc(2 * frequency[:, None, None] * distance[None] / 343)
+    eigen, vectors = np.linalg.eigh(covariance)
+    return vectors * np.sqrt(np.maximum(eigen, 0))[:, None, :]
+
+
+def idle_windows(positions, seed):
+    rng = np.random.default_rng(seed)
+    factor = diffuse_factor(positions)
+    yield "silence", np.zeros((len(positions), 4000))
+    for i in range(100):
+        rms = (0.0001, 0.003, 0.03)[i % 3]
+        white = rng.standard_normal((len(positions), 4000))
+        yield "uncorrelated", white / np.sqrt(np.mean(white**2)) * rms
+        noise = rng.standard_normal((2001, len(positions), 2))
+        spectrum = np.einsum("fij,fj->fi", factor, noise[:, :, 0] + 1j * noise[:, :, 1])
+        values = np.fft.irfft(spectrum.T, n=4000)
+        yield "diffuse", values / np.sqrt(np.mean(values**2)) * rms
+
+
+def transition_signal(positions, seed):
+    rng = np.random.default_rng(seed)
+    count_per_phase = (0, 1, 2, 1, 0)
+    phase_samples = 12800
+    count = len(count_per_phase) * phase_samples
+    azimuth = np.radians([20, 90])
+    elevation = (
+        np.radians([15, -25])
+        if np.linalg.matrix_rank(positions - positions[0]) == 3
+        else np.zeros(2)
+    )
+    directions = np.column_stack(
+        (
+            np.cos(azimuth) * np.cos(elevation),
+            np.sin(azimuth) * np.cos(elevation),
+            np.sin(elevation),
+        )
+    )
+    samples = np.zeros((len(positions), count))
+    for source, direction in enumerate(directions):
+        mono = rng.standard_normal(count + 256) * 0.03
+        time_samples = np.arange(count, dtype=float) + 128
+        propagated = np.stack(
+            [
+                np.interp(
+                    time_samples + p @ direction / 343 * FS, np.arange(len(mono)), mono
+                )
+                for p in positions
+            ]
+        )
+        mask = np.repeat([n > source for n in count_per_phase], phase_samples)
+        samples += propagated * mask
+    return samples, directions, phase_samples, count_per_phase
+
+
+def measure(name, candidate, array, split="evaluation"):
+    offset = 100000 if split == "confirmation" else 0
+    positions = ARRAYS[array]
+    idle = {
+        kind: {"windows": 0, "false_event_windows": 0}
+        for kind in ("silence", "uncorrelated", "diffuse")
+    }
+    for kind, values in idle_windows(
+        positions, 910000 + offset + list(ARRAYS).index(array)
+    ):
+        found, _ = candidate.localize(values, positions, FS)
+        idle[kind]["windows"] += 1
+        idle[kind]["false_event_windows"] += int(len(found) > 0)
+    samples, directions, phase_samples, counts = transition_signal(
+        positions, 920000 + offset
+    )
+    detector = AuditokActivityDetector(energy_threshold_dbfs=-40.5)
+    ticks = []
+    for end in range(800, samples.shape[1] + 1, 800):
+        start = time.perf_counter()
+        active = detector.detect(samples[:, end - 800 : end], FS).active
+        found = np.empty((0, 3))
+        status = "inactive" if not active else "insufficient_context"
+        if active and end >= 4000:
+            found, diagnostic = candidate.localize(
+                samples[:, end - 4000 : end], positions, FS
+            )
+            status = diagnostic["status"]
+        elapsed = (time.perf_counter() - start) * 1000
+        phase = min((end - 1) // phase_samples, 4)
+        truth = directions[: counts[phase]]
+        scores = match(found, truth)
+        correct = scores["count_correct"] and scores["fp"] == scores["fn"] == 0
+        ticks.append(
+            {
+                "end_s": end / FS,
+                "count": len(found),
+                "correct": correct,
+                "status": status,
+                "compute_ms": elapsed,
+            }
+        )
+    responses = []
+    for phase in range(1, 5):
+        onset = phase * phase_samples / FS
+        region = [t for t in ticks if onset < t["end_s"] <= onset + phase_samples / FS]
+        delay = None
+        for previous, current in zip(region, region[1:], strict=False):
+            if previous["correct"] and current["correct"]:
+                delay = (current["end_s"] - onset) * 1000 + current["compute_ms"]
+                break
+        responses.append(
+            {
+                "from_count": counts[phase - 1],
+                "to_count": counts[phase],
+                "delay_ms": delay,
+            }
+        )
+    case = Case(split, 930000 + offset, array, 2, "noise")
+    values, truth = render(case)
+    detector.reset()
+    timings = []
+    for _ in range(220):
+        start = time.perf_counter()
+        decision = detector.detect(values[:, 11200:12000], FS)
+        if decision.active:
+            candidate.localize(values[:, 8000:12000], positions, FS)
+        timings.append((time.perf_counter() - start) * 1000)
+    capacity_values, capacity_truth = render(
+        Case(split, 940000 + offset, array, 3, "noise", separation=90)
+    )
+    found, _ = candidate.localize(capacity_values[:, 8000:12000], positions, FS)
+    return {
+        "candidate": name,
+        "array": array,
+        "idle": idle,
+        "responses": responses,
+        "ticks": ticks,
+        "compute_warm_p95_ms": float(np.percentile(timings[20:], 95)),
+        "compute_warm_max_ms": float(max(timings[20:])),
+        "three_source_diagnostic": {
+            "predicted_count": len(found),
+            **match(found, capacity_truth),
+        },
+        "context_ms": 250,
+        "update_interval_ms": 50,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--protocol", type=Path, default=Path(__file__).with_name("final_protocol.json")
+    )
+    args = parser.parse_args()
+    output = ROOT / args.output
+    if output.exists():
+        raise FileExistsError(output)
+    protocol = json.loads(args.protocol.read_text())
+    rows = []
+    for name, thresholds in protocol["candidates"].items():
+        for array in ARRAYS:
+            role = "planar" if array in ("triangle", "square") else "3d"
+            candidate = construct(name, thresholds[role])
+            result = measure(name, candidate, array, protocol["split"])
+            rows.append(result)
+            print(
+                name, array, result["idle"], result["compute_warm_p95_ms"], flush=True
+            )
+            if hasattr(candidate, "close"):
+                candidate.close()
+            output.write_text(
+                json.dumps({"protocol": protocol, "results": rows}, indent=2)
+            )
+
+
+if __name__ == "__main__":
+    main()

@@ -1045,3 +1045,11 @@ Implemented the isolated comparison, native SSL-only adapter, independent asset/
 ## 2026-09-08 — lint: 04.4 evaluation protocol
 
 Nine evaluator/documentation tests, scoped Ruff checks and whitespace checks pass. The native binding builds from pinned ODAS with isolated dependencies. No raw evidence or default runtime dependency changed.
+
+## 2026-09-08 — experiment: 04.4 independent failures and corrective confirmation
+
+The first independent evaluation gives no operational GO. Added per-frequency observed MDL order and normalized-spectrum contrast to address measured missed disjoint-band events. Calibrated only on development and fixed an unchanged-criteria confirmation protocol before opening reserved cases. Added independent idle, transition, capacity and compute diagnostics.
+
+## 2026-09-08 — lint: 04.4 corrective protocol
+
+Eleven evaluator/documentation tests pass, including two-source disjoint-band localization, window-local replay, channel permutation and unchanged acceptance criteria. Scoped formatting and whitespace checks pass. Public runtime remains unchanged.

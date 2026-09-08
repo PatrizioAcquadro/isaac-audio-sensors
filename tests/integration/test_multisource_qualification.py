@@ -57,3 +57,50 @@ def test_partitions_are_disjoint_and_cover_pair_orientations():
                     and case.condition == condition
                     and case.count == 2
                 } == {"azimuth", "elevation"}
+
+
+def test_frequency_order_resolves_disjoint_bands_without_supplied_count():
+    from scipy.signal import butter, sosfilt
+
+    from tools.qualification.doa_04_4.candidates import FrequencyOrderCandidate
+    from tools.qualification.doa_04_4.cases import ARRAYS, FS
+
+    positions = ARRAYS["square"]
+    rng = np.random.default_rng(82)
+    spectra = np.zeros((len(positions), 4097), dtype=complex)
+    frequencies = np.fft.rfftfreq(8192, 1 / FS)
+    truth = [unit(-35), unit(60)]
+    for direction, band in zip(truth, ([300, 1800], [2200, 6000]), strict=True):
+        source = sosfilt(
+            butter(4, band, btype="bandpass", fs=FS, output="sos"),
+            rng.standard_normal(8192),
+        )
+        source *= 0.03 / np.sqrt(np.mean(source**2))
+        delay = positions @ direction / 343
+        spectra += np.fft.rfft(source)[None] * np.exp(
+            2j * np.pi * delay[:, None] * frequencies
+        )
+    samples = np.fft.irfft(spectra, n=8192)[:, 2000:6000]
+    samples.setflags(write=False)
+    localizer = FrequencyOrderCandidate(0.11)
+    found, _ = localizer.localize(samples, positions, FS)
+    result = match(found, truth)
+    assert result["count_correct"] and result["tp"] == 2
+    # A changed call cannot leave an audio history in this window-local candidate.
+    localizer.localize(np.zeros_like(samples), positions, FS)
+    repeated, _ = localizer.localize(samples, positions, FS)
+    np.testing.assert_array_equal(found, repeated)
+    order = [2, 0, 3, 1]
+    permuted, _ = localizer.localize(samples[order], positions[order], FS)
+    assert match(permuted, truth)["tp"] == 2
+
+
+def test_confirmation_keeps_original_acceptance_criteria():
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "tools/qualification/doa_04_4"
+    initial = json.loads((root / "final_protocol.json").read_text())
+    confirmation = json.loads((root / "confirmation_protocol.json").read_text())
+    for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
+        assert initial[field] == confirmation[field]

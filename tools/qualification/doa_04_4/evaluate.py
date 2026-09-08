@@ -8,13 +8,20 @@ from pathlib import Path
 
 import numpy as np
 
-from .candidates import CovarianceCandidate, OdasCandidate, PyroomCandidate
+from .candidates import (
+    CovarianceCandidate,
+    FrequencyOrderCandidate,
+    OdasCandidate,
+    PyroomCandidate,
+)
 from .cases import ARRAYS, FS, make_cases, match, render, summary
 
 ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 
 
 def construct(name, threshold):
+    if name == "frequency_order":
+        return FrequencyOrderCandidate(threshold)
     if name == "odas":
         return OdasCandidate(threshold)
     if name == "covariance":
@@ -90,12 +97,15 @@ def main():
         "--split", choices=("development", "evaluation", "confirmation"), required=True
     )
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--protocol", type=Path, default=Path(__file__).with_name("final_protocol.json")
+    )
     parser.add_argument("--repetitions", type=int, default=4)
     args = parser.parse_args()
     output = ROOT / args.output
     if output.exists():
         raise FileExistsError(output)
-    protocol = json.loads(Path(__file__).with_name("final_protocol.json").read_text())
+    protocol = json.loads(args.protocol.read_text())
     candidates = {
         (name, role): construct(name, threshold)
         for name, roles in protocol["candidates"].items()
