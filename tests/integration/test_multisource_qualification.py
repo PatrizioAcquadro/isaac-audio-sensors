@@ -301,3 +301,30 @@ def test_progressive_distance_changes_propagation_without_changing_episode(
     np.testing.assert_array_equal(truth, near_truth)
     np.testing.assert_array_equal(far[0], near[0])
     assert not np.allclose(far[2], near[2])
+
+
+def test_longer_history_preserves_current_mixture_and_nested_context(
+    tmp_path, monkeypatch
+):
+    from tools.qualification.doa_04_4 import progressive
+
+    monkeypatch.setattr(progressive, "ROOT", tmp_path)
+    stage = dict(name="room", rt60=0.3, separation=70, imbalance=6, snr=10)
+    windows = []
+    for history in (4000, 8000, 12000):
+        samples, truth, _ = progressive.render_stage(
+            "square", "noise", 0, stage, 1800000, history_samples=history
+        )
+        windows.append(samples)
+    np.testing.assert_array_equal(windows[0], windows[2][:, :, -4000:])
+    np.testing.assert_array_equal(windows[1], windows[2][:, :, -8000:])
+    assert truth.shape == (2, 3)
+
+
+def test_dereverberation_control_preserves_trailing_window():
+    from tools.qualification.doa_04_4.dereverberation import preprocess
+
+    samples = np.random.default_rng(127).normal(size=(4, 12000))
+    result = preprocess(samples, 0, None)
+    assert result.shape == (4, 4000)
+    np.testing.assert_allclose(result, samples[:, -4000:], atol=1e-12)

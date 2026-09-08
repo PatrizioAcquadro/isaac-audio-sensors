@@ -1146,3 +1146,15 @@ Fix the video adapter's mirrored left/right mapping while retaining the actual S
 ## 2026-09-08 — lint: Video 1 compass revision
 
 Wiki links, index coverage, and Markdown whitespace checks pass. Both 40-second encodes decode completely at 30 fps with synchronized audio and no clipping. No SDK code, original evidence, or other video is changed.
+
+## 2026-09-08 — update: Prioritize project-level indoor sensing before scale
+
+The user clarifies that the sequencing decision must prioritize whole-project usefulness. Continue 04.4 acoustic work before 07.2. Added a paired causal-history WPE comparison that preserves the exact scored mixture while separating dereverberation history from the localization window; independent confirmation and response qualification remain conditional on a beneficial correction.
+
+## 2026-09-08 — experiment: Longer causal history and acoustic conditioning remain insufficient
+
+Completed paired 500/750 ms WPE, bandwidth conditioning and geometry-only diffuse prewhitening comparisons. All unmodified controls reproduce baseline matching; no correction warrants promotion. Recorded quality/compute tradeoffs and continued indoor sensing priority before 07.2. The maintained SDK algorithm and dependency contract remain unchanged; direct-source/reflection selection remains unresolved.
+
+## 2026-09-08 — lint: Causal-history room-robustness comparison
+
+Twenty-one qualification integration tests, five documentation-boundary tests, changed-file Ruff/formatting and whitespace checks pass. Independent renderer/STFT controls preserve the scored window; each experiment's 864 unmodified cases reproduces baseline matching. No runtime or GPU qualification is claimed for the rejected corrections.

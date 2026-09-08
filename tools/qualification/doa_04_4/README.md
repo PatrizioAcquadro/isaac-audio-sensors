@@ -80,3 +80,18 @@ energy supplement the target RT60; none is a physical validation. The unchanged
 reference remains available, but room-only failures prevent a general indoor
 claim. No tested correction is promoted. Rejected selection and NARA-WPE probes
 are preserved beside their ignored reports, not installed into the SDK.
+
+The subsequent project-level comparison tests longer causal dereverberation
+history while retaining the exact current 250 ms mixture. Its optional dependency
+stays outside the SDK/environment:
+
+```bash
+.venv/bin/python -m pip install --no-deps --target build/qualification/doa/04_4/wpe_deps nara-wpe==0.0.11 click==8.1.6
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.dereverberation --output progressive-wpe-history.json
+```
+
+This explicitly tests the NumPy implementation on CPU. The report includes the
+500/750 ms history settings and composed compute; direction estimation still
+uses only the trailing 250 ms. None of these settings is currently admitted.
+The project-level priority is further indoor sensing work before 07.2, despite
+the already available bounded scalar reference.

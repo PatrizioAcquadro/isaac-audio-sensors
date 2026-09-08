@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. The practical 04.4 scalar-reference prerequisite is now satisfied; 07.2 may start when requested, within the documented direct-path limits.
+Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. The bounded 04.4 scalar-reference prerequisite is satisfied. The subsequent user-directed project priority is to improve indoor sensing before starting 07.2; technical reference availability does not resolve the acoustic limitation.
 
 ## Objective
 
@@ -36,7 +36,7 @@ Resolved by 04.4: the common scalar localizer emits actual multiple events in it
 
 #### Implementation
 
-The practical prerequisite is satisfied by the mixture-only multisource qualification, common-perception integration and RTX 4090 consumer smoke in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. Start when requested using 16 kHz and the documented direct-path reference scope. Original combined reverberant-domain failures remain limitations to characterize, not an implicit claim that the reference is accurate there. No new custom cardinality algorithm is a prerequisite. Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
+The practical prerequisite is satisfied by the mixture-only multisource qualification, common-perception integration and RTX 4090 consumer smoke in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. The user subsequently prioritizes project-level indoor usefulness before scaling: continue the acoustic work documented in the [[experiments/04-4-multisource-localization|04.4 progressive comparison]] before starting this subphase. When started, use 16 kHz and the documented qualified reference scope. Original combined reverberant-domain failures remain limitations to characterize, not an implicit claim that the reference is accurate there. No new custom cardinality algorithm is a prerequisite. Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
 
 Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
 

@@ -71,7 +71,9 @@ def episode(array, content, repeat, seed_base):
     )
 
 
-def render_stage(array, content, repeat, stage, seed_base):
+def render_stage(array, content, repeat, stage, seed_base, *, history_samples=4000):
+    if not 4000 <= history_samples <= 12000:
+        raise ValueError("History must contain 4000 to 12000 samples")
     key = dict(
         array=array,
         content=content,
@@ -80,6 +82,8 @@ def render_stage(array, content, repeat, stage, seed_base):
         seed_base=seed_base,
         renderer="paired_room_v1",
     )
+    if history_samples != 4000:
+        key["history_samples"] = history_samples
     path = (
         ROOT
         / "progressive_mixtures"
@@ -118,13 +122,13 @@ def render_stage(array, content, repeat, stage, seed_base):
     for source, mono in enumerate(ep["sources"]):
         stem = np.stack(
             [
-                fftconvolve(mono, room_rir[m][source])[8000:12000]
+                fftconvolve(mono, room_rir[m][source])[12000 - history_samples : 12000]
                 for m in range(len(ARRAYS[array]))
             ]
         )
         stem *= (
             0.03
-            / np.sqrt(np.mean(stem[0] ** 2))
+            / np.sqrt(np.mean(stem[0, -4000:] ** 2))
             * 10 ** (-stage["imbalance"] * source / 20)
         )
         stems.append(stem)
@@ -136,12 +140,26 @@ def render_stage(array, content, repeat, stage, seed_base):
         )
         decays.append(decay_t20(room_rir[0][source]) if rt else None)
     mixtures = []
+    noise = ep["noise"]
+    if history_samples > 4000:
+        prior_rng = np.random.default_rng(np.random.SeedSequence([ep["seed"], 4]))
+        noise = np.concatenate(
+            (
+                prior_rng.standard_normal((len(ARRAYS[array]), 8000))[
+                    :, -(history_samples - 4000) :
+                ],
+                noise,
+            ),
+            axis=1,
+        )
     for count in (0, 1, 2):
         mix = sum(stems[:count], np.zeros_like(stems[0]))
         level = (
-            np.sqrt(np.mean(mix**2)) * 10 ** (-stage["snr"] / 20) if count else 0.0001
+            np.sqrt(np.mean(mix[:, -4000:] ** 2)) * 10 ** (-stage["snr"] / 20)
+            if count
+            else 0.0001
         )
-        mixtures.append(mix + ep["noise"] * level)
+        mixtures.append(mix + noise * level)
     acoustics = dict(
         seed=ep["seed"],
         assets=ep["assets"],
