@@ -78,4 +78,4 @@ Working files: `build/onr_video1_revision/`. Review delivery: `evidence/onr_vide
 
 Check GPU articulation/rendering, finite poses, sensor/camera transforms, actual camera acquisition, event/silence behavior, synchronized instruments, audio clipping, and 1080p readability. Inspect the complete review excerpt; reserve full-video admission for the user's visual/sound review and the subsequent complete render. Keep raw measurements separate from display mastering.
 
-References: [NVIDIA environments](https://docs.isaacsim.omniverse.nvidia.com/6.0.0/assets/usd_assets_environments.html), [IHMC building-exploration context](https://www.ihmc.us/groups/luigi-penco/), [[system-architecture|System Architecture]], [[public-contracts-and-recording|Public Contracts and Recording]].
+References: [NVIDIA environments](https://docs.isaacsim.omniverse.nvidia.com/6.0.0/assets/usd_assets_environments.html), [IHMC building-exploration context](https://www.ihmc.us/groups/luigi-penco/), [[topics/system-architecture|System Architecture]], [[topics/public-contracts-and-recording|Public Contracts and Recording]].
