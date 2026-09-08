@@ -1,35 +1,11 @@
 """Shared MUSIC computation; imported only by the optional localizer/tools."""
 
-from functools import lru_cache
-
 import numpy as np
 import pyroomacoustics as pra
-from scipy.spatial import cKDTree
 
+from isaac_audio_sensors.core.plugins._spatial_evidence import select_peaks
 from isaac_audio_sensors.core.plugins.adapters import _validate_doa_inputs
 from isaac_audio_sensors.core.plugins.pyroomacoustics import _stft
-
-
-@lru_cache(maxsize=12)
-def neighborhoods(data, shape):
-    vectors = np.frombuffer(data, dtype=np.float64).reshape(shape)
-    near = cKDTree(vectors).query_ball_point(vectors, 2 * np.sin(np.radians(8) / 2))
-    return np.concatenate(near), np.r_[0, np.cumsum([len(n) for n in near])][:-1]
-
-
-def select_peaks(vectors, scores, threshold, separation=20):
-    vectors = np.asarray(vectors, dtype=np.float64)
-    indices, offsets = neighborhoods(vectors.tobytes(), vectors.shape)
-    maxima = np.maximum.reduceat(scores[indices], offsets)
-    peaks = np.flatnonzero((scores >= threshold) & (scores >= maxima)).tolist()
-    peaks.sort(key=lambda i: (-scores[i], i))
-    selected = []
-    for i in peaks:
-        if all(
-            vectors[i] @ vectors[j] < np.cos(np.radians(separation)) for j in selected
-        ):
-            selected.append(i)
-    return vectors[selected], scores[selected]
 
 
 class _FrequencyOrderMusic:

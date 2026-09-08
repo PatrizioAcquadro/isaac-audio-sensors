@@ -1215,3 +1215,7 @@ Completed the user-authorized sensitivity calibration and larger-advantage revis
 ## 2026-09-08 — lint: Final ONR supplied-audio delivery
 
 Five documentation-boundary tests and scoped whitespace checks pass. Both 480-frame encodes, 320-window recording replay, causal instrument expiry and browser playback pass. Audio continuity and codec fidelity checks specifically cover the earlier missed stuttering defect. Complete contact-sheet and arrival-image reviews are finished. Only production artifacts and ONR documentation are changed by this task.
+
+## 2026-09-08 — experiment: Revise indoor rejection after independent failure
+
+Recorded the first confirmation's tetrahedral precision failure without promoting it. Fixed a single revised evidence threshold and reserved entirely new speakers/seeds for both replacement blocks. The shared numerical implementation matches 36 frozen development outputs; timing failures and stable-source limits remain explicit.

@@ -113,3 +113,42 @@ def test_new_speech_blocks_do_not_change_default_episode(monkeypatch):
     fresh = progressive.episode("tetra", "speech", 2, 2690000, speech_assets=assets)
     assert fresh["assets"] == seen[-2:]
     assert {a.split("-")[1] for a in fresh["assets"]} == {"a", "b"}
+
+
+def test_confirmation_revisions_keep_speakers_and_episode_seeds_disjoint():
+    import json
+    from pathlib import Path
+
+    from tools.qualification.doa_04_4.cases import ASSETS
+    from tools.qualification.doa_04_4.indoor import load_protocol
+
+    root = Path(__file__).resolve().parents[2] / "tools/qualification/doa_04_4"
+    used_speakers = {a.split("-")[0] for group in ASSETS.values() for a in group}
+    used_seeds = set()
+    for name in (
+        "indoor_confirmation_protocol.json",
+        "indoor_confirmation_v2_protocol.json",
+    ):
+        protocol = json.loads((root / name).read_text())
+        for block in protocol["blocks"]:
+            selected = load_protocol(root / name, block)
+            speakers = {a["speaker"] for a in selected["speech_assets"]}
+            assert len(speakers) == 8
+            assert not speakers & used_speakers
+            used_speakers.update(speakers)
+            assert selected["seed_base"] not in used_seeds
+            used_seeds.add(selected["seed_base"])
+            assert selected["repetitions"] == 12
+        assert len(protocol["stages"]) == 6
+        assert protocol["counts"] == [0, 1, 2]
+
+
+def test_missing_or_wrong_direction_transition_is_not_a_response():
+    from tools.qualification.doa_04_4.indoor_diagnostics import responses
+
+    truths = [np.array([[1, 0, 0]]), np.array([[0, 1, 0]])]
+    ticks = [dict(end_s=1.6 + i * 0.1, correct=False, compute_ms=2) for i in range(10)]
+    result = responses(ticks, truths, 24000)
+    assert result == [
+        dict(from_count=1, to_count=1, direction_change=True, delay_ms=None)
+    ]
