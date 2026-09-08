@@ -1158,3 +1158,11 @@ Completed paired 500/750 ms WPE, bandwidth conditioning and geometry-only diffus
 ## 2026-09-08 — lint: Causal-history room-robustness comparison
 
 Twenty-one qualification integration tests, five documentation-boundary tests, changed-file Ruff/formatting and whitespace checks pass. Independent renderer/STFT controls preserve the scored window; each experiment's 864 unmodified cases reproduces baseline matching. No runtime or GPU qualification is claimed for the rejected corrections.
+
+## 2026-09-08 — update: Audit completeness of multisource findings
+
+Verified that all nine progressive reports are referenced. Reconciled stale experiment/phase/index language with the current priority of acoustic work before 07.2, completed the 1 m distance summary, and added an evidence inventory with local-versus-versioned storage and measured-versus-inferred conclusions. Historical results and original raw evidence remain unchanged.
+
+## 2026-09-08 — lint: Multisource documentation coverage
+
+All five documentation-boundary checks pass, including wiki-link resolution and index coverage; whitespace checks pass. The coverage audit compares report filenames, call counts and the added distance metrics against the saved JSON summaries. No algorithm, evidence file or runtime behavior changed.
