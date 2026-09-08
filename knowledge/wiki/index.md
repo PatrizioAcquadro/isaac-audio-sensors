@@ -47,7 +47,7 @@
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — candidate comparison, fixed independent simulation gates and measured NO-GO for planar and 3D integration.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — candidate corrections and independent simulation PASS, with known-case regressions retaining NO-GO for combined planar/3D integration.
 
 ## Sources
 

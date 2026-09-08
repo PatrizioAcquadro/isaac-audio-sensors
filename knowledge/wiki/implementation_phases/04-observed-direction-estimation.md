@@ -95,7 +95,7 @@ Qualification implemented after 07.1; production integration remains pending bef
 
 The isolated comparison, frozen gates and independent evaluation are implemented. The initial shortlist covers PyRoom SRP, MUSIC with inferred count, and ODAS SSL with potential rejection; development added normalized MUSIC, covariance pursuit and frequency-local model order to address measured failures. The [[experiments/04-4-multisource-localization|04.4 experiment]] owns the review, protocol, corrections, results and evidence locations.
 
-**Current outcome: NO-GO for both planar and 3D integration.** Frequency-local order passes static quality on square and raised-center layouts but fails source-count transitions; triangle and tetrahedron also fail count gates. No candidate satisfies the complete declared domain. The requirements below remain the pending integration contract, not implemented common perception.
+**Current outcome: NO-GO for both planar and 3D integration.** Regularized covariance-AIC with spectral weighting passes the latest independent static, idle and transition gates on all four layouts, but broader known-case regression still fails pair counting on triangle, square and tetrahedron (and precision on triangle). No candidate satisfies the complete declared domain. The requirements below remain the pending integration contract, not implemented common perception.
 
 The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
 
@@ -116,7 +116,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 #### Problems / Limitations
 
-Unresolved after measured qualification: the current public protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Isolated compute passes for the strongest corrective candidate, but unknown-count reliability and response to source changes fail. Coherent and near-coincident mixtures remain unresolved; physical multisource performance is unqualified. A development correction and fresh independent confirmation must precede integration and new consumer/GPU claims.
+Unresolved after measured qualification: the current public protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Isolated compute and bandlimited transitions now pass for the strongest corrective candidate, but unknown-count reliability still fails broader known-case regression. Coherent and near-coincident mixtures remain unresolved; physical multisource performance is unqualified. A different cardinality approach and fresh independent confirmation must precede integration and new consumer/GPU claims; extending context to 400/500 ms did not repair the measured failures.
 
 ## Artifacts
 
@@ -152,3 +152,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-08: Made practical-realism candidate selection the first 04.4 activity; PyRoom and ODAS remain initial options without a prescribed evaluation order.
 
 - 2026-09-08: Implemented candidate comparison and independent planar/3D qualification; fixed native FFTW lifecycle and evaluated frequency-local count correction. Both roles remain NO-GO, with production integration and physical qualification pending.
+
+- 2026-09-08: Continued through regularized covariance, AIC, spectral weighting and independent content partitions; corrected nominal transition propagation. Latest per-run gates pass, but known-case regression retains combined NO-GO and prevents premature consumer integration.

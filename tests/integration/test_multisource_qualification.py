@@ -230,3 +230,25 @@ def test_noise_only_frequencies_do_not_dilute_narrowband_events():
     found, _ = localizer.localize(samples, positions, FS)
     result = match(found, truth)
     assert result["count_correct"] and result["tp"] == 2
+
+
+def test_missing_transition_response_cannot_pass_admission():
+    import json
+    from pathlib import Path
+
+    from tools.qualification.doa_04_4.admission import diagnostic_failures
+
+    root = Path(__file__).resolve().parents[2] / "tools/qualification/doa_04_4"
+    protocol = json.loads((root / "assessment_protocol.json").read_text())
+    result = {
+        "idle": {
+            kind: {"windows": 100, "false_event_windows": 0}
+            for kind in ("silence", "uncorrelated", "diffuse")
+        },
+        "compute_warm_p95_ms": 1,
+        "compute_warm_max_ms": 2,
+        "responses": [{"delay_ms": delay} for delay in (150, 150, None, 200)],
+    }
+    assert "unresolved_transition" in diagnostic_failures(result, protocol)
+    result["responses"][2]["delay_ms"] = 300
+    assert diagnostic_failures(result, protocol) == []

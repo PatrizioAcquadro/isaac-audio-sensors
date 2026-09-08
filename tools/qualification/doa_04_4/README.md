@@ -52,3 +52,12 @@ are recorded in `verification_assets.json`; bootstrap streams only the required
 members. Use `verification_protocol.json` with `--split verification` to test
 the regularized covariance-MUSIC correction. These inputs are never development
 assets. Its rejection statistic is not a calibrated event confidence.
+
+
+The later `validation`, `qualification`, and `assessment` protocols record
+successive corrections on disjoint assets/cases. Every opened partition is now
+consumed evidence. The latest assessment passes by itself; known-case regression
+still blocks promotion. Review `promotion-decision.json` under the working
+output directory. `admission` combines quality/idle/response gates and accepts
+`--regression` to include previously observed failures. Its single-run result
+alone must not be used as a general promotion decision.

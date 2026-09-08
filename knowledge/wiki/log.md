@@ -1077,3 +1077,11 @@ Bandlimited validation passes complete gates on square/raised-center; triangle/t
 ## 2026-09-08 — experiment: 04.4 spectral-normalization correction
 
 AIC confirmation still fails pair counting; longer context offers no measured repair. Isolated noise-bin dilution and frequency-uniform power bias, added a narrowband-event regression, and calibrated energy-weighted covariance rejection on expanded development. Fixed a same-case comparison against unchanged AIC with new speakers and seeds before independent assessment.
+
+## 2026-09-08 — experiment: 04.4 regression-aware promotion closeout
+
+Latest independent assessment passes every gate, but the fixed candidate still fails pair-count/precision criteria on previously consumed cases. Added an admission report combining static, idle, latency and known-case evidence; preserved combined NO-GO instead of promoting from one favorable sample. Updated phase/status/index and recorded the need for a dedicated cardinality approach. Public runtime and raw evidence remain unchanged.
+
+## 2026-09-08 — lint: Continued 04.4 qualification closeout
+
+Full `make check` passes: 614 unit/contract, 298 integration and 58 release tests, repository Ruff, version synchronization and whitespace. Scoped formatting passes; new protocol criteria remain identical to the original, and known-case admission includes unresolved-response failures. Canonical phase/status/index agree on partial implementation and combined NO-GO. No public runtime, dependency declaration, raw evidence or historical report was changed.

@@ -2,7 +2,7 @@
 
 ## Objective and Status
 
-**Partial implementation; NO-GO for production integration.** Candidate comparison and independent simulated evaluation are implemented. Neither the planar nor the rank-3 role passes all fixed gates. Unknown-count zero/one/two-source localization remains the qualification objective. Two sources are a milestone, not an interface capacity. Physical multisource performance, persistent tracking, separated audio, and scalable Lab perception are outside this experiment. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
+**Partial implementation; NO-GO for production integration.** Candidate comparison and independent simulated evaluation are implemented. Neither combined role is admitted after checking the latest independent results against known-case regressions. Unknown-count zero/one/two-source localization remains the qualification objective. Two sources are a milestone, not an interface capacity. Physical multisource performance, persistent tracking, separated audio, and scalable Lab perception are outside this experiment. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
 
 Baseline: `main` at `01eb888`, with no tracked user changes. Historical evidence and `knowledge/raw/` remain untouched. Candidate review below precedes implementation of the comparison.
 
@@ -154,3 +154,25 @@ The fresh `qualification-evaluation.json` does not admit either MDL or AIC: ever
 The noisy-speech misses reveal a spectral normalization problem: averaging fitted powers uniformly across frequency penalizes signals concentrated in a few bands, while bins classified as noise dilute the spatial contrast. The correction weights fitted covariance powers by observed spectral energy and normalizes the spatial sum by bins with positive inferred order. Explicit white/diffuse covariance terms still perform noise rejection. A controlled two-band-plus-noise regression returns two events with the correction where the unweighted variant abstains. Post-hoc checks recover the missed noisy-speech sources, but are not reused as final evidence.
 
 Expanded development passes every static gate on every geometry at thresholds 0.009–0.011; the fixed common value is 0.010. `assessment_protocol.json` compares it with unchanged AIC on 864 new cases starting at 600000 and new LibriSpeech speakers 3575 and 7127. Every acceptance criterion and the 250 ms / 20 Hz reference remain unchanged. This additional confirmation is necessary because failure analysis informed the normalization change.
+
+
+## Current Closeout — Improved Candidate, Promotion Still NO-GO
+
+The final `assessment-evaluation.json` / `assessment-diagnostics.json` passes every fixed gate on all four geometries for the weighted covariance-AIC candidate, using unseen speakers, cases and bandlimited transitions. Warmed compute p95 is 3.03 ms triangle, 3.51 ms square, 30.34 ms raised-center and 25.02 ms tetrahedron; all changes receive correct responses within 336 ms. Exact silence and uncorrelated noise produce no false events; diffuse noise produces one event window in 100 on triangle (the permitted 1%) and none on the other layouts. The same-run unweighted AIC baseline also passes, illustrating why a favorable final content sample alone does not determine the winner.
+
+Before promotion, the fixed weighted candidate was rerun on all 2,592 previously consumed LibriSpeech cases (`verification`, `validation`, `qualification`). This is regression evidence, not another independent evaluation and not data used to choose a new threshold. It exposes remaining dependence on content and acoustic realization:
+
+| Geometry | Known-case operational precision | Recall | Exact pair count | Pair minimum | Remaining gate failures |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Triangle | 94.63% | 93.75% | 74.31% | 80% | Precision and pair count |
+| Square | 95.34% | 94.68% | 78.47% | 80% | Pair count |
+| Raised-center | 95.13% | 94.91% | 82.64% | 80% | None |
+| Tetrahedron | 96.12% | 91.67% | 73.61% | 80% | Pair count |
+
+The latest three-source diagnostic returns three correct events on square, raised-center and tetrahedron; triangle returns five (three matches plus two false events). This confirms variable capacity without qualifying three-source reliability.
+
+These failures remain within the originally declared operating domain. Pooling favorable new samples with older failures or relabeling supported roles would not resolve them. The raised-center layout has useful positive evidence, but it does not establish the full rank-3 role; planar qualification also remains incomplete. The broader check prevents premature integration based only on the latest PASS. The unweighted AIC alternative has its own measured failures in the preceding independent qualification.
+
+`tools/qualification/doa_04_4/admission.py` combines static, idle and response gates and optionally known-case regression. Missing responses never disappear from latency statistics. `assessment-admission.json` is a single-run PASS; `promotion-decision.json`, with the source-linked `promotion-regression.json`, is the current combined NO-GO decision. `assessment-promotion.json` was an intermediate decision with only the weighted regression input; use `promotion-decision.json` for both candidates.
+
+Scope and acceptance criteria remain unchanged. The next step is a dedicated event-cardinality approach that models spectral occupancy and reverberant/coherent contributions explicitly, compared against this retained baseline. Further threshold tuning or a longer context is not supported as the next remedy by these measurements. Reuse the existing mixtures as development/regression material and reserve a broader new content partition before evaluating a different approach. Common sequence perception, maintained selection and consumer/Lab GPU qualification remain pending admission; no public runtime, serialized schema or default dependency has changed. Physical multisource performance remains unqualified.
