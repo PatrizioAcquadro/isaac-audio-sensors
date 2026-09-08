@@ -1195,3 +1195,11 @@ Replaced the rejected creak with a CC0 wooden-door recording, removed speech-bea
 ## 2026-09-08 — lint: ONR video 2 review corrections
 
 Five documentation-boundary tests and whitespace checks pass. Both complete encodes, constant microphone gain, speech-free opening, causal expiry, 480 matching direction-panel states, and browser playback pass. Full contact-sheet and representative-image inspection are complete. The replacement sound remains subject to user listening review.
+
+## 2026-09-08 — update: ONR supplied audio reveals propagation gaps
+
+Diagnosed periodic missing propagation history in the prior 50 ms microphone windows, superseding the earlier overall audio PASS. A local causal pre-roll adapter removes the gaps and matches a continuous static render exactly. The supplied-creak GPU pilot yields equal 5.00 s arrival times, so full video production stops at the required comparison gate. Recorded corrected microphone previews and preserved the user files and previous delivery. No public SDK change.
+
+## 2026-09-08 — lint: ONR supplied-audio pilot stop
+
+Five documentation-boundary tests and scoped whitespace checks pass. Static continuous-versus-chunked rendering matches exactly, 320 native recording blocks replay identically, and the moving creak has no periodic zero gaps. The MP3 preview is 16 s without clipping and has 55.3 dB signal-to-codec-error ratio. No new movie rendering or successful arrival advantage is claimed.

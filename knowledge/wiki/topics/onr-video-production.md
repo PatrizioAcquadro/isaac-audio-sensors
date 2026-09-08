@@ -2,7 +2,7 @@
 
 ## Current Revision
 
-Videos 1 and 2 now have revised deliveries. Video 2 is a 16-second matched opening-door comparison. The user accepted its composition and requested the sound, divider, and paired-instrument corrections documented below. For video 1, the user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
+Video 1 has a revised delivery. Video 2 production is stopped at the supplied-audio pilot: continuity is corrected, but both modes arrive together and no replacement video has been rendered. Video 2 is a 16-second matched opening-door comparison. The user accepted its composition and requested the sound, divider, and paired-instrument corrections documented below. For video 1, the user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
 
 The series demonstrates generic audio sensing and controlled downstream camera pointing. It must distinguish sensor observations, scene references, and downstream behavior. No navigation, sound classification, learned visual recognition, or field-readiness claim is implied.
 
@@ -76,6 +76,18 @@ A 25-pixel charcoal vertical divider with a light-gray center separates the mode
 
 The corrected files replace the active `evidence/onr_video2/` delivery while preserving the previous edit separately. The pilot, full-resolution layout, and complete contact sheet were inspected. Both encodes decode all 480 frames with synchronized 16-second audio/video; browser playback reaches the end with audio enabled and no media error. The opening is silent in the source, measured microphones, and decoded soundtrack. Checks are recorded in the corrected delivery's validation report. Video 1, the public SDK and downstream interfaces remain unchanged.
 
+## Video 2 — Supplied Audio and Continuity Gate
+
+The user rejected the replacement creak and audible stuttering, then supplied `DoorCreaking.mp3` and `DoorOpening.mp3` in `evidence/onr_video2/`. The original MP3 files remain intact. The new pilot uses only the supplied creak, preserving pitch and speed; its final contact at source time 6.31 s sets the animated end stop at video time 9.31 s after a 3 s onset. Source licensing was not supplied and is not attributed to CC0.
+
+The previous recorded microphone had about 15 ms of silence at the beginning of every 50 ms window. Independent analytic renders omitted the preceding source samples needed for propagation delay. The earlier encode, clipping and sample-identical replay checks did not detect this problem; the previous overall audio PASS is superseded. WAV versus MP3 is not the cause.
+
+A local production adapter adds 50 ms of causal source history before propagation and then crops the required recording window. The same samples feed actual SDK perception and the soundtrack. At fixed poses, 320 concatenated windows exactly match one continuous render. The new moving pilot has no exact-silence run during the active 4–10 s interval. The adapter is limited to this direct-path scene, with poses held within each window; it is not a general SDK streaming repair.
+
+The RTX 4090 pilot records 12 valid directions, first at 5.35 s. Both modes arrive at 8.00 s, or 5.00 s after opening. Commands and camera poses match before the cue, speed limits remain equal, and all 320 audio blocks reload sample-identically. The comparison gate is **NO-GO** because the measured direction arrives too late to show an arrival advantage. Full rendering is stopped under the approved plan's rule. Detector/input-level calibration is a possible next pilot, not a validated fix.
+
+Evidence, corrected microphone previews and method are in `build/onr_video2/user_audio_v1/`. The rejected prior delivery is preserved in `build/onr_video2/second_delivery/`; the active MP4 files remain that old edit and are explicitly marked as rejected in the local page/report. User-supplied files, video 1 and public SDK code remain unchanged.
+
 ## Per-Video Checklist
 
 Numbers below follow the user's revised order. Old numbers identify the existing package only.
@@ -83,7 +95,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | New | Video | Existing video | Requested focus | State |
 | --- | --- | --- | --- | --- |
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
-| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Review corrections complete; revised delivery available |
+| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Stopped: supplied-audio continuity passes; comparison pilot NO-GO |
 | 3 | Moving source | 4 | Following during emission; clearer instruments; discuss Doppler scope | Discuss individually |
 | 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
