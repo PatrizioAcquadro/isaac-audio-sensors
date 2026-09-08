@@ -211,6 +211,7 @@ def render(case):
 def match(pred, truth, gate=30):
     pred = np.asarray(pred).reshape(-1, 3)
     truth = np.asarray(truth).reshape(-1, 3)
+    matched_truth_indices = []
     if not len(pred) or not len(truth):
         errors = []
     else:
@@ -223,12 +224,16 @@ def match(pred, truth, gate=30):
             for i, j in zip(a, b, strict=True)
             if angles[i, j] <= gate
         ]
+        matched_truth_indices = [
+            int(j) for i, j in zip(a, b, strict=True) if angles[i, j] <= gate
+        ]
     tp = len(errors)
     return dict(
         tp=tp,
         fp=len(pred) - tp,
         fn=len(truth) - tp,
         errors=errors,
+        matched_truth_indices=matched_truth_indices,
         count_correct=len(pred) == len(truth),
         count_error=len(pred) - len(truth),
         abstained=bool(len(truth) and not len(pred)),

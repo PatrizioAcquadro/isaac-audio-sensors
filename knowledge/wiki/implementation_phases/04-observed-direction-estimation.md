@@ -109,6 +109,8 @@ The evaluator owns truth and one-to-one matching. Report false detections, misse
 
 Simulation and physical results are separate claims. Existing single-source physical evidence does not qualify simultaneous localization. Integrate only a candidate that meets its declared operating criteria; otherwise record NO-GO or a concrete evidence blocker. Validate the selected common perceiver before claiming multisource Lab behavior, regardless of allocated tensor capacity.
 
+The continued indoor implementation adds isolated DP-RTF and weighted-SRP histogram trials and joint reverberation/imbalance reporting. Initial settings fail screening; earlier-delay WPE improves development recovery but remains below the full quality/response requirements. The [[experiments/04-4-multisource-localization|indoor candidate comparison]] owns the adaptations and numerical evidence. No new runtime path is admitted by this comparison.
+
 #### Key Decisions
 
 - Candidate selection starts 04.4 and precedes the experimental comparison. No mandatory PyRoom-first preference applies.

@@ -206,6 +206,10 @@ def grouped(rows, protocol):
                 )
                 st["pair_undercounts"] = sum(r["count_error"] < 0 for r in pairs)
                 st["pair_overcounts"] = sum(r["count_error"] > 0 for r in pairs)
+                if pairs and all("matched_truth_indices" in r for r in pairs):
+                    st["second_source_recall"] = float(
+                        np.mean([1 in r["matched_truth_indices"] for r in pairs])
+                    )
                 st["by_count"] = {
                     str(c): summary([r for r in subset if r["count"] == c])
                     for c in (0, 1, 2)
@@ -222,6 +226,10 @@ def grouped(rows, protocol):
                 ]
                 if st["exact_pair_count"] < thresholds["minimum_pair_count_accuracy"]:
                     st["below_reference"].append("pair_count")
+                for metric in ("count_accuracy", "both_localized_without_extras"):
+                    minimum = thresholds.get("minimum_" + metric)
+                    if minimum is not None and st[metric] < minimum:
+                        st["below_reference"].append(metric)
                 if (
                     st["angular_p95"] is None
                     or st["angular_p95"] > thresholds["maximum_angular_p95_deg"]

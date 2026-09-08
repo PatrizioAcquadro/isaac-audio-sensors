@@ -306,3 +306,34 @@ The current experiment page preserves the initial candidate review, successive c
 These call counts must not be summed as independent evidence: candidates, source counts and acoustic stages reuse paired development episodes. Full row reports retain predictions, truth/matching, false events, misses, counts, angular errors, abstentions and timing; the post-filter report points to its source reports and stores comparison summaries. No later correction was retained, so no new independent qualification or physical-validation claim follows from these studies.
 
 The controlled room-only comparison demonstrates that adding reflections changes observed performance. It does not establish that every false event is a particular physical echo, that source counting is the only failure mechanism, or that a custom algorithm is necessary. Direct-source versus reflected-arrival selection is a motivated research direction, not a proven unique remedy. The handoff objective is to find a suitable existing approach and implement a practically useful planar/3D improvement with unknown source count. Merely proposing another method, repeating rejected parameter adjustments, or treating the bounded reference GO as full indoor qualification does not complete that objective.
+
+## Indoor candidate implementation and comparison
+
+The implementation restarts from clean `main` at `8bc9c9f`, with 07.2 excluded. `indoor_protocol.json` crosses target RT60 0.2/0.3 s with 0/3/6 dB imbalance at 70°, 20 dB SNR and 1.5 m, and retains direct-path and harder controls. It is a development protocol using consumed assets, not the independent confirmation partition. The new runner reuses the progressive renderer, acoustic measurements, assignment and summaries. Admission now explicitly checks both correctly localized sources without extras and total count accuracy; exact cardinality alone cannot pass a wrong-direction pair. Reports also retain the matched truth indices so second-source recovery is measurable without passing truth into an estimator.
+
+### Published alternatives and implemented adaptations
+
+- [Li et al., DP-RTF sparse localization](https://team.inria.fr/perception/files/2018/03/dprtf_multispeaker-final.pdf) and [online RLS/EG localization](https://arxiv.org/abs/1809.10936) motivate direct-path CTF cross-relations, two-reference consistency checks and a sparse complex-Gaussian mixture over directions. The [authors' MATLAB reference](https://github.com/Audio-WestlakeU/OnlineSSL_DPRTF_EG) is not imported or copied into the SDK. The independent NumPy trial uses geometry-derived omnidirectional templates, a circular or uniform spherical grid, window-local RLS and batch exponentiated-gradient likelihood/entropy optimization. It omits tracking and the speech-specific noise-minimum gate because continuous non-speech is required. An explicitly separate adaptation adds a uniform background component; it is not an unchanged reproduction of the published complete system.
+- The [SRP review, section 5.4](https://arxiv.org/html/2405.02991v2) motivates weighted histograms of time-frequency directions. The implemented trial weights narrowband votes by spatial agreement, with a development confidence exponent. It uses the same angular-neighborhood event extraction in planar and 3D geometry. This is an implementation of the reviewed approach family, not a claim to reproduce Hadad and Gannot's exact confidence statistic.
+- [X-SRP's multisource class](https://raw.githubusercontent.com/egrinstein/xsrp/main/xsrp/multi_source_srp.py) is incomplete. The [LOCATA DPD pipeline](https://arxiv.org/pdf/1812.04942) uses a supplied cluster count in its final stage. Neither provides the required ready-to-use unknown-count replacement.
+
+All trials receive only mixture samples, microphone positions and sample rate. Direction grids, neighborhoods and suppression use angular distance, including poles and the azimuth seam. Neither two-source capacity nor persistent identities are imposed. These NumPy/SciPy/PyRoom implementations run on CPU; no GPU-capable workload is being silently redirected to CPU.
+
+### Initial paired screening
+
+`build/qualification/doa/04_4/indoor-candidate-comparison.json` contains 108 paired cases and 432 estimator calls: one episode per content/geometry, three stages, counts 0/1/2, and four candidates. This small screening is sufficient to expose failures of these settings; it cannot establish that an entire published family is unsuitable. On joint RT60 0.3 s / 6 dB imbalance, both-source recovery without extras is:
+
+| Candidate | Triangle | Square | Raised | Tetrahedral |
+| --- | ---: | ---: | ---: | ---: |
+| Unchanged MUSIC, 250 ms | 66.7% | 33.3% | 33.3% | 0% |
+| Weighted SRP histogram, 250 ms | 33.3% | 33.3% | 0% | 0% |
+| DP-RTF sparse mixture, 250 ms | 33.3% | 33.3% | 0% | 0% |
+| DP-RTF with background component, 750 ms | 33.3% | 33.3% | 0% | 0% |
+
+The plain DP-RTF mixture produces false events in 6–9 of nine noise-only controls per geometry. The background component removes these control events but leaves weak-source misses and does not repair triangle precision. No candidate in this screening is admitted. Parameters, raw predictions and acoustic measurements are in the report; different settings and intermediate prototypes remain ignored development evidence, not maintained runtime paths.
+
+### Dereverberation follow-up in progress
+
+The targeted NARA-WPE follow-up tests an earlier prediction delay (8 ms rather than the previous 24 ms), FFT 256 / hop 64, ten taps and three iterations, on 750 ms of supplied past audio. Extending MUSIC's own covariance context to 750 ms and FFT to 1024 gives a measurable development improvement. `indoor-wpe-development.json` contains eight episodes per content/geometry, 864 paired cases and 4,320 calls. At rejection threshold 0.010, joint RT60 0.3 s / 6 dB both-source recovery changes from 62.5/54.2/33.3/12.5% for unchanged MUSIC to 83.3/95.8/83.3/70.8% for triangle/square/raised/tetrahedral respectively. These are consumed development episodes; threshold comparisons are development calibration, not independent confirmation.
+
+This setting is not promoted: tetrahedral pair recovery is below target, 3D compute exceeds the reference budget, and the development transition probe measures 650–750 ms for a two-to-one change. Exponential temporal weighting reduces that delay but worsens some static results. Twenty-one uncorrelated and 21 diffuse-noise windows per geometry produce no events with the tested WPE/coarse-grid trial, but this is not the required final background qualification. WPE settings, localization grids and temporal weighting differ between these probes and must not be combined into a fictitious single passing candidate. The next selection still requires one fixed implementation passing the complete quality/response comparison and fresh confirmation before common-consumer integration.

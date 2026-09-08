@@ -1166,3 +1166,16 @@ Verified that all nine progressive reports are referenced. Reconciled stale expe
 ## 2026-09-08 — lint: Multisource documentation coverage
 
 All five documentation-boundary checks pass, including wiki-link resolution and index coverage; whitespace checks pass. The coverage audit compares report filenames, call counts and the added distance metrics against the saved JSON summaries. No algorithm, evidence file or runtime behavior changed.
+
+
+## 2026-09-08 — update: ONR video 2 matched opening-door comparison
+
+Produced the approved 16-second scripted visual scan versus measured audio-guided attention in the furnished Office. The GPU pilot verifies equal pre-cue commands and motion limits, observed-only audio orientation, and sample-identical recording replay. Arrival is 2.35 s versus 5.00 s after opening in this illustrative run. Both complete encodes and browser playback pass; original video 1 is preserved. Documented the scripted visual boundary, CC0 creak, direction age, production evidence, and acoustic/physical limitations. No public API or runtime change.
+
+## 2026-09-08 — experiment: Indoor direct-path and histogram screening
+
+Added isolated geometry-only DP-RTF/CGMM and weighted SRP-histogram adaptations, a joint-condition runner reusing the existing renderer, and explicit both-localized/count/second-source metrics. The 108-case screening does not admit either setting. Earlier-delay WPE shows an eight-episode development improvement, with tetrahedral quality and response/compute failures still explicit. No common runtime, raw evidence or 07.2 changes.
+
+## 2026-09-08 — lint: Indoor screening contracts
+
+Thirty-two targeted qualification/perception tests and five documentation-boundary tests pass. Changed-file Ruff and whitespace checks pass. These checks validate the comparison and current integration contracts, not indoor acoustic admission.

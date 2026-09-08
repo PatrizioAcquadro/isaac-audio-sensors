@@ -95,3 +95,15 @@ This explicitly tests the NumPy implementation on CPU. The report includes the
 uses only the trailing 250 ms. None of these settings is currently admitted.
 The project-level priority is further indoor sensing work before 07.2, despite
 the already available bounded scalar reference.
+
+For the next isolated indoor comparison, use the recorded candidate parameters
+and joint conditions in `indoor_protocol.json`:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.doa_04_4.indoor --output indoor-comparison-new.json --repetitions 1 --stage direct --stage room_030_level_0 --stage room_030_level_6
+```
+
+Omitting the restrictions runs the complete development protocol. This consumes
+existing development assets; it is not an independent confirmation. The DP-RTF
+and SRP implementations contain explicit adaptations described in the canonical
+experiment. Neither is currently admitted into common perception.

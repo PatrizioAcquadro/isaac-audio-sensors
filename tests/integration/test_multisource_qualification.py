@@ -21,6 +21,8 @@ def test_matching_counts_misses_and_spurious_events():
     result = match([unit(40), unit(-40), unit(170)], truth)
     assert (result["tp"], result["fp"], result["fn"]) == (2, 1, 0)
     assert not result["count_correct"]
+    assert sorted(result["matched_truth_indices"]) == [0, 1]
+    assert match([unit(40)], truth)["matched_truth_indices"] == [1]
 
 
 def test_matching_is_circular_and_rejects_wrong_directions():
