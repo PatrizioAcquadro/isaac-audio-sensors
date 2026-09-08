@@ -1037,3 +1037,11 @@ Recorded the three-candidate comparison rationale before implementing the harnes
 ## 2026-09-08 — lint: 04.4 shortlist
 
 All five documentation-boundary tests and whitespace checks pass; the experiment is indexed and protected raw material is unchanged.
+
+## 2026-09-08 — experiment: 04.4 development and fixed evaluation protocol
+
+Implemented the isolated comparison, native SSL-only adapter, independent asset/case splits, cardinality-aware matching, and covariance corrective trial. Recorded development failures and froze numeric acceptance criteria and estimator thresholds before opening final evaluation. Public perception remains unchanged pending qualification.
+
+## 2026-09-08 — lint: 04.4 evaluation protocol
+
+Nine evaluator/documentation tests, scoped Ruff checks and whitespace checks pass. The native binding builds from pinned ODAS with isolated dependencies. No raw evidence or default runtime dependency changed.
