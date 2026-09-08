@@ -20,6 +20,16 @@ ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 
 
 def construct(name, threshold):
+    if name == "weighted_covariance_aic":
+        return FrequencyOrderCandidate(
+            0.03,
+            relative_loading=0.0001,
+            refit_threshold=threshold,
+            refit_statistic="product",
+            refine_peaks=True,
+            order_criterion="aic",
+            spectral_weighting=True,
+        )
     if name == "covariance_aic":
         return FrequencyOrderCandidate(
             0.03,
@@ -123,6 +133,7 @@ def main():
             "verification",
             "validation",
             "qualification",
+            "assessment",
         ),
         required=True,
     )

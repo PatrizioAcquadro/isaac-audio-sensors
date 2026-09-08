@@ -325,6 +325,7 @@ class FrequencyOrderCandidate(PyroomCandidate):
         refit_statistic="mean",
         refine_peaks=False,
         order_criterion="mdl",
+        spectral_weighting=False,
     ):
         super().__init__("MUSIC", threshold, normalized=True)
         self.relative_loading = relative_loading
@@ -332,6 +333,7 @@ class FrequencyOrderCandidate(PyroomCandidate):
         self.refit_statistic = refit_statistic
         self.refine_peaks = refine_peaks
         self.order_criterion = order_criterion
+        self.spectral_weighting = spectral_weighting
 
     def localize(self, samples, positions, sample_rate):
         samples, positions = _validate_doa_inputs(samples, positions, sample_rate)
@@ -403,7 +405,10 @@ class FrequencyOrderCandidate(PyroomCandidate):
             contrast = np.maximum(
                 estimator.grid.values - np.median(estimator.grid.values), 0
             )
-            contribution = contrast * len(selected_bins) / len(bins)
+            normalization = (
+                np.count_nonzero(counts) if self.spectral_weighting else len(bins)
+            )
+            contribution = contrast * len(selected_bins) / normalization
             score = contribution if score is None else score + contribution
             vectors = estimator.grid.cartesian.T
         if score is None:
@@ -448,6 +453,8 @@ class FrequencyOrderCandidate(PyroomCandidate):
                 coefficients.append(coeff)
             coefficients = np.asarray(coefficients)
             strengths = np.mean(coefficients[:, :-2], axis=0)
+            if self.spectral_weighting:
+                strengths = np.average(coefficients[:, :-2], axis=0, weights=power)
             if self.refit_statistic == "product":
                 strengths *= spatial_strengths
             keep = strengths >= self.refit_threshold

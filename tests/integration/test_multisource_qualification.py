@@ -105,11 +105,13 @@ def test_confirmation_keeps_original_acceptance_criteria():
     verification = json.loads((root / "verification_protocol.json").read_text())
     validation = json.loads((root / "validation_protocol.json").read_text())
     qualification = json.loads((root / "qualification_protocol.json").read_text())
+    assessment = json.loads((root / "assessment_protocol.json").read_text())
     for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
         assert initial[field] == confirmation[field]
         assert initial[field] == verification[field]
         assert initial[field] == validation[field]
         assert initial[field] == qualification[field]
+        assert initial[field] == assessment[field]
 
 
 @pytest.mark.parametrize("array", ("triangle", "square", "raised", "tetra"))
@@ -201,6 +203,30 @@ def test_covariance_contrast_keeps_a_ten_db_weaker_overlapping_source(
     samples = np.fft.irfft(spectrum, n=8192)[:, 2000:6000]
     samples += rng.normal(0, 0.001, samples.shape)
     localizer = construct(candidate, threshold)
+    found, _ = localizer.localize(samples, positions, FS)
+    result = match(found, truth)
+    assert result["count_correct"] and result["tp"] == 2
+
+
+def test_noise_only_frequencies_do_not_dilute_narrowband_events():
+    from tools.qualification.doa_04_4.cases import ARRAYS, FS
+    from tools.qualification.doa_04_4.evaluate import construct
+
+    positions = ARRAYS["square"]
+    rng = np.random.default_rng(429)
+    truth = np.array([unit(np.degrees(-0.6)), unit(np.degrees(1.1))])
+    frequency = np.fft.rfftfreq(8192, 1 / FS)
+    mixture = np.zeros((4, len(frequency)), dtype=complex)
+    for band, direction in zip(((500, 800), (1500, 1800)), truth, strict=True):
+        source = np.fft.rfft(rng.normal(size=8192))
+        source[(frequency < band[0]) | (frequency > band[1])] = 0
+        source *= 0.03 / np.std(np.fft.irfft(source, n=8192))
+        mixture += source[None] * np.exp(
+            2j * np.pi * frequency[None] * (positions @ direction)[:, None] / 343
+        )
+    samples = np.fft.irfft(mixture, n=8192)[:, 2000:6000]
+    samples += rng.normal(0, 0.024, samples.shape)
+    localizer = construct("weighted_covariance_aic", 0.01)
     found, _ = localizer.localize(samples, positions, FS)
     result = match(found, truth)
     assert result["count_correct"] and result["tp"] == 2

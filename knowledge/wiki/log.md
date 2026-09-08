@@ -1073,3 +1073,7 @@ Independent verification isolates operational pair counting. Corrected the nomin
 ## 2026-09-08 — experiment: 04.4 per-geometry passes and fixed AIC comparison
 
 Bandlimited validation passes complete gates on square/raised-center; triangle/tetrahedron remain below pair-count accuracy. Documented remaining noisy-speech and combined-room failures. Compared the established AIC/MDL count criteria on expanded development and fixed an independent same-case comparison with new speakers and unchanged acceptance gates.
+
+## 2026-09-08 — experiment: 04.4 spectral-normalization correction
+
+AIC confirmation still fails pair counting; longer context offers no measured repair. Isolated noise-bin dilution and frequency-uniform power bias, added a narrowband-event regression, and calibrated energy-weighted covariance rejection on expanded development. Fixed a same-case comparison against unchanged AIC with new speakers and seeds before independent assessment.
