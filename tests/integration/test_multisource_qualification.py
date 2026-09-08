@@ -102,8 +102,33 @@ def test_confirmation_keeps_original_acceptance_criteria():
     root = Path(__file__).resolve().parents[2] / "tools/qualification/doa_04_4"
     initial = json.loads((root / "final_protocol.json").read_text())
     confirmation = json.loads((root / "confirmation_protocol.json").read_text())
+    verification = json.loads((root / "verification_protocol.json").read_text())
     for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
         assert initial[field] == confirmation[field]
+        assert initial[field] == verification[field]
+
+
+@pytest.mark.parametrize("array", ("triangle", "square", "raised", "tetra"))
+def test_covariance_music_rejects_noiseless_sidelobes_and_preserves_pairs(array):
+    from tools.qualification.doa_04_4.candidates import FrequencyOrderCandidate
+    from tools.qualification.doa_04_4.cases import ARRAYS
+    from tools.qualification.doa_04_4.diagnostics import transition_signal
+
+    positions = ARRAYS[array]
+    samples, truth, _, _ = transition_signal(positions, 103)
+    localizer = FrequencyOrderCandidate(
+        0.03, relative_loading=0.0001, refit_threshold=0.11
+    )
+    for end, count in ((24000, 1), (36000, 2), (48000, 1)):
+        window = samples[:, end - 4000 : end]
+        window.setflags(write=False)
+        found, _ = localizer.localize(window, positions, 16000)
+        result = match(found, truth[:count])
+        assert result["count_correct"] and result["tp"] == count
+    found, diagnostic = localizer.localize(np.zeros_like(window), positions, 16000)
+    assert len(found) == 0 and diagnostic["status"] == "no_events"
+    with pytest.raises(ValueError, match="non-collinear"):
+        localizer.localize(window[:2], positions[:2], 16000)
 
 
 def test_native_ssl_releases_plans_after_repeated_windows():

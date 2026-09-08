@@ -317,10 +317,18 @@ class CovarianceCandidate:
 class FrequencyOrderCandidate(PyroomCandidate):
     """Fuse normalized MUSIC spectra with independently observed per-bin order."""
 
-    def __init__(self, threshold=0.2):
+    def __init__(self, threshold=0.2, relative_loading=0.0, refit_threshold=None):
         super().__init__("MUSIC", threshold, normalized=True)
+        self.relative_loading = relative_loading
+        self.refit_threshold = refit_threshold
 
     def localize(self, samples, positions, sample_rate):
+        samples, positions = _validate_doa_inputs(samples, positions, sample_rate)
+        rank = np.linalg.matrix_rank(positions - positions[0])
+        if len(positions) < 3 or rank < 2:
+            raise ValueError("Multisource evaluation requires non-collinear geometry")
+        if rank == 2 and not np.allclose(positions[:, 2], positions[0, 2], atol=1e-9):
+            raise ValueError("Planar evaluation requires array-local XY geometry")
         x = _stft(samples, self.nfft, self.hop)
         frequencies = np.fft.rfftfreq(self.nfft, 1 / sample_rate)
         bins = np.flatnonzero((frequencies >= 300) & (frequencies <= 6000))
@@ -333,6 +341,7 @@ class FrequencyOrderCandidate(PyroomCandidate):
             np.linalg.eigvalsh(z @ z.conj().transpose(0, 2, 1) / z.shape[-1]),
             1e-20,
         )
+        eigen += self.relative_loading * eigen[:, -1, None]
         n, m = z.shape[-1], z.shape[1]
         costs = []
         for order in range(m):
@@ -387,6 +396,34 @@ class FrequencyOrderCandidate(PyroomCandidate):
         if score is None:
             return np.empty((0, 3)), {"status": "no_events", "scores": []}
         found, strengths = select_peaks(vectors, score, self.threshold)
+        if self.refit_threshold is not None and len(found):
+            from scipy.optimize import nnls
+
+            left, right = np.triu_indices(m)
+            observed = np.mean(x[left][:, bins] * x[right][:, bins].conj(), axis=2).T
+            power = np.mean(np.abs(x[:, bins]) ** 2, axis=(0, 2))
+            observed /= np.maximum(power[:, None], 1e-20)
+            delay = (positions[left] - positions[right]) @ found.T / 343
+            atoms = np.exp(2j * np.pi * frequencies[bins, None, None] * delay[None])
+            white = np.broadcast_to(
+                (left == right)[None, :, None], (len(bins), len(left), 1)
+            )
+            distance = np.linalg.norm(positions[left] - positions[right], axis=1)
+            diffuse = np.sinc(2 * frequencies[bins, None] * distance[None] / 343)[
+                :, :, None
+            ]
+            atoms = np.concatenate((atoms, white, diffuse), axis=2)
+            coefficients = []
+            for atom, target in zip(atoms, observed, strict=True):
+                coeff, _ = nnls(
+                    np.concatenate((atom.real, atom.imag)),
+                    np.r_[target.real, target.imag],
+                )
+                coefficients.append(coeff)
+            coefficients = np.asarray(coefficients)
+            strengths = np.mean(coefficients[:, :-2], axis=0)
+            keep = strengths >= self.refit_threshold
+            found, strengths = found[keep], strengths[keep]
         return found, {
             "status": "events" if len(found) else "abstained",
             "scores": strengths.tolist(),

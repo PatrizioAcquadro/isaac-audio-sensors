@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tarfile
 import urllib.request
 from pathlib import Path
 
@@ -14,6 +15,34 @@ REVISION = "bcb845434495e293df3d48f1203b7a86e1852449"
 
 def run(args, **kwargs):
     subprocess.run(args, check=True, **kwargs)
+
+
+def verification_assets(assets):
+    records = json.loads((SOURCE / "verification_assets.json").read_text())
+    missing = {
+        r["archive_path"]: r for r in records if not (assets / r["name"]).exists()
+    }
+    if missing:
+        with (
+            urllib.request.urlopen(records[0]["url"], timeout=60) as response,
+            tarfile.open(fileobj=response, mode="r|gz") as archive,
+        ):
+            for member in archive:
+                record = missing.pop(member.name, None)
+                if record is None:
+                    continue
+                data = archive.extractfile(member).read()
+                if hashlib.sha256(data).hexdigest() != record["sha256"]:
+                    raise ValueError(f"Upstream asset changed: {record['name']}")
+                (assets / record["name"]).write_bytes(data)
+                if not missing:
+                    break
+        if missing:
+            raise ValueError("Verification assets missing from LibriSpeech archive")
+    for record in records:
+        data = (assets / record["name"]).read_bytes()
+        if hashlib.sha256(data).hexdigest() != record["sha256"]:
+            raise ValueError(f"Local asset changed: {record['name']}")
 
 
 def main():
@@ -34,6 +63,7 @@ def main():
         if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
             raise ValueError(f"Local asset changed: {name}")
     odas = vendor / "odas"
+    verification_assets(assets)
     if not odas.exists():
         run(
             [

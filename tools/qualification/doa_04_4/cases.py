@@ -33,6 +33,7 @@ ASSETS = {
     "development": ("cmu_arctic_us_aew_a0001.wav", "cmu_arctic_us_axb_a0004.wav"),
     "evaluation": ("cmu_arctic_us_aew_a0002.wav", "cmu_arctic_us_axb_a0005.wav"),
     "confirmation": ("cmu_arctic_us_aew_a0003.wav", "cmu_arctic_us_axb_a0006.wav"),
+    "verification": ("6930-75918-0000.flac", "1320-122617-0003.flac"),
 }
 
 
@@ -52,7 +53,12 @@ class Case:
 
 
 def make_cases(split, repetitions=2):
-    base = {"development": 1000, "evaluation": 100000, "confirmation": 200000}[split]
+    base = {
+        "development": 1000,
+        "evaluation": 100000,
+        "confirmation": 200000,
+        "verification": 300000,
+    }[split]
     conditions = [
         ("nominal", 70, 0, 20, 0),
         ("moderate", 45, 6, 10, 0.3),

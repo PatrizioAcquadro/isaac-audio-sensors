@@ -44,3 +44,11 @@ Current outcome is **NO-GO for integration**. Static `quality_status` alone is
 insufficient: idle, compute and every transition must also pass. A missing
 transition response is a failure. See the canonical experiment for measured
 results and the next corrective work; the public perceiver remains unchanged.
+
+
+The continued `verification` partition uses two new LibriSpeech test-clean
+utterances (OpenSLR 12, CC BY 4.0; Panayotov et al.). Archive members and hashes
+are recorded in `verification_assets.json`; bootstrap streams only the required
+members. Use `verification_protocol.json` with `--split verification` to test
+the regularized covariance-MUSIC correction. These inputs are never development
+assets. Its rejection statistic is not a calibrated event confidence.

@@ -1061,3 +1061,7 @@ Recorded independent confirmation and post-repair ODAS results. Static square/ra
 ## 2026-09-08 — lint: 04.4 partial qualification closeout
 
 Full `make check` passes: 614 unit/contract, 289 integration and 58 release tests, repository Ruff, version synchronization and whitespace. Twelve targeted evaluator/documentation tests also pass after the wiki update; scoped formatting passes. No public runtime file, schema, raw evidence or dependency declaration changed. New multisource consumer and GPU validation remain pending failed admission gates.
+
+## 2026-09-08 — experiment: Continued 04.4 correction and independent verification protocol
+
+Diagnosed near-zero-noise order inflation and sidelobe events, compared corrective variants on development, and retained regularized MUSIC with full-covariance/noise refitting. Fixed unchanged acceptance gates and new LibriSpeech assets/cases before verification. Added noiseless single/pair regression coverage and off-grid transition generation. Public perception remains unchanged pending admission.

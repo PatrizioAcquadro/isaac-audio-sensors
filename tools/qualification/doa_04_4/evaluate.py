@@ -20,6 +20,10 @@ ROOT = Path(__file__).resolve().parents[3] / "build/qualification/doa/04_4"
 
 
 def construct(name, threshold):
+    if name == "covariance_music":
+        return FrequencyOrderCandidate(
+            0.03, relative_loading=0.0001, refit_threshold=threshold
+        )
     if name == "frequency_order":
         return FrequencyOrderCandidate(threshold)
     if name == "odas":
@@ -94,7 +98,9 @@ def quality_gates(rows, protocol):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--split", choices=("development", "evaluation", "confirmation"), required=True
+        "--split",
+        choices=("development", "evaluation", "confirmation", "verification"),
+        required=True,
     )
     parser.add_argument("--output", required=True)
     parser.add_argument("--candidate", action="append")

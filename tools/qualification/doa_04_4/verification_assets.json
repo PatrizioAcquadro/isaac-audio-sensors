@@ -1,0 +1,14 @@
+[
+  {
+    "name": "6930-75918-0000.flac",
+    "archive_path": "LibriSpeech/test-clean/6930/75918/6930-75918-0000.flac",
+    "sha256": "9ce35224156f071ab58eb7feb8a5ceae600f6f9f353da2a6cbf797b6b1ac8a23",
+    "url": "https://www.openslr.org/resources/12/test-clean.tar.gz"
+  },
+  {
+    "name": "1320-122617-0003.flac",
+    "archive_path": "LibriSpeech/test-clean/1320/122617/1320-122617-0003.flac",
+    "sha256": "bbe9ef85bbe228c73a414f064c9bd992c94135d73f9900b33104ad93c07d0594",
+    "url": "https://www.openslr.org/resources/12/test-clean.tar.gz"
+  }
+]

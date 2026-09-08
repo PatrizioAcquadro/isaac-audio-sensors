@@ -37,7 +37,7 @@ def idle_windows(positions, seed):
         yield "diffuse", values / np.sqrt(np.mean(values**2)) * rms
 
 
-def transition_signal(positions, seed):
+def transition_signal(positions, seed, randomize=False):
     rng = np.random.default_rng(seed)
     count_per_phase = (0, 1, 2, 1, 0)
     phase_samples = 12800
@@ -55,6 +55,20 @@ def transition_signal(positions, seed):
             np.sin(elevation),
         )
     )
+    if randomize:
+        az = rng.uniform(-np.pi, np.pi)
+        el = (
+            rng.uniform(-np.pi / 4, np.pi / 4)
+            if np.linalg.matrix_rank(positions - positions[0]) == 3
+            else 0
+        )
+        origin = np.array(
+            [np.cos(az) * np.cos(el), np.sin(az) * np.cos(el), np.sin(el)]
+        )
+        tangent = np.array([-np.sin(az), np.cos(az), 0])
+        directions = np.stack(
+            (origin, origin * np.cos(np.radians(70)) + tangent * np.sin(np.radians(70)))
+        )
     samples = np.zeros((len(positions), count))
     for source, direction in enumerate(directions):
         mono = rng.standard_normal(count + 256) * 0.03
@@ -105,7 +119,12 @@ def observability_controls(candidate, positions, seed):
 
 
 def measure(name, candidate, array, split="evaluation"):
-    offset = 100000 if split == "confirmation" else 0
+    offset = {
+        "evaluation": 0,
+        "development": -500000,
+        "confirmation": 100000,
+        "verification": 200000,
+    }[split]
     positions = ARRAYS[array]
     idle = {
         kind: {"windows": 0, "false_event_windows": 0}
@@ -118,7 +137,7 @@ def measure(name, candidate, array, split="evaluation"):
         idle[kind]["windows"] += 1
         idle[kind]["false_event_windows"] += int(len(found) > 0)
     samples, directions, phase_samples, counts = transition_signal(
-        positions, 920000 + offset
+        positions, 920000 + offset, randomize=split in ("development", "verification")
     )
     detector = AuditokActivityDetector(energy_threshold_dbfs=-40.5)
     ticks = []
