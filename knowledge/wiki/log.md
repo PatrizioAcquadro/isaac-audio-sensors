@@ -1013,3 +1013,19 @@ index coverage. Reviewed affected phase headings, code references, current
 status, and historical attribution against implementation, test logs, and the
 live GPU report. Ruff and whitespace checks pass. Only phases 04, 07, and 11
 changed; no knowledge tree expansion or protected raw edits occurred.
+
+## 2026-09-08 — update: Clarify 04.4 candidate selection
+
+Made a bounded review and justified shortlist the first activity of 04.4,
+before the comparison harness and qualification. Selection prioritizes actual
+unknown-count sensing, relevant geometries and acoustics, maintained solutions,
+and total compute, integration, validation, and maintenance cost. Removed the
+mandatory PyRoom-first order; PyRoom and ODAS remain initial options. Updated
+status and index. This changes the plan only, not runtime behavior.
+
+## 2026-09-08 — lint: 04.4 selection criteria
+
+All five documentation-boundary tests pass, including links and index coverage.
+Reviewed the phase, status, and index for consistent planned-state language and
+candidate-selection order. Whitespace checks pass; only the approved wiki
+pages changed, with no edits to protected raw material or runtime code.

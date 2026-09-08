@@ -93,7 +93,11 @@ The 250 ms context can smear fast motion. The confirmation rule blocks abrupt re
 
 Planned next after 07.1 and before [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
 
-Evaluate the smallest multi-peak solution using the existing PyRoom stack first, with ODAS as an optional alternative if needed. The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
+Begin 04.4 with a bounded review of existing algorithms and implementations, then select a small, justified shortlist before implementing the comparison harness or running qualification. Candidate selection is part of this phase; no final algorithm list or winner is prescribed now. Apply practical realism: prioritize actual unknown-count localization, suitability for supported microphone geometries and acoustic conditions, and sustainable compute, integration, validation, and maintenance costs. Prefer established, maintained implementations and introduce complexity only for a measurable capability or quality gain.
+
+PyRoom-based multi-peak processing and ODAS are initial options, not a mandatory order or an exhaustive shortlist. Reusing the current stack is an advantage only when it reduces total effort while meeting the sensing requirements. Compare any custom count/peak-selection work against the cost of integrating an existing solution that already addresses the required capability; other candidates may be admitted by the same criteria. Record why each shortlisted candidate merits evaluation before testing it.
+
+The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
 
 Common perception must support a sequence of signal-derived events rather than hard-code one `AudioObservation` around one `DoaEstimate`. Define the smallest sequence-returning localization/perception boundary after candidate evaluation; keep per-event DOA ambiguity separate from multiple events. Auditok may gate global acoustic activity, but it neither counts sources nor supplies justified individual-event scores. Preserve causal audio context, geometry/channel validation, stream-fault resets, and deterministic output ordering. Replace the selected multisource path's single-bearing stable/pending state with appropriate multi-event operating semantics; do not implicitly introduce persistent tracks, truth associations, or copy the global activity score to every event. Evaluate existing `AudioObservation` and frame-sequence reuse before changing serialized schemas.
 
@@ -103,6 +107,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 #### Key Decisions
 
+- Candidate selection starts 04.4 and precedes the experimental comparison. No mandatory PyRoom-first preference applies.
 - Real simultaneous localization is the objective; more slots or a supplied source count are insufficient.
 - Event count is inferred from observed mixtures; evaluator truth never configures the perceiver.
 - Two candidate bearings of one ambiguous event are not two localized sources.
@@ -138,3 +143,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-04: Removed the completed qualification runners and their test-only coverage, retained ignored reports as local historical evidence, and reduced runtime diagnostics to one causal context record plus maintained selection, reliability, abstention, and temporal state.
 
 - 2026-09-08: Planned 04.4 unknown-count simultaneous localization before 07.2, advancing localization from 11.3 while keeping tracking and separation deferred.
+
+- 2026-09-08: Made practical-realism candidate selection the first 04.4 activity; PyRoom and ODAS remain initial options without a prescribed evaluation order.
