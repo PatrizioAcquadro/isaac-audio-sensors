@@ -134,6 +134,7 @@ def main():
             "validation",
             "qualification",
             "assessment",
+            "reference",
         ),
         required=True,
     )

@@ -116,7 +116,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 #### Problems / Limitations
 
-Unresolved after measured qualification: the current public protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Isolated compute and bandlimited transitions now pass for the strongest corrective candidate, but unknown-count reliability still fails broader known-case regression. Coherent and near-coincident mixtures remain unresolved; physical multisource performance is unqualified. A different cardinality approach and fresh independent confirmation must precede integration and new consumer/GPU claims; extending context to 400/500 ms did not repair the measured failures.
+Unresolved after measured qualification: the current public protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Isolated compute and bandlimited transitions now pass for the strongest corrective candidate, but unknown-count reliability still fails broader known-case regression. Coherent and near-coincident mixtures remain unresolved; physical multisource performance is unqualified. The user-directed practical-reference milestone now evaluates bounded integration before 07.2 without requiring a new cardinality algorithm. The original broad-domain NO-GO remains valid; extending context to 400/500 ms did not repair the measured failures. See the experiment for the prospective protocol.
 
 ## Artifacts
 

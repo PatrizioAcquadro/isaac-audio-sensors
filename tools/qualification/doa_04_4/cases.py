@@ -39,6 +39,11 @@ ASSETS = {
     "assessment": ("3575-170457-0016.flac", "7127-75947-0011.flac"),
 }
 
+ASSETS["reference"] = tuple(
+    row["name"]
+    for row in json.loads(Path(__file__).with_name("reference_assets.json").read_text())
+)
+
 
 @dataclass(frozen=True)
 class Case:
@@ -64,6 +69,7 @@ def make_cases(split, repetitions=2):
         "validation": 400000,
         "qualification": 500000,
         "assessment": 600000,
+        "reference": 700000,
     }[split]
     conditions = [
         ("nominal", 70, 0, 20, 0),
@@ -100,7 +106,9 @@ def make_cases(split, repetitions=2):
 
 def wave(kind, split, index, rng, length):
     if kind == "speech":
-        data, rate = sf.read(ROOT / "assets" / ASSETS[split][index % 2])
+        data, rate = sf.read(
+            ROOT / "assets" / ASSETS[split][index % len(ASSETS[split])]
+        )
         if rate != FS:
             data = signal.resample_poly(data, FS, rate)
         # Use the most energetic contiguous episode, selected only by asset waveform.
@@ -140,9 +148,12 @@ def render(case):
     )
     theta = np.radians(np.arange(case.count) * case.separation)
     truth = np.cos(theta[:, None]) * origin + np.sin(theta[:, None]) * tangent
-    sources = [
-        wave(case.content, case.split, i, rng, length) for i in range(case.count)
-    ]
+    source_indices = (
+        rng.choice(len(ASSETS[case.split]), size=case.count, replace=False)
+        if case.split == "reference" and case.content == "speech"
+        else range(case.count)
+    )
+    sources = [wave(case.content, case.split, i, rng, length) for i in source_indices]
     stems = []
     if case.rt60 and case.count:
         dims = np.array([6, 5, 4]) + rng.uniform(-0.3, 0.3, 3)

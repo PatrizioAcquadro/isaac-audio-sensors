@@ -140,6 +140,7 @@ def measure(name, candidate, array, split="evaluation", bandlimited=False):
         "validation": 300000,
         "qualification": 400000,
         "assessment": 500000,
+        "reference": 600000,
     }[split]
     positions = ARRAYS[array]
     idle = {
@@ -156,7 +157,14 @@ def measure(name, candidate, array, split="evaluation", bandlimited=False):
         positions,
         920000 + offset,
         randomize=split
-        in ("development", "verification", "validation", "qualification", "assessment"),
+        in (
+            "development",
+            "verification",
+            "validation",
+            "qualification",
+            "assessment",
+            "reference",
+        ),
         bandlimited=bandlimited,
     )
     detector = AuditokActivityDetector(energy_threshold_dbfs=-40.5)

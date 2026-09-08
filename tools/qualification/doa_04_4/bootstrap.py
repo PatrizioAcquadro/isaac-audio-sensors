@@ -18,7 +18,11 @@ def run(args, **kwargs):
 
 
 def verification_assets(assets):
-    records = json.loads((SOURCE / "verification_assets.json").read_text())
+    records = [
+        record
+        for name in ("verification_assets.json", "reference_assets.json")
+        for record in json.loads((SOURCE / name).read_text())
+    ]
     missing = {
         r["archive_path"]: r for r in records if not (assets / r["name"]).exists()
     }

@@ -1,0 +1,70 @@
+{
+  "status": "fixed_before_final_evaluation",
+  "split": "reference",
+  "repetitions": 8,
+  "sample_rate_hz": 16000,
+  "context_samples": 4000,
+  "update_samples": 800,
+  "matching_gate_deg": 30,
+  "roles": {
+    "planar": [
+      "triangle",
+      "square"
+    ],
+    "3d": [
+      "raised",
+      "tetra"
+    ]
+  },
+  "nominal": {
+    "conditions": [
+      "nominal"
+    ],
+    "minimum_precision": 0.95,
+    "minimum_recall": 0.9,
+    "minimum_count_accuracy": 0.9,
+    "maximum_angular_p95_deg": 15,
+    "minimum_pair_count_accuracy": 0.9
+  },
+  "operational": {
+    "conditions": [
+      "nominal",
+      "unequal",
+      "noise"
+    ],
+    "minimum_precision": 0.95,
+    "minimum_recall": 0.85,
+    "minimum_count_accuracy": 0.85,
+    "maximum_angular_p95_deg": 15,
+    "minimum_condition_recall": 0.75,
+    "minimum_pair_count_accuracy": 0.8
+  },
+  "stress": {
+    "conditions": [
+      "moderate",
+      "close",
+      "reverberant"
+    ],
+    "purpose": "report_limits_without_relabeling_as_qualified"
+  },
+  "compute": {
+    "maximum_warm_p95_ms": 50,
+    "maximum_warm_ms": 250,
+    "warmup_calls": 20,
+    "measured_calls": 200
+  },
+  "response": {
+    "maximum_change_delay_p95_ms": 350,
+    "maximum_change_delay_ms": 500
+  },
+  "candidates": {
+    "weighted_covariance_aic": {
+      "planar": 0.01,
+      "3d": 0.01
+    }
+  },
+  "integration": "GO admits the opt-in scalar reference for 07.2 in the tested direct-path conditions only. Original combined reverberant-domain qualification remains NO-GO. All four geometries, idle, transitions, common consumer contracts and GPU Lab projection must pass before 07.2 readiness.",
+  "transition_bandlimited": true,
+  "development": "No algorithm or numerical acceptance changes. User-directed practical integration milestone: qualify the tested direct-path nominal, isolated 10 dB imbalance and isolated 5 dB SNR cases; characterize combined room/imbalance/close-source failures. These discrete cases do not establish the entire Cartesian envelope or room robustness.",
+  "content": "16 first eligible test-clean speakers not used by previous partitions, one utterance of at least 1 second each, selected in archive order without localizer output. Seeded independent pairs; no speaker shared with prior development/evaluation. New seed base 700000."
+}

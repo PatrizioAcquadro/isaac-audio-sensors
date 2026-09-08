@@ -1095,3 +1095,8 @@ Documented the agreed cinematic standard and video 1 review gate, the revised ni
 ## 2026-09-08 — lint: ONR production page
 
 Verified new-page links, index coverage, source paths, deferred-video boundaries, and Markdown whitespace.
+
+
+## 2026-09-08 — update: Practical multisource reference milestone
+
+Record the user-directed path to 07.2: retain the fixed localizer and historical broad-domain failures, evaluate the prospective direct-path domain on 16 new speakers, then verify common event sequences and GPU Lab consumers. A new custom algorithm is not a prerequisite.
