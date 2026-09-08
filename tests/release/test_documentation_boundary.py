@@ -40,7 +40,7 @@ def test_every_internal_wikilink_resolves() -> None:
 
 
 def test_active_markdown_links_resolve_and_avoid_removed_root_docs() -> None:
-    excluded_roots = {".git", "build", "dist", "evidence"}
+    excluded_roots = {".git", "build", "dist", "evidence", "local"}
     for page in REPO_ROOT.rglob("*.md"):
         relative = page.relative_to(REPO_ROOT)
         if relative.parts[0] in excluded_roots or relative.parts[:2] == (

@@ -132,7 +132,7 @@ Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 
 
 Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.json` reports with schema `ias.doa.phase_04_3_rolling_qualification.v1`. Each contains two independent 20 Hz runs with 20 warm-up and 200 measured ticks per run. Semantics are identical within and across both reports; context remains exact and causal. Across the four measured runs, compute p95 is 5.22–5.68 ms and maximum is 5.30–6.10 ms, passing the strict `<50 ms` p95 and `<250 ms` maximum gates. The reports remain local historical evidence without a maintained generator.
 
-04.4 retains the active isolated harness and ignored simulation reports described in the [[experiments/04-4-multisource-localization|qualification experiment]]. It adds the common event-localizer contract and changes opt-in 16 kHz perception, without serialized schema changes.
+04.4 retains the maintained SDK method, direct regression tests and historical simulation reports described in the [[experiments/04-4-multisource-localization|qualification experiment]]. It adds the common event-localizer contract and changes opt-in 16 kHz perception, without serialized schema changes.
 
 ## Files
 

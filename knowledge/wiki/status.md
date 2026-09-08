@@ -10,6 +10,8 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Verified Capabilities
 
+The recent-work cleanup retains the WPE/group-sparse runtime and single-event routes while retiring the completed candidate campaign. Sixteen fixed-input comparisons preserve events and diagnostics exactly. Local evidence production is consolidated under ignored `local/onr/`, outside `make clean`; see [[topics/onr-video-production|ONR Video Production]] for the maintained catalog, final videos and validation scope. Public contracts and schemas are unchanged.
+
 - Subphase 07.1 implements observed-only Lab tensor projection with configurable observation/candidate capacity, finite zero padding, independent validity/DOA/ambiguity masks, and explicit truncation counts. Reference binding now exposes scalar activity and optional DOA, with independent environment state and sample-clock-aligned windows. The example applies only masked fixed angle scaling. The old six-tensor contract is removed without aliases; entity sensing stays empty pending 07.2. The RTX 4090 live gate passes scalar/reference parity, detector/DOA warm-up, resolved directions, silence, and partial reset; 4096 empty entity environments average 0.212 ms/step, not a perception-throughput claim. See [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]].
 
 - Phase 06 is complete. The downstream raw producer and nominal analytic producer share perception and recording; exact controlled equivalence covers mono/8 kHz, stereo/16 kHz, and planar four-microphone arrays at 16/48 kHz, including clipping, faults, and resets. The 25-take physical comparison passes sample/replay checks with no capture fault or digital clipping, while documenting level/noise and weak-signal activity differences. New source-take processing p95 is 5.71–5.90 ms against 50 ms, with no overruns. Current host gates pass 614 unit/contract, 282 integration, 58 release, optional audio, and 410 downstream tests. APIs/schemas are unchanged by 06.3; the S4.5-only executable path is retired and raw evidence is preserved. See [[implementation_phases/06-simulated-and-real-signal-parity|Phase 06]] for measurements and limits.
@@ -300,7 +302,7 @@ Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learnin
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 
 The plan structure is intentionally compact: Plan 01 records two completed R9
-subphases plus the bounded post-selection R9.4 follow-up. Phase 04 adds the
+subphases plus the bounded post-selection R9.4 follow-up. Phase 04 adds
 the completed bounded 04.4 reference prerequisite for 07.2; the other plans retain
 their existing coherent outcomes. Cleanup is
 part of the final functional outcome rather than a separate administrative

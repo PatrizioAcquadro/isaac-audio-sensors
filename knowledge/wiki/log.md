@@ -1231,3 +1231,11 @@ Validated all documentation boundaries and whitespace, final Ruff checks, 638 un
 ## 2026-09-08 — update: Retire completed multisource candidate infrastructure
 
 Consolidated the experiment around the maintained indoor reference, preserving historical failures and settings as local evidence and source in Git. Removed retired candidate executors and tests; retained direct numerical and consumer regression coverage. Sixteen fixed-input comparisons preserve events and diagnostics exactly.
+
+## 2026-09-08 — update: Consolidate local evidence production
+
+Moved the maintained nine-scenario catalog and approved final videos 1 and 2 into ignored `local/onr/`, with one entry point, shared Office/GPU replay and presentation utilities, and the current SquadBot consumer. Preserved final deliveries, user sources and compact failed-run evidence; removed obsolete candidate and production workspaces. Removed redundant recording serializers without changing contracts.
+
+## 2026-09-08 — lint: Maintained-runtime cleanup validation
+
+Host checks pass 638 unit/contract, 291 integration and 58 release tests; optional audio passes 31 tests and its smoke, and the supported Isaac runtime passes 116 tests. Actual RTX 4090 Lab projection and bounded capture/render paths pass. Both final-video acquisitions reproduce microphone samples and directions exactly; all 22 preview encodes and complete final-video compositions pass technical checks. Fresh catalog packaging passes with the current consumer and retained historical evaluations. Full new GPU renders of every timeline, browser playback of regenerated copies, physical acquisition and a new statistical qualification campaign are not claimed.
