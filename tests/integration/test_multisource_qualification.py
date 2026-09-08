@@ -104,3 +104,35 @@ def test_confirmation_keeps_original_acceptance_criteria():
     confirmation = json.loads((root / "confirmation_protocol.json").read_text())
     for field in ("nominal", "operational", "stress", "compute", "response", "roles"):
         assert initial[field] == confirmation[field]
+
+
+def test_native_ssl_releases_plans_after_repeated_windows():
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    if not (root / "build/qualification/doa/04_4/native_ssl.so").exists():
+        pytest.skip("isolated ODAS evaluation binding is not built")
+    script = """
+import numpy as np
+from tools.qualification.doa_04_4.candidates import OdasCandidate
+from tools.qualification.doa_04_4.cases import ARRAYS
+rng = np.random.default_rng(814)
+for _ in range(2):
+    candidate = OdasCandidate(.05)
+    for array in ('triangle', 'square'):
+        for _ in range(8):
+            values = rng.normal(0, .03, (len(ARRAYS[array]), 4000))
+            candidate.localize(values, ARRAYS[array], 16000)
+    candidate.close()
+    candidate.close()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -15,9 +15,9 @@ OPENBLAS_NUM_THREADS=1 PYTHONPATH=src .venv/bin/python -m tools.qualification.do
 ```
 
 Bootstrap downloads evaluation assets and builds ODAS locally under
-`build/qualification/doa/04_4/`. It does not install system packages. On Ubuntu,
-missing development dependencies are extracted from downloaded `.deb` archives;
-other systems need the ODAS build prerequisites already available. Network
+`build/qualification/doa/04_4/`. It does not install system packages. This bootstrap
+targets Ubuntu x86_64; development dependencies are extracted from downloaded
+`.deb` archives. Other platforms need a separate native build setup. Network
 access is needed for bootstrap only. Generated audio, native dependencies and
 reports are ignored and excluded from the package.
 
@@ -27,3 +27,20 @@ use `development`, and reserve `confirmation` for a later correction informed by
 final failures. New independent speech assets are needed after those partitions
 are consumed. Reported RT60 is the image-source generator's target, not a
 measured physical decay time. No current result qualifies real recordings.
+
+ODAS is locally patched to remove per-instance `fftwf_cleanup()`: its global
+cleanup invalidates plans still owned by other live modules. Individual plans
+are still destroyed. The regression test exercises repeated windows and teardown
+in a subprocess. Earlier native reports preceding this repair are superseded.
+
+Use `--protocol tools/qualification/doa_04_4/confirmation_protocol.json` with
+`--split confirmation` for the reserved confirmation protocol. The `diagnostics`
+module accepts the same protocol and output arguments (split comes from the
+protocol); `--controls-only` reports coherent and near-coincident stress inputs.
+`--candidate NAME` restricts either runner to a protocol candidate without
+changing its thresholds. Reports are never overwritten.
+
+Current outcome is **NO-GO for integration**. Static `quality_status` alone is
+insufficient: idle, compute and every transition must also pass. A missing
+transition response is a failure. See the canonical experiment for measured
+results and the next corrective work; the public perceiver remains unchanged.

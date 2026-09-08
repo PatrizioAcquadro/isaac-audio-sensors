@@ -1,6 +1,6 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.3 complete on 2026-09-04. Subphase 04.4 planned on 2026-09-08, before 07.2.
+Status: Subphases 04.1–04.3 complete on 2026-09-04. Subphase 04.4 partially implemented on 2026-09-08: independent simulation qualification returns NO-GO for both roles; integration remains pending before 07.2.
 
 ## Objective
 
@@ -91,11 +91,11 @@ The 250 ms context can smear fast motion. The confirmation rule blocks abrupt re
 
 #### Implementation
 
-Planned next after 07.1 and before [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
+Qualification implemented after 07.1; production integration remains pending before [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
 
-Begin 04.4 with a bounded review of existing algorithms and implementations, then select a small, justified shortlist before implementing the comparison harness or running qualification. Candidate selection is part of this phase; no final algorithm list or winner is prescribed now. Apply practical realism: prioritize actual unknown-count localization, suitability for supported microphone geometries and acoustic conditions, and sustainable compute, integration, validation, and maintenance costs. Prefer established, maintained implementations and introduce complexity only for a measurable capability or quality gain.
+The isolated comparison, frozen gates and independent evaluation are implemented. The initial shortlist covers PyRoom SRP, MUSIC with inferred count, and ODAS SSL with potential rejection; development added normalized MUSIC, covariance pursuit and frequency-local model order to address measured failures. The [[experiments/04-4-multisource-localization|04.4 experiment]] owns the review, protocol, corrections, results and evidence locations.
 
-PyRoom-based multi-peak processing and ODAS are initial options, not a mandatory order or an exhaustive shortlist. Reusing the current stack is an advantage only when it reduces total effort while meeting the sensing requirements. Compare any custom count/peak-selection work against the cost of integrating an existing solution that already addresses the required capability; other candidates may be admitted by the same criteria. Record why each shortlisted candidate merits evaluation before testing it.
+**Current outcome: NO-GO for both planar and 3D integration.** Frequency-local order passes static quality on square and raised-center layouts but fails source-count transitions; triangle and tetrahedron also fail count gates. No candidate satisfies the complete declared domain. The requirements below remain the pending integration contract, not implemented common perception.
 
 The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
 
@@ -116,7 +116,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 #### Problems / Limitations
 
-Unresolved/planned: the current protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Two-source observability, practical separation limits, unknown-count reliability, physical performance, and compute cost are not qualified. Evaluation must resolve these limitations before production integration; this roadmap is not implementation evidence.
+Unresolved after measured qualification: the current public protocol returns one estimate, the selected SRP adapter requests `num_src=1`, the common pipeline emits one signal event, and temporal handling stores one selected bearing. Isolated compute passes for the strongest corrective candidate, but unknown-count reliability and response to source changes fail. Coherent and near-coincident mixtures remain unresolved; physical multisource performance is unqualified. A development correction and fresh independent confirmation must precede integration and new consumer/GPU claims.
 
 ## Artifacts
 
@@ -124,7 +124,12 @@ Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 
 
 Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.json` reports with schema `ias.doa.phase_04_3_rolling_qualification.v1`. Each contains two independent 20 Hz runs with 20 warm-up and 200 measured ticks per run. Semantics are identical within and across both reports; context remains exact and causal. Across the four measured runs, compute p95 is 5.22–5.68 ms and maximum is 5.30–6.10 ms, passing the strict `<50 ms` p95 and `<250 ms` maximum gates. The reports remain local historical evidence without a maintained generator.
 
+04.4 retains the active isolated harness and ignored simulation reports described in the [[experiments/04-4-multisource-localization|qualification experiment]]. It changes no public perception or schema.
+
 ## Files
+
+- `tools/qualification/doa_04_4/`
+- `tests/integration/test_multisource_qualification.py`
 
 - `src/isaac_audio_sensors/core/plugins/pyroomacoustics.py`
 - `src/isaac_audio_sensors/core/plugins/standard_doa.py`
@@ -145,3 +150,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-08: Planned 04.4 unknown-count simultaneous localization before 07.2, advancing localization from 11.3 while keeping tracking and separation deferred.
 
 - 2026-09-08: Made practical-realism candidate selection the first 04.4 activity; PyRoom and ODAS remain initial options without a prescribed evaluation order.
+
+- 2026-09-08: Implemented candidate comparison and independent planar/3D qualification; fixed native FFTW lifecycle and evaluated frequency-local count correction. Both roles remain NO-GO, with production integration and physical qualification pending.

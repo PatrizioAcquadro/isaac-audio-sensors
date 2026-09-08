@@ -50,6 +50,12 @@ def main():
     ).strip()
     if actual != REVISION:
         raise ValueError(f"ODAS revision mismatch: {actual}")
+    # ODAS calls global FFTW cleanup while other FFT plans are still alive.
+    # Keep per-plan destruction; process exit releases FFTW's global cache.
+    fft_source = odas / "src/utils/fft.c"
+    fft_source.write_text(
+        fft_source.read_text().replace("        fftwf_cleanup();", "")
+    )
     prefix = vendor / "deps"
     packages = vendor / "debs"
     packages.mkdir(exist_ok=True)
@@ -116,9 +122,10 @@ def main():
             "-lconfig",
             "-lm",
             "-o",
-            str(ROOT / "native_ssl.so"),
+            str(ROOT / "native_ssl.so.new"),
         ]
     )
+    (ROOT / "native_ssl.so.new").replace(ROOT / "native_ssl.so")
     print("Evaluation inputs verified; isolated ODAS SSL binding built.")
 
 

@@ -1053,3 +1053,11 @@ The first independent evaluation gives no operational GO. Added per-frequency ob
 ## 2026-09-08 — lint: 04.4 corrective protocol
 
 Eleven evaluator/documentation tests pass, including two-source disjoint-band localization, window-local replay, channel permutation and unchanged acceptance criteria. Scoped formatting and whitespace checks pass. Public runtime remains unchanged.
+
+## 2026-09-08 — experiment: 04.4 confirmation NO-GO and native lifecycle repair
+
+Recorded independent confirmation and post-repair ODAS results. Static square/raised-center passes do not satisfy transition gates; neither role is admitted. Fixed isolated FFTW plan lifetime, added lifecycle regression and coherent/near-coincident controls, and documented fresh-evidence requirements. Phase/status/index now distinguish implemented qualification from pending common perception and GPU consumer validation. Raw and historical evidence remain unchanged.
+
+## 2026-09-08 — lint: 04.4 partial qualification closeout
+
+Full `make check` passes: 614 unit/contract, 289 integration and 58 release tests, repository Ruff, version synchronization and whitespace. Twelve targeted evaluator/documentation tests also pass after the wiki update; scoped formatting passes. No public runtime file, schema, raw evidence or dependency declaration changed. New multisource consumer and GPU validation remain pending failed admission gates.

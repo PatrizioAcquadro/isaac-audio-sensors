@@ -97,6 +97,7 @@ def main():
         "--split", choices=("development", "evaluation", "confirmation"), required=True
     )
     parser.add_argument("--output", required=True)
+    parser.add_argument("--candidate", action="append")
     parser.add_argument(
         "--protocol", type=Path, default=Path(__file__).with_name("final_protocol.json")
     )
@@ -106,6 +107,14 @@ def main():
     if output.exists():
         raise FileExistsError(output)
     protocol = json.loads(args.protocol.read_text())
+    if args.split != "development" and (
+        args.split != protocol["split"] or args.repetitions != protocol["repetitions"]
+    ):
+        parser.error("Final split and repetitions must match the fixed protocol")
+    if args.candidate:
+        protocol["candidates"] = {
+            name: protocol["candidates"][name] for name in args.candidate
+        }
     candidates = {
         (name, role): construct(name, threshold)
         for name, roles in protocol["candidates"].items()

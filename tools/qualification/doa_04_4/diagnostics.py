@@ -72,6 +72,38 @@ def transition_signal(positions, seed):
     return samples, directions, phase_samples, count_per_phase
 
 
+def observability_controls(candidate, positions, seed):
+    """Report unresolved inputs separately from the qualified operating domain."""
+    rng = np.random.default_rng(seed)
+    frequency = np.fft.rfftfreq(8192, 1 / FS)
+    results = {}
+    for label, separation, coherent in (
+        ("near_5deg", 5, False),
+        ("coherent", 70, True),
+    ):
+        azimuth = np.radians([20, 20 + separation])
+        truth = np.column_stack((np.cos(azimuth), np.sin(azimuth), np.zeros(2)))
+        sources = rng.standard_normal((2, 8192)) * 0.03
+        if coherent:
+            sources[1] = sources[0]
+        spectra = np.zeros((len(positions), len(frequency)), dtype=complex)
+        for source, direction in zip(sources, truth, strict=True):
+            delay = positions @ direction / 343
+            spectra += np.fft.rfft(source)[None] * np.exp(
+                2j * np.pi * delay[:, None] * frequency
+            )
+        samples = np.fft.irfft(spectra, n=8192)[:, 2000:6000]
+        samples += rng.standard_normal(samples.shape) * 0.003
+        found, diagnostic = candidate.localize(samples, positions, FS)
+        results[label] = {
+            "predicted": found.tolist(),
+            "truth": truth.tolist(),
+            "diagnostics": diagnostic,
+            **match(found, truth),
+        }
+    return results
+
+
 def measure(name, candidate, array, split="evaluation"):
     offset = 100000 if split == "confirmation" else 0
     positions = ARRAYS[array]
@@ -164,6 +196,8 @@ def measure(name, candidate, array, split="evaluation"):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
+    parser.add_argument("--candidate", action="append")
+    parser.add_argument("--controls-only", action="store_true")
     parser.add_argument(
         "--protocol", type=Path, default=Path(__file__).with_name("final_protocol.json")
     )
@@ -172,16 +206,27 @@ def main():
     if output.exists():
         raise FileExistsError(output)
     protocol = json.loads(args.protocol.read_text())
+    if args.candidate:
+        protocol["candidates"] = {
+            name: protocol["candidates"][name] for name in args.candidate
+        }
     rows = []
     for name, thresholds in protocol["candidates"].items():
         for array in ARRAYS:
             role = "planar" if array in ("triangle", "square") else "3d"
             candidate = construct(name, thresholds[role])
-            result = measure(name, candidate, array, protocol["split"])
+            if args.controls_only:
+                result = {
+                    "candidate": name,
+                    "array": array,
+                    "observability": observability_controls(
+                        candidate, ARRAYS[array], 950000 + list(ARRAYS).index(array)
+                    ),
+                }
+            else:
+                result = measure(name, candidate, array, protocol["split"])
             rows.append(result)
-            print(
-                name, array, result["idle"], result["compute_warm_p95_ms"], flush=True
-            )
+            print(name, array, "complete", flush=True)
             if hasattr(candidate, "close"):
                 candidate.close()
             output.write_text(
