@@ -63,27 +63,27 @@ def main() -> int:
             raise RuntimeError("AudioArraySensorCfg does not inherit SensorBaseCfg.")
 
         simulation_context = SimulationContext(sim_utils.SimulationCfg(device="cuda:0"))
-        _create_env_prims(sim_utils, "/World/parity", 2)
+        _create_env_prims(sim_utils, "/World/reference", 2)
         _create_env_prims(sim_utils, "/World/perf", args.perf_envs)
         evidence["phase"] = "sensor_setup"
         _write_evidence(args.out, evidence)
 
-        parity_scene = _entity_scene(
+        entity_scene = _entity_scene(
             torch,
             ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
             ((4.0, 0.0, 0.0), (0.0, 4.0, 0.0)),
         )
         array_ids, snapshots = _reference_scenes()
-        parity_sensors = []
+        sensor_pairs = []
         for backend_id in ("analytic_acoustics",):
             entity_sensor = AudioArraySensor(
                 AudioArraySensorCfg(
-                    prim_path="/World/parity/env_.*/AudioSensor",
+                    prim_path="/World/reference/env_.*/AudioSensor",
                     backend=backend_id,
                     max_observations=2,
                 )
             ).bind_entities(
-                parity_scene,
+                entity_scene,
                 EntityBindingCfg(
                     environment=free_field_environment(
                         environment_id="lab_parity_free_field"
@@ -93,13 +93,15 @@ def main() -> int:
             )
             reference_sensor = AudioArraySensor(
                 AudioArraySensorCfg(
-                    prim_path="/World/parity/env_.*/AudioSensor",
+                    prim_path="/World/reference/env_.*/AudioSensor",
                     backend=backend_id,
                     max_observations=2,
+                    update_period=0.05,
                     energy_threshold_dbfs=-60.0,
+                    doa_enabled=True,
                 )
             ).bind_reference(snapshots, array_ids)
-            parity_sensors.append((backend_id, entity_sensor, reference_sensor))
+            sensor_pairs.append((backend_id, entity_sensor, reference_sensor))
 
         perf_scene = _entity_scene(
             torch,
@@ -123,33 +125,103 @@ def main() -> int:
         )
 
         simulation_context.reset()
-        evidence["phase"] = "parity"
+        evidence["phase"] = "observed_reference"
         _write_evidence(args.out, evidence)
-        parity = {}
-        for backend_id, entity_sensor, reference_sensor in parity_sensors:
-            entity_sensor.update(0.0, force_recompute=True)
-            reference_sensor.update(0.0, force_recompute=True)
-            entity_data = entity_sensor.data
-            reference_data = reference_sensor.data
-            _assert_contract(entity_data, num_envs=2, max_observations=2, num_mics=4)
-            _assert_parity(torch, entity_data, reference_data)
-            parity[backend_id] = True
+        from isaac_audio_sensors.core.backends.base import get_backend
+        from isaac_audio_sensors.core.perception import (
+            _build_standard_perception_pipeline,
+        )
+        from isaac_audio_sensors.core.simulation import simulate_frame
+        from isaac_audio_sensors.core.types import AudioTimeWindow
+        from isaac_audio_sensors.lab import AudioArraySensorData
 
-        reset_sensor = parity_sensors[-1][1]
+        scalar_backend = get_backend("analytic_acoustics")
+        scalar_pipelines = [
+            _build_standard_perception_pipeline(
+                energy_threshold_dbfs=-60.0, doa_enabled=True
+            )
+            for _ in snapshots
+        ]
+        reference_parity = {}
+        for backend_id, entity_sensor, reference_sensor in sensor_pairs:
+            resolved = False
+            for tick in range(6):
+                entity_sensor.update(0.0 if tick == 0 else 0.05, force_recompute=True)
+                reference_sensor.update(
+                    0.0 if tick == 0 else 0.05, force_recompute=True
+                )
+                entity_data = entity_sensor.data
+                reference_data = reference_sensor.data
+                _assert_contract(entity_data, num_envs=2, max_observations=2)
+                _assert_contract(reference_data, num_envs=2, max_observations=2)
+                if entity_data.observation_mask.any():
+                    raise RuntimeError("Entity binding fabricated observations.")
+                frames = [
+                    simulate_frame(
+                        scalar_backend,
+                        snapshot,
+                        array_id,
+                        AudioTimeWindow(
+                            start_time_s=tick * 0.05,
+                            end_time_s=(tick + 1) * 0.05,
+                            frame_index=tick,
+                        ),
+                        perception=pipeline,
+                    )[0]
+                    for snapshot, array_id, pipeline in zip(
+                        snapshots, array_ids, scalar_pipelines, strict=True
+                    )
+                ]
+                expected = AudioArraySensorData.from_observations(
+                    [frame.observations for frame in frames],
+                    max_observations=2,
+                    device="cuda:0",
+                )
+                _assert_same(torch, reference_data, expected)
+                if tick >= 1 and not reference_data.observation_mask[:, 0].all():
+                    raise RuntimeError("Reference activity never reached the tensors.")
+                if tick == 1 and (
+                    reference_data.bearing_deg_mask.any()
+                    or not reference_data.ambiguity_mask[:, 0].all()
+                ):
+                    raise RuntimeError("DOA warm-up did not remain unresolved.")
+                resolved |= bool(reference_data.bearing_deg_mask.any())
+            if not resolved:
+                raise RuntimeError("Reference DOA never resolved after warm-up.")
+            reference_parity[backend_id] = True
+
+        reset_sensor = sensor_pairs[-1][2]
         reset_data = reset_sensor.data
         untouched = {
             name: getattr(reset_data, name)[0].clone()
             for name in reset_data.__dataclass_fields__
         }
+        untouched_index = reset_sensor._reference_frame_indices[0].clone()
         reset_sensor.reset([1])
         for name, expected in untouched.items():
-            torch.testing.assert_close(
-                getattr(reset_data, name)[0], expected, equal_nan=True
-            )
-        if reset_data.event_presence[1].any():
-            raise RuntimeError("Partial reset did not clear the selected row.")
-        if not torch.isnan(reset_data.bearing_deg[1]).all():
-            raise RuntimeError("Partial reset did not restore bearing padding.")
+            torch.testing.assert_close(getattr(reset_data, name)[0], expected)
+            if getattr(reset_data, name)[1].any():
+                raise RuntimeError(f"Partial reset did not clear {name}.")
+        reset_data = reset_sensor.data
+        for name, expected in untouched.items():
+            torch.testing.assert_close(getattr(reset_data, name)[0], expected)
+        torch.testing.assert_close(
+            reset_sensor._reference_frame_indices[0], untouched_index
+        )
+        if reset_data.observation_mask[1].any():
+            raise RuntimeError("Reset did not clear the detector's minimum context.")
+        reset_sensor.update(0.05, force_recompute=True)
+        reset_data = reset_sensor.data
+        if (
+            not reset_data.observation_mask[1, 0]
+            or reset_data.bearing_deg_mask[1].any()
+        ):
+            raise RuntimeError("Reset reference did not restart active DOA warm-up.")
+        if not reset_data.doa_mask[1, 0] or not reset_data.ambiguity_mask[1, 0]:
+            raise RuntimeError("Reset reference lost unresolved DOA evidence.")
+        reset_sensor.update(1.1, force_recompute=True)
+        if reset_sensor.data.observation_mask.any():
+            raise RuntimeError("Reference activity did not clear after source end.")
 
         for _ in range(10):
             perf_sensor.update(1.0 / 60.0, force_recompute=True)
@@ -165,7 +237,6 @@ def main() -> int:
             perf_sensor.data,
             num_envs=args.perf_envs,
             max_observations=1,
-            num_mics=4,
         )
         if mean_ms >= args.perf_budget_ms:
             raise RuntimeError(
@@ -176,7 +247,10 @@ def main() -> int:
             "status": "passed",
             "phase": "complete",
             "gpu": gpu_name,
-            "parity": parity,
+            "scalar_reference_parity": reference_parity,
+            "reference_activity_and_doa": True,
+            "reference_warmup_and_silence": True,
+            "performance_role": "empty_entity_lifecycle_only",
             "partial_reset": True,
             "perf_envs": args.perf_envs,
             "perf_steps": args.perf_steps,
@@ -216,11 +290,11 @@ def _write_evidence(path: Path, evidence: dict[str, object]) -> None:
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
 
 
-def _assert_parity(torch, entity_data, reference_data) -> None:
-    for name in entity_data.__dataclass_fields__:
+def _assert_same(torch, actual, expected) -> None:
+    for name in actual.__dataclass_fields__:
         torch.testing.assert_close(
-            getattr(entity_data, name),
-            getattr(reference_data, name),
+            getattr(actual, name),
+            getattr(expected, name),
             equal_nan=True,
             msg=name,
         )
@@ -285,35 +359,27 @@ def _reference_scenes():
     return tuple(array.array_id for array in arrays), snapshots
 
 
-def _assert_contract(
-    data,
-    *,
-    num_envs: int,
-    max_observations: int,
-    num_mics: int,
-) -> None:
+def _assert_contract(data, *, num_envs: int, max_observations: int) -> None:
     import torch
 
-    expected = {
-        "event_presence": ((num_envs, max_observations), torch.bool),
-        "bearing_deg": ((num_envs, max_observations), torch.float32),
-        "confidence": ((num_envs, max_observations), torch.float32),
-        "sector_onehot": ((num_envs, max_observations, 8), torch.float32),
-        "per_mic_rms": ((num_envs, max_observations, num_mics), torch.float32),
-        "ambiguity_mask": ((num_envs, max_observations), torch.bool),
-    }
-    for name, (shape, dtype) in expected.items():
+    from isaac_audio_sensors.lab import AudioArraySensorData
+
+    expected = AudioArraySensorData.allocate(
+        num_envs=num_envs, max_observations=max_observations, device="cuda:0"
+    )
+    for name in expected.__dataclass_fields__:
         value = getattr(data, name)
-        if tuple(value.shape) != shape or value.dtype != dtype:
+        template = getattr(expected, name)
+        if value.shape != template.shape or value.dtype != template.dtype:
             raise RuntimeError(f"Invalid {name} contract.")
-        if value.device.type != "cuda":
+        if value.device != template.device:
             raise RuntimeError(f"{name} is not on the sensor CUDA device.")
-    if data.event_presence.any():
-        raise RuntimeError("Lab tensors must remain zero-filled until Phase 07.")
-    if data.confidence.any() or data.per_mic_rms.any() or data.sector_onehot.any():
-        raise RuntimeError("Lab tensor payload must remain zero-filled until Phase 07.")
-    if not torch.isnan(data.bearing_deg).all():
-        raise RuntimeError("Lab bearing padding must remain NaN until Phase 07.")
+        if not torch.isfinite(value).all():
+            raise RuntimeError(f"{name} contains non-finite policy input.")
+        if name.endswith("_mask") or name.endswith("_truncated"):
+            continue
+        if value[~getattr(data, name + "_mask")].any():
+            raise RuntimeError(f"{name} contains nonzero padding.")
 
 
 if __name__ == "__main__":

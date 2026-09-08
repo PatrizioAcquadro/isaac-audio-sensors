@@ -79,7 +79,8 @@ class AudioArraySensor(SensorBase):
             analytic_max_order=int(self.cfg.analytic_max_order),
             analytic_air_absorption=bool(self.cfg.analytic_air_absorption),
             analytic_ray_tracing=bool(self.cfg.analytic_ray_tracing),
-            max_observations=int(self.cfg.max_observations),
+            max_observations=self.cfg.max_observations,
+            max_doa_candidates=self.cfg.max_doa_candidates,
             energy_threshold_dbfs=float(self.cfg.energy_threshold_dbfs),
             doa_enabled=bool(self.cfg.doa_enabled),
             effects=self.cfg.effects,
@@ -112,11 +113,10 @@ class AudioArraySensor(SensorBase):
     def _initialize_impl(self) -> None:
         super()._initialize_impl()
         self._validate_bound_runtime(runtime_ready=True)
-        num_mics = self._bound_num_mics()
         self._data = AudioArraySensorData.allocate(
             num_envs=self._num_envs,
-            max_observations=int(self.cfg.max_observations),
-            num_mics=num_mics,
+            max_observations=self.cfg.max_observations,
+            max_doa_candidates=self.cfg.max_doa_candidates,
             device=self.device,
         )
         if self._reference_backend is not None:
@@ -156,8 +156,8 @@ class AudioArraySensor(SensorBase):
         del timestamps
         return AudioArraySensorData.allocate(
             num_envs=int(env_ids.numel()),
-            max_observations=int(self.cfg.max_observations),
-            num_mics=self._bound_num_mics(),
+            max_observations=self.cfg.max_observations,
+            max_doa_candidates=self.cfg.max_doa_candidates,
             device=self.device,
         )
 
@@ -170,9 +170,7 @@ class AudioArraySensor(SensorBase):
             return
         if self._entity_binding is not None:
             if self.cfg.backend != "analytic_acoustics":
-                raise ValueError(
-                    "Entity binding supports only analytic_acoustics."
-                )
+                raise ValueError("Entity binding supports only analytic_acoustics.")
             if self._entity_binding.cfg.environment.kind != "free_field":
                 raise ValueError(
                     "Entity-bound analytic_acoustics supports only an explicit "
@@ -210,10 +208,3 @@ class AudioArraySensor(SensorBase):
         if self._reference_backend is not None:
             return self._reference_backend.num_envs
         return 0
-
-    def _bound_num_mics(self) -> int:
-        if self._entity_binding is not None:
-            return self._entity_binding.num_mics
-        if self._reference_backend is not None:
-            return self._reference_backend.num_mics
-        raise RuntimeError("No Lab binding configured.")

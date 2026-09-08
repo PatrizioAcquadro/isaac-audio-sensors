@@ -12,6 +12,7 @@ from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
+from isaac_audio_sensors.lab.audio_array_sensor_data import _validate_capacity
 
 
 @configclass
@@ -20,7 +21,8 @@ class AudioArraySensorCfg(SensorBaseCfg):
 
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
-    max_observations: int = 8
+    max_observations: int = 1
+    max_doa_candidates: int = 2
     energy_threshold_dbfs: float | None = None
     doa_enabled: bool = False
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
@@ -36,12 +38,8 @@ class AudioArraySensorCfg(SensorBaseCfg):
             raise ValueError("update_period must be finite and non-negative.")
         if self.backend not in registered_backend_ids():
             raise ValueError(f"Unknown backend {self.backend!r}.")
-        if isinstance(self.max_observations, bool) or not isinstance(
-            self.max_observations, int
-        ):
-            raise TypeError("max_observations must be an integer.")
-        if self.max_observations < 0:
-            raise ValueError("max_observations must be non-negative.")
+        _validate_capacity(self.max_observations, "max_observations")
+        _validate_capacity(self.max_doa_candidates, "max_doa_candidates")
         if self.energy_threshold_dbfs is not None:
             if isinstance(self.energy_threshold_dbfs, bool) or not isinstance(
                 self.energy_threshold_dbfs, Real

@@ -19,7 +19,7 @@ from isaac_audio_sensors.lab.audio_array_sensor_data import AudioArraySensorData
 
 
 class ReferenceBackend:
-    """Run core backends per environment and emit the six Lab tensors."""
+    """Run core backends per environment and project observed-only Lab tensors."""
 
     def __init__(
         self,
@@ -30,6 +30,7 @@ class ReferenceBackend:
         analytic_air_absorption: bool = False,
         analytic_ray_tracing: bool = False,
         max_observations: int,
+        max_doa_candidates: int = 2,
         energy_threshold_dbfs: float,
         doa_enabled: bool = False,
         effects: EffectsConfig,
@@ -56,7 +57,9 @@ class ReferenceBackend:
                 "All reference arrays must have the same microphone count."
             )
         self.num_mics = mic_counts.pop()
+        self._sample_rates = tuple(array.sample_rate_hz for array in selected_arrays)
         self.max_observations = max_observations
+        self.max_doa_candidates = max_doa_candidates
         kwargs: dict[str, object] = {
             "effects": effects,
             "speed_of_sound_mps": speed_of_sound_mps,
@@ -69,7 +72,7 @@ class ReferenceBackend:
             _build_standard_perception_pipeline(
                 energy_threshold_dbfs=energy_threshold_dbfs,
                 doa_enabled=doa_enabled,
-                max_observations=max_observations,
+                max_observations=None,
             )
             for _ in self.snapshots
         )
@@ -88,30 +91,35 @@ class ReferenceBackend:
         device: str,
     ) -> AudioArraySensorData:
         count = int(env_ids.numel())
-        result = AudioArraySensorData.allocate(
-            num_envs=count,
-            max_observations=self.max_observations,
-            num_mics=self.num_mics,
-            device=device,
-        )
+        observations = []
         window_s = max(float(update_period), 1e-3)
         for row in range(count):
             env_id = int(env_ids[row].item())
             start_s = float(timestamps_s[row].item())
             snapshot = self.snapshots[env_id]
             array_id = self.array_ids[env_id]
-            simulate_frame(
+            sample_rate = self._sample_rates[env_id]
+            # Warp timestamps are float32; perception continuity is sample-clock based.
+            start_sample = round(start_s * sample_rate)
+            window_samples = max(1, round(window_s * sample_rate))
+            frame, _ = simulate_frame(
                 self._backend,
                 snapshot,
                 array_id,
                 AudioTimeWindow(
-                    start_time_s=start_s,
-                    end_time_s=start_s + window_s,
+                    start_time_s=start_sample / sample_rate,
+                    end_time_s=(start_sample + window_samples) / sample_rate,
                     frame_index=int(frame_indices[row].item()),
                 ),
                 perception=self._perception[env_id],
             )
-        return result
+            observations.append(frame.observations)
+        return AudioArraySensorData.from_observations(
+            observations,
+            max_observations=self.max_observations,
+            max_doa_candidates=self.max_doa_candidates,
+            device=device,
+        )
 
     def reset(self, env_ids: torch.Tensor) -> None:
         """Reset perception state for the selected environments."""

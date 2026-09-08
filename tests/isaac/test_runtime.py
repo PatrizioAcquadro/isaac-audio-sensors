@@ -177,32 +177,27 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
     cfg = AudioArraySensorCfg(prim_path="/World/Audio", max_observations=2)
     cfg.validate()
 
-    data = AudioArraySensorData.allocate(
-        num_envs=2, max_observations=2, num_mics=4, device="cpu"
-    )
-    assert [field.name for field in fields(data)] == [
-        "event_presence",
-        "bearing_deg",
-        "confidence",
-        "sector_onehot",
-        "per_mic_rms",
-        "ambiguity_mask",
-    ]
-    assert data.event_presence.shape == (2, 2)
-    assert data.sector_onehot.shape == (2, 2, 8)
-    assert data.per_mic_rms.shape == (2, 2, 4)
-    assert data.event_presence.dtype == torch.bool
+    assert AudioArraySensorCfg(prim_path="/World/Audio").max_observations == 1
+    assert cfg.max_doa_candidates == 2
+    data = AudioArraySensorData.allocate(num_envs=2, max_observations=2, device="cpu")
+    assert data.observation_mask.shape == (2, 2)
+    assert data.candidate_bearing_deg.shape == (2, 2, 2)
+    assert data.observation_mask.dtype == torch.bool
     assert data.bearing_deg.dtype == torch.float32
-    assert data.event_presence.device.type == "cpu"
-    assert torch.isnan(data.bearing_deg).all()
+    assert data.observations_truncated.dtype == torch.int64
+    assert data.observation_mask.device.type == "cpu"
+    assert not data.bearing_deg.any()
+    assert not {"event_presence", "confidence", "sector_onehot", "per_mic_rms"} & {
+        field.name for field in fields(data)
+    }
 
-    data.event_presence[:] = True
-    data.confidence[:] = 1.0
+    data.observation_mask[:] = True
+    data.bearing_confidence[:] = 1.0
     data.reset(torch.tensor([False, True]))
-    assert data.event_presence[0].all()
-    assert not data.event_presence[1].any()
-    assert data.confidence[0].eq(1.0).all()
-    assert data.confidence[1].eq(0.0).all()
+    assert data.observation_mask[0].all()
+    assert not data.observation_mask[1].any()
+    assert data.bearing_confidence[0].eq(1.0).all()
+    assert data.bearing_confidence[1].eq(0.0).all()
 
     with pytest.raises(ValueError, match="Unknown backend"):
         AudioArraySensorCfg(prim_path="/World/Audio", backend="unknown").validate()
@@ -223,9 +218,7 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
             prim_path="/World/Audio", energy_threshold_dbfs=float("nan")
         ).validate()
     with pytest.raises(TypeError, match="doa_enabled"):
-        AudioArraySensorCfg(
-            prim_path="/World/Audio", doa_enabled=1
-        ).validate()
+        AudioArraySensorCfg(prim_path="/World/Audio", doa_enabled=1).validate()
 
 
 def test_lab_bindings_enforce_threshold_ownership() -> None:
@@ -291,7 +284,7 @@ def test_entity_binding_applies_env_origin_body_mount_and_wxyz_conversion():
     )
 
 
-def test_reference_path_runs_detector_but_keeps_tensors_zero_until_phase_07():
+def test_reference_path_projects_scalar_observations(monkeypatch):
     backend_id = "analytic_acoustics"
     env_ids = torch.tensor([0])
 
@@ -332,6 +325,17 @@ def test_reference_path_runs_detector_but_keeps_tensors_zero_until_phase_07():
         snapshots=(_snapshot(array, sources),),
         array_ids=(array.array_id,),
     )
+    from isaac_audio_sensors.lab import reference_backend
+
+    scalar_frames = []
+    simulate = reference_backend.simulate_frame
+
+    def capture(*args, **kwargs):
+        frame, block = simulate(*args, **kwargs)
+        scalar_frames.append(frame)
+        return frame, block
+
+    monkeypatch.setattr(reference_backend, "simulate_frame", capture)
     reference_result = reference.observations(
         env_ids=env_ids,
         timestamps_s=torch.tensor([0.5]),
@@ -340,17 +344,17 @@ def test_reference_path_runs_detector_but_keeps_tensors_zero_until_phase_07():
         device="cpu",
     )
 
-    expected_padding = AudioArraySensorData.allocate(
-        num_envs=1,
-        max_observations=1,
-        num_mics=4,
-        device="cpu",
+    assert len(scalar_frames) == 1
+    assert scalar_frames[0].max_observations is None
+    assert len(scalar_frames[0].observations) == 1
+    assert reference_result.observation_mask.tolist() == [[True]]
+    assert not reference_result.doa_mask.any()
+    expected = AudioArraySensorData.from_observations(
+        [scalar_frames[0].observations], device="cpu"
     )
-    for item in fields(expected_padding):
+    for item in fields(expected):
         torch.testing.assert_close(
-            getattr(reference_result, item.name),
-            getattr(expected_padding, item.name),
-            equal_nan=True,
+            getattr(reference_result, item.name), getattr(expected, item.name)
         )
 
 
@@ -478,3 +482,71 @@ def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() 
         binding.static.source_directivity_coefficient,
         torch.tensor([0.0]),
     )
+
+
+def test_reference_sample_clock_keeps_float32_ticks_contiguous(monkeypatch):
+    from isaac_audio_sensors.lab import reference_backend
+
+    array = create_microphone_array(
+        array_id="array", prim_path="/World/Array", layout_name="stereo_y"
+    )
+    reference = ReferenceBackend(
+        backend_id="analytic_acoustics",
+        max_observations=2,
+        energy_threshold_dbfs=-60.0,
+        doa_enabled=True,
+        effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
+        snapshots=(
+            _snapshot(
+                array,
+                (
+                    AudioSourceSpec(
+                        source_id="sound",
+                        prim_path="/World/Sound",
+                        class_label="Sound",
+                        audio_asset_path="generated://impulse",
+                        position_world=(4.0, 0.0, 0.0),
+                        orientation_world_quat=(0.0, 0.0, 0.0, 1.0),
+                        start_time_s=0.0,
+                        duration_s=1.0,
+                        gain_db=0.0,
+                    ),
+                ),
+            ),
+        ),
+        array_ids=("array",),
+    )
+    frames = []
+    simulate = reference_backend.simulate_frame
+
+    def capture(*args, **kwargs):
+        frame, block = simulate(*args, **kwargs)
+        frames.append(frame)
+        return frame, block
+
+    monkeypatch.setattr(reference_backend, "simulate_frame", capture)
+    timestamp = torch.zeros(1)
+    for tick in range(6):
+        data = reference.observations(
+            env_ids=torch.tensor([0]),
+            timestamps_s=timestamp,
+            frame_indices=torch.tensor([tick]),
+            update_period=0.05,
+            device="cpu",
+        )
+        timestamp += 0.05
+    assert data.observation_mask[0, 0]
+    assert data.doa_mask[0, 0]
+    assert frames[-1].diagnostics["perception"]["doa_context"]["complete"]
+    for previous, current in zip(frames[:-1], frames[1:], strict=True):
+        assert previous.end_time_s == current.start_time_s
+        assert current.diagnostics["perception"]["reset_reason"] is None
+    reference.observations(
+        env_ids=torch.tensor([0]),
+        timestamps_s=torch.tensor([0.5]),
+        frame_indices=torch.tensor([6]),
+        update_period=0.05,
+        device="cpu",
+    )
+    assert frames[-1].diagnostics["perception"]["reset_reason"] is not None
+    assert not frames[-1].diagnostics["perception"]["doa_context"]["complete"]

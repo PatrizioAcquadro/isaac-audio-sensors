@@ -1,4 +1,9 @@
-"""Two maintained Isaac Lab audio binding paths."""
+"""Observed-only Lab bindings and finite, masked policy inputs.
+
+The consumer uses fixed angle scaling only. Keep statistical normalization
+and observation modifiers disabled for these terms in downstream learners;
+masks and truncation counts must reach the policy unchanged.
+"""
 
 from __future__ import annotations
 
@@ -24,7 +29,7 @@ def bind_entities(scene: object):
             prim_path="{ENV_REGEX_NS}/Robot/audio_array",
             update_period=0.05,
             backend="analytic_acoustics",
-            max_observations=2,
+            max_observations=1,
         )
     )
     return sensor.bind_entities(
@@ -42,6 +47,9 @@ def bind_entities(scene: object):
 def bind_reference(
     snapshots: Sequence[AudioSceneSnapshot],
     array_ids: Sequence[str],
+    *,
+    energy_threshold_dbfs: float,
+    doa_enabled: bool = False,
 ):
     """Create the scalar debug/reference sensor after AppLauncher starts."""
 
@@ -52,7 +60,9 @@ def bind_reference(
             prim_path="{ENV_REGEX_NS}/Robot/audio_array",
             update_period=0.05,
             backend="analytic_acoustics",
-            max_observations=2,
+            max_observations=1,
+            energy_threshold_dbfs=energy_threshold_dbfs,
+            doa_enabled=doa_enabled,
         )
     )
     return sensor.bind_reference(snapshots, array_ids)
@@ -68,11 +78,25 @@ def audio_observation(
         sensor.reset(reset_env_ids)
     sensor.update(dt, force_recompute=True)
     data = sensor.data
-    return {
-        "audio/event_presence": data.event_presence,
-        "audio/bearing_deg": data.bearing_deg,
-        "audio/confidence": data.confidence,
-        "audio/sector_onehot": data.sector_onehot,
-        "audio/per_mic_rms": data.per_mic_rms,
-        "audio/ambiguity_mask": data.ambiguity_mask,
-    }
+    return policy_inputs(data)
+
+
+def policy_inputs(data: Any) -> dict[str, Any]:
+    """Scale angles to [-1, 1], masking absent values without batch statistics.
+
+    Scores retain their producer semantics. Boolean masks and integer counts
+    are unmodified; degree suffixes are replaced by ``_scaled`` after scaling.
+    """
+
+    import torch
+
+    result = {}
+    for name in data.__dataclass_fields__:
+        value = getattr(data, name)
+        if name.endswith("_deg"):
+            mask = getattr(data, name + "_mask")
+            scale = 90.0 if "elevation" in name else 180.0
+            value = torch.where(mask, value / scale, 0.0)
+        policy_name = name.replace("_deg", "_scaled")
+        result["audio/" + policy_name] = value
+    return result
