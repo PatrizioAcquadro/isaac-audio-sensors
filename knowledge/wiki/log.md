@@ -1179,3 +1179,11 @@ Added isolated geometry-only DP-RTF/CGMM and weighted SRP-histogram adaptations,
 ## 2026-09-08 — lint: Indoor screening contracts
 
 Thirty-two targeted qualification/perception tests and five documentation-boundary tests pass. Changed-file Ruff and whitespace checks pass. These checks validate the comparison and current integration contracts, not indoor acoustic admission.
+
+## 2026-09-08 — update: ONR video 2 matched opening-door comparison
+
+Produced the approved 16-second scripted visual scan versus measured audio-guided attention in the furnished Office. The GPU pilot verifies equal pre-cue commands and motion limits, observed-only audio orientation, and sample-identical recording replay. Arrival is 2.35 s versus 5.00 s after opening in this illustrative run. Both complete encodes and browser playback pass; original video 1 is preserved. Documented the scripted visual boundary, CC0 creak, direction age, production evidence, and acoustic/physical limitations. No public API or runtime change.
+
+## 2026-09-08 — lint: ONR video 2 delivery
+
+Five documentation-boundary checks and changed-file whitespace checks pass. Both 16-second encodes decode completely; microphone gain, causal compass expiry, matched traces and native recording replay pass. Full contact-sheet review and browser playback with audio are complete. User review of the new video remains pending.

@@ -2,7 +2,7 @@
 
 ## Current Revision
 
-Only video 1 has been revised. The user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
+Videos 1 and 2 now have revised deliveries. Video 2 is a technically verified 16-second matched opening-door comparison; its first user review is pending. For video 1, the user approved the first visual and sound review and requested the corrections below; the corrected 40-second video is complete and technically verified in 1440p and 1080p. Original videos and recorded evidence remain unchanged. Videos 6 and 9 are deferred: their next designs will be discussed individually with the user.
 
 The series demonstrates generic audio sensing and controlled downstream camera pointing. It must distinguish sensor observations, scene references, and downstream behavior. No navigation, sound classification, learned visual recognition, or field-readiness claim is implied.
 
@@ -50,14 +50,28 @@ This is a direct-path free-field sensing/pointing example. The acoustic backend 
 
 The corrected delivery is `evidence/onr_video1_final/index.html`, with `master_1440p.mp4`, `presentation_1080p.mp4`, a 12-second opening excerpt, three representative frames, audio credits, method, and validation report. Both complete encodes decode to 1,200 frames at 30 fps with exactly 40-second audio/video durations. The AAC peak is 0.7413, without clipping. The 40-second contact sheets and representative full-resolution frames were inspected; browser playback reached the end with audio enabled and no media error. The user approved that full edit and subsequently requested the compass convention/retention correction and longer title. The presentation revision reuses the same measured execution, clean render, soundtrack, and camera cuts. Geometry checks independently verify the corrected needle against camera-relative source directions: the first door estimate is +56° right versus a +55.33° scene reference, the phone is −22° left versus −21.62°, and the radio is −82° left versus −81.69°. Initial, held, and expired states retain the dial; expiry is tested at the three-second boundary. See `build/onr_video1_final/compass_validation.json`. Original videos, including 6 and 9, remain preserved.
 
+## Video 2 — Scripted Visual Scan and Measured Audio Guidance
+
+The approved design uses the same furnished Office, fixed-base full-body Alex V2, 65-degree head camera, and production standard as video 1. Both runs initially observe the closed door, then start the same periodic scan at 1 s. At 3 s the door opens outside both camera views, rotating to 85 degrees over three seconds. A continuous natural creak follows the movement; no wall-hit sound is added because the animation has no demonstrated wall impact. The sound is the 1–4 s excerpt of Anthousai's CC0 [creak - front door 01.wav](https://freesound.org/people/Anthousai/sounds/398748/), with mono downmix, constant scaling, and 25 ms edge fades. Ambience reuses video 1.
+
+The visual-only baseline is explicitly scripted, as requested by the user. It continues the preset scan without receiving an event-onset cue. Its stop represents simulated visual arrival: opening exceeds 30 degrees and four doorway references lie inside a conservative central camera region, checked against the rendered POV. There is no visual detector or recognition implementation. Both runs use this same arrival condition. The audio-guided controller interrupts scanning only on a valid SDK direction and derives its pointing goal from that observation and the array pose; source truth does not command the turn. Missing estimates remain missing, with the same scan as fallback. Both runs retain the 35-degree-per-second command limit and identical commands until the first resolved direction.
+
+The successful pair is `build/onr_video2/pilot_v3/`. The RTX 4090 execution records 480 pose frames per run and 320 audio windows in the audio-guided run. All 320 waveform windows reload sample-identically through `SessionDataset`. There are no pre-event detections; 30 direction windows resolve. The first measured direction arrives at 3.40 s. Scripted arrival is at 5.35 s with audio and 8.00 s with the visual scan: 2.35 versus 5.00 s after opening, a 2.65 s difference in this illustrative run. This is not a statistical benchmark, a comparison against another audio SDK, or evidence that audio wins at every scan phase.
+
+The 16-second edit keeps both runs synchronized and time continuous. Each column contains an external over-shoulder view and the actual robot camera. Labels are “Visual-only · Scripted scan” and “Audio-guided · Isaac Audio Sensors”; states use “Scanning,” “Orienting to sound,” and “Door in view.” The SDK compass uses the corrected clockwise convention, causal smoothing and three-second expiry, with measurement age displayed to distinguish held estimates. The soundtrack is the audio-guided run's front microphone with one constant gain; no music or camera-dependent remix is used.
+
+Delivery: `evidence/onr_video2/index.html`, `master_1440p.mp4`, `presentation_1080p.mp4`, representative frames, audio credits, `METHOD.md`, matched traces, and validation reports. Both encodes fully decode to 480 frames at 30 fps with exactly 16-second audio/video durations. AAC peak is 0.74014, without clipping. The complete contact sheet and representative views were inspected; browser playback reached 16 s with audio enabled and no media error. Original video 1 and all prior evidence remain unchanged.
+
+The acoustic backend remains CPU direct-path free-field; articulation and RTX images run on GPU. Door motion and visual arrival are scripted. No material acoustics, vision recognition, navigation, contact/balance, or physical-readiness claim is introduced. The pilot's earlier absolute-audio-path and recorder-grouping setup errors were corrected in the production adapter; they required no SDK changes. Production remains local and ignored, without new public APIs.
+
 ## Per-Video Checklist
 
 Numbers below follow the user's revised order. Old numbers identify the existing package only.
 
 | New | Video | Existing video | Requested focus | State |
 | --- | --- | --- | --- | --- |
-| 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | In revision |
-| 2 | With and without audio | 3 | Make the camera-only behavior and matched comparison clearer | Discuss individually |
+| 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
+| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | 16-second delivery verified; user review pending |
 | 3 | Moving source | 4 | Following during emission; clearer instruments; discuss Doppler scope | Discuss individually |
 | 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
