@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from isaac_audio_sensors.core.plugins.protocols import (
         ActivityDetector,
         DoaEstimator,
+        EventLocalizer,
     )
 
 
@@ -34,12 +35,19 @@ class AudioPerceptionPipeline:
         *,
         activity_detector: ActivityDetector | None = None,
         doa_estimator: DoaEstimator | None = None,
+        event_localizer: EventLocalizer | None = None,
         max_observations: int | None = None,
     ) -> None:
+        if doa_estimator is not None and event_localizer is not None:
+            raise ValueError("Choose either doa_estimator or event_localizer.")
+        if event_localizer is not None and not callable(
+            getattr(event_localizer, "localize", None)
+        ):
+            raise TypeError("event_localizer must provide a callable localize method.")
         if activity_detector is None:
-            if doa_estimator is not None:
+            if doa_estimator is not None or event_localizer is not None:
                 raise ValueError(
-                    "doa_estimator requires an injected activity_detector."
+                    "DOA localization requires an injected activity_detector."
                 )
             detector_id = None
         else:
@@ -65,17 +73,21 @@ class AudioPerceptionPipeline:
         self._activity_detector = activity_detector
         self.detector_id = detector_id
         self._doa_estimator = doa_estimator
+        self._event_localizer = event_localizer
+        self._doa_component = (
+            event_localizer if event_localizer is not None else doa_estimator
+        )
         self.max_observations = max_observations
         self._doa_context_duration_s = _optional_positive_attribute(
-            doa_estimator,
+            self._doa_component,
             "consumer_context_duration_s",
         )
         self._doa_jump_threshold_deg = _optional_bearing_attribute(
-            doa_estimator,
+            self._doa_component,
             "consumer_jump_threshold_deg",
         )
         self._doa_confirmation_tolerance_deg = _optional_bearing_attribute(
-            doa_estimator,
+            self._doa_component,
             "consumer_confirmation_tolerance_deg",
         )
         self._doa_history: object | None = None
@@ -88,7 +100,7 @@ class AudioPerceptionPipeline:
         """Reset each injected stateful perception component once."""
 
         seen: set[int] = set()
-        for component in (self._activity_detector, self._doa_estimator):
+        for component in (self._activity_detector, self._doa_component):
             if component is None or id(component) in seen:
                 continue
             seen.add(id(component))
@@ -142,6 +154,12 @@ class AudioPerceptionPipeline:
             "activity_ran": False,
             "channel_count": len(block.microphone_ids),
             "valid_channel_count": len(valid_indices),
+            "localization": {
+                "status": "unavailable"
+                if self._doa_component is not None
+                else "disabled",
+                "reason": "not_run",
+            },
         }
         signal_observations: tuple[AudioObservation, ...] = ()
         if valid_indices and self._activity_detector is not None:
@@ -149,7 +167,7 @@ class AudioPerceptionPipeline:
             valid_samples.setflags(write=False)
             doa_samples: object = valid_samples
             positions: object | None = None
-            if self._doa_estimator is not None:
+            if self._doa_component is not None:
                 positions = np.asarray(
                     [
                         array.microphones[index].relative_position_m
@@ -157,6 +175,7 @@ class AudioPerceptionPipeline:
                     ],
                     dtype=float,
                 )
+                positions.setflags(write=False)
                 doa_samples, context_diagnostics = self._update_doa_context(
                     valid_samples,
                     block,
@@ -183,7 +202,48 @@ class AudioPerceptionPipeline:
             )
             if not decision.active:
                 self._clear_doa_temporal_state()
-            if decision.active:
+                if self._doa_component is not None:
+                    warming = (
+                        perception_diagnostics.get("doa_context", {}).get("complete")
+                        is False
+                    )
+                    perception_diagnostics["localization"] = {
+                        "status": "unavailable" if warming else "no_events",
+                        "reason": "insufficient_context"
+                        if warming
+                        else "inactive_mixture",
+                    }
+            if decision.active and self._event_localizer is not None:
+                if len(valid_indices) < 2:
+                    events, localization = (
+                        (),
+                        {
+                            "status": "unavailable",
+                            "reason": "fewer_than_two_valid_channels",
+                        },
+                    )
+                else:
+                    events, localization = _event_result(
+                        self._event_localizer.localize(
+                            doa_samples, positions, block.sample_rate_hz
+                        )
+                    )
+                    if localization.get("single_event_policy") and len(events) == 1:
+                        estimate, temporal = self._apply_doa_temporal_policy(events[0])
+                        events = (estimate,)
+                        localization["consumer"] = {"temporal_stability": temporal}
+                perception_diagnostics["localization"] = localization
+                signal_observations = tuple(
+                    AudioObservation(
+                        observation_id=f"{frame_id}_{self.detector_id}_{index:02d}",
+                        origin=ObservationOrigin.SIGNAL_DERIVED,
+                        detector_id=self.detector_id,
+                        doa=estimate,
+                        diagnostics={"doa_estimator": localization},
+                    )
+                    for index, estimate in enumerate(sorted(events, key=_event_order))
+                )
+            elif decision.active:
                 observation_diagnostics: dict[str, object] = {
                     "activity_detector": detector_diagnostics,
                 }
@@ -225,8 +285,12 @@ class AudioPerceptionPipeline:
         )
         if len(observation_ids) != len(set(observation_ids)):
             raise ValueError("AudioObservation.observation_id values must be unique.")
+        perception_diagnostics["observation_count_before_limit"] = len(observations)
         if self.max_observations is not None:
             observations = observations[: self.max_observations]
+        perception_diagnostics["truncated_observation_count"] = len(
+            observation_ids
+        ) - len(observations)
 
         time_window = block.time_window
         return AudioSensorFrame(
@@ -321,7 +385,7 @@ class AudioPerceptionPipeline:
     ) -> tuple[object, dict[str, object] | None]:
         import numpy as np
 
-        if self._doa_estimator is None or self._doa_context_duration_s is None:
+        if self._doa_component is None or self._doa_context_duration_s is None:
             return samples, None
 
         values = np.asarray(samples)
@@ -478,6 +542,34 @@ def _doa_result(result: object) -> tuple[DoaEstimate, dict[str, object]]:
     return doa, dict(diagnostics)
 
 
+def _event_result(result: object) -> tuple[tuple[DoaEstimate, ...], dict[str, object]]:
+    if not isinstance(result, tuple) or len(result) != 2:
+        raise TypeError("event_localizer must return (event sequence, diagnostics).")
+    events, diagnostics = result
+    if not isinstance(events, Sequence) or any(
+        not isinstance(event, DoaEstimate) for event in events
+    ):
+        raise TypeError("event_localizer events must be a sequence of DoaEstimate.")
+    if not isinstance(diagnostics, Mapping):
+        raise TypeError("event_localizer diagnostics must be a mapping.")
+    status = diagnostics.get("status")
+    if status not in ("events", "no_events", "unavailable"):
+        raise ValueError("event_localizer diagnostics require a localization status.")
+    if bool(events) != (status == "events"):
+        raise ValueError("event_localizer status must agree with its event sequence.")
+    return tuple(events), dict(diagnostics)
+
+
+def _event_order(estimate: DoaEstimate) -> tuple:
+    return (
+        estimate.estimated_bearing_deg is None,
+        estimate.estimated_bearing_deg or 0.0,
+        estimate.estimated_elevation_deg or 0.0,
+        estimate.candidate_bearing_deg,
+        estimate.candidate_elevation_deg,
+    )
+
+
 def _optional_positive_attribute(component: object, name: str) -> float | None:
     if component is None or not hasattr(component, name):
         return None
@@ -537,9 +629,9 @@ def _build_standard_perception_pipeline(
     if not isinstance(doa_enabled, bool):
         raise ConfigValidationError("doa_enabled must be a boolean.")
 
+    from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
     from isaac_audio_sensors.core.plugins.protocols import ActivityDetector
     from isaac_audio_sensors.core.plugins.registry import get_default_registry
-    from isaac_audio_sensors.core.plugins.standard_doa import MaintainedDoaEstimator
 
     activity_detector = cast(
         ActivityDetector,
@@ -552,8 +644,8 @@ def _build_standard_perception_pipeline(
     )
     return AudioPerceptionPipeline(
         activity_detector=activity_detector,
-        doa_estimator=(
-            MaintainedDoaEstimator(runtime_profile=runtime_profile)
+        event_localizer=(
+            MaintainedEventLocalizer(runtime_profile=runtime_profile)
             if doa_enabled
             else None
         ),

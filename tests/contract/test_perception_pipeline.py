@@ -900,3 +900,152 @@ def test_auditok_after_fault_matches_fresh_pipeline(fault) -> None:
         actual.diagnostics["perception"]["detector_diagnostics"]
         == expected.diagnostics["perception"]["detector_diagnostics"]
     )
+
+
+class FakeEventLocalizer:
+    consumer_context_duration_s = 0.25
+
+    def __init__(self, events=()):
+        self.events = events
+        self.calls = []
+        self.reset_count = 0
+
+    def localize(self, samples, microphone_positions_m, sample_rate_hz):
+        self.calls.append(
+            (samples.copy(), microphone_positions_m.copy(), sample_rate_hz)
+        )
+        return self.events, {"status": "events" if self.events else "no_events"}
+
+    def reset(self):
+        self.reset_count += 1
+
+
+@pytest.mark.parametrize("count", [0, 1, 2, 4])
+def test_event_sequence_count_order_scores_and_truth_isolation(count):
+    events = tuple(
+        DoaEstimate(estimated_bearing_deg=a) for a in [80, -60, 20, 170][:count]
+    )
+    localizer = FakeEventLocalizer(events)
+    detector = FakeDetector(True)
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=detector, event_localizer=localizer
+    )
+    frames = [
+        pipeline.process(_block(diagnostics=truth), _array(), frame_id="frame")
+        for truth in ({"source_count": 100, "source_ids": ["a"]}, {"source_count": 0})
+    ]
+    assert frames[0].observations == frames[1].observations
+    assert len(frames[0].observations) == count
+    assert [o.doa.estimated_bearing_deg for o in frames[0].observations] == sorted(
+        event.estimated_bearing_deg for event in events
+    )
+    assert all(o.detection_score is None for o in frames[0].observations)
+    assert frames[0].diagnostics["perception"]["activity_probability"] == 0.75
+    assert len({o.observation_id for o in frames[0].observations}) == count
+    assert len(localizer.calls[0]) == 3
+
+
+def test_event_candidates_are_one_event_and_limits_are_diagnostic():
+    ambiguous = DoaEstimate(
+        estimated_bearing_deg=None,
+        candidate_bearing_deg=(-60, 60),
+        ambiguity_class="front_back",
+    )
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=FakeDetector(True),
+        event_localizer=FakeEventLocalizer(
+            (ambiguous, DoaEstimate(estimated_bearing_deg=30))
+        ),
+        max_observations=1,
+    )
+    frame = pipeline.process(_block(), _array(), frame_id="limited")
+    assert len(frame.observations) == 1
+    assert frame.diagnostics["perception"]["truncated_observation_count"] == 1
+    pipeline.max_observations = None
+    frame = pipeline.process(_block(), _array(), frame_id="full")
+    assert len(frame.observations) == 2
+    assert (
+        frame.observations[1].doa.candidate_bearing_deg
+        == ambiguous.candidate_bearing_deg
+    )
+
+
+@pytest.mark.parametrize(
+    "reason", ["stream", "rate", "geometry", "channels", "gap", "declared"]
+)
+def test_event_context_is_causal_and_resets_at_boundaries(reason):
+    localizer = FakeEventLocalizer((DoaEstimate(estimated_bearing_deg=10),))
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=FakeDetector(True), event_localizer=localizer
+    )
+    array = _stream_array()
+    for i in range(6):
+        pipeline.process(_stream_block(i, value=i / 10), array, frame_id=str(i))
+    np.testing.assert_allclose(localizer.calls[-1][0][0], [0.1, 0.2, 0.3, 0.4, 0.5])
+    block = _stream_block(6, value=0.9)
+    if reason == "stream":
+        block = replace(block, producer_id="new")
+    elif reason == "rate":
+        array = replace(array, sample_rate_hz=40)
+        block = replace(block, sample_rate_hz=40, samples=np.full((3, 2), 0.9))
+    elif reason == "geometry":
+        array = replace(
+            array,
+            microphones=tuple(
+                replace(
+                    m,
+                    relative_position_m=(
+                        m.relative_position_m[0] + 0.01,
+                        *m.relative_position_m[1:],
+                    ),
+                )
+                for m in array.microphones
+            ),
+        )
+        block = replace(
+            block,
+            microphone_positions_m=tuple(
+                m.relative_position_m for m in array.microphones
+            ),
+        )
+    elif reason == "channels":
+        block = replace(block, channel_validity=(False, True, True))
+    elif reason == "gap":
+        block = _stream_block(9, value=0.9)
+    else:
+        block = replace(block, discontinuity=True)
+    pipeline.process(block, array, frame_id="after")
+    assert localizer.reset_count == 1
+    np.testing.assert_allclose(localizer.calls[-1][0], 0.9)
+
+
+@pytest.mark.parametrize(
+    "result",
+    [None, (None, {}), ((None,), {}), ((), None), ((), {}), ((), {"status": "events"})],
+)
+def test_event_localizer_structural_errors_fail_closed(result):
+    localizer = FakeEventLocalizer()
+    localizer.localize = lambda *args: result
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=FakeDetector(True), event_localizer=localizer
+    )
+    with pytest.raises((TypeError, ValueError)):
+        pipeline.process(_block(), _array(), frame_id="invalid")
+
+
+def test_event_unavailable_is_distinct_from_no_events():
+    localizer = FakeEventLocalizer()
+    pipeline = AudioPerceptionPipeline(
+        activity_detector=FakeDetector(True), event_localizer=localizer
+    )
+    absent = pipeline.process(_block(), _array(), frame_id="none")
+    localizer.localize = lambda *args: (
+        (),
+        {"status": "unavailable", "reason": "insufficient_context"},
+    )
+    unavailable = pipeline.process(_block(), _array(), frame_id="unavailable")
+    assert absent.observations == unavailable.observations == ()
+    assert absent.diagnostics["perception"]["localization"]["status"] == "no_events"
+    assert (
+        unavailable.diagnostics["perception"]["localization"]["status"] == "unavailable"
+    )

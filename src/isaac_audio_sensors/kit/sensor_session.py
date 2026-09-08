@@ -492,7 +492,7 @@ class SensorSession(ControllerService):
 
     def _record_latest_frame(self, frame: Any) -> None:
         observations = tuple(frame.observations)
-        first = observations[0] if observations else None
+        first = observations[0] if len(observations) == 1 else None
         doa = None if first is None else first.doa
         self.state.latest_frame_id = frame.frame_id
         self.state.latest_observation_count = len(observations)

@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned; 07.2 follows the new 04.4 multisource qualification.
+Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. The practical 04.4 scalar-reference prerequisite is now satisfied; 07.2 may start when requested, within the documented direct-path limits.
 
 ## Objective
 
@@ -23,20 +23,20 @@ The maintained example requires an explicit reference threshold and exposes opti
 - Observation-only projection excludes source truth, poses, identifiers, arbitrary diagnostics, and mixture RMS. Task-owned privileged channels remain separate.
 - Masks define availability; padding is zero and all floating tensors are finite. Reliability is not reinterpreted as probability.
 - Candidate directions are alternatives within one event, not simultaneous sources. Candidate elevation and bearing axes are independent.
-- One event is the current standard-perception capability, not a structural tensor limit. Actual multisource localization requires [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]] before 07.2.
+- 07.1 initially projected one standard signal event. Subsequent [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]] now supplies actual multisource events at 16 kHz and validates this tensor contract on the GPU.
 - Only necessary consumer migration is completed here; scalable perception and remaining cleanup stay in 07.2–07.3.
 
 #### Problems / Limitations
 
 Fixed: reference perception was discarded, Lab direction padding contained NaN, and the tensor surface lacked score/DOA/candidate validity and truncation semantics. Fixed: sample-clock alignment prevents tiny float32 tick errors from masquerading as stream discontinuities.
 
-Unresolved: the common detector/localizer still emits at most one signal-derived observation. Multiple slots do not qualify multiple-source sensing. Scalar waveform processing and packing remain host-side; CUDA validates tensor placement and sensor lifecycle, not a CUDA-native perception implementation. Arbitrary cadence, long-horizon timing, and scalable context remain 07.2 responsibilities. No learner, downstream task, or physical multisource campaign is validated here.
+Resolved by 04.4: the common scalar localizer emits actual multiple events in its bounded direct-path role; GPU projection verifies them independently of slot capacity. Scalar waveform processing and packing remain host-side; CUDA validates tensor placement and sensor lifecycle, not a CUDA-native perception implementation. Arbitrary cadence, long-horizon timing, and scalable context remain 07.2 responsibilities. No learner, downstream task, or physical multisource campaign is validated here.
 
 ## Subphase 07.2 — Reference, Scalable, and Stateful Paths
 
 #### Implementation
 
-Start after the mixture-only multisource qualification and common-perception integration defined in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
+The practical prerequisite is satisfied by the mixture-only multisource qualification, common-perception integration and RTX 4090 consumer smoke in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. Start when requested using 16 kHz and the documented direct-path reference scope. Original combined reverberant-domain failures remain limitations to characterize, not an implicit claim that the reference is accurate there. No new custom cardinality algorithm is a prerequisite. Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
 
 Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
 
@@ -68,7 +68,7 @@ Keep privileged reward or curriculum data only in explicit task-owned channels.
 
 ## Artifacts
 
-07.1 delivers the observed-only tensor contract, scalar-reference projection, finite masked consumer, and updated contract/runtime tests. The live smoke records local evidence under `build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json`. A qualified multisource perceiver and scalable path remain future work.
+07.1 delivers the observed-only tensor contract, scalar-reference projection, finite masked consumer, and updated contract/runtime tests. The live smoke records local evidence under `build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json`. 04.4 subsequently supplies the qualified bounded multisource perceiver and its own GPU smoke; the scalable path remains 07.2 work.
 
 Validation passes 614 unit/contract, 282 integration, 58 release, and 116 supported-runtime Isaac tests, plus version synchronization, Ruff, and whitespace. The live RTX 4090 smoke passes independent scalar/reference tensor parity, activity and DOA warm-up, resolved direction, silence, and partial reset. Fifty updates across 4096 empty entity environments average 0.212 ms/step against the existing 20 ms budget. Runtime checks use the existing isolated Auditok 0.5.2 path without replacing Kit NumPy or installing dependencies. These results do not qualify multisource perception or a downstream learner.
 

@@ -114,7 +114,7 @@ def test_reference_backend_supports_standard_doa_opt_in() -> None:
         array_ids=("array",),
     )
 
-    assert reference._perception[0]._doa_estimator is not None
+    assert reference._perception[0]._event_localizer is not None
 
 
 def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:

@@ -62,7 +62,7 @@ def test_standard_and_custom_pipeline_configuration_is_fail_closed() -> None:
         doa_enabled=True,
     )
     assert doa_sensor.doa_enabled is True
-    assert doa_sensor.perception_pipeline._doa_estimator is not None
+    assert doa_sensor.perception_pipeline._event_localizer is not None
 
 
 @pytest.mark.parametrize("threshold", (True, float("nan")))
@@ -271,7 +271,7 @@ def test_stage_factory_forwards_standard_doa_opt_in() -> None:
 
     assert sensor.doa_enabled is True
     assert sensor.perception_pipeline is not None
-    assert sensor.perception_pipeline._doa_estimator is not None
+    assert sensor.perception_pipeline._event_localizer is not None
 
 
 def test_non_monotonic_time_preserves_latest_frame():

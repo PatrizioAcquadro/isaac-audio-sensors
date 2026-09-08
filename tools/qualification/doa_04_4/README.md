@@ -1,6 +1,6 @@
 # 04.4 simulation qualification
 
-This is an active, isolated qualification tool, not a public plugin. Candidate
+This is an active qualification tool. The selected MUSIC computation is shared with the optional common event localizer; experimental alternatives remain isolated. Candidate
 code receives only mixture samples, ordered valid-channel geometry and sample
 rate. Truth, source assets, propagation and matching belong to the evaluator.
 The canonical protocol and rationale are in the
@@ -40,10 +40,10 @@ protocol); `--controls-only` reports coherent and near-coincident stress inputs.
 `--candidate NAME` restricts either runner to a protocol candidate without
 changing its thresholds. Reports are never overwritten.
 
-Current outcome is **NO-GO for integration**. Static `quality_status` alone is
+The original broad-domain outcome remains **NO-GO**. The prospective `reference_protocol.json` passes for bounded direct-path scalar integration and enables 07.2 after the consumer/GPU checks. Static `quality_status` alone is
 insufficient: idle, compute and every transition must also pass. A missing
 transition response is a failure. See the canonical experiment for measured
-results and the next corrective work; the public perceiver remains unchanged.
+results and the next corrective work; the public opt-in 16 kHz perceiver now returns actual event sequences within the documented scope.
 
 
 The continued `verification` partition uses two new LibriSpeech test-clean
@@ -61,3 +61,5 @@ still blocks promotion. Review `promotion-decision.json` under the working
 output directory. `admission` combines quality/idle/response gates and accepts
 `--regression` to include previously observed failures. Its single-run result
 alone must not be used as a general promotion decision.
+
+The `reference` partition uses 16 new speakers in `reference_assets.json` and eight repetitions. Its 1,728-case report, independent diagnostics and applicable known-case regression pass all four geometries without changing the algorithm or numerical gates. Combined reverberant failures remain characterized outside this bounded integration domain; original reports are unchanged. `reference-admission.json` admits the candidate scope, while `phase04_4_lab_live_smoke.json` under `build/validation/isaac_audio_sensors/` verifies actual GPU consumers. All partitions are now consumed evidence.

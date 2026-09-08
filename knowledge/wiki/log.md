@@ -1108,3 +1108,13 @@ Recorded the furnished Office/Purdue WSG32 review package, shared presentation c
 ## 2026-09-08 — lint: Video 1 review documentation
 
 Verified all wiki links and index coverage, checked the preview paths and reported measurements, and passed Markdown whitespace checks. Only ONR documentation is included in this milestone; concurrent multisource implementation remains separate.
+
+
+## 2026-09-08 — update: Multisource scalar reference ready for 07.2
+
+Document the prospective direct-path GO on 1,728 independent cases and 16 new speakers, preserved broad-domain failures, shared event-sequence implementation, opt-in/rate and stereo boundaries, real recording/consumer checks and RTX 4090 Lab projection. 07.2 can start when requested. Correct two root-relative links in the pre-existing ONR page without changing its production content.
+
+
+## 2026-09-08 — lint: Practical multisource closeout
+
+All wiki links and index coverage pass; historical broad-domain failures remain distinct from the bounded reference GO. Raw material and pre-existing ONR production content are preserved. Host validation passes 638 unit/contract, 302 integration and 58 release tests; supported-runtime Isaac validation passes 116 tests. The actual RTX 4090 Lab smoke passes.

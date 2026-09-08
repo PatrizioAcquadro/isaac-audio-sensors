@@ -15,6 +15,7 @@ from isaac_audio_sensors.core.plugins.protocols import (
     ActivityDetector,
     AudioFeatureExtractor,
     DoaEstimator,
+    EventLocalizer,
     PropagationBackend,
 )
 from isaac_audio_sensors.core.plugins.pyroomacoustics import (
@@ -34,6 +35,7 @@ __all__ = [
     "AuditokActivityDetector",
     "AudioFeatureExtractor",
     "DoaEstimator",
+    "EventLocalizer",
     "GccPhatLeastSquaresEstimator",
     "PluginAvailability",
     "PluginDeclaration",

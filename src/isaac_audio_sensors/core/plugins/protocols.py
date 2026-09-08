@@ -71,6 +71,25 @@ class DoaEstimator(Protocol):
 
 
 @runtime_checkable
+class EventLocalizer(Protocol):
+    """Return variable event DOAs from mixture, valid-channel geometry and rate.
+
+    Candidate bearings within one estimate are alternatives for that event.
+    Diagnostics status is events, no_events, or unavailable. No scene or truth
+    inputs are accepted. Source identities and individual probabilities are not
+    implied by membership in the sequence.
+    """
+
+    def localize(
+        self,
+        samples: np.ndarray,
+        microphone_positions_m: np.ndarray,
+        sample_rate_hz: int,
+    ) -> tuple[tuple[DoaEstimate, ...], dict[str, object]]:
+        """Return events with availability diagnostics for the causal window."""
+
+
+@runtime_checkable
 class AudioFeatureExtractor(Protocol):
     """Extract a declared fixed-shape feature tensor from ordered samples.
 
@@ -91,5 +110,6 @@ __all__ = [
     "ActivityDetector",
     "AudioFeatureExtractor",
     "DoaEstimator",
+    "EventLocalizer",
     "PropagationBackend",
 ]

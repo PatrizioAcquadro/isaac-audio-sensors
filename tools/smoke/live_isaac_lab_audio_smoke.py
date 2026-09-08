@@ -124,6 +124,24 @@ def main() -> int:
             ),
         )
 
+        from multisource_reference import reference_scenes
+
+        multisource_scenes = reference_scenes(args.out.parent / "multisource_signals")
+        multisource_scenes = (multisource_scenes[1], multisource_scenes[3])
+        multisource_ids = tuple(
+            scene.arrays[0].array_id for scene in multisource_scenes
+        )
+        multisource_sensor = AudioArraySensor(
+            AudioArraySensorCfg(
+                prim_path="/World/reference/env_.*/AudioSensor",
+                backend="analytic_acoustics",
+                max_observations=3,
+                update_period=0.05,
+                energy_threshold_dbfs=-60.0,
+                doa_enabled=True,
+            )
+        ).bind_reference(multisource_scenes, multisource_ids)
+
         simulation_context.reset()
         evidence["phase"] = "observed_reference"
         _write_evidence(args.out, evidence)
@@ -223,6 +241,86 @@ def main() -> int:
         if reset_sensor.data.observation_mask.any():
             raise RuntimeError("Reference activity did not clear after source end.")
 
+        evidence["phase"] = "multisource_reference"
+        _write_evidence(args.out, evidence)
+        multi_pipelines = [
+            _build_standard_perception_pipeline(
+                energy_threshold_dbfs=-60, doa_enabled=True
+            )
+            for _ in multisource_scenes
+        ]
+        multi_compute_ms = []
+        for tick in range(8):
+            started = time.perf_counter()
+            multisource_sensor.update(0.0 if tick == 0 else 0.05, force_recompute=True)
+            data = multisource_sensor.data
+            torch.cuda.synchronize()
+            multi_compute_ms.append((time.perf_counter() - started) * 1000)
+            frames = [
+                simulate_frame(
+                    scalar_backend,
+                    scene,
+                    array_id,
+                    AudioTimeWindow(
+                        start_time_s=tick * 0.05,
+                        end_time_s=(tick + 1) * 0.05,
+                        frame_index=tick,
+                    ),
+                    perception=pipeline,
+                )[0]
+                for scene, array_id, pipeline in zip(
+                    multisource_scenes, multisource_ids, multi_pipelines, strict=True
+                )
+            ]
+            expected = AudioArraySensorData.from_observations(
+                [frame.observations for frame in frames],
+                max_observations=3,
+                device="cuda:0",
+            )
+            _assert_same(torch, data, expected)
+            if tick < 4:
+                if data.observation_mask.any():
+                    raise RuntimeError("Multisource warm-up invented an event.")
+                continue
+            if not torch.equal(
+                data.observation_mask.sum(dim=1), torch.tensor([2, 2], device="cuda:0")
+            ):
+                raise RuntimeError(
+                    "Distinct simultaneous events did not reach both Lab environments."
+                )
+            if data.detection_score_mask.any() or data.ambiguity_mask.any():
+                raise RuntimeError(
+                    "Global activity or ambiguous candidates became individual events."
+                )
+            if (
+                data.elevation_deg_mask[0].any()
+                or not data.elevation_deg_mask[1, :2].all()
+            ):
+                raise RuntimeError(
+                    "Planar and rank-3 elevation observability were mixed."
+                )
+            if data.observation_mask[:, 2].any() or data.bearing_deg[:, 2].any():
+                raise RuntimeError("Padding is not empty and finite.")
+            for capacity in (0, 1):
+                capped = AudioArraySensorData.from_observations(
+                    [frame.observations for frame in frames],
+                    max_observations=capacity,
+                    device="cuda:0",
+                )
+                if not (capped.observations_truncated == 2 - capacity).all():
+                    raise RuntimeError("Multisource truncation was hidden.")
+        retained = multisource_sensor.data.bearing_deg[0].clone()
+        multisource_sensor.reset([1])
+        torch.testing.assert_close(multisource_sensor.data.bearing_deg[0], retained)
+        if multisource_sensor.data.observation_mask[1].any():
+            raise RuntimeError("Multisource partial reset retained old events.")
+        for _ in range(4):
+            multisource_sensor.update(0.05, force_recompute=True)
+        if not multisource_sensor.data.observation_mask[1, :2].all():
+            raise RuntimeError(
+                "Reset multisource environment did not recover its events."
+            )
+
         for _ in range(10):
             perf_sensor.update(1.0 / 60.0, force_recompute=True)
         evidence["phase"] = "performance"
@@ -248,6 +346,10 @@ def main() -> int:
             "phase": "complete",
             "gpu": gpu_name,
             "scalar_reference_parity": reference_parity,
+            "multisource_planar_and_3d": True,
+            "multisource_masks_capacity_and_partial_reset": True,
+            "multisource_two_environment_update_ms": multi_compute_ms,
+            "multisource_compute_device": "CPU MUSIC; CUDA tensor projection",
             "reference_activity_and_doa": True,
             "reference_warmup_and_silence": True,
             "performance_role": "empty_entity_lifecycle_only",

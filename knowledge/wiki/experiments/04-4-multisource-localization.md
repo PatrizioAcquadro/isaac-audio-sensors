@@ -2,7 +2,7 @@
 
 ## Objective and Status
 
-**Partial implementation; NO-GO for production integration.** Candidate comparison and independent simulated evaluation are implemented. Neither combined role is admitted after checking the latest independent results against known-case regressions. Unknown-count zero/one/two-source localization remains the qualification objective. Two sources are a milestone, not an interface capacity. Physical multisource performance, persistent tracking, separated audio, and scalable Lab perception are outside this experiment. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
+**Practical scalar-reference GO for planar and 3D; 07.2 may start.** Common perception, recording/dataset and Core/Isaac/Kit consumers are integrated and verified, including actual RTX 4090 Lab projection. The prospective direct-path protocol passes on broader independent content. The original combined reverberant-domain qualification remains NO-GO; historical results below remain unchanged. Physical multisource performance, tracking, separation and scalable Lab perception are unqualified or outside this experiment. See [[implementation_phases/04-observed-direction-estimation|Phase 04]].
 
 Baseline: `main` at `01eb888`, with no tracked user changes. Historical evidence and `knowledge/raw/` remain untouched. Candidate review below precedes implementation of the comparison.
 
@@ -156,7 +156,7 @@ The noisy-speech misses reveal a spectral normalization problem: averaging fitte
 Expanded development passes every static gate on every geometry at thresholds 0.009–0.011; the fixed common value is 0.010. `assessment_protocol.json` compares it with unchanged AIC on 864 new cases starting at 600000 and new LibriSpeech speakers 3575 and 7127. Every acceptance criterion and the 250 ms / 20 Hz reference remain unchanged. This additional confirmation is necessary because failure analysis informed the normalization change.
 
 
-## Current Closeout — Improved Candidate, Promotion Still NO-GO
+## Original Broad-Domain Closeout — Promotion NO-GO
 
 The final `assessment-evaluation.json` / `assessment-diagnostics.json` passes every fixed gate on all four geometries for the weighted covariance-AIC candidate, using unseen speakers, cases and bandlimited transitions. Warmed compute p95 is 3.03 ms triangle, 3.51 ms square, 30.34 ms raised-center and 25.02 ms tetrahedron; all changes receive correct responses within 336 ms. Exact silence and uncorrelated noise produce no false events; diffuse noise produces one event window in 100 on triangle (the permitted 1%) and none on the other layouts. The same-run unweighted AIC baseline also passes, illustrating why a favorable final content sample alone does not determine the winner.
 
@@ -175,7 +175,7 @@ These failures remain within the originally declared operating domain. Pooling f
 
 `tools/qualification/doa_04_4/admission.py` combines static, idle and response gates and optionally known-case regression. Missing responses never disappear from latency statistics. `assessment-admission.json` is a single-run PASS; `promotion-decision.json`, with the source-linked `promotion-regression.json`, is the current combined NO-GO decision. `assessment-promotion.json` was an intermediate decision with only the weighted regression input; use `promotion-decision.json` for both candidates.
 
-Scope and acceptance criteria remain unchanged. The next step is a dedicated event-cardinality approach that models spectral occupancy and reverberant/coherent contributions explicitly, compared against this retained baseline. Further threshold tuning or a longer context is not supported as the next remedy by these measurements. Reuse the existing mixtures as development/regression material and reserve a broader new content partition before evaluating a different approach. Common sequence perception, maintained selection and consumer/Lab GPU qualification remain pending admission; no public runtime, serialized schema or default dependency has changed. Physical multisource performance remains unqualified.
+At this broad-domain closeout, scope and acceptance criteria were unchanged. A dedicated event-cardinality approach was proposed as future research, not demonstrated necessary or selected. The subsequent user-directed practical milestone below supersedes that mandatory-next-step interpretation. Further threshold tuning or a longer context is not supported as the next remedy by these measurements. Reuse the existing mixtures as development/regression material and reserve a broader new content partition before evaluating a different approach. Common sequence perception, maintained selection and consumer/Lab GPU qualification remain pending admission; no public runtime, serialized schema or default dependency has changed. Physical multisource performance remains unqualified.
 
 
 ## Practical Scalar Reference — Prospective Integration Milestone
@@ -187,3 +187,25 @@ The user requests a useful reference that permits starting 07.2 without open-end
 Use 16 previously unused LibriSpeech speakers, chosen by archive order and minimum duration before running localization, plus independent non-speech realizations, source directions and room/noise seeds. The new reference partition begins at 700000 with eight repetitions per case stratum. Keep prior failures as regression evidence within the newly declared bounded domain and retain the original full-domain decision separately.
 
 07.2 readiness additionally requires the actual common event-sequence implementation, variable cardinality and stereo ambiguity semantics, causal state/reset, recorder/dataset and Core/Isaac/Kit consumer checks, and live GPU Lab projection. Passing an isolated candidate alone is insufficient. Full-domain acoustic and physical multisource qualification remain separate open claims after a bounded reference GO.
+
+
+## Practical Reference Outcome — GO for 07.2
+
+All four geometries pass `reference_protocol.json` on the 1,728-case `reference-evaluation.json`, plus `reference-diagnostics.json` and the applicable known-case regression. `reference-regression.json` explicitly re-scores prior raw cases only for the prospective bounded domain; it is not fresh evaluation and does not replace `promotion-decision.json`. `reference-admission.json` is the bounded candidate GO. No algorithm or numerical gate changed. The new content comes from 16 unused speakers in the [LibriSpeech corpus](https://www.openslr.org/12) (Panayotov et al., CC BY 4.0), with source members recorded in `reference_assets.json`.
+
+| Geometry | Direct-path precision | Recall | Exact pair count | Matched angle p95 | Warm compute p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Triangle | 99.53% | 98.15% | 93.06% | 3.03° | 2.97 ms |
+| Square | 99.52% | 96.76% | 91.67% | 3.24° | 3.54 ms |
+| Raised-center | 100% | 98.15% | 94.44% | 3.16° | 30.50 ms |
+| Tetrahedron | 100% | 98.15% | 94.44% | 3.40° | 31.02 ms |
+
+The qualified case family is the tested 16 kHz direct-path nominal condition (70-degree separation, equal received levels, 20 dB SNR), isolated 10 dB imbalance, and isolated 5 dB SNR. Sources are in the array plane for planar scoring; rank-3 sources vary azimuth and elevation. Speech, overlapping non-speech and disjoint spectra are represented. These are discrete conditions, not proof of every intermediate combination. The same new evaluation reports combined room-condition precision of 79.2–90.6% and recall of 79.2–84.7% across geometries. Room robustness remains a real limitation. Merely lowering the old 80% pair threshold was not the remedy.
+
+All four independent nominal 0→1→2→1→0 probes respond correctly, with maximum observed delay 338.8 ms, including composed compute. The fixed 250 ms context and 20 Hz update remain. White/diffuse-noise and silence gates pass. Known failure cases remain available for later targeted work; the reference partition is now consumed evidence and cannot qualify an evaluation-informed correction again.
+
+The maintained algorithm is shared with the experiment through `_multisource_music.py`, avoiding a copied implementation. No native ODAS dependency is promoted. The new common `EventLocalizer` receives only mixture, ordered valid geometry and sample rate. Tests exercise variable cardinality beyond two, deterministic order/IDs, candidate ambiguity, missing dependencies, malformed outputs, truth isolation, causal context and all reset boundaries. Real analytic direct-path mixtures with two independent WAV sources pass through Core and Isaac, frame serialization, session recording, learning datasets and Kit history on all four layouts. Stereo and other planar sample rates retain their previous single-event behavior; 16 kHz is the explicit multisource reference rate.
+
+`build/validation/isaac_audio_sensors/phase04_4_lab_live_smoke.json` records a PASS on the actual RTX 4090: planar/spherical two-source scalar/reference parity, masks, finite padding, zero/one-slot capacity loss and independent environment reset. Two-environment warm updates measured 41.2–42.9 ms; the first full localization update took 148.5 ms, measured separately from the 250 ms audio warm-up. These short measurements are smoke evidence, not a throughput qualification. The existing 4,096-empty-environment lifecycle check averages 0.208 ms/step; it does not represent multisource computation at scale. MUSIC executes on CPU because this implementation is CPU-only; tensor projection executes on CUDA.
+
+The 04.4 practical implementation milestone is complete and its reference is available for 07.2 when requested. Full original-domain simulated acoustic qualification and physical multisource validation remain open. Further cardinality research is driven by measured consumer needs; it is not a prerequisite for starting 07.2 with this bounded reference.
