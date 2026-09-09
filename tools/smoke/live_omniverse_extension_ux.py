@@ -393,19 +393,6 @@ def main() -> int:
         )
         evidence["object_attach_live_qa"]["generic_scene"] = generic_result
 
-        evidence["instruments"] = _step(
-            evidence,
-            "instruments_live_qa",
-            lambda: _collect_instruments_evidence(
-                controller,
-                screenshot_path=args.out.with_suffix(".instruments.png"),
-            ),
-        )
-        evidence["usd_debug"] = _step(
-            evidence,
-            "usd_debug_live_qa",
-            lambda: _collect_usd_debug_evidence(controller, stage=stage),
-        )
         evidence["audio_output"] = _step(
             evidence,
             "audio_output_live_qa",
@@ -939,6 +926,24 @@ def _run_object_attach_scenario(
         evidence.setdefault("object_attach_live_qa", {})[fixture_kind] = result
         _enforce_required_screenshot(result["screenshot"], fixture_kind)
 
+    if fixture_kind == "generic_scene":
+        # Capture valid instruments before intentionally invalidating acquisition.
+        evidence["instruments"] = _step(
+            evidence,
+            "instruments_live_qa",
+            lambda: _collect_instruments_evidence(
+                controller,
+                screenshot_path=Path(evidence["evidence_path"]).with_suffix(
+                    ".instruments.png"
+                ),
+            ),
+        )
+        evidence["usd_debug"] = _step(
+            evidence,
+            "usd_debug_live_qa",
+            lambda: _collect_usd_debug_evidence(controller, stage=stage),
+        )
+
     result["missing_object_probe"] = _probe_missing_object_status(
         controller=controller,
         stage=stage,
@@ -1109,7 +1114,14 @@ def _probe_missing_object_status(
     return {
         "status": (
             "passed"
-            if frame is None and message and expected_path in message
+            if (
+                frame is None
+                and message
+                and expected_path in message
+                and controller.state.latest_frame_id is None
+                and not controller.state.latest_aggregate_rms
+                and not controller.state.sensor_running
+            )
             else "failed"
         ),
         "remove_result": remove_result,
