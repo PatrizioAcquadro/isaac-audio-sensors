@@ -9,7 +9,7 @@
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
 - [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — continue from the completed signal boundary and R9.4 qualification into observation contracts, consumer migration, and detection-architecture removal.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
-- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed dominant-DOA 04.1–04.3; 04.4 bounded indoor stable-source improvement and GPU consumers confirmed; weak-speech, latency and broader qualification limits remain; 07.2 unstarted.
+- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed dominant-DOA 04.1–04.3; 04.4 bounded indoor stable-source improvement and GPU consumers confirmed; motion/indoor replacement is NO-GO and broader limits remain; 07.2 unstarted.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1 finite masked observation tensors and scalar projection; the bounded reference is available for scalable/stateful 07.2, currently deferred while 04.4 indoor robustness is addressed.
@@ -32,7 +32,7 @@
 
 ## Topics
 
-- [[topics/onr-video-production|ONR Video Production]] — maintained local generator, original nine-video catalog, approved final videos 1 and 2, evidence and limits.
+- [[topics/onr-video-production|ONR Video Production]] — maintained local generator, original nine-video catalog, approved final videos 1 and 2, evidence and limits; sequential third-person/robot-camera comparison for video 2.
 
 - [[topics/getting-started|Getting Started]] — installation, CLI, examples, Isaac runtime launch, and contribution workflow.
 - [[topics/system-architecture|System Architecture]] — package layers, data flow, lazy dependencies, and downstream ownership.
@@ -51,7 +51,7 @@
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — confirmed indoor before/after results, failed first confirmation, stable-source timing tradeoff, weak speech and direct-path regressions.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — confirmed indoor reference, motion/indoor candidate rejection, reusable numerical evaluation, weak speech and timing limits.
 
 ## Sources
 

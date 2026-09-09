@@ -1255,3 +1255,11 @@ Extended retained trajectories and bracketed motion plans with quaternion orient
 ## 2026-09-09 — update: Bounded motion-rendering cost
 
 Skipped orientation gain work for omnidirectional pairs and used the algebraically equivalent quadratic arrival solution for constant-velocity paths. Non-affine histories retain the iterative solver. Continuous-arrival, rotating geometry and received-pass tests preserve the physical behavior.
+
+## 2026-09-09 — experiment: Motion/indoor DOA replacement rejected
+
+Compared weighted memory, equal-count composition, partial acoustic refinement and SRP refinement. Independent stationary/direct controls exposed weak-speech losses and moving-pair controls rejected the conservative refinement. Restored the maintained DOA implementation unchanged, retained a public-contract numerical evaluator and documented the NO-GO. Orientation-aware propagation and equivalent affine arrival computation remain the accepted implementation changes.
+
+## 2026-09-09 — lint: Motion correction and DOA NO-GO closeout
+
+Wiki links/index, Ruff and whitespace pass. The delivered baseline passes 638 unit/contract, 332 integration and 58 release tests; the supported Isaac interpreter passes 152 tests including arrival physics. Optional audio and RTX 4090 Sim/Lab/Kit consumers pass; the final Sim/Lab rerun uses the restored original localizer. A wheel built from the sdist contains exactly the source Python modules and no candidate/evaluation outputs. Raw and historical evidence remain untouched.

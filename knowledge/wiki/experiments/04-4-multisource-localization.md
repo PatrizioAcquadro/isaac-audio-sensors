@@ -107,3 +107,67 @@ The paired stationary set contains square/tetrahedral arrays, nominal RT60 0.2/0
 **Decision: retain the existing localizer.** No tested candidate simultaneously preserves its indoor behavior and meets the nominal moving-source p95 ≤10° goal. The maintained estimator also exceeds 350 ms in apparent age, before a full response test could pass. No sample-rate increase, estimator mode split, oracle source count, or track ID was introduced. Joint fast-motion/multisource qualification remains open, including moving mixtures, difficult reverberant passes, rotation, and physical audio.
 
 The local numerical report is `build/validation/isaac_audio_sensors/continuity_doa_comparison.json`. It contains metrics only; no demonstration media or ONR material was produced. The comparison does not start 07.2.
+
+## Motion/Indoor Closeout — 2026-09-09
+
+**NO-GO for replacing the maintained localizer. The DOA motion/indoor tradeoff remains open.** The delivered SDK retains the original 750 ms WPE/group-sparse implementation byte-for-byte. The accepted changes concern rotating acoustic geometry and equivalent constant-velocity arrival computation; see [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]]. No 07.2, physical campaign, demonstration scene, video or ONR material was produced.
+
+### Candidate comparison and rejection
+
+The original four passes and 72 stationary controls reproduce the preceding comparison, including 68 exact baseline cases. Exponentially weighted spatial evidence with a 250 ms time constant keeps 68 exact cases but changes misses/extras from 3/2 to 2/3; 150 ms weighting yields 64 exact cases. A composed candidate preserves the long-window event evidence and accepts 250 ms directions only when counts agree and one-to-one displacement is below 35°. It keeps 68/72 exact cases and reduces the original pass angular p95 to 7.3–14.2°, with apparent age p95 148–296 ms. This is a development benefit, not joint qualification.
+
+A second 144-case, four-geometry screen produces 142 exact cases for both the baseline and this composition; weighted evidence gives 136 and a PyRoom SRP refinement with acoustically inferred count gives 139. The established SRP component is therefore rejected at indoor screening. Historical ODAS SSL/native-lifetime controls already fail nominal count/precision gates; no new native tracking qualification or dependency was claimed or added.
+
+On 864 different stationary cases the equal-count composition and baseline both achieve 820 exact cases, with one square loss and one raised-array gain. Moving tests then reveal that count disagreement prevents many useful updates. Allowing one-to-one updates of individual supported directions improves direct-motion development p95: square broadband/speech 18.4/21.7° → 6.5/9.1°, tetrahedral 17.6/24.6° → 6.2/14.4°. Unmatched directions retain long-window acoustic evidence; directions are never predicted from source trajectories or robot pose.
+
+The independent stationary confirmation of that 35° partial refinement exposes weak-speech regressions: triangle loses three exact cases and raised loses two, concentrated in a few speech episodes. Tightening multiple-direction association to 20° restores the triangle cases and reduces the raised loss to one, but this is now a development control on consumed confirmation inputs. It does not create a new independent GO.
+
+Final conservative control, 216 stationary cases per geometry:
+
+| Geometry | Baseline exact cases | Candidate exact cases | Angular p95: baseline → candidate |
+| --- | ---: | ---: | ---: |
+| Triangle | 199 | 199 | 5.3° → 8.0° |
+| Square | 209 | 209 | 2.5° → 4.2° |
+| Raised | 210 | 209 | 6.7° → 7.7° |
+| Tetrahedral | 199 | 199 | 5.1° → 6.9° |
+
+A paired bootstrap groups all conditions/counts within each content/episode block (18 blocks per geometry). Exact-case change is zero for triangle/square/tetrahedral; raised is −0.46 percentage points with a 95% bootstrap interval of approximately −1.39 to 0. This stationary preservation is insufficient to close the moving problem. Speech errors already present in the baseline remain visible; these new simulations do not replace the historical 24-group qualification.
+
+### Ordinary moving pairs remain inadequate
+
+The decisive controls use four-second received audio, two distinct speech excerpts, 6 dB emission imbalance, nominal RT60 0.3 s and 20 dB global-mixture SNR in a uniform 6×5×3 m shoebox with image order ten. One source passes at 1 m/s; the other remains spatially separated. The combined case also translates the receiver at 0.25 m/s and rotates it at 0.7 rad/s. The localizer receives only the causal mixture and microphone geometry. Source RMS normalization defines emission levels; received audio is not repaired or renormalized. Room target RT60 is not a measured decay claim.
+
+Each geometry contributes two variants of one episode and 66 scored updates. These are bounded counterexamples, not 66 independent trials or population success rates. Exact success requires the correct count and every one-to-one matched direction within 20°. Angular p95 below includes assigned errors above that gate; misses and extra directions are reported separately in the numerical report.
+
+| Geometry | Baseline exact updates | Conservative candidate | Angular p95: baseline → candidate |
+| --- | ---: | ---: | ---: |
+| Triangle | 26/66 | 26/66 | 32.7° → 31.4° |
+| Square | 42/66 | 40/66 | 26.4° → 27.8° |
+| Raised | 19/66 | 18/66 | 76.1° → 76.1° |
+| Tetrahedral | 28/66 | 28/66 | 58.1° → 62.3° |
+
+The long-window count remains correct in only 53.0–89.4% of these updates. Reusing that count cannot resolve its motion errors, and recent directional refinement adds no dependable joint benefit. A supplementary cue audit retains windows where both recent 250 ms speech excerpts have at least 10% of their own nominal RMS; the combined-motion failure remains. Pauses alone do not explain the result. Separate crossing controls include bearings closer than the maintained separation capability and remain limits rather than the reason for rejection.
+
+Post-warm-up transition controls require two consecutive correct event sets and include the final call's complete localizer computation. Across four geometries, 1→2 response p95 is about 748 ms for the baseline and 784 ms for the conservative candidate. Three of four 2→1 changes resolve before the next change, at about 717/757 ms p95; one remains unresolved. Neither resolves the final 1→0 transition before the short remaining 600 ms interval ends. These are localizer-only schedule-relative diagnostics, not activity-detector or physical transport latency measurements. Level-change controls and harder nominal RT60 0.5 s / 10 dB SNR controls also remain numerical limits, not expanded qualification.
+
+### Maintained result and reproducible assessment
+
+The propagation correction passes reception-time rotating microphone offsets, retarded source orientation, shortest-arc interpolation, block partition equivalence, acoustic tails and the near-sonic arrival equation. When future poses are absent, angular extrapolation remains an explicit approximation. Accepted host checks cover the unchanged DOA consumers; supported Isaac Sim/Lab/Kit checks run on RTX 4090. The CPU localizer and empty-entity CUDA lifecycle measurements remain different workloads.
+
+`tools/validation/motion_localization.py` is a numerical evaluator of the maintained public `EventLocalizer` contract. It supports stationary and moving conditions, independent episode seeds, optional `module:factory` candidates, and optional cached PCM/truth arrays. Candidate inputs are read-only and contain no evaluator truth. Generated source WAVs are temporary; cached `.npz` files are numerical test inputs, not media deliveries. Use a new cache directory after changing renderer/scenario definitions. Utterance partitions are disjoint within this comparison; they are not a new speaker-disjoint physical or population qualification.
+
+Example maintained-only run:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src \
+  .venv/bin/python tools/validation/motion_localization.py \
+  --suite moving --partition confirmation --episodes 1 \
+  --contents speech --scenarios separated_mixed separated_combined \
+  --rt60 0.3 --imbalance 6 --seed-base 1175000 \
+  --cache-dir build/validation/motion_final_indoor_inputs \
+  --output build/validation/isaac_audio_sensors/motion_maintained.json
+```
+
+Local closeout: `build/validation/isaac_audio_sensors/motion_closeout.json`. Supporting reports include `motion_final_decision.json`, `motion_stationary_refinement_control.json`, `motion_final_direct_confirmation.json`, `motion_transition_controls.json`, and `motion_stress_controls.json`. Earlier candidate reports retain their at-run column names; their `maintained` column can refer to a rejected candidate temporarily under evaluation, not the delivered SDK. Rejected prototypes remain outside the maintained package.
+
+The next useful investigation must jointly estimate changing event count and direction from temporal acoustic evidence. The present results do not justify choosing a particular tracker or library, predicting missing directions, or advancing 07.2. Signal-level movement corrections are complete within their documented approximations; responsive indoor multisource perception is not complete.
