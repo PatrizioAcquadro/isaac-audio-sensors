@@ -117,6 +117,38 @@ def retarded_path(
         value = trajectory.at(t)
         return value if transform is None else transform(value)
 
+    # For affine motion and image transforms the same arrival equation is quadratic.
+    velocity = np.asarray(trajectory.velocities[0])
+    linear = np.all(np.asarray(trajectory.velocities) == velocity) and np.allclose(
+        np.asarray(trajectory.positions) - trajectory.positions[0],
+        (np.asarray(trajectory.times) - trajectory.times[0])[:, None] * velocity,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    if linear:
+        origin = position(np.array([trajectory.times[0]]))[0]
+        velocity = position(np.array([trajectory.times[0] + 1]))[0] - origin
+        offset = receiver - (origin + (times - trajectory.times[0])[:, None] * velocity)
+        projection = offset @ velocity
+        denominator = speed_of_sound**2 - velocity @ velocity
+        if denominator <= 0:
+            raise ValueError("Retarded propagation requires subsonic trajectories.")
+        radius_squared = np.sum(offset * offset, axis=-1)
+        root = np.sqrt(projection**2 + denominator * radius_squared)
+        # Rationalize the negative-projection branch to avoid cancellation.
+        delay = np.where(
+            projection >= 0,
+            (projection + root) / denominator,
+            radius_squared / np.maximum(root - projection, 1e-30),
+        )
+        direction = offset + delay[:, None] * velocity
+        distance = np.linalg.norm(direction, axis=-1)
+        if np.any(distance <= 1e-9):
+            raise ValueError(
+                "analytic_acoustics requires distinct source and microphone positions."
+            )
+        return times - delay, distance, direction
+
     emission = np.asarray(times).copy()
     for _ in range(48):
         source_position = position(emission)
@@ -472,13 +504,17 @@ def pair_gain(
     directions,
 ):
     """Direct-path polar gains on their respective acoustic clocks."""
-    source_gain = polar_gain(
-        source.directivity, source_trajectory.orientation_at(emission), directions
-    )
+    source_gain = np.ones(len(emission))
+    if pattern_coefficient(source.directivity) != 1.0:
+        source_gain = polar_gain(
+            source.directivity, source_trajectory.orientation_at(emission), directions
+        )
+    coefficient = pattern_coefficient(microphone.directivity)
+    if coefficient == 1.0:
+        return source_gain
     local_axis = rotate_vectors(
         (1.0, 0.0, 0.0), microphone.relative_orientation_quat or (0.0, 0.0, 0.0, 1.0)
     )
     axis = rotate_vectors(local_axis, array_trajectory.orientation_at(reception))
-    coefficient = pattern_coefficient(microphone.directivity)
     cosine = np.sum(-directions * axis, axis=-1) / np.linalg.norm(directions, axis=-1)
     return source_gain * (coefficient + (1 - coefficient) * np.clip(cosine, -1, 1))

@@ -153,3 +153,25 @@ def test_shortest_arc_and_angular_extrapolation():
         [yaw(0), yaw(0.05), yaw(0.2)],
         atol=1e-12,
     )
+
+
+@pytest.mark.parametrize("speed", [-342.999, 0.0, 342.999])
+def test_affine_arrival_equation_near_sound_speed(speed):
+    from isaac_audio_sensors.core.backends._analytic.arrival import (
+        Trajectory,
+        retarded_path,
+    )
+
+    trajectory = Trajectory()
+    trajectory.observe(0.0, (100.0, 1.0, 0.0), (speed, 0.0, 0.0))
+    times = np.array([0.01, 0.05, 0.1])
+    receiver = np.zeros((3, 3))
+    emission, distance, _ = retarded_path(times, receiver, trajectory, 343.0, 16000)
+    assert np.all(emission <= times)
+    np.testing.assert_allclose(
+        np.linalg.norm(receiver - trajectory.at(emission), axis=1),
+        distance,
+        rtol=1e-11,
+        atol=1e-8,
+    )
+    np.testing.assert_allclose(emission + distance / 343.0, times, rtol=0, atol=1e-9)

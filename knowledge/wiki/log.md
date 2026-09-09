@@ -1251,3 +1251,7 @@ Resolved all wiki links and index entries, checked whitespace and code reference
 ## 2026-09-09 — update: Orientation-aware acoustic arrivals
 
 Extended retained trajectories and bracketed motion plans with quaternion orientation. Documented receiver/emitter acoustic clocks and angular extrapolation; preserved continuous propagation and the current DOA boundary. Direct and room rotation partition tests and a closed-form rotating-source/microphone test pass.
+
+## 2026-09-09 — update: Bounded motion-rendering cost
+
+Skipped orientation gain work for omnidirectional pairs and used the algebraically equivalent quadratic arrival solution for constant-velocity paths. Non-affine histories retain the iterative solver. Continuous-arrival, rotating geometry and received-pass tests preserve the physical behavior.

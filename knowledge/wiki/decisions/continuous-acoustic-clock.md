@@ -15,7 +15,7 @@ This is an integration decision, not a claim that these libraries are generally 
 
 ## Signal and Time
 
-For microphone reception time `t_r`, moving paths solve `t_r - t_e = |microphone(t_r) - source(t_e)| / c`. The source is sampled at `t_e`; the same distance controls travel time and geometric attenuation. Doppler follows the variable delay, without an additional pitch resampler. The existing velocity formula remains an instantaneous diagnostic, not a second signal transformation.
+For microphone reception time `t_r`, moving paths solve `t_r - t_e = |microphone(t_r) - source(t_e)| / c`. The source is sampled at `t_e`; the same distance controls travel time and geometric attenuation. Doppler follows the variable delay, without an additional pitch resampler. Omnidirectional pairs skip orientation-dependent gain calculations. The existing velocity formula remains an instantaneous diagnostic, not a second signal transformation.
 
 Static paths convolve the RIR with the necessary absolute emission history and select only the requested receiver samples. This preserves delayed onset, file loops, source stops, and acoustic tails across 10/50/100 ms captures, including propagation delays longer than a capture. Removed emitters remain until their in-flight history can drain. No final-WAV normalization, fading, or repair is applied.
 
@@ -33,7 +33,7 @@ Channel FIR/delay and banded attenuation receive surrounding signal history befo
 
 ## Approximation Boundaries
 
-- Motion is subsonic. Fixed-point iteration has a bracketed fallback near the speed of sound; supersonic paths and coincident source/microphone positions are rejected.
+- Motion is subsonic. Constant-velocity paths use the equivalent quadratic arrival solution; non-affine histories use fixed-point iteration with a bracketed fallback near the speed of sound; supersonic paths and coincident source/microphone positions are rejected.
 - Linear fractional sampling is not a band-limited variable-rate resampler. Near-Nyquist motion can attenuate or alias content; the 700/1,000 Hz physical tests do not qualify that region.
 - Microphone offsets and polar axes use orientation at reception; source polar axes use orientation at each path's retarded emission time. Constant turns and bracketed rotations pass numerical arrival/partition tests; angular acceleration outside the available pose bracket remains an extrapolation, not measured motion.
 - Specular image transforms reuse the provider's solved paths. Visibility and material state refresh at snapshots/segments, so path appearance/disappearance can still be abrupt. Polygon ancestry is recovered from provider images and generating walls; missing visible parents fail explicitly rather than inventing a path.
