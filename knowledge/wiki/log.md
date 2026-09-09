@@ -1271,3 +1271,7 @@ Recomposed the approved comparison as third-person views followed by a labeled r
 ## 2026-09-09 — lint: ONR sequential edit closeout
 
 All five documentation-boundary checks pass, including wiki links and index coverage; whitespace, compositor syntax and undefined-name checks pass. Changes are limited to the local video 2 edit and its canonical documentation.
+
+## 2026-09-09 — update: Explicit streaming perception boundary
+
+Added optional streaming event-localizer injection with new blocks, inactive-mixture updates, common resets and explicitly supplied receiver orientation. Documented uncertainty and recording semantics. The maintained localizer and propagation remain unchanged; candidate qualification is separate.

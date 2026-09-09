@@ -17,6 +17,7 @@ from isaac_audio_sensors.core.plugins.protocols import (
     DoaEstimator,
     EventLocalizer,
     PropagationBackend,
+    StreamingEventLocalizer,
 )
 from isaac_audio_sensors.core.plugins.pyroomacoustics import (
     PyroomacousticsSrpEstimator,
@@ -42,6 +43,7 @@ __all__ = [
     "PluginFactory",
     "PluginRegistry",
     "PropagationBackend",
+    "StreamingEventLocalizer",
     "PyroomacousticsSrpEstimator",
     "get_default_registry",
 ]

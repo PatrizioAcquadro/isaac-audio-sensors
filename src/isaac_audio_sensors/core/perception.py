@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         ActivityDetector,
         DoaEstimator,
         EventLocalizer,
+        StreamingEventLocalizer,
     )
 
 
@@ -35,15 +36,23 @@ class AudioPerceptionPipeline:
         *,
         activity_detector: ActivityDetector | None = None,
         doa_estimator: DoaEstimator | None = None,
-        event_localizer: EventLocalizer | None = None,
+        event_localizer: EventLocalizer | StreamingEventLocalizer | None = None,
         max_observations: int | None = None,
     ) -> None:
         if doa_estimator is not None and event_localizer is not None:
             raise ValueError("Choose either doa_estimator or event_localizer.")
-        if event_localizer is not None and not callable(
-            getattr(event_localizer, "localize", None)
+        self._streaming_localizer = callable(
+            getattr(event_localizer, "localize_block", None)
+        )
+        if event_localizer is not None and not (
+            self._streaming_localizer
+            or callable(getattr(event_localizer, "localize", None))
         ):
-            raise TypeError("event_localizer must provide a callable localize method.")
+            raise TypeError("event_localizer must provide localize or localize_block.")
+        if self._streaming_localizer and not callable(
+            getattr(event_localizer, "reset", None)
+        ):
+            raise TypeError("A streaming event_localizer must provide reset.")
         if activity_detector is None:
             if doa_estimator is not None or event_localizer is not None:
                 raise ValueError(
@@ -119,6 +128,7 @@ class AudioPerceptionPipeline:
         frame_id: str,
         frame_name: str | None = None,
         external_observations: Sequence[AudioObservation] = (),
+        receiver_orientation_xyzw: tuple[float, float, float, float] | None = None,
     ) -> AudioSensorFrame:
         """Run injected perception and build one frame for the signal window."""
 
@@ -132,6 +142,12 @@ class AudioPerceptionPipeline:
         if frame_name is not None:
             require_non_empty(frame_name, "AudioPerceptionPipeline.frame_name")
         self._validate_binding(block, array)
+        if receiver_orientation_xyzw is not None:
+            from isaac_audio_sensors.core.math_utils import as_quaternion_xyzw
+
+            receiver_orientation_xyzw = as_quaternion_xyzw(
+                receiver_orientation_xyzw, "receiver_orientation_xyzw"
+            )
 
         external = tuple(external_observations)
         for observation in external:
@@ -176,9 +192,10 @@ class AudioPerceptionPipeline:
                     dtype=float,
                 )
                 positions.setflags(write=False)
-                doa_samples, context_diagnostics = self._update_doa_context(
-                    valid_samples,
-                    block,
+                doa_samples, context_diagnostics = (
+                    (valid_samples, None)
+                    if self._streaming_localizer
+                    else self._update_doa_context(valid_samples, block)
                 )
                 if context_diagnostics is not None:
                     perception_diagnostics["doa_context"] = context_diagnostics
@@ -200,7 +217,7 @@ class AudioPerceptionPipeline:
                     "detector_diagnostics": detector_diagnostics,
                 }
             )
-            if not decision.active:
+            if not decision.active and not self._streaming_localizer:
                 self._clear_doa_temporal_state()
                 if self._doa_component is not None:
                     warming = (
@@ -213,7 +230,9 @@ class AudioPerceptionPipeline:
                         if warming
                         else "inactive_mixture",
                     }
-            if decision.active and self._event_localizer is not None:
+            if (
+                decision.active or self._streaming_localizer
+            ) and self._event_localizer is not None:
                 if len(valid_indices) < 2:
                     events, localization = (
                         (),
@@ -222,6 +241,24 @@ class AudioPerceptionPipeline:
                             "reason": "fewer_than_two_valid_channels",
                         },
                     )
+                elif self._streaming_localizer:
+                    events, localization = _event_result(
+                        self._event_localizer.localize_block(
+                            valid_samples,
+                            positions,
+                            block.sample_rate_hz,
+                            start_time_s=block.time_window.start_time_s,
+                            receiver_orientation_xyzw=receiver_orientation_xyzw,
+                        )
+                    )
+                    localization = {
+                        **localization,
+                        "receiver_orientation_xyzw": (
+                            list(receiver_orientation_xyzw)
+                            if receiver_orientation_xyzw is not None
+                            else None
+                        ),
+                    }
                 else:
                     events, localization = _event_result(
                         self._event_localizer.localize(

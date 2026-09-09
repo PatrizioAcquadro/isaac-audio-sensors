@@ -90,6 +90,31 @@ class EventLocalizer(Protocol):
 
 
 @runtime_checkable
+class StreamingEventLocalizer(Protocol):
+    """Consume each new causal block once, including inactive mixtures.
+
+    Positions are array-local; optional receiver orientation is measured at the
+    block end in a fixed consumer-owned frame. Missing orientation is explicit.
+    No source metadata or producer diagnostics cross this boundary. Output has
+    the same events/no_events/unavailable contract as EventLocalizer.
+    """
+
+    def localize_block(
+        self,
+        samples: np.ndarray,
+        microphone_positions_m: np.ndarray,
+        sample_rate_hz: int,
+        *,
+        start_time_s: float,
+        receiver_orientation_xyzw: tuple[float, float, float, float] | None = None,
+    ) -> tuple[tuple[DoaEstimate, ...], dict[str, object]]:
+        """Update acoustic evidence, existence and directions from new samples."""
+
+    def reset(self) -> None:
+        """Discard all acoustic, motion and association state."""
+
+
+@runtime_checkable
 class AudioFeatureExtractor(Protocol):
     """Extract a declared fixed-shape feature tensor from ordered samples.
 
@@ -112,4 +137,5 @@ __all__ = [
     "DoaEstimator",
     "EventLocalizer",
     "PropagationBackend",
+    "StreamingEventLocalizer",
 ]
