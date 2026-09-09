@@ -42,7 +42,7 @@ Every scalar nominal or delta `gain_db` is an amplitude gain using `10 ** (gain_
 
 Generated and file-backed source samples keep the amplitude encoded by the asset. Source nominal gain is applied exactly once after content selection and before propagation; `gain_db = 0` is unity and WAV input is never peak- or RMS-normalized automatically.
 
-The direct-feature order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss where supported, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. The analytic waveform order is original samples, source nominal gain and Doppler, propagation into direct `D` and indirect `R` stems, signed pair directivity, direct-only broadband or banded occlusion, `a * D + R` recombination, microphone nominal gain, channel-response processing, source summation, then noise/electronics. Closed analytic routes use PyRoom RIRs and never apply a second manual distance loss. An unattenuated pair uses the original full premix directly.
+The direct-feature order is asset reference, source nominal gain, source/microphone directivity magnitude, analytical `1/d` with the existing floor and optional air absorption, occlusion loss where supported, microphone nominal gain, optional TDOA gain-mismatch stress, then channel-response gain correction. The analytic waveform order is original samples, source nominal gain, continuous retarded propagation into direct `D` and indirect `R` stems, signed pair directivity, direct-only broadband or banded occlusion, `a * D + R` recombination, microphone nominal gain, channel-response processing, source summation, then noise/electronics. Closed analytic routes use PyRoom RIRs and never apply a second manual distance loss. An unattenuated pair uses the original full premix directly.
 
 Channel-response gain is a configured per-channel correction delta, TDOA gain mismatch is a seeded stress delta, and occlusion is a non-positive propagation-loss delta. Diagnostics keep them distinct from source and microphone nominal gains. Calibration-profile gain is stored data only and is never applied automatically.
 
@@ -70,9 +70,11 @@ The analytic model does not implement arbitrary geometry, `surface_set`, diffrac
 
 Source and array velocity may be authored or derived from pose history with explicit first-sample, stale-time, teleport, smoothing, and reset handling.
 
-Motion windows can be segmented so Doppler, pair geometry, RIR rendering, and session time gaps follow bounded intra-window state instead of one unlabelled static approximation. R8.2 preserves direct/indirect decomposition and direct-only attenuation across every PyRoom segment; its Core free-field and half-space routes reject more than one segment.
+Propagation now uses one absolute emission/reception clock. Static paths retain the required convolution history; moving direct and specular paths sample retarded emission time, producing Doppler through the variable delay itself. Source stops retain in-flight arrivals and room tails. Isaac keeps the backend across captures, and Lab reference environments have independent propagation state.
 
-L1 records direct-path frequency-ratio behavior; L2 can resample waveform sources across motion segments.
+Motion windows can still segment PyRoom visibility/material updates. Core free-field and half-space routes retain the existing rejection of more than one explicit segment, while evaluating continuous motion within each ordinary window. The analytical velocity ratio remains diagnostic; separate per-window Doppler resampling is removed.
+
+See [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] for library selection, clock/reset conventions, filter history, and approximations. Continuous received audio does not establish rapid DOA tracking: the maintained 16 kHz multisource localizer retains its measured temporal lag, documented in [[experiments/04-4-multisource-localization|04.4 Multisource Localization]].
 
 ## Effects and Electronics
 

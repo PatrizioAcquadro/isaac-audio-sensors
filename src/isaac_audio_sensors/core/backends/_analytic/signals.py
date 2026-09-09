@@ -24,6 +24,50 @@ _IMPULSE_SPIKES_S = ((0.004, 1.0),)
 _PULSE_SPIKES_S = ((0.004, 1.0), (0.010, -0.65), (0.017, 0.4))
 
 
+def convolve_emission(
+    source: AudioSourceSpec,
+    impulse: np.ndarray,
+    time_window: AudioTimeWindow,
+    sample_rate_hz: int,
+) -> np.ndarray:
+    """Convolve the required emission history, then select receiver samples."""
+
+    start = round(time_window.start_time_s * sample_rate_hz)
+    count = max(
+        1, round((time_window.end_time_s - time_window.start_time_s) * sample_rate_hz)
+    )
+    first = max(0, start - len(impulse) + 1)
+    emission = _scheduled_window_signal(
+        source,
+        time_window=AudioTimeWindow(
+            start_time_s=first / sample_rate_hz,
+            end_time_s=(start + count) / sample_rate_hz,
+            frame_index=time_window.frame_index,
+        ),
+        sample_rate_hz=sample_rate_hz,
+    ).signal
+    # Include silence after emission ends; arrivals can still be in flight.
+    emission = np.pad(emission, (0, max(0, start + count - first - len(emission))))
+    taps = np.flatnonzero(impulse)
+    if len(taps) < 16:
+        output = np.zeros(count)
+        for tap in taps:
+            indices = start - first + np.arange(count) - tap
+            valid = (indices >= 0) & (indices < len(emission))
+            output[valid] += impulse[tap] * emission[indices[valid]]
+        return output
+    if len(impulse) * len(emission) > 1_000_000:
+        try:
+            from scipy.signal import fftconvolve
+        except ImportError:
+            convolved = np.convolve(emission, impulse)
+        else:
+            convolved = fftconvolve(emission, impulse)
+    else:
+        convolved = np.convolve(emission, impulse)
+    return np.asarray(convolved[start - first : start - first + count])
+
+
 @dataclass(frozen=True, slots=True)
 class _ScheduledSignal:
     """One source's window-relative signal with sample-accurate scheduling."""
@@ -33,37 +77,6 @@ class _ScheduledSignal:
     start_offset_samples: int
     content_sample_count: int
     emission_rms: float
-
-
-def _piecewise_phase_signal(
-    waveform: np.ndarray,
-    *,
-    factors: tuple[float, ...],
-    segment_lengths: tuple[int, ...],
-) -> np.ndarray:
-    """Render sample-exact segments with one cumulative float64 phase cursor."""
-
-    if len(factors) != len(segment_lengths) or not factors:
-        raise ValueError("piecewise factors and segment lengths must match")
-    if any(length <= 0 for length in segment_lengths):
-        raise ValueError("piecewise segment lengths must be positive")
-    source = np.asarray(waveform, dtype=float)
-    output = np.zeros(sum(segment_lengths), dtype=float)
-    cursor = 0.0
-    output_index = 0
-    for factor, length in zip(factors, segment_lengths, strict=True):
-        if not math.isfinite(factor) or factor <= 0.0:
-            raise ValueError("piecewise Doppler factors must be positive and finite")
-        for _ in range(length):
-            lower = math.floor(cursor)
-            fraction = cursor - lower
-            first = source[lower] if 0 <= lower < source.size else 0.0
-            second_index = lower + 1
-            second = source[second_index] if 0 <= second_index < source.size else 0.0
-            output[output_index] = first + fraction * (second - first)
-            output_index += 1
-            cursor += factor
-    return output
 
 
 def _scheduled_window_signal(
@@ -319,35 +332,5 @@ def _resample_waveform(
     divisor = math.gcd(from_hz, to_hz)
     return np.asarray(
         resample_poly(waveform, to_hz // divisor, from_hz // divisor),
-        dtype=float,
-    )
-
-
-def _doppler_resampled_signal(
-    waveform: np.ndarray,
-    *,
-    factor: float,
-) -> np.ndarray:
-    """Time-compress a window signal by the Doppler factor.
-
-    The output plays the same content over ``len(waveform) / factor`` samples
-    at the unchanged frame sample rate, scaling all frequencies by ``factor``.
-    One factor applies to the whole window (computed at the array center at
-    the snapshot pose), so intra-window motion and the compression of leading
-    scheduling silence are deliberate approximations of a continuously moving
-    source.
-    """
-
-    try:
-        from fractions import Fraction
-
-        from scipy.signal import resample_poly  # type: ignore
-    except ImportError as exc:
-        raise OptionalDependencyUnavailable(
-            "Doppler waveform resampling requires scipy from the 'room' extra."
-        ) from exc
-    ratio = Fraction(factor).limit_denominator(10_000)
-    return np.asarray(
-        resample_poly(waveform, ratio.denominator, ratio.numerator),
         dtype=float,
     )

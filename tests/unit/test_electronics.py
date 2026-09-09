@@ -567,20 +567,15 @@ def _primary_premix(_room, *, source_count: int, mic_count: int):
 
 
 def test_room_electronics_once_on_mixture_rms_export_and_seed_replay(monkeypatch):
-    fake = install_fake_pyroom(monkeypatch)
-    base_shoebox = fake.ShoeBox
+    install_fake_pyroom(monkeypatch)
+    from isaac_audio_sensors.core.backends._analytic import rendering
 
-    class ControlledShoebox(base_shoebox):
-        def simulate(self, return_premix=False):
-            premix = _primary_premix(
-                self,
-                source_count=len(self.sources),
-                mic_count=self.mic_array.R.shape[1],
-            )
-            self.mic_array.signals = premix.sum(axis=0)
-            return premix if return_premix else None
-
-    fake.ShoeBox = ControlledShoebox
+    monkeypatch.setattr(
+        rendering, "_simulate_premix",
+        lambda room, **kwargs: _primary_premix(
+            room, source_count=len(room.sources), mic_count=room.mic_array.R.shape[1]
+        ),
+    )
     array = quad_array()
     results = []
     for source_count in (1, 4):

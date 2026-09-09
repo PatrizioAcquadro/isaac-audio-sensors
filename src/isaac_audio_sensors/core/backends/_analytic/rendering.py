@@ -19,14 +19,17 @@ from isaac_audio_sensors.core.acoustics.occlusion import (
     occlusion_band_attenuation_db,
     occlusion_per_mic_extra_gain_db,
 )
+from isaac_audio_sensors.core.backends._analytic.arrival import (
+    moving_pair,
+    moving_room_premix,
+)
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
 )
 from isaac_audio_sensors.core.backends._analytic.signals import (
-    _doppler_resampled_signal,
-    _piecewise_phase_signal,
     _scheduled_window_signal,
     _ScheduledSignal,
+    convolve_emission,
 )
 from isaac_audio_sensors.core.directivity import (
     DIRECTIVITY_MODE,
@@ -53,6 +56,8 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     MicrophoneArraySpec,
 )
+
+BAND_FILTER_HALF_SAMPLES = 8192
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +87,7 @@ class RenderedRoom:
     microphone_environment_positions: dict[str, tuple[float, float, float]]
     effect_diagnostics: dict[str, Any]
     segment_factor_rows: tuple[dict[str, float], ...]
+    discontinuity: bool = False
 
 
 def render_room(
@@ -91,8 +97,10 @@ def render_room(
     speed_of_sound_mps: float,
     window_motion: WindowMotionPlan | None,
     split_stems: bool = False,
+    trajectories: dict | None = None,
+    room_cache: dict | None = None,
 ) -> RenderedRoom:
-    """Schedule, Doppler-render, and spatialize every active source stem."""
+    """Render continuous arrivals for every retained source stem."""
 
     mixture = np.zeros(
         (len(prepared.mic_ids), prepared.window_sample_count),
@@ -123,6 +131,13 @@ def render_room(
         )
 
     effect_diagnostics: dict[str, Any] = {}
+    moving = trajectories is not None and any(
+        moving_pair(trajectories, s.source_id, prepared.sensor.array_id)
+        for s in prepared.active
+    )
+    skip_directivity = (
+        frozenset(s.source_id for s in prepared.active) if moving else frozenset()
+    )
     if prepared.segments_per_window > 1:
         assert window_motion is not None
         piecewise = _simulate_piecewise_room(
@@ -138,6 +153,7 @@ def render_room(
             ray_tracing=prepared.ray_tracing,
             per_surface_materials=prepared.per_surface_materials,
             split_stems=split_stems,
+            trajectories=trajectories,
         )
         room = piecewise.last_room
         scheduled = piecewise.scheduled
@@ -197,11 +213,6 @@ def render_room(
                 factor = 1.0
             if factor is not None:
                 doppler_factors[source.source_id] = factor
-                if abs(factor - 1.0) > 1e-9:
-                    signal = replace(
-                        signal,
-                        signal=_doppler_resampled_signal(signal.signal, factor=factor),
-                    )
             scheduled_list.append(signal)
             room.add_source(
                 source_environment_positions[source.source_id],
@@ -218,17 +229,38 @@ def render_room(
             mic_matrix,
             sample_rate_hz=prepared.sample_rate_hz,
         )
-        room.compute_rir()
+        cache_key = (
+            repr(prepared.scene.environment),
+            prepared.sample_rate_hz,
+            prepared.max_order,
+            prepared.air_absorption,
+            prepared.ray_tracing,
+            tuple(source_environment_positions.values()),
+            tuple(microphone_environment_positions.values()),
+        )
+        room = _cached_room(room, room_cache, cache_key)
         full_raw = _simulate_premix(
             room,
             source_count=len(prepared.active),
             mic_count=len(prepared.mic_ids),
+            sources=prepared.active,
+            time_window=prepared.time_window,
+            sample_rate_hz=prepared.sample_rate_hz,
+            motion=(
+                trajectories,
+                prepared.sensor,
+                prepared.scene.environment,
+                speed_of_sound_mps,
+            )
+            if moving
+            else None,
         )
         premix = _apply_entity_directivity_to_premix(
             full_raw,
             active=prepared.active,
             sensor=prepared.sensor,
             microphone_positions_world=prepared.microphone_positions_world,
+            skip_sources=skip_directivity,
         )
         direct_premix: np.ndarray | None = None
         indirect_premix: np.ndarray | None = None
@@ -258,11 +290,31 @@ def render_room(
                     mic_matrix,
                     sample_rate_hz=prepared.sample_rate_hz,
                 )
-                direct_room.compute_rir()
+                direct_key = (
+                    repr(prepared.scene.environment),
+                    prepared.sample_rate_hz,
+                    0,
+                    prepared.air_absorption,
+                    False,
+                    tuple(source_environment_positions.values()),
+                    tuple(microphone_environment_positions.values()),
+                )
+                direct_room = _cached_room(direct_room, room_cache, direct_key)
                 direct_raw = _simulate_premix(
                     direct_room,
                     source_count=len(prepared.active),
                     mic_count=len(prepared.mic_ids),
+                    sources=prepared.active,
+                    time_window=prepared.time_window,
+                    sample_rate_hz=prepared.sample_rate_hz,
+                    motion=(
+                        trajectories,
+                        prepared.sensor,
+                        prepared.scene.environment,
+                        speed_of_sound_mps,
+                    )
+                    if moving
+                    else None,
                 )
                 full_raw, direct_raw = _align_premixes(full_raw, direct_raw)
                 indirect_raw = full_raw - direct_raw
@@ -272,12 +324,14 @@ def render_room(
                 active=prepared.active,
                 sensor=prepared.sensor,
                 microphone_positions_world=prepared.microphone_positions_world,
+                skip_sources=skip_directivity,
             )
             indirect_premix = _apply_entity_directivity_to_premix(
                 indirect_raw,
                 active=prepared.active,
                 sensor=prepared.sensor,
                 microphone_positions_world=prepared.microphone_positions_world,
+                skip_sources=skip_directivity,
             )
         segment_factor_rows = prepared.segment_factor_rows
     effect_diagnostics["directivity"] = {
@@ -320,6 +374,7 @@ def apply_room_effects(
     effects_chain: ChannelEffectsChain,
     backend_id: str,
     runtime_profile: str,
+    crop_start: int = 0,
 ) -> None:
     """Apply stem effects, sum the room, then process the complete mixture."""
 
@@ -379,6 +434,12 @@ def apply_room_effects(
                 rendered.premix[index] = processed
                 if diagnostics:
                     rendered.effect_diagnostics.update(diagnostics)
+        stop = crop_start + prepared.window_sample_count
+        rendered.premix = rendered.premix[:, :, crop_start:stop]
+        if rendered.direct_premix is not None:
+            rendered.direct_premix = rendered.direct_premix[:, :, crop_start:stop]
+        if rendered.indirect_premix is not None:
+            rendered.indirect_premix = rendered.indirect_premix[:, :, crop_start:stop]
         summed = np.sum(rendered.premix, axis=0)
         if summed.shape[1] >= prepared.window_sample_count:
             rendered.mixture = summed
@@ -412,6 +473,9 @@ def apply_room_effects(
         )
         if diagnostics:
             rendered.effect_diagnostics.update(diagnostics)
+    rendered.mixture = rendered.mixture[
+        :, crop_start : crop_start + prepared.window_sample_count
+    ]
     if effects.noise.enabled or effects.electronics.enabled:
         rendered.mixture, diagnostics = effects_chain.apply_mixture(
             rendered.mixture,
@@ -442,8 +506,9 @@ def _simulate_piecewise_room(
     ray_tracing: bool,
     per_surface_materials: bool = False,
     split_stems: bool = False,
+    trajectories: dict | None = None,
 ) -> _PiecewiseRoomResult:
-    """Simulate segment midpoint geometry and overlap-add every RIR tail."""
+    """Refresh path visibility/materials per segment on one emission clock."""
 
     mic_ids = tuple(microphone.mic_id for microphone in sensor.microphones)
     scheduled = tuple(
@@ -454,10 +519,18 @@ def _simulate_piecewise_room(
         )
         for source in active
     )
+
+    def segment_source(source, segment):
+        motion = segment.entities.get(source.source_id)
+        if motion is None:
+            return source
+        return replace(
+            source,
+            position_world=motion.midpoint_position_world_m,
+            velocity_world_mps=motion.velocity_world_mps,
+        )
+
     factor_rows: list[dict[str, float]] = []
-    factors_by_source: dict[str, list[float]] = {
-        source.source_id: [] for source in active
-    }
     for segment in plan.segments:
         array_motion = segment.entities[sensor.array_id]
         segment_sensor = replace(
@@ -467,39 +540,33 @@ def _simulate_piecewise_room(
         )
         row: dict[str, float] = {}
         for source in active:
-            source_motion = segment.entities[source.source_id]
-            segment_source = replace(
-                source,
-                position_world=source_motion.midpoint_position_world_m,
-                velocity_world_mps=source_motion.velocity_world_mps,
-            )
-            if source_motion.velocity_source.startswith(
-                "none:"
+            source_motion = segment.entities.get(source.source_id)
+            current_source = segment_source(source, segment)
+            if (
+                source_motion is not None
+                and source_motion.velocity_source.startswith("none:")
             ) or array_motion.velocity_source.startswith("none:"):
                 factor = 1.0
             else:
                 factor = source_doppler_factor(
-                    segment_source,
+                    current_source,
                     segment_sensor,
                     speed_of_sound_mps=speed_of_sound_mps,
                 )
                 if factor is None:
                     factor = 1.0
             row[source.source_id] = factor
-            factors_by_source[source.source_id].append(factor)
         factor_rows.append(row)
 
-    lengths = tuple(segment.sample_count for segment in plan.segments)
-    rendered = {
-        source.source_id: _piecewise_phase_signal(
-            scheduled[index].signal,
-            factors=tuple(factors_by_source[source.source_id]),
-            segment_lengths=lengths,
-        )
-        for index, source in enumerate(active)
-    }
     assembled = np.zeros(
-        (len(active), len(mic_ids), plan.window_sample_count),
+        (
+            len(active),
+            len(mic_ids),
+            round(
+                (time_window.end_time_s - time_window.start_time_s)
+                * plan.sample_rate_hz
+            ),
+        ),
         dtype=float,
     )
     assembled_direct = np.zeros_like(assembled) if split_stems else None
@@ -507,22 +574,22 @@ def _simulate_piecewise_room(
     last_room: Any = None
     last_source_environment: dict[str, tuple[float, float, float]] = {}
     last_mic_environment: dict[str, tuple[float, float, float]] = {}
-    for segment in plan.segments:
+    for segment_index, segment in enumerate(plan.segments):
+        segment_start = (
+            time_window.start_time_s if segment_index == 0 else segment.start_time_s
+        )
+        segment_end = (
+            time_window.end_time_s
+            if segment_index == len(plan.segments) - 1
+            else segment.end_time_s
+        )
+        output_start = round(
+            (segment_start - time_window.start_time_s) * plan.sample_rate_hz
+        )
         array_position = segment.entities[sensor.array_id].midpoint_position_world_m
         segment_sensor = replace(sensor, position_world=array_position)
         mic_world = microphone_world_positions(segment_sensor)
-        segment_sources = tuple(
-            replace(
-                source,
-                position_world=segment.entities[
-                    source.source_id
-                ].midpoint_position_world_m,
-                velocity_world_mps=segment.entities[
-                    source.source_id
-                ].velocity_world_mps,
-            )
-            for source in active
-        )
+        segment_sources = tuple(segment_source(source, segment) for source in active)
         source_positions = {
             f"source:{source.source_id}": source.position_world
             for source in segment_sources
@@ -555,7 +622,7 @@ def _simulate_piecewise_room(
         for source in active:
             room.add_source(
                 source_environment[source.source_id],
-                signal=rendered[source.source_id][
+                signal=scheduled[active.index(source)].signal[
                     segment.start_sample : segment.end_sample
                 ],
             )
@@ -573,12 +640,25 @@ def _simulate_piecewise_room(
             room,
             source_count=len(active),
             mic_count=len(mic_ids),
+            sources=active,
+            sample_rate_hz=plan.sample_rate_hz,
+            time_window=AudioTimeWindow(
+                start_time_s=segment_start,
+                end_time_s=segment_end,
+                frame_index=time_window.frame_index,
+            ),
+            motion=(trajectories, segment_sensor, environment, speed_of_sound_mps)
+            if trajectories
+            else None,
         )
         segment_premix = _apply_entity_directivity_to_premix(
             segment_full_raw,
             active=segment_sources,
             sensor=segment_sensor,
             microphone_positions_world=mic_world,
+            skip_sources=frozenset(s.source_id for s in active)
+            if trajectories
+            else frozenset(),
         )
         segment_direct_premix: np.ndarray | None = None
         segment_indirect_premix: np.ndarray | None = None
@@ -600,7 +680,7 @@ def _simulate_piecewise_room(
                 for source in active:
                     direct_room.add_source(
                         source_environment[source.source_id],
-                        signal=rendered[source.source_id][
+                        signal=scheduled[active.index(source)].signal[
                             segment.start_sample : segment.end_sample
                         ],
                     )
@@ -615,6 +695,21 @@ def _simulate_piecewise_room(
                     direct_room,
                     source_count=len(active),
                     mic_count=len(mic_ids),
+                    sources=active,
+                    sample_rate_hz=plan.sample_rate_hz,
+                    time_window=AudioTimeWindow(
+                        start_time_s=segment_start,
+                        end_time_s=segment_end,
+                        frame_index=time_window.frame_index,
+                    ),
+                    motion=(
+                        trajectories,
+                        segment_sensor,
+                        environment,
+                        speed_of_sound_mps,
+                    )
+                    if trajectories
+                    else None,
                 )
                 segment_full_raw, segment_direct_raw = _align_premixes(
                     segment_full_raw,
@@ -630,14 +725,20 @@ def _simulate_piecewise_room(
                 active=segment_sources,
                 sensor=segment_sensor,
                 microphone_positions_world=mic_world,
+                skip_sources=frozenset(s.source_id for s in active)
+                if trajectories
+                else frozenset(),
             )
             segment_indirect_premix = _apply_entity_directivity_to_premix(
                 segment_indirect_raw,
                 active=segment_sources,
                 sensor=segment_sensor,
                 microphone_positions_world=mic_world,
+                skip_sources=frozenset(s.source_id for s in active)
+                if trajectories
+                else frozenset(),
             )
-        required = segment.start_sample + segment_premix.shape[2]
+        required = output_start + segment_premix.shape[2]
         if required > assembled.shape[2]:
             assembled = _pad_premix(assembled, required)
             if assembled_direct is not None and assembled_indirect is not None:
@@ -646,19 +747,19 @@ def _simulate_piecewise_room(
         assembled[
             :,
             :,
-            segment.start_sample : required,
+            output_start:required,
         ] += segment_premix
         if segment_direct_premix is not None and segment_indirect_premix is not None:
             assert assembled_direct is not None and assembled_indirect is not None
             assembled_direct[
                 :,
                 :,
-                segment.start_sample : required,
+                output_start:required,
             ] += segment_direct_premix
             assembled_indirect[
                 :,
                 :,
-                segment.start_sample : required,
+                output_start:required,
             ] += segment_indirect_premix
         last_room = room
         last_source_environment = source_environment
@@ -681,6 +782,7 @@ def _apply_entity_directivity_to_premix(
     active: tuple[AudioSourceSpec, ...],
     sensor: MicrophoneArraySpec,
     microphone_positions_world: dict[str, tuple[float, float, float]],
+    skip_sources: frozenset[str] = frozenset(),
 ) -> np.ndarray:
     """Weight every complete pair stem using its direct-path angle."""
 
@@ -693,6 +795,8 @@ def _apply_entity_directivity_to_premix(
         for microphone in sensor.microphones
     }
     for source_index, source in enumerate(active):
+        if source.source_id in skip_sources:
+            continue
         for mic_index, microphone in enumerate(sensor.microphones):
             mic_id = microphone.mic_id
             gain = pair_directivity_gain(
@@ -1105,23 +1209,28 @@ def _apply_band_attenuation(
     band_centers_hz: tuple[float, ...],
     band_attenuation_db: tuple[float, ...],
 ) -> np.ndarray:
-    """Apply per-band attenuation with a zero-phase rFFT gain curve.
+    """Apply the log-frequency gain curve as a fixed finite zero-phase FIR.
 
-    The per-bin gain interpolates the band gains over log2 frequency with
-    flat extrapolation beyond the outermost band centers. Zero-phase
-    filtering preserves GCC-PHAT delay estimates.
+    Linear convolution avoids circular wraparound at each capture boundary.
+    Callers supply BAND_FILTER_HALF_SAMPLES surrounding samples.
     """
 
-    sample_count = int(waveform.size)
-    if sample_count == 0 or not band_centers_hz:
+    from isaac_audio_sensors.core.effects.channel_response import (
+        _linear_convolve_compensated,
+    )
+
+    if not waveform.size or not band_centers_hz:
         return waveform
     centers = np.asarray(band_centers_hz, dtype=float)
     gains_db = -np.asarray(band_attenuation_db, dtype=float)
-    frequencies = np.fft.rfftfreq(sample_count, d=1.0 / float(sample_rate_hz))
+    half = BAND_FILTER_HALF_SAMPLES
+    size = 8 * half
+    frequencies = np.fft.rfftfreq(size, d=1.0 / float(sample_rate_hz))
     log_frequencies = np.log2(np.maximum(frequencies, centers[0] / 4.0))
     gain_curve = 10.0 ** (np.interp(log_frequencies, np.log2(centers), gains_db) / 20.0)
-    spectrum = np.fft.rfft(waveform) * gain_curve
-    return np.fft.irfft(spectrum, n=sample_count)
+    centered = np.fft.fftshift(np.fft.irfft(gain_curve, n=size))
+    taps = centered[size // 2 - half : size // 2 + half + 1] * np.hanning(2 * half + 1)
+    return _linear_convolve_compensated(waveform, taps)
 
 
 def _simulate_premix(
@@ -1129,17 +1238,38 @@ def _simulate_premix(
     *,
     source_count: int,
     mic_count: int,
+    sources: tuple[AudioSourceSpec, ...],
+    time_window: AudioTimeWindow,
+    sample_rate_hz: int,
+    motion: tuple | None = None,
 ) -> np.ndarray:
     """Run the room simulation and return per-source microphone signals."""
 
-    premix = np.asarray(room.simulate(return_premix=True), dtype=float)
-    if (
-        premix.ndim != 3
-        or premix.shape[0] != source_count
-        or premix.shape[1] != mic_count
+    if len(room.rir) != mic_count or any(len(row) != source_count for row in room.rir):
+        raise ValueError("pyroomacoustics returned an unexpected mic RIR shape.")
+    if any(
+        np.asarray(ir).ndim != 1 or not len(ir) or not np.all(np.isfinite(ir))
+        for row in room.rir
+        for ir in row
     ):
-        raise ValueError("pyroomacoustics returned an unexpected mic signal shape.")
-    return premix
+        raise ValueError("pyroomacoustics returned an invalid RIR.")
+    if motion is not None:
+        trajectories, sensor, environment, c = motion
+        if hasattr(room.sources[0], "images"):
+            return moving_room_premix(
+                room, sources, sensor, environment, time_window, trajectories, c
+            )
+    return np.asarray(
+        [
+            [
+                convolve_emission(
+                    source, room.rir[mic][index], time_window, sample_rate_hz
+                )
+                for mic in range(mic_count)
+            ]
+            for index, source in enumerate(sources)
+        ]
+    )
 
 
 def _pad_premix(premix: np.ndarray, sample_count: int) -> np.ndarray:
@@ -1216,3 +1346,14 @@ def _max_microphone_spacing(
         for right in values:
             max_spacing = max(max_spacing, norm(subtract(left, right)))
     return max_spacing
+
+
+def _cached_room(room, cache, key):
+    if cache is not None and key in cache:
+        return cache[key]
+    room.compute_rir()
+    if cache is not None:
+        cache[key] = room
+        while len(cache) > 4:
+            del cache[next(iter(cache))]
+    return room

@@ -112,6 +112,8 @@ class IsaacAudioArraySensor:
         default_factory=tuple,
         init=False,
     )
+    _propagation_backend: Any | None = field(default=None, init=False)
+    _propagation_config: object = field(default=None, init=False)
     _running: bool = field(default=False, init=False)
     _closed: bool = field(default=False, init=False)
     _frame_index: int = field(default=0, init=False)
@@ -493,6 +495,8 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
+        self._propagation_backend = None
+        self._propagation_config = None
         self._occlusion_state.reset()
         if self._stage_cache is not None:
             self._stage_cache.reset_acoustic_state()
@@ -517,6 +521,8 @@ class IsaacAudioArraySensor:
         if self._stage_cache is not None:
             self._stage_cache.close()
             self._stage_cache = None
+        self._propagation_backend = None
+        self._propagation_config = None
         self._occlusion_state.reset()
         if self._pose_history is not None:
             self._pose_history.reset()
@@ -670,7 +676,30 @@ class IsaacAudioArraySensor:
             kwargs["effects"] = self.effects
         if window_motion is not None:
             kwargs["window_motion"] = window_motion
-        backend = get_backend(self.backend, **kwargs)
+        config = (
+            id(self.stage),
+            self.backend,
+            self.effects,
+            self.speed_of_sound_mps,
+            self.analytic_max_order,
+            self.analytic_air_absorption,
+            self.analytic_ray_tracing,
+        )
+        if self._propagation_backend is None or self._propagation_config != config:
+            reconfigured = self._propagation_backend is not None
+            self._propagation_backend = get_backend(self.backend, **kwargs)
+            self._propagation_config = config
+            if reconfigured and self.backend == "analytic_acoustics":
+                self._propagation_backend.reset()
+        backend = self._propagation_backend
+        if self.backend == "analytic_acoustics":
+            motion = (self._latest_stage_diagnostics or {}).get("motion", {})
+            if any(
+                reason in {"none:teleport", "none:time_reset", "none:stale_pose"}
+                for reason in motion.get("velocity_source", {}).values()
+            ):
+                backend.reset()
+            backend.window_motion = window_motion
         assert self.perception_pipeline is not None
         frame, signal_block = simulate_frame(
             backend,
@@ -1005,6 +1034,8 @@ class IsaacAudioArraySensor:
             self.update(force=False)
 
     def _reset_live_acoustic_state(self) -> None:
+        self._propagation_backend = None
+        self._propagation_config = None
         if self._pose_history is not None:
             self._pose_history.reset()
             self._motion_entity_paths.clear()

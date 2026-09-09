@@ -40,6 +40,21 @@ def assemble_signal_block(
                 "channel_response", {}
             ),
         },
+        "propagation": {
+            "clock": "absolute_sample_clock",
+            "motion_model": "retarded_emission_time",
+            "trajectory_model": "linear_positions_endpoint_velocity",
+            "fractional_sampling": "linear",
+            "room_visibility": "current_solver_geometry" if not core_solver else None,
+            "late_field": "quasi_static" if prepared.ray_tracing else None,
+            "provider_filter_latency_samples": 0
+            if core_solver
+            else (
+                prepared.pra.constants.get("frac_delay_length") // 2
+                if hasattr(prepared.pra, "constants")
+                else None
+            ),
+        },
         "analytic_solver": {
             "solver_id": solver_id,
             "provider": provider,
@@ -69,7 +84,7 @@ def assemble_signal_block(
         sample_rate_hz=prepared.sample_rate_hz,
         time_window=prepared.time_window,
         clock_domain=f"simulation:{prepared.scene.stage_id}",
-        discontinuity=False,
+        discontinuity=rendered.discontinuity,
         channel_clipping=clipping,
         channel_validity=tuple(True for _ in prepared.mic_ids),
         producer_id=backend_id,

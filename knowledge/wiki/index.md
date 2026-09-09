@@ -44,6 +44,8 @@
 
 ## Key Decisions
 
+- [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — continuous arrival rendering, maintained-library choice, lifecycle, and motion approximations.
+
 - [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] — final cleanup and maintainability rule shared by all implementation plans.
 - [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current v2 promises, exclusions, and compatibility rules.
 

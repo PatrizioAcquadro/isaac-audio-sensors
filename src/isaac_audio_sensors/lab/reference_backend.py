@@ -67,7 +67,9 @@ class ReferenceBackend:
             "air_absorption": analytic_air_absorption,
             "ray_tracing": analytic_ray_tracing,
         }
-        self._backend = get_backend(backend_id, **kwargs)
+        self._backends = tuple(
+            get_backend(backend_id, **kwargs) for _ in self.snapshots
+        )
         self._perception = tuple(
             _build_standard_perception_pipeline(
                 energy_threshold_dbfs=energy_threshold_dbfs,
@@ -103,7 +105,7 @@ class ReferenceBackend:
             start_sample = round(start_s * sample_rate)
             window_samples = max(1, round(window_s * sample_rate))
             frame, _ = simulate_frame(
-                self._backend,
+                self._backends[env_id],
                 snapshot,
                 array_id,
                 AudioTimeWindow(
@@ -126,3 +128,6 @@ class ReferenceBackend:
 
         for env_id in env_ids.tolist():
             self._perception[int(env_id)].reset()
+            reset = getattr(self._backends[int(env_id)], "reset", None)
+            if callable(reset):
+                reset()

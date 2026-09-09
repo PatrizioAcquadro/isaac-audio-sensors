@@ -32,7 +32,8 @@ from tests.helpers import source
     ("layout", "rate"),
     (("mono", 8000), ("stereo_y", 16000), ("quad_cross", 16000), ("quad_cross", 48000)),
 )
-def test_producer_parity_and_recorded_fault_replay(layout, rate, tmp_path):
+@pytest.mark.parametrize("moving", [False, True])
+def test_producer_parity_and_recorded_fault_replay(layout, rate, tmp_path, moving):
     if layout == "quad_cross":
         pytest.importorskip("pyroomacoustics")
     array = create_microphone_array(
@@ -89,8 +90,21 @@ def test_producer_parity_and_recorded_fault_replay(layout, rate, tmp_path):
     recorder.begin_episode("scene", "environment", "scene")
     for index in range(16):
         offset = int(index >= 6)
+        start = (index + offset) / 20
+        current = scene
+        if moving:
+            current = replace(
+                scene,
+                sources=(
+                    replace(
+                        scene.sources[0],
+                        position_world=(1.0 - 3.0 * start, 1.0, 0.0),
+                        velocity_world_mps=(-3.0, 0.0, 0.0),
+                    ),
+                ),
+            )
         block = backend.propagate(
-            scene,
+            current,
             array.array_id,
             AudioTimeWindow(
                 start_time_s=(index + offset) / 20,

@@ -17,29 +17,44 @@ from isaac_audio_sensors.core.acoustics.materials import (
     MATERIAL_BAND_CENTERS_HZ,
     resolve_material_coefficients,
 )
+from isaac_audio_sensors.core.backends._analytic.arrival import (
+    ArrivalStream,
+    emission_samples,
+    moving_pair,
+    polar_gain,
+    retarded_path,
+)
 from isaac_audio_sensors.core.backends._analytic.block import assemble_signal_block
 from isaac_audio_sensors.core.backends._analytic.preparation import (
     PreparedRoomFrame,
     prepare_room_frame,
 )
 from isaac_audio_sensors.core.backends._analytic.rendering import (
+    BAND_FILTER_HALF_SAMPLES,
     RenderedRoom,
     _apply_band_attenuation,
-    _apply_entity_directivity_to_premix,
     apply_room_effects,
     render_room,
 )
 from isaac_audio_sensors.core.backends._analytic.signals import (
-    _doppler_resampled_signal,
     _scheduled_window_signal,
+    convolve_emission,
 )
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS, EPSILON
-from isaac_audio_sensors.core.directivity import DIRECTIVITY_MODE
+from isaac_audio_sensors.core.directivity import (
+    DIRECTIVITY_MODE,
+    microphone_world_orientation,
+    pair_directivity_gain,
+)
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.effects.validation import UnsupportedEffectError
 from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
-from isaac_audio_sensors.core.math_utils import norm, subtract
+from isaac_audio_sensors.core.math_utils import (
+    norm,
+    rotate_vector_by_quaternion,
+    subtract,
+)
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.motion.doppler import source_doppler_factor
 from isaac_audio_sensors.core.types import (
@@ -93,6 +108,13 @@ class AnalyticAcoustics:
         self.runtime_profile = runtime_profile
         self.window_motion = window_motion
         self.effects_chain = ChannelEffectsChain(self.effects)
+        self._streams = {}
+        self._reset_notice = False
+
+    def reset(self) -> None:
+        """Discard all arrival history at an explicit producer reset."""
+        self._streams.clear()
+        self._reset_notice = True
 
     @staticmethod
     def is_available() -> bool:
@@ -140,6 +162,16 @@ class AnalyticAcoustics:
     ) -> tuple[PreparedRoomFrame, RenderedRoom, str]:
         """Render and effect one mixture without constructing public observations."""
 
+        stream_key = (scene.stage_id, array_id)
+        first_use = stream_key not in self._streams
+        stream = self._streams.setdefault(stream_key, ArrivalStream())
+        scene, discontinuity = stream.prepare(
+            scene,
+            scene.array_by_id(array_id),
+            time_window,
+            self.window_motion,
+            self.speed_of_sound_mps,
+        )
         sensor = scene.array_by_id(array_id)
         environment = scene.environment
         if environment is None:
@@ -148,10 +180,7 @@ class AnalyticAcoustics:
             )
         solver_id = self._solver_for(environment)
         self._validate_solver_options(solver_id)
-        if (
-            solver_id in _CORE_SOLVERS
-            and self.effects.motion.segments_per_window > 1
-        ):
+        if solver_id in _CORE_SOLVERS and self.effects.motion.segments_per_window > 1:
             raise UnsupportedEffectError(
                 "R8.1 Core analytic solvers do not support "
                 "audio.effects.motion.segments_per_window>1."
@@ -176,10 +205,55 @@ class AnalyticAcoustics:
             allowed_environment_kinds=tuple(ANALYTIC_SOLVER_BY_ENVIRONMENT),
             per_surface_materials=True,
         )
+        original_prepared = prepared
+        guard = 0
+        if self.effects.channel_response.enabled:
+            from isaac_audio_sensors.core.effects.channel_response import (
+                response_tap_count,
+            )
+
+            guard = response_tap_count(sensor.sample_rate_hz)
+            guard += max(
+                (
+                    int(math.ceil(abs(m.delay_s or 0) * sensor.sample_rate_hz)) + 128
+                    for m in (self.effects.channel_response.microphones or {}).values()
+                ),
+                default=0,
+            )
+        if any(o.per_mic_band_attenuation_db for o in (scene.occlusion or ())):
+            guard += BAND_FILTER_HALF_SAMPLES
+        if (
+            solver_id == "half_space_image_source"
+            and self.max_order
+            and isinstance(scene.environment.surfaces[0].absorption, (dict, str))
+        ):
+            guard += BAND_FILTER_HALF_SAMPLES
+        prefix = min(guard, prepared.nominal_window_start_sample)
+        if guard:
+            prepared = replace(
+                prepared,
+                time_window=AudioTimeWindow(
+                    start_time_s=(prepared.nominal_window_start_sample - prefix)
+                    / sensor.sample_rate_hz,
+                    end_time_s=(
+                        prepared.nominal_window_start_sample
+                        + prepared.window_sample_count
+                        + guard
+                    )
+                    / sensor.sample_rate_hz,
+                    frame_index=time_window.frame_index,
+                ),
+                nominal_window_start_sample=prepared.nominal_window_start_sample
+                - prefix,
+                window_sample_count=prepared.window_sample_count + prefix + guard,
+            )
+        else:
+            prefix = 0
         if solver_id in _CORE_SOLVERS:
             rendered = _render_core(
                 prepared,
                 speed_of_sound_mps=self.speed_of_sound_mps,
+                trajectories=self._streams[(scene.stage_id, array_id)].trajectories,
                 force_doppler_diagnostics=(
                     self.effects.motion.derive_velocity_from_poses
                 ),
@@ -191,15 +265,37 @@ class AnalyticAcoustics:
                 speed_of_sound_mps=self.speed_of_sound_mps,
                 window_motion=self.window_motion,
                 split_stems=bool(scene.occlusion),
+                trajectories=self._streams[(scene.stage_id, array_id)].trajectories,
+                room_cache=stream.rooms,
             )
         apply_room_effects(
-            prepared,
+            original_prepared,
             rendered,
             effects=self.effects,
             effects_chain=self.effects_chain,
             backend_id=self.backend_id,
             runtime_profile=self.runtime_profile,
+            crop_start=prefix,
         )
+        if prepared is not original_prepared:
+            rendered.scheduled = tuple(
+                _scheduled_window_signal(
+                    source,
+                    time_window=original_prepared.time_window,
+                    sample_rate_hz=original_prepared.sample_rate_hz,
+                )
+                for source in original_prepared.active
+            )
+        prepared = original_prepared
+        stream.tail_duration_s = max(
+            (
+                len(ir) / sensor.sample_rate_hz
+                for row in (rendered.room.rir if rendered.room is not None else [])
+                for ir in row
+            ),
+            default=0.0,
+        )
+        rendered.discontinuity = discontinuity or (first_use and self._reset_notice)
         return prepared, rendered, solver_id
 
     def _solver_for(self, environment: AcousticEnvironmentSpec) -> str:
@@ -245,6 +341,7 @@ def _render_core(
     *,
     speed_of_sound_mps: float,
     force_doppler_diagnostics: bool,
+    trajectories: dict,
 ) -> RenderedRoom:
     mic_count = len(prepared.mic_ids)
     mixture = np.zeros((mic_count, prepared.window_sample_count), dtype=float)
@@ -298,11 +395,6 @@ def _render_core(
             factor = 1.0
         if factor is not None:
             doppler_factors[source.source_id] = factor
-            if abs(factor - 1.0) > 1e-9:
-                signal = replace(
-                    signal,
-                    signal=_doppler_resampled_signal(signal.signal, factor=factor),
-                )
         scheduled_list.append(signal)
     scheduled = tuple(scheduled_list)
     rir_stems = [
@@ -320,60 +412,125 @@ def _render_core(
         for mic_id in prepared.mic_ids
     ]
     direct_rir = [
-        [stems[0] for stems in microphone_stems]
-        for microphone_stems in rir_stems
+        [stems[0] for stems in microphone_stems] for microphone_stems in rir_stems
     ]
     indirect_rir = [
-        [stems[1] for stems in microphone_stems]
-        for microphone_stems in rir_stems
+        [stems[1] for stems in microphone_stems] for microphone_stems in rir_stems
     ]
-    rir = [
-        [stems[2] for stems in microphone_stems]
-        for microphone_stems in rir_stems
-    ]
-    max_length = max(
-        prepared.window_sample_count,
-        *(
-            scheduled[source_index].signal.size + rir[mic_index][source_index].size - 1
-            for source_index in range(len(prepared.active))
-            for mic_index in range(mic_count)
-        ),
-    )
+    rir = [[stems[2] for stems in microphone_stems] for microphone_stems in rir_stems]
+    max_length = prepared.window_sample_count
     premix = np.zeros((len(prepared.active), mic_count, max_length), dtype=float)
     direct_premix = np.zeros_like(premix)
     indirect_premix = np.zeros_like(premix)
-    for source_index, signal in enumerate(scheduled):
+    for source_index, _signal in enumerate(scheduled):
         for mic_index in range(mic_count):
-            convolved = np.convolve(signal.signal, rir[mic_index][source_index])
+            source = prepared.active[source_index]
+            source_trajectory = trajectories[("source", source.source_id)]
+            array_trajectory = trajectories[("array", prepared.sensor.array_id)]
+            moving = moving_pair(
+                trajectories, source.source_id, prepared.sensor.array_id
+            )
+            if moving:
+                times = (
+                    prepared.nominal_window_start_sample
+                    + np.arange(prepared.window_sample_count)
+                ) / prepared.sample_rate_hz
+                microphone = prepared.sensor.microphones[mic_index]
+                offset = rotate_vector_by_quaternion(
+                    microphone.relative_position_m,
+                    prepared.sensor.orientation_world_quat,
+                )
+                receiver = array_trajectory.at(times) + offset
+                emission, distance, direction = retarded_path(
+                    times,
+                    receiver,
+                    source_trajectory,
+                    speed_of_sound_mps,
+                    prepared.sample_rate_hz,
+                )
+                direct = emission_samples(source, emission, prepared.sample_rate_hz) / (
+                    4 * np.pi * distance
+                )
+                # Directional gain below is evaluated on the retarded direct path.
+                direct_gain = polar_gain(
+                    source.directivity, source.orientation_world_quat, direction
+                ) * polar_gain(
+                    microphone.directivity,
+                    microphone_world_orientation(
+                        prepared.sensor.orientation_world_quat,
+                        microphone.relative_orientation_quat,
+                    ),
+                    -direction,
+                )
+                direct *= direct_gain
+                indirect = np.zeros_like(direct)
+                if environment.kind == "half_space" and prepared.max_order:
+                    normal = np.asarray(
+                        rotate_vector_by_quaternion(
+                            (0.0, 0.0, 1.0), environment.world_pose.orientation_xyzw
+                        )
+                    )
+                    origin = np.asarray(environment.world_pose.position_m)
+
+                    def mirror(points, origin=origin, normal=normal):
+                        return (
+                            points - 2 * ((points - origin) @ normal)[:, None] * normal
+                        )
+
+                    emission, distance, _ = retarded_path(
+                        times,
+                        receiver,
+                        source_trajectory,
+                        speed_of_sound_mps,
+                        prepared.sample_rate_hz,
+                        transform=mirror,
+                    )
+                    indirect = emission_samples(
+                        source, emission, prepared.sample_rate_hz
+                    ) / (4 * np.pi * distance)
+                    indirect = (
+                        _apply_reflection_absorption(
+                            indirect,
+                            absorption=environment.surfaces[0].absorption,
+                            sample_rate_hz=prepared.sample_rate_hz,
+                            application="floor",
+                        )
+                        * direct_gain
+                    )
+                # Static directivity is applied below only to stationary pairs.
+            else:
+                direct = convolve_emission(
+                    source,
+                    direct_rir[mic_index][source_index],
+                    prepared.time_window,
+                    prepared.sample_rate_hz,
+                )
+                indirect = convolve_emission(
+                    source,
+                    indirect_rir[mic_index][source_index],
+                    prepared.time_window,
+                    prepared.sample_rate_hz,
+                )
+                microphone = prepared.sensor.microphones[mic_index]
+                gain = pair_directivity_gain(
+                    source_pattern=source.directivity,
+                    microphone_pattern=microphone.directivity,
+                    source_position_world=source.position_world,
+                    source_orientation_world_xyzw=source.orientation_world_quat,
+                    microphone_position_world=prepared.microphone_positions_world[
+                        microphone.mic_id
+                    ],
+                    microphone_orientation_world_xyzw=microphone_world_orientation(
+                        prepared.sensor.orientation_world_quat,
+                        microphone.relative_orientation_quat,
+                    ),
+                )
+                direct *= gain
+                indirect *= gain
+            convolved = direct + indirect
             premix[source_index, mic_index, : convolved.size] = convolved
-            direct = np.convolve(
-                signal.signal,
-                direct_rir[mic_index][source_index],
-            )
-            indirect = np.convolve(
-                signal.signal,
-                indirect_rir[mic_index][source_index],
-            )
             direct_premix[source_index, mic_index, : direct.size] = direct
             indirect_premix[source_index, mic_index, : indirect.size] = indirect
-    premix = _apply_entity_directivity_to_premix(
-        premix,
-        active=prepared.active,
-        sensor=prepared.sensor,
-        microphone_positions_world=prepared.microphone_positions_world,
-    )
-    direct_premix = _apply_entity_directivity_to_premix(
-        direct_premix,
-        active=prepared.active,
-        sensor=prepared.sensor,
-        microphone_positions_world=prepared.microphone_positions_world,
-    )
-    indirect_premix = _apply_entity_directivity_to_premix(
-        indirect_premix,
-        active=prepared.active,
-        sensor=prepared.sensor,
-        microphone_positions_world=prepared.microphone_positions_world,
-    )
     effect_diagnostics = {
         "directivity": {
             "mode": DIRECTIVITY_MODE,
@@ -433,6 +590,8 @@ def _core_rir_stems(
         sample_rate_hz=sample_rate_hz,
         speed_of_sound_mps=speed_of_sound_mps,
     )
+    if isinstance(floor.absorption, (dict, str)):
+        reflected = np.pad(reflected, (0, BAND_FILTER_HALF_SAMPLES))
     reflected = _apply_reflection_absorption(
         reflected,
         absorption=floor.absorption,
@@ -495,8 +654,7 @@ def _apply_reflection_absorption(
     else:
         return impulse * math.sqrt(max(0.0, 1.0 - float(absorption)))
     attenuation_db = tuple(
-        -20.0 * math.log10(max(math.sqrt(1.0 - value), 1e-15))
-        for value in coefficients
+        -20.0 * math.log10(max(math.sqrt(1.0 - value), 1e-15)) for value in coefficients
     )
     return _apply_band_attenuation(
         impulse,

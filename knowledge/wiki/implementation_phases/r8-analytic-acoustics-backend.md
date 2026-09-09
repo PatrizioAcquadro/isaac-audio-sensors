@@ -65,3 +65,11 @@ The final cleanup passes the complete Core-only host gate on Python 3.10 and 3.1
 - `src/isaac_audio_sensors/core/backends/analytic.py` and `_analytic/`
 - `src/isaac_audio_sensors/isaac/occlusion.py`
 - `src/isaac_audio_sensors/lab/batched_backend.py`
+
+## Later Update — Continuous Propagation (2026-09-09)
+
+A subsequent pre-07.2 correction replaces window-local convolution and Doppler resampling with continuous emission history and retarded path sampling. This was not part of the original R8 validation: earlier tests could pass while each capture lost arrivals from preceding emissions. At 10 m, about 29 ms of artificial silence recurred per block; at 40 m, 100 ms blocks could remain entirely silent.
+
+The shared backend now retains delayed sound and room tails, reuses bounded motion/room state, and supplies filter history. Isaac persists backend instances; Lab reference environments isolate propagation state. The public signal and plugin contracts are unchanged. Numerical tests cover static and moving arrivals, source stop/removal, loops, overlap, rewind/reset, room/half-space reflections, and channel processing. Frequency/level and passing-source intermicrophone waveforms are checked against independent closed forms.
+
+The dependency decision, lifecycle, and remaining physical approximations are canonical in [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]]. Fast multisource DOA remains unresolved; see [[experiments/04-4-multisource-localization|the bounded comparison]]. Current validation is recorded in [[status|Current Status]].

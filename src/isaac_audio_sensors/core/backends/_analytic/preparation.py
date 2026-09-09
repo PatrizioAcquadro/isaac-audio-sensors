@@ -18,7 +18,6 @@ from isaac_audio_sensors.core.microphone_array import (
 )
 from isaac_audio_sensors.core.motion import WindowMotionPlan
 from isaac_audio_sensors.core.scene import (
-    active_sources,
     deterministic_frame_id,
 )
 from isaac_audio_sensors.core.types import (
@@ -73,9 +72,7 @@ def prepare_room_frame(
     """Validate one capture window and normalize its shared frame state."""
 
     if scene.environment is None:
-        raise ValueError(
-            f"{backend_id} requires scene.environment to be configured."
-        )
+        raise ValueError(f"{backend_id} requires scene.environment to be configured.")
     if scene.environment.kind not in allowed_environment_kinds:
         if allowed_environment_kinds != ("shoebox",):
             raise ValueError(
@@ -139,7 +136,16 @@ def prepare_room_frame(
                 "window-motion plan disagrees with the configured capture window"
             )
     pra = import_pyroomacoustics()
-    active = active_sources(scene, time_window)
+    active = tuple(
+        sorted(
+            (
+                source
+                for source in scene.sources
+                if source.start_time_s < time_window.end_time_s
+            ),
+            key=lambda source: (source.start_time_s, source.source_id),
+        )
+    )
     segment_factor_rows = (
         tuple({} for _ in window_motion.segments)
         if segments_per_window > 1 and window_motion is not None

@@ -139,6 +139,15 @@ def fake_room(monkeypatch):
     _StatefulShoeBox.instances = []
     _StatefulShoeBox.compute_rir_calls = 0
     monkeypatch.setitem(sys.modules, "pyroomacoustics", fake)
+    from isaac_audio_sensors.core.backends._analytic import rendering
+
+    def fixture_convolution(source, impulse, window, sample_rate):
+        count = round((window.end_time_s-window.start_time_s)*sample_rate)
+        samples = round(window.start_time_s*sample_rate) + np.arange(count)
+        return impulse[0] * sum(.1*np.sin(2*np.pi*f*samples/sample_rate)
+                                for f in OCCLUSION_BAND_CENTERS_HZ)
+
+    monkeypatch.setattr(rendering, "convolve_emission", fixture_convolution)
     return fake
 
 

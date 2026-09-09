@@ -190,11 +190,11 @@ def test_room_rejects_non_public_file_asset_paths(monkeypatch, tmp_path) -> None
         )
 
 
-def test_room_rejects_malformed_pyroom_signals(monkeypatch) -> None:
+def test_room_rejects_malformed_pyroom_rirs(monkeypatch) -> None:
     fake_pra = install_fake_pyroom(monkeypatch)
     fake_pra.ShoeBox = _MalformedSignalShoeBox
     array = _array()
-    with pytest.raises(ValueError, match="unexpected mic signal shape"):
+    with pytest.raises(ValueError, match="unexpected mic RIR shape"):
         AnalyticAcoustics().propagate(
             _scene(_source("speaker"), array=array), array.array_id, _window()
         )
@@ -256,8 +256,5 @@ def _window(end_time_s: float = 1.0) -> AudioTimeWindow:
 
 
 class _MalformedSignalShoeBox(FakeShoeBox):
-    def simulate(self, return_premix=False):
-        self.mic_array.signals = np.zeros((1, 16))
-        if return_premix:
-            return np.zeros((1, 16))
-        return None
+    def compute_rir(self):
+        self.rir = []
