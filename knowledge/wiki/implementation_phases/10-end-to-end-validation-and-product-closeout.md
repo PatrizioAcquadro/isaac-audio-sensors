@@ -29,7 +29,9 @@ Deterministic correctness alone cannot establish realistic perception or sim-to-
 
 #### Implementation
 
-Evaluate activity and angular errors, ambiguity, stability, latency, compute, memory, and reset across representative analytic, geometry, and physical recordings. Establish separate supported boundaries for live perception, high-fidelity geometry, and mass-parallel Lab training.
+Evaluate activity, joint audible-event count/direction, missing/extra events, angular errors, ambiguity, stability, latency, compute, memory, and reset across representative analytic, geometry, and physical recordings. Establish separate supported boundaries for live perception, high-fidelity geometry, and mass-parallel Lab training.
+
+The user's bounded 07.2 admission is a sequencing decision, not a waiver of perceptual qualification. Retain the failed temporal experiments and qualify every claimed capability against its declared robot behaviors and domain. General temporal reliability remains unqualified until supported by new evidence. If a claimed behavior requires reliable dynamic multisource listening, its qualification must address the joint count/direction and response failures; scaling, GUI completeness and improved geometric realism cannot substitute for that evidence. A narrower validated product scope must explicitly exclude unsupported claims.
 
 Validate dataset alignment, schema consistency, replay, truth separation, split isolation, required integrity checks, and loader behavior. Real recordings are required for transfer claims, and blocked GPU or provider runtime remains blocked rather than being replaced with weaker evidence.
 

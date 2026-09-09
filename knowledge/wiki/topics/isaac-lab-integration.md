@@ -44,7 +44,7 @@ The old `event_presence`, `confidence`, `sector_onehot`, and per-event `per_mic_
 
 Inputs must be rank-correct float32 tensors on the sensor device. World positions receive no origin offset; environment-frame positions receive one explicit offset. WXYZ states convert to package XYZW before relative-pose composition. Entity mode accepts only analytic `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. Invalid topology, options, device, shape, dtype, directivity, gain, or orientation fail explicitly.
 
-The empty path allocates and scatters on the sensor device without environment loops or CPU transfer. It does not validate scalable audio perception. Its future implementation follows the multisource qualification planned in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]] and the runtime work in [[implementation_phases/07-isaac-lab-observation-integration|Subphase 07.2]].
+The empty path allocates and scatters on the sensor device without environment loops or CPU transfer. It does not validate scalable audio perception. Its future implementation is admitted on the maintained bounded [[implementation_phases/04-observed-direction-estimation|04.4 reference]] under [[implementation_phases/07-isaac-lab-observation-integration|07.2]]. General temporal reliability remains unqualified; tensor scaling must preserve the reference's observed limitations and source-truth separation.
 
 ## Reference Binding
 

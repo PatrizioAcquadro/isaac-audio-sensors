@@ -7,12 +7,12 @@
 ### Ordered Post-R9.1 Implementation Plans
 
 - [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
-- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — completed signal/perception separation and consumer migration; confidence-availability correction requested before 07.2.
+- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — completed signal/perception separation, consumer migration and frame-v4 confidence availability.
 - [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
-- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed 04.1–04.3 and bounded indoor reference; useful joint count/direction over time reopened as a pre-07.2 objective, with prior failures and limits preserved.
+- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed 04.1–04.3 and bounded indoor reference; temporal research suspended with failures and limits preserved.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1 projection; renewed temporal-perception, confidence and live-occlusion prerequisites before 07.2, followed by 07.3 observed GUI/consumer consolidation.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1; 07.2 admitted on the current verified reference with imperfect perception preserved, then 07.3 GUI/consumer consolidation.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — R10.1–R10.3 sequence, including geometry-backed occlusion and provider diagnostics for the fuller Video 4 scope.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — useful effects, evidence-backed variation and coherent GUI controls after geometry integration; received levels, noise and weak-signal activity remain priorities.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
@@ -26,7 +26,7 @@
 - [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
 - [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
-- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — historical analytic/partition closeout and continuous propagation; real solid-collider and unavailable-occlusion corrections pending before 07.2.
+- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — Steam selection plus qualified pathing, timing, diagnostics, operating cost, and a rejected paired transmission proxy.
 - [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — planned provider-backed signals and analytic transfer constrained to R9-qualified capabilities, followed by one maintained Steam adapter.
 
@@ -51,7 +51,7 @@
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — bounded indoor reference, rejected temporal/acoustic-front-end candidates and direct occlusion controls; joint temporal reliability remains unresolved before 07.2.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — bounded indoor reference and rejected temporal candidates; research suspended, 07.2 admitted without general temporal qualification.
 
 ## Sources
 

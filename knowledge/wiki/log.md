@@ -1361,3 +1361,11 @@ Recorded paired persistent OnlineWPE, normalized/weighted spatial evidence, comb
 ## 2026-09-09 — lint: Pre-07.2 result and unresolved gate
 
 Canonical wikilinks and index coverage pass; current confidence/schema claims are reconciled with v4 while historical phase attribution remains explicit. Ten focused documentation/evaluator tests, Ruff and whitespace checks pass. Maintained localizer/propagation source, raw material and protected evidence are unchanged. The documentation does not claim temporal completion, independent confirmation or permission to start 07.2.
+
+## 2026-09-09 — update: Admit bounded 07.2 and suspend temporal research
+
+Recorded the latest explicit user decision: 07.2 is admitted on the current reference within its verified domain; general temporal reliability remains unqualified. Superseded the general temporal gate while preserving rejected candidates, numerical outcomes and limits. Aligned phases 04 and 07–10, R10, experiment disposition, navigation and consumer/readiness references. 07.2 must preserve delays, uncertainty, missing/extra events and truth separation, with proportional optimization that allows later localizer improvement. 07.3 GUI and 08–09 remain in sequence; capability claims and Phase 10 still require perceptual qualification. No implementation started.
+
+## 2026-09-09 — lint: Bounded 07.2 admission consistency
+
+Five documentation-boundary tests pass, including wiki links and index coverage; section targets and whitespace also pass. Compared the experiment with the baseline: all earlier evidence and the complete latest method/results/limits body are unchanged. Only canonical Markdown changes are tracked; raw material, local evidence, runtime and tests are untouched. Historical sequencing remains labeled and no current general temporal gate or implementation claim remains.

@@ -14,7 +14,7 @@ Plan 09 follows the [[decisions/minimal-maintained-repository-surface|Minimal Ma
 
 Define realism through downstream behavior rather than maximum acoustic complexity. Prioritize relative propagation, phase coherence, SNR, reverberation, occlusion and alternative paths, microphone mismatch, motion, clipping, timing, and detector stability.
 
-Build on the joint temporal count/direction work and correctness repairs requested before 07.2, the observed GUI consolidation in 07.3, and the geometry integration in Phase 08. Do not postpone those earlier correctness requirements to this phase or recreate a second occlusion model here. Evaluate what additional realism changes useful detection, localization or policy behavior in the completed producers.
+Build on the maintained perceptual reference and completed confidence/occlusion corrections, the bounded 07.2 integration, observed GUI consolidation in 07.3, and geometry integration in Phase 08. The temporal improvement iteration is suspended and general temporal reliability remains unqualified; realism distributions are not an automatic remedy. Do not recreate a second occlusion model here. Evaluate what additional realism changes useful detection, localization or policy behavior in the completed producers.
 
 Keep structural vibration, complete wave-equation simulation, exact material twins, and other expensive phenomena outside scope unless evidence shows material task value.
 

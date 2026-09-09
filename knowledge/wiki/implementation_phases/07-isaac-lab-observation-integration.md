@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. On 2026-09-09 the user reopened joint temporal count/direction improvement and placed it, confidence availability and live occlusion correctness before 07.2. This supersedes the earlier permission to proceed while motion research was paused. The bounded 04.4 reference remains implemented; the renewed prerequisite is not yet satisfied.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2–07.3 remain unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; this update starts no implementation.
 
 ## Objective
 
@@ -30,7 +30,7 @@ The maintained example requires an explicit reference threshold and exposes opti
 
 Fixed: reference perception was discarded, Lab direction padding contained NaN, and the tensor surface lacked score/DOA/candidate validity and truncation semantics. Fixed: sample-clock alignment prevents tiny float32 tick errors from masquerading as stream discontinuities.
 
-**Completed correction before 07.2:** unavailable confidence now projects finite numeric padding with a false `bearing_confidence_mask`; a measured zero has a true mask. Direction and candidate masks remain independent. Frame-v4 recording/replay and actual CUDA projection pass the null/zero checks. The [[implementation_phases/02-signal-and-perception-architecture|observed contract]] owns the correction; the temporal prerequisite remains unsatisfied.
+**Completed correction before 07.2:** unavailable confidence now projects finite numeric padding with a false `bearing_confidence_mask`; a measured zero has a true mask. Direction and candidate masks remain independent. Frame-v4 recording/replay and actual CUDA projection pass the null/zero checks. The [[implementation_phases/02-signal-and-perception-architecture|observed contract]] owns the correction; general temporal reliability remains unqualified but is no longer a general prerequisite for beginning 07.2.
 
 Resolved by 04.4: the common scalar localizer emits actual multiple events in its bounded direct-path role; GPU projection verifies them independently of slot capacity. Scalar waveform processing and packing remain host-side; CUDA validates tensor placement and sensor lifecycle, not a CUDA-native perception implementation. Arbitrary cadence, long-horizon timing, and scalable context remain 07.2 responsibilities. No learner, downstream task, or physical multisource campaign is validated here.
 
@@ -38,9 +38,13 @@ Resolved by 04.4: the common scalar localizer emits actual multiple events in it
 
 #### Implementation
 
-First complete the renewed [[implementation_phases/04-observed-direction-estimation#Pre-07.2 Follow-up — Joint Count and Direction over Time|joint temporal perception work]]. The [[implementation_phases/02-signal-and-perception-architecture|confidence-availability correction]] and bounded [[implementation_phases/r8-analytic-acoustics-backend|live occlusion corrections]] are implemented and validated. No particular custom cardinality algorithm is prescribed. Preserve the resulting reference's remaining missed/spurious events, response delay and moving-direction limits; scalar parity is not evidence of accurate perception. Start from its explicitly supported sample rate and operating domain rather than assuming the old qualification covers a replacement. The existing reference remains bounded at 16 kHz until a change is actually qualified.
+Begin from the maintained WPE/group-sparse scalar reference and its [[experiments/04-4-multisource-localization|verified bounded stable-source domain]], not from the rejected moving-source candidates. The 16 kHz triangle, square, raised and tetrahedral reference has 750 ms causal context and 100 ms updates as its measured starting point; two events describe qualification coverage, not a forced count. Preserve its documented weak-speech misses, extra events, 1–1.5 s responses in some transitions and geometry-dependent CPU cost. Stereo and other planar rates retain their existing separately bounded roles. The completed confidence and live-occlusion corrections remain part of the integration contract.
 
 Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth. Phase 08 need not run in every environment, and full Phase 09 realism is not a prerequisite for this integration.
+
+Preserve observed delay, warm-up, uncertainty, missing/extra events and unavailable confidence throughout projection and any scalable approximation. Neither source schedules/counts/poses nor private stems may repair, complete or stabilize observations for a policy. Assess integration parity and performance separately from perceptual accuracy; an approximation needs its own measured limits and must not produce artificially perfect event sets.
+
+Keep effort proportional to the supported workloads. Reuse the existing perception interfaces and avoid extensive kernels, caches or assumptions specific to the current WPE/group-sparse implementation unless a measured need justifies them. A later localizer improvement must remain possible without redesigning policy observation semantics.
 
 Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
 
@@ -53,7 +57,7 @@ Carry detector and DOA context per environment with correct partial reset. Reset
 
 #### Problems / Limitations
 
-Feature-domain scale may not reproduce full waveform perception. Context length must balance policy value, memory, latency, and GPU cost.
+Feature-domain scale may not reproduce full waveform perception. Context length must balance policy value, memory, latency, and GPU cost. Successful scaling or scalar parity does not qualify reliable dynamic multisource listening. Qualification remains necessary for the capabilities actually claimed and for Phase 10; revisit temporal research against concrete robot behaviors when those limits become material.
 
 ## Subphase 07.3 — Lab Migration and Cleanup
 
@@ -87,3 +91,5 @@ Main implementation: `src/isaac_audio_sensors/lab/audio_array_sensor_data.py`, `
 ## Version Notes
 
 - 2026-09-09: Reopened pre-07.2 joint temporal perception and correctness prerequisites; assigned observed GUI consolidation to 07.3. No runtime implementation changed.
+
+- 2026-09-09: User admits 07.2 on the maintained verified reference and suspends temporal improvement research. General temporal reliability remains unqualified; preserve imperfect observations and avoid excessive localizer-specific optimization. No implementation started.
