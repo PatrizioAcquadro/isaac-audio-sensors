@@ -65,7 +65,7 @@ def test_compass_view_model_without_bearing_reports_no_needles():
     assert view_model.needles == ()
     assert view_model.summary == "no bearing"
     assert view_model.color_rgba == COLOR_UNKNOWN
-    assert view_model.confidence == 0.0
+    assert view_model.confidence is None
 
 
 def test_compass_view_model_clamps_confidence():
@@ -224,3 +224,11 @@ def test_render_compass_rgba_draws_needle_toward_bearing():
 
     empty = render_compass_rgba(compass_view_model(bearing_deg=None), size=size)
     assert empty.shape == (size, size, 4)
+
+
+def test_compass_distinguishes_unavailable_confidence_from_zero():
+    missing = compass_view_model(bearing_deg=20)
+    zero = compass_view_model(bearing_deg=20, confidence=0)
+    assert missing.confidence is None and "confidence N/A" in missing.summary
+    assert zero.confidence == 0 and "confidence 0.00" in zero.summary
+    assert missing.needles == zero.needles

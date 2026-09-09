@@ -67,7 +67,7 @@ def test_core_commands_render_service_results(tmp_path, capsys):
     assert main(["export-schema", "--out", str(schema_path)]) == 0
     assert json.loads(capsys.readouterr().out) == {"wrote": str(schema_path)}
     packaged = files("isaac_audio_sensors.schemas").joinpath(
-        "audio_sensor_frame.v3.schema.json"
+        "audio_sensor_frame.v4.schema.json"
     )
     assert schema_path.read_bytes() == packaged.read_bytes()
 

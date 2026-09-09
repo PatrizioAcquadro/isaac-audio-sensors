@@ -247,3 +247,19 @@ def _iter_corpus_payloads():
         ):
             assert line.strip(), (path, line_number)
             yield path, json.loads(line)
+
+
+@pytest.mark.parametrize("confidence", [None, 0.0, 0.7])
+def test_confidence_availability_survives_json(confidence):
+    frame = _contract_frame()
+    observation = replace(
+        frame.observations[0],
+        doa=DoaEstimate(estimated_bearing_deg=20, bearing_confidence=confidence),
+    )
+    frame = replace(frame, observations=(observation,))
+    payload = json.loads(json.dumps(frame_to_trace_dict(frame)))
+    assert payload["observations"][0]["doa"]["bearing_confidence"] == confidence
+    assert frame_from_trace_dict(payload) == frame
+    payload["schema_version"] = "ias.audio_sensor_frame.v3"
+    with pytest.raises(ValueError, match="schema_version"):
+        frame_from_trace_dict(payload)

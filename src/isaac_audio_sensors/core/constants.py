@@ -24,7 +24,7 @@ CALIBRATION_PROFILE_UNITS = {
 # room backend's per-band attenuation filter.
 OCCLUSION_BAND_CENTERS_HZ = (125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0)
 EPSILON = 1e-9
-FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v3"
+FRAME_SCHEMA_VERSION = "ias.audio_sensor_frame.v4"
 
 FRAME_UNITS = {
     "position": "m",

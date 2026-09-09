@@ -48,7 +48,7 @@ class CompassViewModel:
     needles: tuple[CompassNeedle, ...]
     sector: str | None
     sector_center_deg: float | None
-    confidence: float
+    confidence: float | None
     occluded: bool | None
     color_rgba: tuple[float, float, float, float]
     summary: str
@@ -117,7 +117,12 @@ def compass_view_model(
         color = COLOR_CLEAR
     else:
         color = COLOR_UNKNOWN
-    clamped_confidence = min(max(float(confidence or 0.0), 0.0), 1.0)
+    clamped_confidence = (
+        None if confidence is None else min(max(float(confidence), 0.0), 1.0)
+    )
+    confidence_text = (
+        "N/A" if clamped_confidence is None else f"{clamped_confidence:.2f}"
+    )
     if occluded is True:
         occlusion_text = "occluded"
     elif occluded is False:
@@ -128,7 +133,7 @@ def compass_view_model(
         summary = (
             f"bearing {needles[0].bearing_deg:.1f} deg"
             f" | sector {sector or 'none'}"
-            f" | confidence {clamped_confidence:.2f}"
+            f" | confidence {confidence_text}"
             f" | {occlusion_text}"
         )
     else:

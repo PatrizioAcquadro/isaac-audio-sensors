@@ -64,7 +64,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
-            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v3.schema.json"
+            "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v4.schema.json"
         ),
         "title": "Isaac Audio Sensors AudioSensorFrame v3",
         "description": (
@@ -209,14 +209,15 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
                                             ),
                                         },
                                         "bearing_confidence": {
-                                            "type": "number",
+                                            "type": ["number", "null"],
                                             "minimum": 0.0,
                                             "maximum": 1.0,
                                             "description": (
                                                 "Estimator-local direction "
                                                 "reliability; not a probability "
                                                 "or cross-estimator calibrated "
-                                                "quantity."
+                                                "quantity. Null means unavailable; "
+                                                "zero is a measured score."
                                             ),
                                         },
                                         "ambiguity_class": {

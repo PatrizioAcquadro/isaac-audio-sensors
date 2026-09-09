@@ -136,7 +136,7 @@ def _observation_from_dict(payload: dict[str, Any]) -> AudioObservation:
                 float(value) for value in doa_payload["candidate_bearing_deg"]
             ),
             bearing_sector=doa_payload["bearing_sector"],
-            bearing_confidence=float(doa_payload["bearing_confidence"]),
+            bearing_confidence=_optional_float(doa_payload["bearing_confidence"]),
             ambiguity_class=doa_payload["ambiguity_class"],
             ambiguity_reason=doa_payload["ambiguity_reason"],
             estimated_elevation_deg=_optional_float(

@@ -79,14 +79,15 @@ class DoaEstimate:
     resolve elevation (e.g. a rank-3 microphone layout); planar arrays keep
     the azimuth-only behavior. ``bearing_confidence`` is an estimator-local
     reliability score in ``[0, 1]`` covering the full estimated direction,
-    including elevation when present. It is not a probability and scores from
+    including elevation when present. ``None`` means unavailable; zero is a
+    measured score. It is not a probability and scores from
     different estimators are not comparable without explicit calibration.
     """
 
     estimated_bearing_deg: float | None
     candidate_bearing_deg: tuple[float, ...] = field(default_factory=tuple)
     bearing_sector: str | None = None
-    bearing_confidence: float = 0.0
+    bearing_confidence: float | None = None
     ambiguity_class: str | None = None
     ambiguity_reason: str | None = None
     estimated_elevation_deg: float | None = None
@@ -108,10 +109,11 @@ class DoaEstimate:
             normalize_bearing_deg(value) for value in self.candidate_bearing_deg
         )
         object.__setattr__(self, "candidate_bearing_deg", candidates)
-        require_probability(
-            self.bearing_confidence,
-            "DoaEstimate.bearing_confidence",
-        )
+        if self.bearing_confidence is not None:
+            require_probability(
+                self.bearing_confidence,
+                "DoaEstimate.bearing_confidence",
+            )
         if self.estimated_elevation_deg is not None:
             _require_elevation_deg(
                 self.estimated_elevation_deg,

@@ -1337,3 +1337,11 @@ Recorded the user's renewed joint count/direction objective before 07.2, superse
 ## 2026-09-09 — lint: Pre-07.2 phase and ONR scope consistency
 
 All five documentation-boundary checks pass. Internal links, referenced section headings, index coverage and whitespace are valid; stale current permission to bypass temporal improvement was removed while historical decisions remain labeled. Changes are confined to canonical wiki pages; raw material, runtime source and local audit/media evidence remain unchanged.
+
+## 2026-09-09 — update: Explicit confidence availability
+
+Documented frame v4 nullable confidence, strict old-version rejection, unchanged dataset envelope, and consistent GUI/learning/Lab semantics. The temporal objective and live-occlusion correction remain open.
+
+## 2026-09-09 — lint: Confidence contract synchronization
+
+Checked active schema references and fixture checksums, verified recording/replay and CPU/CUDA masks, and passed Ruff and whitespace checks. Historical phase-v3 attribution remains separate from the current frame-v4 contract.

@@ -14,7 +14,9 @@ Sample amplitude uses a digital reference of 1.0. Values beyond +/-1 remain unch
 
 ## AudioSensorFrame
 
-`AudioSensorFrame` is the package-native sensor and trace contract with schema version `ias.audio_sensor_frame.v3`, independent from the Python package version.
+Frame v4 makes `DoaEstimate.bearing_confidence` nullable, with default `None`. Null means unavailable; numeric zero is an available zero reliability score. This remains estimator-local, not a calibrated probability. The GUI displays unavailable confidence as `N/A`; NumPy learning and Lab buffers use zero padding with a false confidence mask independently of the direction mask. Recording and replay preserve null exactly. Frame v1-v3 inputs are rejected without compatibility readers; archived recordings retain their original version and are not rewritten. Dataset manifest v4 and frame-record v2 are unchanged.
+
+`AudioSensorFrame` is the package-native sensor and trace contract with schema version `ias.audio_sensor_frame.v4`, independent from the Python package version.
 
 Every frame identifies its producer, array, required time window, selected-array sample rate, ordered channel validity by microphone identifier, frame index, coordinate convention, units, provenance, output observation bound, observations, aggregate microphone RMS values, waveform paths, and diagnostics. Its serialized `timestamp_ms` is not an independent input: the model derives it exclusively as `int(round(start_time_s * 1000.0))`. `waveform_paths` contains references managed by recording services; perception itself writes no files and initializes the field empty.
 
@@ -48,7 +50,7 @@ Signal-derived output precedes external observations in deterministic order. Obs
 
 ## Versioned Schemas
 
-The shipped schemas are `ias.audio_sensor_frame.v3`, `ias.audio_dataset_manifest.v4`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`. Dataset frame records are v2 and embed unchanged frame v3; calibration remains v1. Manifest v2 removes episode-owned source truth, which now belongs exclusively beside each frame.
+The shipped schemas are `ias.audio_sensor_frame.v4`, `ias.audio_dataset_manifest.v4`, and `ias.audio_calibration_profile.v1` under `src/isaac_audio_sensors/schemas/`. Dataset frame records are v2 and now embed frame v4; calibration remains v1. Manifest v2 removes episode-owned source truth, which now belongs exclusively beside each frame.
 
 The three Python generators are authoritative. Checked package resources and exports from `write_json_schema` must remain byte-identical deterministic JSON; schema export never reads documentation files.
 

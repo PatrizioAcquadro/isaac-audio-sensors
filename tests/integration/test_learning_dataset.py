@@ -569,3 +569,28 @@ def test_metadata_only_capture_rejects_mismatched_channels_before_advancing(tmp_
     assert recorder.append_frame(_frame(0, 0), None).accepted
     recorder.end_episode()
     recorder.finalize()
+
+
+def test_confidence_missing_and_zero_survive_recording_replay_and_learning(tmp_path):
+    from isaac_audio_sensors.recording import replay_session
+
+    def observations(frame, index):
+        return replace(frame, observations=tuple(
+            AudioObservation(
+                observation_id=f"event-{i}",
+                origin=ObservationOrigin.SIGNAL_DERIVED,
+                detector_id="observed",
+                doa=DoaEstimate(estimated_bearing_deg=20, bearing_confidence=c),
+            ) for i, c in enumerate((None, 0.0, 0.7))
+        ))
+
+    root = write_session(tmp_path / "confidence", change_frame=observations)
+    for event in replay_session(root):
+        if event.kind == "frame":
+            values = [o.doa.bearing_confidence for o in event.frame.frame.observations]
+            assert values == [None, 0, 0.7]
+    for sample in LearningDataset.open([root]).iter_samples():
+        mask = sample.policy_inputs["bearing_confidence_mask"].tolist()
+        assert mask == [False, True, True]
+        values = sample.policy_inputs["bearing_confidence"].tolist()
+        assert values == pytest.approx([0, 0, 0.7])

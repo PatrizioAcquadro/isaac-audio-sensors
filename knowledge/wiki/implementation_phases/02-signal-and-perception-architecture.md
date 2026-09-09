@@ -3,7 +3,7 @@
 Status: Complete. Subphases 02.1, 02.2, and 02.3 plus the bounded intervening
 R9.4 qualification are complete.
 
-A later confidence-availability correction is planned before 07.2; it does not undo the completed producer/perception separation.
+The pre-07.2 confidence correction introduces frame v4 with nullable estimator-local reliability. It preserves producer/perception separation; see [[topics/public-contracts-and-recording|the current contract]]. Null/zero serialization, recorded replay, learning masks and GUI models are covered by regression tests; supported-runtime validation is recorded at closeout.
 
 ## Objective
 

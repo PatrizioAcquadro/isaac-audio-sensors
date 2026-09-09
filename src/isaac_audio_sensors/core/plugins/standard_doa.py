@@ -137,7 +137,7 @@ def _unresolved_selection(
     return (
         DoaEstimate(
             estimated_bearing_deg=None,
-            bearing_confidence=0.0,
+            bearing_confidence=None,
             ambiguity_class=ambiguity_class,
             ambiguity_reason=reason,
         ),

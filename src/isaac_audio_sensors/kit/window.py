@@ -412,7 +412,7 @@ class OmniReferenceWindow:
         self._set_label("compass_sector", view_model.sector or "—")
         self._set_label(
             "compass_confidence",
-            "—" if not view_model.needles else f"{view_model.confidence:.2f}",
+            "N/A" if view_model.confidence is None else f"{view_model.confidence:.2f}",
         )
         self._set_label(
             "compass_occlusion",

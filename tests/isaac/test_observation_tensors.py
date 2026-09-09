@@ -89,7 +89,7 @@ def test_ambiguous_candidates_are_not_events_or_selected_directions():
     assert data.candidate_elevations_truncated.tolist() == [[0, 0]]
     assert data.observations_truncated.tolist() == [1]
     assert data.detection_score[0, 1].item() == 3.0
-    assert data.bearing_confidence_mask[0, 0]
+    assert not data.bearing_confidence_mask[0, 0]
     assert data.bearing_confidence[0, 0] == 0.0
 
 
@@ -236,3 +236,19 @@ def test_consumer_masks_angles_and_never_normalizes_other_features():
     assert all(
         torch.isfinite(value).all() and not value.any() for value in empty.values()
     )
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_confidence_availability_is_independent_of_direction(device):
+    if device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA unavailable")
+    observations = [
+        _observation(doa=DoaEstimate(estimated_bearing_deg=20, bearing_confidence=c))
+        for c in (None, 0.0, 0.7)
+    ]
+    data = AudioArraySensorData.from_observations(
+        [observations], max_observations=3, device=device
+    )
+    assert data.bearing_deg_mask.all()
+    assert data.bearing_confidence_mask.tolist() == [[False, True, True]]
+    assert data.bearing_confidence.tolist()[0] == pytest.approx([0, 0, 0.7])

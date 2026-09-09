@@ -1,5 +1,5 @@
 {
-  "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v3.schema.json",
+  "$id": "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v4.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Observed-only AudioSensorFrame v3 contract. timestamp_ms is derived from start_time_s, sample_rate_hz records the selected array rate, and max_observations limits only the perception output.",
@@ -157,10 +157,13 @@
                     ]
                   },
                   "bearing_confidence": {
-                    "description": "Estimator-local direction reliability; not a probability or cross-estimator calibrated quantity.",
+                    "description": "Estimator-local direction reliability; not a probability or cross-estimator calibrated quantity. Null means unavailable; zero is a measured score.",
                     "maximum": 1.0,
                     "minimum": 0.0,
-                    "type": "number"
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   },
                   "bearing_sector": {
                     "description": "Canonical 8-sector label using corrected half-open v1 sector semantics.",
@@ -260,7 +263,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "const": "ias.audio_sensor_frame.v3",
+      "const": "ias.audio_sensor_frame.v4",
       "description": "Frame schema id for the breaking v3 contract."
     },
     "start_time_s": {

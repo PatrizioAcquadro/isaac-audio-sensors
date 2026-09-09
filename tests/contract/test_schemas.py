@@ -20,7 +20,7 @@ SchemaGenerator = Callable[[], dict[str, Any]]
 SCHEMAS: dict[str, tuple[SchemaGenerator, str]] = {
     "frame": (
         audio_sensor_frame_json_schema,
-        "audio_sensor_frame.v3.schema.json",
+        "audio_sensor_frame.v4.schema.json",
     ),
     "dataset-manifest": (
         audio_dataset_manifest_json_schema,
@@ -81,7 +81,7 @@ def test_current_payloads_conform_to_generated_schemas():
 
 
 def test_superseded_schemas_are_not_packaged() -> None:
-    for version in ("v1", "v2"):
+    for version in ("v1", "v2", "v3"):
         assert not files("isaac_audio_sensors.schemas").joinpath(
             f"audio_sensor_frame.{version}.schema.json"
         ).is_file()
