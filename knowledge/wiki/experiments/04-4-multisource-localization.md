@@ -234,3 +234,9 @@ Ignored numerical evidence is retained under `evidence/qualification/multisource
 Validation passes 641 unit/contract, 335 integration and 58 release tests, including received-reference/transition checks and streaming reset/inactive/recording tests. The optional-audio smoke and all three supported Isaac Sim/Lab/Kit smokes pass on RTX 4090. Forty-eight focused propagation/rotation/consumer regressions pass; propagation, motion and maintained localization source files have no diff from `0d44f0c`. GPU lifecycle/projection checks do not establish perceptual accuracy or CPU localizer throughput.
 
 The next experiment should target the acoustic front end on these exact weak-speech/combined-motion counterexamples: test whether causal multichannel dereverberation or time-frequency source discrimination improves current directional evidence and weak-source recall without increasing extras. Compare the resulting event sets before adding further track persistence. The present evidence does not justify another direction smoother or a library selection based only on responsiveness.
+
+### Project disposition — paused, not solved
+
+On 2026-09-09 the user chose to close this iteration for now and retain the current capability. Joint moving-source count/direction reliability remains an open limitation, including ordinary motion and source transitions; it is not confined to weak speech with simultaneous robot/source motion. The next acoustic-front-end experiment above is deferred.
+
+This pause lifts the earlier project-priority hold on 07.2 while preserving its bounded reference and validation requirements. It does not qualify Video 03: its concrete moving-source sensor/perception/recording path still needs a focused numerical feasibility check before production, with observed errors and missing directions visible. No 07.2 implementation, media, scene or ONR production is part of this closeout. [[status|Current Status]] owns the next-work boundaries.

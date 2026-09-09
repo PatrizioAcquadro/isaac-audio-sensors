@@ -1283,3 +1283,11 @@ Added received-energy and causal pipeline evaluation, reproduced the original mo
 ## 2026-09-09 — lint: Joint motion investigation closeout
 
 Host validation passes 641 unit/contract, 335 integration and 58 release tests. Wiki boundary/link/index checks, Ruff and whitespace pass. Optional audio and actual RTX 4090 Isaac Sim/Lab/Kit smokes pass. The maintained algorithm and propagation sources remain unchanged from the baseline; independent perceptual qualification remains explicitly open.
+
+## 2026-09-09 — update: Pause motion-perception research
+
+Recorded the user-directed closeout of the current iteration without claiming the acoustic problem is solved. Retained the maintained runtime and removed the earlier project-priority hold on planned 07.2; its reference limitations remain explicit. Video 03 requires its own numerical production-path feasibility check. No implementation, scene or media production was started.
+
+## 2026-09-09 — lint: Paused research and next-work boundaries
+
+All five documentation boundary, link and index checks pass; whitespace checks pass. Changes are documentation only, with no runtime or production artifacts modified.

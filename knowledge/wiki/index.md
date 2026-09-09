@@ -12,7 +12,7 @@
 - [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed dominant-DOA 04.1–04.3; 04.4 bounded indoor stable-source improvement and GPU consumers confirmed; motion/indoor replacement is NO-GO and broader limits remain; 07.2 unstarted.
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1 finite masked observation tensors and scalar projection; the bounded reference is available for scalable/stateful 07.2, currently deferred while 04.4 indoor robustness is addressed.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1 finite masked observation tensors and scalar projection; the bounded reference is available for scalable/stateful 07.2, eligible to start with documented perceptual limits after the motion investigation was paused.
 - [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — sequence reference for implementing canonical R10.1 through R10.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — planned signal variation with measurable application value; 06.3 prioritizes received levels, ambient interference, and weak-signal activity.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
@@ -51,7 +51,7 @@
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — confirmed indoor reference, motion/indoor candidate rejection, reusable numerical evaluation, weak speech and timing limits.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — confirmed indoor reference, motion/indoor candidate rejection, reusable numerical evaluation, weak speech and timing limits; motion research paused with reliability unresolved.
 
 ## Sources
 
