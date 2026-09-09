@@ -1,6 +1,6 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.3 complete. The requested 04.4 indoor-improvement intervention is confirmed and integrated for bounded, relatively stable 16 kHz planar/3D sources. Weak speech, response time, original direct-path operational regressions and broader/physical qualification remain explicit limitations. Core/Isaac/Kit, recording/dataset and actual RTX 4090 Lab consumers pass. 07.2 has not started and is outside this intervention.
+Status: Subphases 04.1–04.3 complete. The requested 04.4 indoor-improvement intervention is confirmed and integrated for bounded, relatively stable 16 kHz planar/3D sources. Weak speech, response time, original direct-path operational regressions and broader/physical qualification remain explicit limitations. Core/Isaac/Kit, recording/dataset and actual RTX 4090 Lab consumers pass within that scope. A later joint temporal count/direction follow-up was requested on 2026-09-09 before 07.2 and remains pending; 07.2 has not started.
 
 ## Objective
 
@@ -91,7 +91,7 @@ The 250 ms context can smear fast motion. The confirmation rule blocks abrupt re
 
 #### Implementation
 
-Qualification and practical scalar-reference integration implemented after 07.1, enabling [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
+Qualification and practical scalar-reference integration were implemented after 07.1, satisfying the original bounded-reference prerequisite for [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. The later temporal follow-up below adds a renewed prerequisite. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
 
 The isolated comparison, frozen gates and independent evaluation are implemented. The initial shortlist covers PyRoom SRP, MUSIC with inferred count, and ODAS SSL with potential rejection; development added normalized MUSIC, covariance pursuit and frequency-local model order to address measured failures. The [[experiments/04-4-multisource-localization|04.4 experiment]] owns the review, protocol, corrections, results and evidence locations.
 
@@ -129,6 +129,18 @@ NARA-WPE 0.0.11 is an optional `room` dependency; the Kit archive includes the u
 Remaining acoustic limits: the original combined 45-degree separation / 6 dB imbalance / 10 dB SNR / 0.3 s target RT60 domain still fails; those plausible conditions have not been declared unrealistic. Close, coherent, out-of-plane planar and arbitrary reverberant mixtures are not qualified. Direct-path case coverage does not prove a complete continuous operating envelope, arbitrary layouts or physical performance. Planar elevation is not observable in this role. Two-source reliability is probabilistic; larger output capacity is not a three-source qualification.
 
 The user-approved stable-source tradeoff does not pass the original 350/500 ms response reference: additions, removals and direction changes can take around 1–1.5 s, and one tetrahedral weak-speech removal is unresolved within a 1.5 s diagnostic phase. Compute p95 is about 21/29/68/52 ms for triangle/square/raised/tetrahedral, so 100 ms updates are the measured starting point. Weak-speech clean pairs remain only 16–20/24 at target RT60 0.3 s / 6 dB; pooled qualification must not imply per-family robustness. Original nominal direct-path gates pass, but the operational pair criterion regresses for planar arrays at the original 10 dB imbalance/5 dB SNR controls. The experiment records these unchanged gates and harder cumulative controls. 07.2 remains separate and unstarted; no physical or general indoor claim follows.
+
+## Pre-07.2 Follow-up — Joint Count and Direction over Time
+
+Status: requested on 2026-09-09, pending implementation. The user has reopened the previously paused temporal-perception problem and placed this work before 07.2. The bounded stable-source result above remains valid within its limits; it is not completion of this new objective.
+
+Make the perceived number of audible events and their directions remain useful together over time as sources begin, stop, move, overlap, or become partially occluded, and as the receiver moves. Reduce invented or duplicated events, missed audible sources, unstable directions and excessive recovery delay while preserving useful stationary/indoor behavior. The objective is practical, reusable robot audition for the repository's long-term simulation and learning roles, rather than a smoother presentation of the same unreliable event stream.
+
+The occlusion audit also found extra directions in some unoccluded single-source controls and new extras after partial channel attenuation in an otherwise successful angular control. Separate these baseline weaknesses from occlusion-induced degradation. Joint temporal behavior must not be inferred from a static case, correct waveform propagation, or the visual continuity of an arrow.
+
+Prefer established, maintained approaches that meet the objective without prescribing an algorithm or library in advance. Perception continues to use received audio only; source count, schedules, identities and geometry cannot supply the answers. Temporal reasoning does not authorize semantic recognition, separated audio, or source identities in policy inputs. Keep unavailable estimates and the remaining operating limits explicit.
+
+The previous pause is superseded as a project sequencing decision. Do not advance 07.2 by silently substituting the old bounded reference for the requested improvement. If dependable joint behavior is not feasible in a clearly stated useful domain, report the unresolved limitation and return the scope decision to the user. Full geometry acoustics remains Phase 08, and evidence-backed realism distributions remain Phase 09.
 
 ## Artifacts
 
@@ -176,3 +188,5 @@ Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.j
 - 2026-09-09: Retained the existing localizer after motion/indoor candidates failed joint utility; added a reusable numerical evaluator and documented the unresolved moving-pair boundary.
 
 - 2026-09-09: Added optional causal streaming event-localizer injection without changing standard selection or serialized schemas.
+
+- 2026-09-09: Reopened useful joint count/direction over time before 07.2 following the occlusion/GUI audit; preserved the bounded reference and previous candidate failures without claiming new implementation.

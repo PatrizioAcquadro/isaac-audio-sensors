@@ -20,6 +20,8 @@ Make Isaac own acoustic-geometry selection, room and array containment, material
 
 Include acoustically relevant room surfaces, doors, openings, large objects, robot body, and microphone housing while excluding technical source and sensor prims that are not physical obstacles. Static geometry is reusable; moving doors, robots, and objects update without rebuilding unrelated scene state.
 
+Make the distinction between visible objects and acoustically active geometry understandable in the authoring workflow. A rendered obstacle must not imply acoustic participation or calibrated material behavior. The pre-07.2 solid-collider and unavailable-occlusion fixes belong to the existing analytic/Isaac path; this phase owns the subsequent provider scene integration.
+
 Represent acoustic partitions independently from visual or collision fragmentation. One wall, door, panel, or authored construction may own several meshes or colliders while resolving to one acoustic assembly and one material/transmission definition. Prefer the selected provider's native scene and material representation; introduce IAS-specific partition metadata only where the provider cannot express the required USD mapping directly.
 
 Do not enable the R9.4 closed/paired-face transmission proxy. Although its
@@ -119,11 +121,17 @@ Ambisonic field, and is qualified only through the independent-receiver mapping
 measured in R9.4. Diagnostics retain actionable provenance, limitations, and
 observable sensor state rather than obsolete internal structures.
 
+Moving doors and occluders must produce temporally meaningful changes in the received signal as direct and indirect paths change. Address transition artifacts and stale geometry in the supported provider domain; visual smoothing alone does not establish acoustic continuity. Do not promise exact edge diffraction, thickness-derived transmission or structural wall behavior beyond the qualified provider capabilities. The current analytic direct-loss model remains a simpler, separately bounded approximation.
+
 ## Subphase R10.3 — Operating Integration and Cleanup
 
 #### Implementation
 
 Integrate the selected provider's lifecycle, static-scene caching, bounded dynamic updates, configuration, Kit workflow, diagnostics, and packaging behind its capability boundary. Maintain one selected geometry-provider integration rather than exposing redundant experimental backends or provider-specific scene state through Core observation contracts.
+
+Expose useful acoustic participation, material assumptions, unavailable capabilities and provider-reported path/occlusion state through the existing diagnostic workflow. Keep these simulation facts visibly separate from observed activity, event count, direction and estimator reliability. Define color meanings explicitly: an occluded geometric route does not prove low direction reliability, and low RMS does not prove occlusion. Never assign a blocked source's truth to an observed event without a justified association. Observed event/candidate presentation is consolidated in 07.3; this phase adds provider diagnostics, not oracle perception.
+
+Complete the geometry-backed sensor-to-instrument chain for a bounded occlusion demonstration. [[topics/onr-video-production|ONR Video 4]] can target this point for the fuller geometry version, after its specific scene is shown to work. Completion of 08.3 is not automatic approval of a video or proof of every possible occlusion scenario.
 
 Target high-quality operation for one or a few Isaac environments. Expose geometry-derived acoustic statistics or bounded parameters that can inform R8 randomization for mass-parallel Isaac Lab training without requiring the geometry provider in every environment.
 

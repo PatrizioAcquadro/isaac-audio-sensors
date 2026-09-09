@@ -38,7 +38,9 @@ Lazy timeline time, update subscriptions, and reset subscriptions share one Isaa
 
 ## Occlusion and Visualization
 
-Optional PhysX raycasts compute per-source/per-microphone occlusion and material transmission; missing runtime support produces a clear optional-capability error.
+Optional PhysX raycasts compute per-source/per-microphone occlusion and nominal or authored material transmission. The 2026-09-09 live audit found capture failure with ordinary solid colliders due to repeated interior hits. Missing runtime support is recorded under frame diagnostics and currently allows capture without occlusion; the GUI does not reliably expose that degraded capability. Both are pending [[implementation_phases/r8-analytic-acoustics-backend#Pre-07.2 Follow-up — Live Occlusion Correctness|pre-07.2 corrections]], not qualified live behavior.
+
+RMS instruments consume the observed microphone mixture. The compass currently leaves occlusion Unknown, hides bearings for multiple observations, and cannot display ambiguity candidates without a primary bearing. Multisource confidence is unavailable even though the current presentation shows zero. The immediate availability correction belongs to [[implementation_phases/02-signal-and-perception-architecture|02.2]]; all-event/candidate and effective-role presentation belongs to [[implementation_phases/07-isaac-lab-observation-integration|07.3]]. Frame-age warnings already exist. Geometry-path indicators will be separate diagnostics in [[implementation_phases/r10-geometry-acoustics-integration|08.3/R10.3]], and useful effect controls follow [[implementation_phases/09-practical-realism-and-randomization|Phase 09]].
 
 Visualization is represented first as pure structured debug primitives, then rendered through lazy debug draw or persistent session-layer USD geometry when available.
 

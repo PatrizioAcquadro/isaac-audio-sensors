@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. The bounded 04.4 scalar-reference prerequisite is satisfied. The user-directed motion-perception investigation is now paused with its limitation unresolved. The earlier priority hold is lifted: 07.2 can begin with the maintained bounded reference and its documented errors and latency; it has not started.
+Status: Subphase 07.1 implemented on 2026-09-08. Subphases 07.2–07.3 remain planned. On 2026-09-09 the user reopened joint temporal count/direction improvement and placed it, confidence availability and live occlusion correctness before 07.2. This supersedes the earlier permission to proceed while motion research was paused. The bounded 04.4 reference remains implemented; the renewed prerequisite is not yet satisfied.
 
 ## Objective
 
@@ -30,13 +30,17 @@ The maintained example requires an explicit reference threshold and exposes opti
 
 Fixed: reference perception was discarded, Lab direction padding contained NaN, and the tensor surface lacked score/DOA/candidate validity and truncation semantics. Fixed: sample-clock alignment prevents tiny float32 tick errors from masquerading as stream discontinuities.
 
+**Open correction before 07.2:** the maintained multisource method does not provide event confidence, but its default zero is projected with a true confidence mask. The 2026-09-09 audit reproduced this on CUDA. Apply the availability correction owned by [[implementation_phases/02-signal-and-perception-architecture|02.2]] so unavailable confidence cannot be consumed as a measured low score. Existing direction and candidate semantics must remain distinct.
+
 Resolved by 04.4: the common scalar localizer emits actual multiple events in its bounded direct-path role; GPU projection verifies them independently of slot capacity. Scalar waveform processing and packing remain host-side; CUDA validates tensor placement and sensor lifecycle, not a CUDA-native perception implementation. Arbitrary cadence, long-horizon timing, and scalable context remain 07.2 responsibilities. No learner, downstream task, or physical multisource campaign is validated here.
 
 ## Subphase 07.2 — Reference, Scalable, and Stateful Paths
 
 #### Implementation
 
-The practical prerequisite is satisfied by the mixture-only multisource qualification, common-perception integration and RTX 4090 consumer smoke in [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. The subsequent acoustic investigation is [[experiments/04-4-multisource-localization|paused after candidate rejection]]. Further perceptual improvement is no longer a prerequisite for starting this subphase. Preserve the maintained reference and characterize its missed/spurious events, changing-count delay and moving-direction errors; scalar parity is not evidence of accurate perception. When started, use 16 kHz and the documented qualified reference scope. Original combined reverberant-domain failures remain limitations to characterize, not an implicit claim that the reference is accurate there. No new custom cardinality algorithm is a prerequisite. Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth.
+First complete the renewed [[implementation_phases/04-observed-direction-estimation#Pre-07.2 Follow-up — Joint Count and Direction over Time|joint temporal perception work]], the [[implementation_phases/02-signal-and-perception-architecture|confidence-availability correction]], and the [[implementation_phases/r8-analytic-acoustics-backend|live occlusion corrections]]. No particular custom cardinality algorithm is prescribed. Preserve the resulting reference's remaining missed/spurious events, response delay and moving-direction limits; scalar parity is not evidence of accurate perception. Start from its explicitly supported sample rate and operating domain rather than assuming the old qualification covers a replacement. The existing reference remains bounded at 16 kHz until a change is actually qualified.
+
+Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth. Phase 08 need not run in every environment, and full Phase 09 realism is not a prerequisite for this integration.
 
 Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
 
@@ -57,6 +61,10 @@ Feature-domain scale may not reproduce full waveform perception. Context length 
 
 After 07.2, finish migration of maintained Lab consumers and remove obsolete bindings, duplicate conversions, compatibility paths, and unused supporting surfaces. The tensor contract and maintained example were already migrated in 07.1, including removal of per-event RMS and the old tensor fields. Retain scalar and CUDA-native paths only for their distinct correctness and scale roles.
 
+Consolidate the shared observed GUI with this consumer migration. Represent all simultaneous events and distinguish them from alternative directions of one ambiguous event. Show current activity, warm-up, unavailable localization and capacity truncation separately from historical events. Make the active localization role, sample rate and context understandable: the current 48 kHz GUI default does not enable the maintained 16 kHz multisource role merely by increasing observation capacity. Preserve frame-age warnings and distinguish frame freshness from perceptual response delay. This GUI work is planned; the immediate confidence and unavailable-occlusion indications belong to the pre-07.2 corrections.
+
+The present compass hides bearings when there is more than one observation, and hides ambiguous candidates when no primary bearing exists. Correct those presentations without inventing event identities or carrying stale directions as fresh observations. Keep the RMS of the complete microphone mixture separate from individual event estimates. Geometry-derived occlusion/path displays belong to 08.3, and optional realism controls belong to Phase 09.
+
 #### Key Decisions
 
 - Old and new Lab observation contracts do not coexist.
@@ -75,3 +83,7 @@ Validation passes 614 unit/contract, 282 integration, 58 release, and 116 suppor
 ## Files
 
 Main implementation: `src/isaac_audio_sensors/lab/audio_array_sensor_data.py`, `src/isaac_audio_sensors/lab/reference_backend.py`, and the maintained Lab example. Lifecycle/configuration, Isaac tests, and the existing live Lab smoke consume the same contract. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for the public interface.
+
+## Version Notes
+
+- 2026-09-09: Reopened pre-07.2 joint temporal perception and correctness prerequisites; assigned observed GUI consolidation to 07.3. No runtime implementation changed.

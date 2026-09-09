@@ -48,6 +48,8 @@ After R10.2 is complete, implement [[implementation_phases/r10-geometry-acoustic
 
 This reference adds no requirements beyond R10.3.
 
+R10.3 also owns provider-specific occlusion/path diagnostics and the integrated signal/instrument behavior needed for the fuller geometry version of [[topics/onr-video-production|ONR Video 4]]. Its simpler direct-attenuation scope may be feasible after the pre-07.2 corrections; neither version is qualified by its position in the phase sequence alone.
+
 ## Artifacts
 
 This reference produces no independent artifacts. R10 owns all geometry-integration artifacts.

@@ -235,8 +235,12 @@ Validation passes 641 unit/contract, 335 integration and 58 release tests, inclu
 
 The next experiment should target the acoustic front end on these exact weak-speech/combined-motion counterexamples: test whether causal multichannel dereverberation or time-frequency source discrimination improves current directional evidence and weak-source recall without increasing extras. Compare the resulting event sets before adding further track persistence. The present evidence does not justify another direction smoother or a library selection based only on responsiveness.
 
-### Project disposition — paused, not solved
+### Historical project disposition — paused, not solved
 
 On 2026-09-09 the user chose to close this iteration for now and retain the current capability. Joint moving-source count/direction reliability remains an open limitation, including ordinary motion and source transitions; it is not confined to weak speech with simultaneous robot/source motion. The next acoustic-front-end experiment above is deferred.
 
-This pause lifts the earlier project-priority hold on 07.2 while preserving its bounded reference and validation requirements. It does not qualify Video 03: its concrete moving-source sensor/perception/recording path still needs a focused numerical feasibility check before production, with observed errors and missing directions visible. No 07.2 implementation, media, scene or ONR production is part of this closeout. [[status|Current Status]] owns the next-work boundaries.
+At that point, the pause lifted the earlier project-priority hold on 07.2 while preserving its bounded reference and validation requirements. It did not qualify Video 03: the separate production subsequently documented in [[topics/onr-video-production|ONR Video Production]] owns its scene-specific feasibility and media outcome. No 07.2 implementation, media, scene or ONR production was part of this investigation closeout.
+
+### Current project disposition — reopened before 07.2
+
+Later on 2026-09-09, following the occlusion/GUI audit, the user requested that joint count and direction over time be addressed before 07.2 for the SDK's long-term practical usefulness. This supersedes the pause as a sequencing decision; candidate failures and the bounded reference results remain unchanged. [[implementation_phases/04-observed-direction-estimation#Pre-07.2 Follow-up — Joint Count and Direction over Time|Phase 04]] owns the renewed outcome, without prescribing a library or treating display smoothing as perception. [[status|Current Status]] also records the separate confidence and live occlusion corrections. No further acoustic experiment or new qualification has been executed by this documentation update.

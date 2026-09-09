@@ -3,6 +3,8 @@
 Status: Complete. Subphases 02.1, 02.2, and 02.3 plus the bounded intervening
 R9.4 qualification are complete.
 
+A later confidence-availability correction is planned before 07.2; it does not undo the completed producer/perception separation.
+
 ## Objective
 
 Separate acoustic signal production from perception so the same activity detector and DOA estimator consume simulated and real microphone-array signals. Remove source-conditioned detection from propagation while retaining the minimum stable frame and dataset boundaries needed by runtime consumers.
@@ -70,6 +72,8 @@ The public `AudioObservation` contains only:
 - concise non-privileged diagnostics.
 
 Scene source identity, source pose, oracle geometry, asset references, occlusion truth, and per-source measurements have left the observation contract. No classifier or tracker fields are reserved. `None` DOA means localization was not run; an unresolved `DoaEstimate` means it ran without a unique valid direction.
+
+**Planned pre-07.2 correction — confidence availability.** The current multisource localizer declares event confidence unavailable, but its observation carries the default zero; GUI and Lab consequently present that zero as available. Make unavailable confidence distinguishable from a measured zero throughout observations, recording/replay, GUI and Lab. Preserve estimator-specific meaning rather than interpreting solver weights as probabilities. Availability must belong to the observed contract, without giving policy consumers privileged diagnostics. This correction is pending; current fields and serialized behavior have not changed.
 
 `AudioSensorFrame` now uses `ias.audio_sensor_frame.v3`: `producer_id`, `channel_validity`, `max_observations`, and `observations` replace the backend/detection surface while timing, array pose, aggregate RMS, provenance, diagnostics, and recorder-managed waveform references remain. Readers reject frame v2, and the checked schema and v3 JSON/NDJSON fixtures regenerate byte-identically. Dataset-manifest v1 and calibration-profile v1 remain unchanged while dataset records embed frame v3.
 

@@ -29,15 +29,15 @@ Analytic propagation preserves relative timing, polarity, distance, air absorpti
 
 For direct stem `D`, indirect stem `R`, and direct-path attenuation `a`, propagation computes `a * D + R`. Broadband or banded attenuation is applied once per source/microphone pair after source gain, Doppler, and pair directivity. Microphone gain, channel response, summation, effects, DOA estimation, and frame assembly follow recombination. An unattenuated pair reuses the original full premix byte-for-byte.
 
-`SourceOcclusion` contains only `array_id`, `source_id`, exact per-microphone blocked and broadband-loss maps, plus optional aligned band losses and centers. Detection and UI state derive from the blocked map. Model, geometry, material, and fallback provenance are owned once by Isaac frame diagnostics rather than duplicated in each Core record.
+`SourceOcclusion` contains only `array_id`, `source_id`, exact per-microphone blocked and broadband-loss maps, plus optional aligned band losses and centers. In the current observed pipeline, attenuation changes the waveform and its measured RMS; the blocked map is not a detection or a perceived occlusion label. Model, geometry, material, and fallback provenance are owned once by Isaac frame diagnostics rather than duplicated in each Core record.
 
 Isaac groups collision hits by optional `ias:acoustic_partition_id`, or by collider path when no partition is authored. Fragmentation cannot duplicate loss; conflicting curves and exceeded hit limits fail closed; distinct sequential partitions add in dB without a total-loss clamp. `unknown_material_loss_db` is an explicit nominal fallback, not measured truth. Optional `debug_draw` emits transient ray/hit review data outside snapshots, stable frames, and datasets.
 
 ## Isaac Lab
 
-Entity binding is a Torch-native, free-field, feature-only path. It computes scheduling, gain/directivity, direct delay, TDOA least-squares, confidence, and the six fixed-shape observations on `sensor.device`, without per-environment loops or host transfers.
+At the R8 closeout, entity binding was a Torch-native, free-field, feature-only path computing scheduling, gain/directivity, direct delay, TDOA least-squares, confidence and six fixed-shape observations on `sensor.device`. Phase 07.1 subsequently removed that source-conditioned observation contract; current entity output remains empty pending 07.2. [[topics/isaac-lab-integration|Isaac Lab Integration]] owns the current executable surface.
 
-Entity mode requires explicit free-field environment state, at least three microphones, order zero, identity effects, and non-degenerate TDOA geometry. It does not generate waveforms, reverberation, occlusion, calibrated SPL, or closed-room behavior. Two-microphone ambiguity, SRP-PHAT, half-space, and PyRoom remain available through scalar `bind_reference`.
+That historical entity mode required explicit free-field state, at least three microphones, order zero, identity effects and non-degenerate TDOA geometry. It did not generate waveforms, reverberation, occlusion, calibrated SPL or closed-room behavior. Current scalar reference sensing consumes actual waveform observations rather than those historical features.
 
 ## Historical Subphases
 
@@ -64,7 +64,7 @@ The final cleanup passes the complete Core-only host gate on Python 3.10 and 3.1
 
 - `src/isaac_audio_sensors/core/backends/analytic.py` and `_analytic/`
 - `src/isaac_audio_sensors/isaac/occlusion.py`
-- `src/isaac_audio_sensors/lab/batched_backend.py`
+- `src/isaac_audio_sensors/lab/entity_binding.py`
 
 ## Later Update — Continuous Propagation (2026-09-09)
 
@@ -73,3 +73,13 @@ A subsequent pre-07.2 correction replaces window-local convolution and Doppler r
 The shared backend now retains delayed sound and room tails, reuses bounded motion/room state, and supplies filter history. Isaac persists backend instances; Lab reference environments isolate propagation state. The public signal and plugin contracts are unchanged. Numerical tests cover static and moving arrivals, source stop/removal, loops, overlap, rewind/reset, room/half-space reflections, and channel processing. Frequency/level and passing-source intermicrophone waveforms are checked against independent closed forms.
 
 The dependency decision, lifecycle, and remaining physical approximations are canonical in [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]]. Fast multisource DOA remains unresolved; see [[experiments/04-4-multisource-localization|the bounded comparison]]. Current validation is recorded in [[status|Current Status]].
+
+## Pre-07.2 Follow-up — Live Occlusion Correctness
+
+Status: requested on 2026-09-09, pending implementation. The original R8 completion does not qualify arbitrary real PhysX occluders.
+
+The later live audit confirms correct direct-path attenuation, independent microphone losses, mixture summation and static band-filter continuity. It also reproduces capture failure with solid box colliders 10, 20 and 50 cm thick at frontal incidence: repeated zero-distance hits inside the collider exhaust the recast limit. The thin-panel controls pass; they do not establish general geometry support. A separate controlled unavailable-raycaster case continues without occlusion while the GUI still reports ACTIVE.
+
+Make ordinary supported solid obstacles attenuate received audio without failing because of collider thickness or repeated internal hits. Preserve whole-partition material meaning and source/microphone independence. When requested occlusion is unavailable, make that state explicit to the user instead of presenting an apparently fully operational sensor. Do not replace missing acoustics with a display-only level change.
+
+This is a correction to the current analytic/Isaac path, not an early second geometry engine. Arbitrary reflected-path obstruction, alternative paths and dynamic geometric transitions remain owned by [[implementation_phases/r10-geometry-acoustics-integration|R10 / Phase 08]]. The audit's blockwise gain switch is not a physical moving-edge or audible-click qualification. Local evidence is retained in `local/occlusion_audit/`; [[status|Current Status]] owns the sequence and remaining limits.

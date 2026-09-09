@@ -1329,3 +1329,11 @@ Corrected the interpretation of the user's RMS request: display the existing per
 ## 2026-09-09 — lint: ONR RMS visibility clarification
 
 Five documentation boundary checks pass; canonical topic/status/index and whitespace verified. Previous videos and public SDK interfaces remain unchanged.
+
+## 2026-09-09 — update: Pre-07.2 temporal perception and occlusion priorities
+
+Recorded the user's renewed joint count/direction objective before 07.2, superseding the earlier pause while retaining all bounded results and failed-candidate evidence. Assigned confidence availability to the observed contract and Lab consumers, solid-collider/unavailable-occlusion corrections to the current analytic/Isaac path, observed GUI consolidation to 07.3, provider geometry/transitions/diagnostics to 08/R10, and useful effects/distributions/controls to 09. Reconciled affected topics and historical R8 descriptions with current code. Clarified Video 4's direct-attenuation opportunity after immediate work and fuller geometry scope after 08.3. No runtime behavior or video production changed.
+
+## 2026-09-09 — lint: Pre-07.2 phase and ONR scope consistency
+
+All five documentation-boundary checks pass. Internal links, referenced section headings, index coverage and whitespace are valid; stale current permission to bypass temporal improvement was removed while historical decisions remain labeled. Changes are confined to canonical wiki pages; raw material, runtime source and local audit/media evidence remain unchanged.

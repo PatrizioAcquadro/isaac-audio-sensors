@@ -92,6 +92,8 @@ The Isaac layer raycasts each source-to-microphone direct path and derives broad
 
 Environment-surface absorption may use measured provenance, but transmission presets remain nominal unless independently measured; the system does not claim diffraction, edge bending, thickness-derived transmission, or reflected-path occlusion.
 
+The direct-loss model is not a general live-geometry qualification. The 2026-09-09 audit confirms waveform attenuation and static spectral continuity but finds failures traversing solid PhysX colliders; see [[implementation_phases/r8-analytic-acoustics-backend#Pre-07.2 Follow-up — Live Occlusion Correctness|the pending correction]]. Loss changes are currently applied per capture window; a changing gain can introduce an abrupt transition, and no complete physical moving-edge or audible-click qualification follows. Geometry-driven direct/indirect transitions belong to [[implementation_phases/r10-geometry-acoustics-integration|Phase 08]], while useful effect ranges and transfer belong to [[implementation_phases/09-practical-realism-and-randomization|Phase 09]]. Low mixture RMS alone identifies neither an obstacle nor an unreliable bearing.
+
 ## DOA and Confidence
 
 Bearings are normalized to `[0, 360)` and map to eight half-open 45-degree sectors with wraparound centered on array forward.

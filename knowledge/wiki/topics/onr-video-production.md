@@ -105,7 +105,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
 | 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Fullscreen sequential delivery verified; 2.85 s illustrative advantage |
 | 3 | Moving source | 4 | Outdoor vehicle; direction following, native instruments and Doppler | Complete 23 s edit verified; approved excerpt and requested silent opening |
-| 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
+| 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Pending pre-07.2 corrections and scene feasibility; fuller geometry version after 08.3 |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
 | 6 | Materials and acoustic spaces | 6 | Clarify what changes and make the acoustic result understandable | Deferred; design open |
 | 7 | Audio–vision link | 7 | Main integration story; show the actual chain clearly | Discuss individually |
@@ -113,6 +113,16 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | 9 | Simulation and real microphones | 9 | Clarify physical evidence and what can be compared | Deferred; design open |
 
 For each revision: [ ] agree the task and setting; [ ] apply shared standards; [ ] review a short excerpt; [ ] validate behavior and media; [ ] deliver the approved video. Each future video gets its own decisions; this page does not prescribe nine identical scenes or storyboards.
+
+## Video 4 Readiness and Scope
+
+The requested Video 4 is the revised **Occlusion** video, corresponding to old catalog video 2. Its current brief is audible attenuation with understandable instrument response; the scene and story remain to be agreed individually.
+
+A bounded direct-path version may be feasible after the [[status|pre-07.2 correctness and temporal-perception work]]: a real supported obstacle changes the recorded microphone signal, RMS follows that signal, and the direction/activity display remains truthful about availability and errors. It does not inherently require Isaac Lab 07.2 or all of Phase 09. Production still depends on its actual scene and complete sensing/recording path working; completion of a phase alone is insufficient. The current solid-collider failure prevents claiming readiness now.
+
+For the fuller version with acoustically active scene geometry, doors or openings, reflected/indirect contributions and provider diagnostics, target completion of [[implementation_phases/08-geometry-acoustics-integration|08.3]], within [[implementation_phases/r10-geometry-acoustics-integration|R10's supported limits]]. Phase 09 is needed only for additional claims about evidence-backed noise/material variation or physical transfer. This does not promise general diffraction or physically calibrated wall behavior.
+
+Show actual received audio and observed instruments. If geometric blockage is displayed, label it separately from inferred direction reliability; compass color must not imply that the sensor can identify an obstacle from audio alone. The older catalog's analytic moving-partition intersection is not proof of real PhysX dynamic occlusion. No new Video 4 production is authorized or delivered by this documentation update.
 
 ## Existing Videos 6 and 9: Verified Clarifications
 
