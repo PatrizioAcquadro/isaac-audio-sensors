@@ -1275,3 +1275,11 @@ All five documentation-boundary checks pass, including wiki links and index cove
 ## 2026-09-09 — update: Explicit streaming perception boundary
 
 Added optional streaming event-localizer injection with new blocks, inactive-mixture updates, common resets and explicitly supplied receiver orientation. Documented uncertainty and recording semantics. The maintained localizer and propagation remain unchanged; candidate qualification is separate.
+
+## 2026-09-09 — experiment: Joint motion perception remains NO-GO
+
+Added received-energy and causal pipeline evaluation, reproduced the original moving baseline and compared temporal sparse evidence, online DP-RTF and complete ODAS tracking. Recorded nominal moving/indoor failures, orientation controls, received-reference transitions and a bounded real LOCATA comparison. Retained the maintained localizer and propagation; no independent confirmation or 07.2/media work followed the failed screening.
+
+## 2026-09-09 — lint: Joint motion investigation closeout
+
+Host validation passes 641 unit/contract, 335 integration and 58 release tests. Wiki boundary/link/index checks, Ruff and whitespace pass. Optional audio and actual RTX 4090 Isaac Sim/Lab/Kit smokes pass. The maintained algorithm and propagation sources remain unchanged from the baseline; independent perceptual qualification remains explicitly open.

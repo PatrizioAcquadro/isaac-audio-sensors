@@ -171,3 +171,66 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src \
 Local closeout: `build/validation/isaac_audio_sensors/motion_closeout.json`. Supporting reports include `motion_final_decision.json`, `motion_stationary_refinement_control.json`, `motion_final_direct_confirmation.json`, `motion_transition_controls.json`, and `motion_stress_controls.json`. Earlier candidate reports retain their at-run column names; their `maintained` column can refer to a rejected candidate temporarily under evaluation, not the delivered SDK. Rejected prototypes remain outside the maintained package.
 
 The next useful investigation must jointly estimate changing event count and direction from temporal acoustic evidence. The present results do not justify choosing a particular tracker or library, predicting missing directions, or advancing 07.2. Signal-level movement corrections are complete within their documented approximations; responsive indoor multisource perception is not complete.
+
+## Joint Count/Direction Investigation — 2026-09-09
+
+**NO-GO for replacing the maintained localizer.** Causal temporal evidence improves selected cases, but none of the evaluated candidates provides dependable joint count/direction estimates during ordinary combined motion. The SDK retains its original WPE/group-sparse algorithm and propagation. The delivered addition is an optional streaming injection boundary and a reusable received-audio evaluator, not a newly qualified perceptual capability. No 07.2, demonstration scene, video or ONR production is included.
+
+### Evaluation boundary and interpretation
+
+`tools/validation/joint_motion.py` feeds consecutive 100 ms blocks through the common `AudioPerceptionPipeline`, including Auditok at −60 dBFS, warm-up, silence and tails. Streaming candidates consume each new block once; the maintained method retains its existing causal buffer and activity gate. A separate localizer-only option bypasses Auditok for diagnosis. Full pipeline compute and simulated processing backlog are measured; source rendering time is excluded. These CPU NumPy/SciPy and native-C workloads are separate from GPU consumer validation.
+
+The evaluator alone obtains total per-source received power from the same private render used to assemble public PCM. A matching order-zero room render supplies direct-path power; it does not replace or renormalize the mixture. The original numerical evaluator and its default speech construction remain available for historical comparisons. The original four-geometry moving-pair baseline reproduces exactly: triangle/square/raised/tetrahedral have 26/42/19/28 joint successes out of 66 updates each.
+
+The new reference compares each source's 100 ms received energy with the independently generated noise power. Total energy above that floor denotes received contribution; direct energy above it permits a direction target at retarded emission time in current array coordinates. A received tail with insufficient direct energy is explicitly unresolved, not an extra directional source or demonstrated absence. This is an audibility proxy, not a psychophysical threshold or proof of separability under masking. The default 0 dB ratio is accompanied by −3/+3 dB sensitivity. Those changes do not alter the rejection decision. Unresolved windows remain in the report with directions, misses, extras and excess predictions over received contributors; they are excluded only from the fully resolved joint-success denominator. Unavailable/uncertain output cannot earn a zero-source success.
+
+Natural-speech v2 selects distinct utterances without looping short excerpts, normalizes emission RMS once and preserves natural received level changes. Existing development assets and one episode per geometry/content are used; these are paired counterexamples, not independent population qualification. Old alternating utterance partitions are not speaker-disjoint holdouts. Cache names separate protocol, acoustic parameters, partition and asset content to prevent accidental reuse across inputs. Private source arrays, schedules and scoring labels never cross the estimator boundary.
+
+### Candidate evidence
+
+The temporal sparse candidate applies the maintained batch WPE to at most 750 ms, estimates spatial evidence from the latest 250 or 400 ms, and updates a spatial histogram with a 150 ms time constant. Current angular support is required before publishing a direction; previous count is never authoritative. Optional receiver orientation transports stored angular evidence only. Development controls vary time constants, rejection strength and history; lowering rejection recovers weak directions but introduces substantial extras, particularly in 3D.
+
+The DP-RTF trial independently implements persistent cross-relation estimation, spectral smoothing and exponentiated-gradient directional mixture weights from [Li et al., JSTSP 2019](https://arxiv.org/abs/1809.10936), checked against the [authors' MATLAB reference](https://github.com/Audio-WestlakeU/OnlineSSL_DPRTF_EG). Loaded normal equations replace numerically unstable inverse-form RLS; array-derived templates and spherical smoothing are adaptations. Unlike the previous batch trial, history and directional weights persist across blocks. Minimum-statistics speech selection loses stationary non-speech; disabling it restores features but does not recover adequate joint reliability. No complete VEM tracker reproduction is claimed, and the MATLAB reference has no explicit redistribution license in the checked tree. Its code is not distributed in the SDK.
+
+[ODAS](https://github.com/introlab/odas) is built in isolation and tested with continuous STFT, SSL and dynamic Kalman SST, rather than the previous SSL-only binding. Its standard four-track capacity is never set from truth. Published tracks require native activity plus current spatial support; predictions alone are not emitted. A mobility/no-source-lifetime control increases Kalman process noise and shortens inactive lifetime. Both configurations miss too many received sources. The MIT dependency is not added to the product; the isolated build preserves per-plan FFT destruction while avoiding the previously identified global FFTW cleanup lifetime defect.
+
+The nominal moving comparison uses distinct speech, 6 dB emission imbalance, 20 dB global-mixture SNR, nominal RT60 0.3 s, a source moving at 1 m/s, receiver translation at 0.25 m/s and rotation at 0.7 rad/s. Other sources remain separated. The following results exclude the common first 750 ms so faster startup cannot account for the comparison. Joint success requires the correct directional count and every one-to-one direction within 20°.
+
+| Geometry | Maintained joint success | Temporal 250 ms | Temporal 400 ms | Online DP-RTF | ODAS SSL + SST |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Triangle | 23.1% | 26.9% | 42.3% | 19.2% | 7.7% |
+| Square | 33.3% | 70.0% | 76.7% | 10.0% | 0.0% |
+| Raised | 13.8% | 13.8% | 17.2% | 0.0% | 3.4% |
+| Tetrahedral | 37.9% | 41.4% | 41.4% | 10.3% | 0.0% |
+
+Each row is one episode, with 26–30 fully resolvable post-warm-up updates; percentages are not independent-trial rates. The 400 ms candidate improves square performance substantially, but count accuracy remains 37.9–76.7% across geometries and angular p95 ranges from 14.0° to 116.0°. It cannot be promoted on the strength of the square result. Exact, missing, noisy (5° standard deviation), 100 ms delayed, and interrupted/reacquired receiver orientation do not remove the failure.
+
+Thirty-six natural-speech/non-speech stationary controls cover all four geometries and 0/1/2 sources at the same nominal room/SNR/imbalance. The 250 ms temporal candidate loses approximately nine percentage points of post-warm-up square speech joint success and some triangle/tetrahedral broadband updates. The 400 ms variant preserves or improves these particular joint-success controls, but that does not establish the requested three-point non-inferiority margin for precision, recall and count. Sparse development blocks cannot support that statistical claim. Both temporal variants fail nominal movement before independent confirmation; DP-RTF and ODAS also fail stationary multisource controls. No two fresh confirmation blocks were consumed.
+
+The received-reference transition probe retains two consecutive correct updates and unresolved responses. For square speech, the 400 ms candidate changes onset/addition/removal/final-zero response from approximately 631/527/330/826 ms to 212/315/316/515 ms. Tetrahedral responses remain mixed. These are two controlled episodes using the earlier speech construction, not natural-speech p95 qualification. The 350–500 ms references are not used as a rigid veto: the rejection is driven by incorrect or missing joint sets during normal motion, not an isolated latency exceedance or an extreme condition. No broad three-source/coincident-source qualification was attempted after this failure.
+
+### Bounded real-data comparison
+
+The authors' reference includes `LOCATA-dev-task6-rec3.wav`, four published robot-array channels, microphone coordinates and 120 Hz azimuth/VAD annotations. The probe processes the complete 65.6 s covered by full 100 ms blocks at native 16 kHz, with no gain correction or receiver-motion input. The documented reference coordinate conversion is applied only for scoring. Official Zenodo access timed out; this author-supplied subset enables the bounded check. [LOCATA task 6](https://www.locata.lms.tf.fau.de/tasks/) contains moving talkers and a moving array.
+
+Joint azimuth/count success is 11.4% for the maintained algorithm, 12.7% for temporal 250 ms, 15.1% for temporal 400 ms, 15.1% for DP-RTF and 8.7% for ODAS. ODAS precision is 98.6% but recall only 34.7%; the temporal variants retain approximately 51% precision with many extra directions. These results use supplied VAD, not the synthetic received-energy reference, and provide no elevation truth. This single nearly planar robot-array excerpt is not physical qualification of the SDK's simulated layouts or a robot deployment.
+
+### Delivered result and next step
+
+`StreamingEventLocalizer` and explicit optional receiver orientation are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]]. Standard selection remains unchanged. No calibrated confidence estimator or reliable moving-source count has been delivered. The requested robust listening capability remains open.
+
+Reusable baseline evaluation:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src:. \
+  .venv/bin/python tools/validation/joint_motion.py \
+  --layouts square --contents speech --scenarios separated_combined \
+  --orientation --cache-dir build/validation/joint_motion_inputs \
+  --output build/validation/joint_motion_baseline.json
+```
+
+Ignored numerical evidence is retained under `evidence/qualification/multisource/reports/joint-motion-*.json`; development prototypes and isolated dependencies remain outside the maintained package in `build/validation/joint_motion/`. `joint-motion-closeout.json` groups post-warm-up and sensitivity summaries; per-update reports preserve misses, extras, availability and censored responses. No candidate-specific executable is added to the public package.
+
+Validation passes 641 unit/contract, 335 integration and 58 release tests, including received-reference/transition checks and streaming reset/inactive/recording tests. The optional-audio smoke and all three supported Isaac Sim/Lab/Kit smokes pass on RTX 4090. Forty-eight focused propagation/rotation/consumer regressions pass; propagation, motion and maintained localization source files have no diff from `0d44f0c`. GPU lifecycle/projection checks do not establish perceptual accuracy or CPU localizer throughput.
+
+The next experiment should target the acoustic front end on these exact weak-speech/combined-motion counterexamples: test whether causal multichannel dereverberation or time-frequency source discrimination improves current directional evidence and weak-source recall without increasing extras. Compare the resulting event sets before adding further track persistence. The present evidence does not justify another direction smoother or a library selection based only on responsiveness.

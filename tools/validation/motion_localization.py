@@ -155,6 +155,8 @@ def render(
     *,
     duration,
     snr_db=20.0,
+    received_evidence=False,
+    natural_speech=False,
 ):
     """Return received PCM and scoring truth, never pass truth to estimators."""
     rng = np.random.default_rng(seed)
@@ -190,6 +192,9 @@ def render(
     if scenario == "transitions":
         starts = [0.3, 1.4]
         stops = [3.4, 2.6]
+    elif scenario == "replacement":
+        starts = [0.3, 2.0]
+        stops = [2.0, duration]
 
     def pose(index, t):
         if motion_kind == "pass" or (
@@ -217,11 +222,29 @@ def render(
         return 0.7 * t if motion_kind in ("rotate", "combined") else 0.0
 
     sources = []
+    selected_assets = []
+    speech_pool = list(assets)
     for i in range(count):
-        dry = dry_signal(content, i, duration, rng, assets) * 10 ** (
-            -imbalance * i / 20
-        )
-        if scenario == "transitions":
+        if natural_speech and content == "speech":
+            if not speech_pool:
+                raise ValueError("Distinct speech assets are required for each source")
+            eligible = [p for p in speech_pool if sf.info(p).duration >= duration]
+            pool = eligible or speech_pool
+            path = pool[int(rng.integers(len(pool)))]
+            speech_pool.remove(path)
+            selected_assets.append(str(path.name))
+            speech, fs = sf.read(path)
+            if fs != FS or speech.ndim != 1:
+                raise ValueError("Speech assets must be mono, native 16 kHz")
+            length = round(duration * FS)
+            offset = int(rng.integers(max(1, len(speech) - length + 1)))
+            dry = speech[offset : offset + length]
+            dry = np.pad(dry, (0, max(0, length - len(dry))))
+            dry = 0.1 * dry / max(float(np.sqrt(np.mean(dry**2))), 1e-12)
+        else:
+            dry = dry_signal(content, i, duration, rng, assets)
+        dry *= 10 ** (-imbalance * i / 20)
+        if scenario in ("transitions", "replacement"):
             stamps = np.arange(len(dry)) / FS
             dry *= (stamps >= starts[i]) & (stamps < stops[i])
         if scenario == "level_change" and i == 1:
@@ -299,32 +322,84 @@ def render(
             ),
         ),
     )
-    block = backend.propagate(
-        current,
-        "rig",
-        AudioTimeWindow(start_time_s=start, end_time_s=end, frame_index=0),
-    )
+    window = AudioTimeWindow(start_time_s=start, end_time_s=end, frame_index=0)
+    if received_evidence:
+        # Evaluation-only access; candidates never receive private contributions.
+        from isaac_audio_sensors.core.backends._analytic.block import (
+            assemble_signal_block,
+        )
+
+        prepared, rendered, solver = backend._render_signal(current, "rig", window)
+        block = assemble_signal_block(
+            prepared,
+            rendered,
+            backend_id=backend.backend_id,
+            solver_id=solver,
+            core_solver=not rt60,
+            effects=backend.effects,
+        )
+    else:
+        block = backend.propagate(current, "rig", window)
+    all_directions = []
     for end in np.arange(1, round(duration / 0.1) + 1) * 0.1:
         target = []
+        current_directions = []
         for i in range(count):
             te = end
             for _ in range(8):
                 te = end - np.linalg.norm(pose(i, te) - receiver(end)) / 343
+            v = pose(i, te) - receiver(end)
+            v /= np.linalg.norm(v)
+            q = rotation(end)
+            vector = [
+                np.cos(q) * v[0] + np.sin(q) * v[1],
+                -np.sin(q) * v[0] + np.cos(q) * v[1],
+                v[2],
+            ]
+            current_directions.append(vector)
             if starts[i] <= te < stops[i]:
-                v = pose(i, te) - receiver(end)
-                v /= np.linalg.norm(v)
-                q = rotation(end)
-                target.append(
-                    [
-                        np.cos(q) * v[0] + np.sin(q) * v[1],
-                        -np.sin(q) * v[0] + np.cos(q) * v[1],
-                        v[2],
-                    ]
-                )
+                target.append(vector)
         truth.append(np.array(target).reshape(-1, 3))
+        all_directions.append(current_directions)
     values = block.samples.astype(float)
     noise_scale = np.sqrt(np.mean(values**2)) * 10 ** (-snr_db / 20) if count else 0.003
     values += rng.normal(0, noise_scale, values.shape)
+    if received_evidence:
+        steps = round(duration * 10)
+        direct = rendered.direct_premix
+        if direct is None:
+            direct_backend = AnalyticAcoustics(max_order=0)
+            direct_backend.window_motion = backend.window_motion
+            _, direct_rendered, _ = direct_backend._render_signal(
+                current, "rig", window
+            )
+            direct = direct_rendered.premix
+        np.testing.assert_allclose(
+            rendered.premix.sum(axis=0), block.samples, rtol=1e-6, atol=1e-8
+        )
+
+        def power(samples):
+            if not count:
+                return np.empty((steps, 0))
+            return np.mean(
+                samples[:, :, : steps * 1600].reshape(
+                    count, len(positions), steps, 1600
+                )
+                ** 2,
+                axis=(1, 3),
+            ).T
+
+        return dict(
+            samples=values,
+            positions=positions,
+            directions=np.asarray(all_directions).reshape(steps, count, 3),
+            received_power=power(rendered.premix),
+            direct_power=power(direct),
+            noise_power=np.full(steps, noise_scale**2),
+            scheduled_count=np.array([len(t) for t in truth]),
+            speech_assets=np.array(selected_assets, dtype=str),
+            receiver_yaw=np.array([rotation((i + 1) * 0.1) for i in range(steps)]),
+        )
     return values, truth, positions
 
 
@@ -486,6 +561,7 @@ def main():
             "crossing",
             "transitions",
             "level_change",
+            "replacement",
         ],
     )
     parser.add_argument("--rt60", type=float, nargs="+", default=[0.2, 0.3])
