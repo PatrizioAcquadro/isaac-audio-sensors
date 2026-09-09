@@ -1263,3 +1263,11 @@ Compared weighted memory, equal-count composition, partial acoustic refinement a
 ## 2026-09-09 — lint: Motion correction and DOA NO-GO closeout
 
 Wiki links/index, Ruff and whitespace pass. The delivered baseline passes 638 unit/contract, 332 integration and 58 release tests; the supported Isaac interpreter passes 152 tests including arrival physics. Optional audio and RTX 4090 Sim/Lab/Kit consumers pass; the final Sim/Lab rerun uses the restored original localizer. A wheel built from the sdist contains exactly the source Python modules and no candidate/evaluation outputs. Raw and historical evidence remain untouched.
+
+## 2026-09-09 — update: Fullscreen sequential ONR video 2
+
+Recomposed the approved comparison as third-person views followed by a labeled robot-camera replay. Fixed lateral crops fill the screen with overlaid graphics and a three-pixel divider. The measured execution, repeated microphone soundtrack and 2.85-second illustrative advantage are preserved. Both 32-second encodes, source-frame order, all 480 causal instrument states, contact sheets and complete browser playback pass.
+
+## 2026-09-09 — lint: ONR sequential edit closeout
+
+All five documentation-boundary checks pass, including wiki links and index coverage; whitespace, compositor syntax and undefined-name checks pass. Changes are limited to the local video 2 edit and its canonical documentation.

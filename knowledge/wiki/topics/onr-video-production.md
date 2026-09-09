@@ -2,7 +2,7 @@
 
 ## Maintained production
 
-The local generator maintains the original nine-video catalog and the approved final videos 1 and 2. Final deliveries remain `evidence/onr_demo/`, `evidence/onr_video1_final/` and `evidence/onr_video2/`. The complete original catalog and both corrected deliveries are preserved.
+The local generator maintains the original nine-video catalog and the approved final videos 1 and 2. Final deliveries remain `evidence/onr_demo/`, `evidence/onr_video1_final/` and `evidence/onr_video2/`. The complete original catalog and both corrected deliveries are preserved. Video 2 now uses sequential perspectives: a 16-second third-person comparison followed by the same run replayed from the robot cameras, for a 32-second edit.
 
 Production source now lives in ignored `local/onr/`, separate from disposable build outputs and the public SDK. Its README owns commands, runtime requirements and workspace selection. `run.py` provides prepare, capture, render, compose and verify stages. Common Office setup, recorded-pose replay, causal instruments and FFmpeg composition are shared. The catalog uses the current sibling SquadBot consumer; retired script copies, probing workers and the duplicated downstream snapshot are not maintained.
 
@@ -60,7 +60,15 @@ The final source removes only the first quiet second of `DoorCreaking.mp3`; pitc
 
 The activity threshold is fixed at -70 dBFS throughout the run. It is a documented scene-specific setting, not an event-timed trigger or a noise-robustness qualification. The actual SDK direction estimator still supplies every audio pointing goal. In `local/onr/data/video2/user_audio_v3/`, the first measured cue is at 3.10 s and audio arrival is at 5.15 s. Visual arrival remains at 8.00 s: 2.15 s versus 5.00 s after opening, an illustrated advantage of 2.85 s. The baseline's full pose/command arrays are identical to the earlier pilot, and both branches retain the same 35-degree-per-second command limit.
 
-The pilot has 104 resolved direction windows, zero pre-event detections and 320 sample-identical replayed microphone blocks. Actual camera images confirm a clear opening in the audio branch while the visual-only branch continues its scan. The causal pre-roll correction supplies the same continuous signal to perception, recording and presentation. The prominent vertical divider and synchronized SDK direction panels remain in both audio-guided views. The completed `evidence/onr_video2/` delivery contains 1440p and 1080p movies, both 16 s at 30 fps. Both encodes fully decode, browser playback reaches the end with audio enabled, and complete contact-sheet review passes. The AAC soundtrack has 47.07 dB signal-to-codec-error ratio, a 0.739 peak and no periodic zero gaps. All 480 direction-panel overlay states match across the two audio views. The method declares source trimming, fixed threshold, scripted arrival and the direct-path pre-roll limitation.
+The pilot has 104 resolved direction windows, zero pre-event detections and 320 sample-identical replayed microphone blocks. Actual camera images confirm a clear opening in the audio branch while the visual-only branch continues its scan. The causal pre-roll correction supplies the same continuous signal to perception, recording and presentation. The prominent vertical divider and synchronized SDK direction panels remain in both audio-guided views. The initial four-view `evidence/onr_video2/` delivery contained 1440p and 1080p movies, both 16 s at 30 fps. Both encodes fully decode, browser playback reaches the end with audio enabled, and complete contact-sheet review passes. The AAC soundtrack has 47.07 dB signal-to-codec-error ratio, a 0.739 peak and no periodic zero gaps. All 480 direction-panel overlay states match across the two audio views. The method declares source trimming, fixed threshold, scripted arrival and the direct-path pre-roll limitation.
+
+## Video 2 — Sequential Perspectives
+
+The user approved the behavior and audio, then requested two views at a time. The 32-second edit shows the matched third-person views during 0–16 s and replays the same source run from both robot cameras during 16–32 s. The second segment is labeled “Robot camera · Same run replayed.” This is an editorial replay, not another experiment or a continuous 32-second task execution.
+
+Following the user's correction, the images fill the full frame with no dark upper/lower bands. A fixed lateral 640×720 crop from each approved source is enlarged without stretching to a 1280×1440 panel. Both modes use the same crop offset: x=320 for third-person, x=480 for robot-camera views. Mode names, status and the single audio-side SDK compass overlay the images. This editorial crop does not alter sensor FOV or recorded arrival conditions. A three-pixel vertical line separates modes; the horizontal divider is removed. Each source timestamp produces the same causal compass state in either perspective, and the same 16-second microphone soundtrack repeats sample-identically with the view change. The approved source, measurements, motion and 2.85-second illustrative advantage remain unchanged. Only the maintained local compositor, its media checks and documentation are revised; no new GPU acquisition or render is needed.
+
+Both 1440p and 1080p encodes fully decode to 960 frames at 30 fps, with matching 32-second audio/video durations. Source-frame comparisons confirm the perspective order and synchronization. Both complete contact sheets and fullscreen arrival images were inspected; 1080p browser playback reached the end with audio enabled and no media error. The AAC signal-to-codec-error ratio is 47.33 dB, its peak is 0.739, and all 480 causal instrument states match across the two perspectives.
 
 ## Per-Video Checklist
 
@@ -69,7 +77,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | New | Video | Existing video | Requested focus | State |
 | --- | --- | --- | --- | --- |
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
-| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Final supplied-audio delivery verified; 2.85 s illustrative advantage |
+| 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Fullscreen sequential delivery verified; 2.85 s illustrative advantage |
 | 3 | Moving source | 4 | Following during emission; clearer instruments; discuss Doppler scope | Discuss individually |
 | 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
