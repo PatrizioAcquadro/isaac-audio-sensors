@@ -338,8 +338,7 @@ def test_reference_path_projects_scalar_observations(monkeypatch):
     monkeypatch.setattr(reference_backend, "simulate_frame", capture)
     reference_result = reference.observations(
         env_ids=env_ids,
-        timestamps_s=torch.tensor([0.5]),
-        frame_indices=torch.tensor([0]),
+        timestamps_s=torch.tensor([0.1], dtype=torch.float64),
         update_period=0.1,
         device="cpu",
     )
@@ -484,7 +483,7 @@ def test_entity_binding_uses_canonical_entity_directivity_and_microphone_gain() 
     )
 
 
-def test_reference_sample_clock_keeps_float32_ticks_contiguous(monkeypatch):
+def test_reference_clock_consumes_elapsed_audio_and_deferred_intervals(monkeypatch):
     from isaac_audio_sensors.lab import reference_backend
 
     array = create_microphone_array(
@@ -525,12 +524,11 @@ def test_reference_sample_clock_keeps_float32_ticks_contiguous(monkeypatch):
         return frame, block
 
     monkeypatch.setattr(reference_backend, "simulate_frame", capture)
-    timestamp = torch.zeros(1)
-    for tick in range(6):
+    timestamp = torch.tensor([0.05], dtype=torch.float64)
+    for _tick in range(6):
         data = reference.observations(
             env_ids=torch.tensor([0]),
             timestamps_s=timestamp,
-            frame_indices=torch.tensor([tick]),
             update_period=0.05,
             device="cpu",
         )
@@ -543,10 +541,26 @@ def test_reference_sample_clock_keeps_float32_ticks_contiguous(monkeypatch):
         assert current.diagnostics["perception"]["reset_reason"] is None
     reference.observations(
         env_ids=torch.tensor([0]),
-        timestamps_s=torch.tensor([0.5]),
-        frame_indices=torch.tensor([6]),
+        timestamps_s=torch.tensor([0.5], dtype=torch.float64),
         update_period=0.05,
         device="cpu",
     )
-    assert frames[-1].diagnostics["perception"]["reset_reason"] is not None
-    assert not frames[-1].diagnostics["perception"]["doa_context"]["complete"]
+    assert frames[-1].diagnostics["perception"]["reset_reason"] is None
+    assert frames[-1].end_time_s == 0.5
+    assert frames[-1].diagnostics["perception"]["doa_context"]["complete"]
+    assert len(frames) == 10
+    reference.observations(
+        env_ids=torch.tensor([0]),
+        timestamps_s=torch.tensor([0.5], dtype=torch.float64),
+        update_period=0.05,
+        device="cpu",
+    )
+    assert len(frames) == 10
+    reference.reset(torch.tensor([0]))
+    empty = reference.observations(
+        env_ids=torch.tensor([0]),
+        timestamps_s=torch.zeros(1, dtype=torch.float64),
+        update_period=0.05,
+        device="cpu",
+    )
+    assert not empty.observation_mask.any()

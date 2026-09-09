@@ -1369,3 +1369,7 @@ Recorded the latest explicit user decision: 07.2 is admitted on the current refe
 ## 2026-09-09 — lint: Bounded 07.2 admission consistency
 
 Five documentation-boundary tests pass, including wiki links and index coverage; section targets and whitespace also pass. Compared the experiment with the baseline: all earlier evidence and the complete latest method/results/limits body are unchanged. Only canonical Markdown changes are tracked; raw material, local evidence, runtime and tests are untouched. Historical sequencing remains labeled and no current general temporal gate or implementation claim remains.
+
+## 2026-09-09 — update: 07.2 causal Lab reference clock
+
+Replace future-window sampling with elapsed-sample processing, float64 episode clocks, deferred reference catch-up and selective reset. Focused runtime tests and the actual RTX 4090 Lab smoke pass; scalable perception is not yet implemented.

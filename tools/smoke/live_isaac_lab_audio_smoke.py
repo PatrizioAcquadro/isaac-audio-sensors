@@ -164,9 +164,9 @@ def main() -> int:
         for backend_id, entity_sensor, reference_sensor in sensor_pairs:
             resolved = False
             for tick in range(6):
-                entity_sensor.update(0.0 if tick == 0 else 0.05, force_recompute=True)
+                entity_sensor.update(0.05, force_recompute=True)
                 reference_sensor.update(
-                    0.0 if tick == 0 else 0.05, force_recompute=True
+                    0.05, force_recompute=True
                 )
                 entity_data = entity_sensor.data
                 reference_data = reference_sensor.data
@@ -214,7 +214,7 @@ def main() -> int:
             name: getattr(reset_data, name)[0].clone()
             for name in reset_data.__dataclass_fields__
         }
-        untouched_index = reset_sensor._reference_frame_indices[0].clone()
+        untouched_index = reset_sensor._audio_time[0].clone()
         reset_sensor.reset([1])
         for name, expected in untouched.items():
             torch.testing.assert_close(getattr(reset_data, name)[0], expected)
@@ -224,11 +224,11 @@ def main() -> int:
         for name, expected in untouched.items():
             torch.testing.assert_close(getattr(reset_data, name)[0], expected)
         torch.testing.assert_close(
-            reset_sensor._reference_frame_indices[0], untouched_index
+            reset_sensor._audio_time[0], untouched_index
         )
         if reset_data.observation_mask[1].any():
             raise RuntimeError("Reset did not clear the detector's minimum context.")
-        reset_sensor.update(0.05, force_recompute=True)
+        reset_sensor.update(0.1, force_recompute=True)
         reset_data = reset_sensor.data
         if (
             not reset_data.observation_mask[1, 0]
@@ -252,7 +252,7 @@ def main() -> int:
         multi_compute_ms = []
         for tick in range(18):
             started = time.perf_counter()
-            multisource_sensor.update(0.0 if tick == 0 else 0.05, force_recompute=True)
+            multisource_sensor.update(0.05, force_recompute=True)
             data = multisource_sensor.data
             torch.cuda.synchronize()
             multi_compute_ms.append((time.perf_counter() - started) * 1000)
@@ -314,7 +314,7 @@ def main() -> int:
         torch.testing.assert_close(multisource_sensor.data.bearing_deg[0], retained)
         if multisource_sensor.data.observation_mask[1].any():
             raise RuntimeError("Multisource partial reset retained old events.")
-        for _ in range(14):
+        for _ in range(15):
             multisource_sensor.update(0.05, force_recompute=True)
         if not multisource_sensor.data.observation_mask[1, :2].all():
             raise RuntimeError(

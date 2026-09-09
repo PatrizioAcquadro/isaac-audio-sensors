@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08; 07.2–07.3 remain unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; this update starts no implementation.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is in progress; 07.3 remains unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
 
 ## Objective
 
@@ -37,6 +37,8 @@ Resolved by 04.4: the common scalar localizer emits actual multiple events in it
 ## Subphase 07.2 — Reference, Scalable, and Stateful Paths
 
 #### Implementation
+
+**Implemented causal-clock milestone:** the Lab sensor now advances a float64 episode clock; the reference consumes only past integer-sample intervals and catches up deferred reads without duplicating audio. Initial and repeated reads produce no additional samples. Partial reset clears only selected clocks, cursors and perception state. Thirty-one focused runtime tests and the actual RTX 4090 Lab smoke pass, including scalar parity, multisource warm-up and partial reset. This milestone does not implement scalable perception. Evidence: `build/validation/phase07_2/clock-live.json`.
 
 Begin from the maintained WPE/group-sparse scalar reference and its [[experiments/04-4-multisource-localization|verified bounded stable-source domain]], not from the rejected moving-source candidates. The 16 kHz triangle, square, raised and tetrahedral reference has 750 ms causal context and 100 ms updates as its measured starting point; two events describe qualification coverage, not a forced count. Preserve its documented weak-speech misses, extra events, 1–1.5 s responses in some transitions and geometry-dependent CPU cost. Stereo and other planar rates retain their existing separately bounded roles. The completed confidence and live-occlusion corrections remain part of the integration contract.
 

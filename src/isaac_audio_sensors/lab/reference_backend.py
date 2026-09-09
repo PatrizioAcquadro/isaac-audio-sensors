@@ -60,6 +60,9 @@ class ReferenceBackend:
         self._sample_rates = tuple(array.sample_rate_hz for array in selected_arrays)
         self.max_observations = max_observations
         self.max_doa_candidates = max_doa_candidates
+        self._next_samples = [0] * len(self.snapshots)
+        self._frame_indices = [0] * len(self.snapshots)
+        self._observations = [()] * len(self.snapshots)
         kwargs: dict[str, object] = {
             "effects": effects,
             "speed_of_sound_mps": speed_of_sound_mps,
@@ -88,34 +91,40 @@ class ReferenceBackend:
         *,
         env_ids: torch.Tensor,
         timestamps_s: torch.Tensor,
-        frame_indices: torch.Tensor,
         update_period: float,
         device: str,
     ) -> AudioArraySensorData:
         count = int(env_ids.numel())
         observations = []
-        window_s = max(float(update_period), 1e-3)
+        window_s = float(update_period) or 0.1
         for row in range(count):
             env_id = int(env_ids[row].item())
-            start_s = float(timestamps_s[row].item())
             snapshot = self.snapshots[env_id]
             array_id = self.array_ids[env_id]
             sample_rate = self._sample_rates[env_id]
-            # Warp timestamps are float32; perception continuity is sample-clock based.
-            start_sample = round(start_s * sample_rate)
+            # Timestamps are elapsed episode time, never the next window's start.
+            end_sample = int(float(timestamps_s[row].item()) * sample_rate + 1e-7)
+            if end_sample < self._next_samples[env_id]:
+                raise ValueError("Reference time moved backwards without reset.")
             window_samples = max(1, round(window_s * sample_rate))
-            frame, _ = simulate_frame(
-                self._backends[env_id],
-                snapshot,
-                array_id,
-                AudioTimeWindow(
-                    start_time_s=start_sample / sample_rate,
-                    end_time_s=(start_sample + window_samples) / sample_rate,
-                    frame_index=int(frame_indices[row].item()),
-                ),
-                perception=self._perception[env_id],
-            )
-            observations.append(frame.observations)
+            while self._next_samples[env_id] < end_sample:
+                start_sample = self._next_samples[env_id]
+                stop_sample = min(start_sample + window_samples, end_sample)
+                frame, _ = simulate_frame(
+                    self._backends[env_id],
+                    snapshot,
+                    array_id,
+                    AudioTimeWindow(
+                        start_time_s=start_sample / sample_rate,
+                        end_time_s=stop_sample / sample_rate,
+                        frame_index=self._frame_indices[env_id],
+                    ),
+                    perception=self._perception[env_id],
+                )
+                self._next_samples[env_id] = stop_sample
+                self._frame_indices[env_id] += 1
+                self._observations[env_id] = frame.observations
+            observations.append(self._observations[env_id])
         return AudioArraySensorData.from_observations(
             observations,
             max_observations=self.max_observations,
@@ -127,6 +136,9 @@ class ReferenceBackend:
         """Reset perception state for the selected environments."""
 
         for env_id in env_ids.tolist():
+            self._next_samples[env_id] = 0
+            self._frame_indices[env_id] = 0
+            self._observations[env_id] = ()
             self._perception[int(env_id)].reset()
             reset = getattr(self._backends[int(env_id)], "reset", None)
             if callable(reset):
