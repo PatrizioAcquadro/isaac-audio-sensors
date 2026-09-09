@@ -1311,3 +1311,12 @@ Recorded the accepted outdoor scene/vehicle and implemented the requested silent
 ## 2026-09-09 — lint: Final Video 3 documentation
 
 All five documentation-boundary checks, internal wikilinks, index coverage and whitespace checks pass. Final claims were reconciled against the saved GPU, audio, onset, road and complete-media reports; raw material and prior deliveries remain unchanged.
+
+
+## 2026-09-09 — update: ONR Video 3 robot-focused pass
+
+Recorded full-video approval and the requested presentation revision: a close continuous 12–19 s orbit around Alex, RMS omitted only for Video 3, and an initial Doppler/received-level/direction-following subtitle. The revised 1440p/1080p media retain all recorded audio and robot motion; complete decoding, synchronization, causal instruments, framing inspection and unmuted browser playback pass.
+
+## 2026-09-09 — lint: ONR Video 3 presentation revision
+
+Documentation boundary tests pass (5); canonical links/index and whitespace checked. Production code and media remain ignored and local.
