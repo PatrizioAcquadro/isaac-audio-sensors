@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-08. Package version: `3.0.0`.
+Updated: 2026-09-09. Package version: `3.0.0`.
 
 ## Product Boundary
 
@@ -9,6 +9,12 @@ Updated: 2026-09-08. Package version: `3.0.0`.
 Robot-specific assets and mounts, downstream adapters and policies, task orchestration, measurement campaigns, holdouts, acceptance criteria, and experiment evidence remain outside the distributed product.
 
 ## Verified Capabilities
+
+The pre-07.2 propagation correction now retains absolute emission history and in-flight tails across captures. Moving direct/specular paths use retarded emission time, yielding one coherent travel delay, Doppler, and geometric level; Isaac persists the backend and Lab reference environments isolate/reset their state. See [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] for the maintained-library decision and physical approximations.
+
+Validation for this correction passes 638 unit/contract, 324 integration, and 58 release tests, including 29 dedicated continuity/physics cases and moving producer/recording/replay parity. Optional audio and version/lint checks pass. The supported Isaac runtime passes 116 tests; live Isaac Sim and Lab checks pass on RTX 4090, including scalar parity and partial resets. Lab's 0.221 ms/step measurement covers 4,096 empty entity environments only; scalar WPE/group-sparse computation still runs on CPU and projects tensors to CUDA. The live runtime checks do not qualify rapid-motion DOA or physical acoustics.
+
+Fast DOA remains **unresolved**. On the corrected 16 kHz pass, the maintained localizer measures angular p95 21.9–23.8° and apparent age p95 448–593 ms. Faster candidates reduce motion error but regress paired indoor count/direction results, so the existing multisource path is retained. These are different algorithms/capabilities from the 48 kHz single-event route. See [[experiments/04-4-multisource-localization|the bounded comparison]]; no 07.2, video, demonstration scene, or ONR production belongs to this correction.
 
 The recent-work cleanup retains the WPE/group-sparse runtime and single-event routes while retiring the completed candidate campaign. Sixteen fixed-input comparisons preserve events and diagnostics exactly. Local evidence production is consolidated under ignored `local/onr/`, outside `make clean`; see [[topics/onr-video-production|ONR Video Production]] for the maintained catalog, final videos and validation scope. Public contracts and schemas are unchanged.
 

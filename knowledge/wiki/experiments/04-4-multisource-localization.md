@@ -83,3 +83,27 @@ The maintained computation is implemented directly in the optional SDK, with Num
 Core/Isaac, recording/dataset, Kit event history, causal availability, stereo and reset checks pass. The actual RTX 4090 Lab smoke verifies planar/3D events, masks, capacities, scalar parity and partial reset (`build/validation/isaac_audio_sensors/indoor_multisource_lab_smoke_v2.json`). Its initial attempt stopped at missing runtime Auditok; rerunning with isolated locked Kit dependencies passes without modifying NVIDIA's installation. Host `make check` passes 638 unit/contract, 322 integration and 58 release tests; optional audio and source/wheel/Kit artifact audits pass. Source wheels are built from the sdist to exclude stale removed modules. None of these checks starts 07.2 or validates physical sensing.
 
 Preserved ignored reports under `evidence/qualification/multisource/reports/`: `indoor-confirmation-v2-a.json`, `indoor-confirmation-v2-b.json`, `indoor-confirmation-v2-diagnostics-a.json`, `indoor-confirmation-v2-diagnostics-b.json`, `indoor-confirmed-summary.json`, `indoor-runtime-timing.json`, `indoor-direct-regression.json`, and `indoor-development-limits.json`. Earlier failed confirmations, development reports and protected raw material remain preserved.
+
+## Pre-07.2 Motion Comparison — 2026-09-09
+
+This bounded comparison follows the [[decisions/continuous-acoustic-clock|continuous propagation correction]]. It does not replace the historical indoor confirmation above. All candidates receive the same corrected public `AnalyticAcoustics` microphone samples; source count, positions, trajectories, and schedules are used only for scoring.
+
+The four passing-source cases use 16 kHz square/tetrahedral arrays, broadband noise or an existing LibriSpeech excerpt, a four-second straight trajectory from `(6, 3, 0)` at `(-3, 0, 0)` m/s, and a stationary receiver. Captures advance by 100 ms. Evaluation starts after one second. The baseline keeps 750 ms of past audio. The two recent-spatial candidates retain batch WPE on that history but pass only its latest 250 or 400 ms to the existing group-sparse selector. The online candidate uses existing NARA-WPE `OnlineWPE` with six taps, delay two, alpha 0.98, and the same selector over 250 ms. SRP is a declared single-direction control; its fixed capacity is never chosen from the true source count.
+
+The angular reference is the source's retarded emission position at the receiving array center. Apparent estimator age is obtained by inverting the known straight trajectory from the estimated bearing, after accounting for physical travel time. This age includes the observed audio interval and estimator memory; it is not the earlier two-consecutive-event transition response metric, and does not include a full live scheduler/compute delay.
+
+| Candidate | Pass angular p95, range across four cases | Apparent age p95 | Indoor exact cases / 72 | Missed / extra indoor directions |
+| --- | ---: | ---: | ---: | ---: |
+| Maintained batch WPE + group-sparse | 21.9–23.8° | 448–593 ms | 68 | 3 / 2 |
+| Same WPE, latest 250 ms spatial evidence | 7.3–8.5° | 148–181 ms | 46 | 17 / 21 |
+| Same WPE, latest 400 ms spatial evidence | 11.5–12.3° | 225–314 ms | 56 | 14 / 9 |
+| Online NARA-WPE + existing selector | 8.1–8.6° | 156–204 ms | 25 | 17 / 61 |
+| SRP, single-direction control | 7.4–7.6° | 156–178 ms | 40 | 32 / 0 |
+
+All candidates return at least one direction in every evaluated pass window. Extra-direction fractions across the four cases are 0–6.5% for the baseline, 0–3.2% for each recent-spatial candidate, and zero for online WPE/SRP. The apparent age is not evidence that online processing is computationally cheaper; its recorded localizer timing excludes online WPE preprocessing.
+
+The paired stationary set contains square/tetrahedral arrays, nominal RT60 0.2/0.3 s, 0/6 dB source imbalance, 0/1/2 sources, and three content conditions: speech, overlapping broadband signals, and disjoint frequency bands. Non-silent cases have 20 dB SNR; zero-source cases contain noise. The room is a uniform 6×5×3 m shoebox with order ten. Exact success requires the correct count and every matched direction within the existing 20° tolerance; unmatched directions count as misses/extras. These 72 cases probe preservation, not a new independent qualification or every historical gate. Exact silence remains covered by maintained tests.
+
+**Decision: retain the existing localizer.** No tested candidate simultaneously preserves its indoor behavior and meets the nominal moving-source p95 ≤10° goal. The maintained estimator also exceeds 350 ms in apparent age, before a full response test could pass. No sample-rate increase, estimator mode split, oracle source count, or track ID was introduced. Joint fast-motion/multisource qualification remains open, including moving mixtures, difficult reverberant passes, rotation, and physical audio.
+
+The local numerical report is `build/validation/isaac_audio_sensors/continuity_doa_comparison.json`. It contains metrics only; no demonstration media or ONR material was produced. The comparison does not start 07.2.

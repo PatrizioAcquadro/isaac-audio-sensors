@@ -1239,3 +1239,11 @@ Moved the maintained nine-scenario catalog and approved final videos 1 and 2 int
 ## 2026-09-08 — lint: Maintained-runtime cleanup validation
 
 Host checks pass 638 unit/contract, 291 integration and 58 release tests; optional audio passes 31 tests and its smoke, and the supported Isaac runtime passes 116 tests. Actual RTX 4090 Lab projection and bounded capture/render paths pass. Both final-video acquisitions reproduce microphone samples and directions exactly; all 22 preview encodes and complete final-video compositions pass technical checks. Fresh catalog packaging passes with the current consumer and retained historical evaluations. Full new GPU renders of every timeline, browser playback of regenerated copies, physical acquisition and a new statistical qualification campaign are not claimed.
+
+## 2026-09-09 — update: Continuous propagation and motion boundary
+
+Documented the absolute acoustic clock, retained solver/dependency choice, Isaac/Lab lifecycle, finite filter history, and physical approximations. Added the paired moving/indoor DOA comparison and retained the existing multisource estimator because faster candidates regress indoor results. Kept 07.2 and all demonstration/ONR production outside this work.
+
+## 2026-09-09 — lint: Continuous acoustic clock closeout
+
+Resolved all wiki links and index entries, checked whitespace and code references, preserved historical evidence and raw material, and reconciled current host/Isaac/GPU results with explicit motion and DOA limitations. No phase 07.2 or demonstration production was added.
