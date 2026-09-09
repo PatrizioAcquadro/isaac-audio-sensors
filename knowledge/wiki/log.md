@@ -1247,3 +1247,7 @@ Documented the absolute acoustic clock, retained solver/dependency choice, Isaac
 ## 2026-09-09 — lint: Continuous acoustic clock closeout
 
 Resolved all wiki links and index entries, checked whitespace and code references, preserved historical evidence and raw material, and reconciled current host/Isaac/GPU results with explicit motion and DOA limitations. No phase 07.2 or demonstration production was added.
+
+## 2026-09-09 — update: Orientation-aware acoustic arrivals
+
+Extended retained trajectories and bracketed motion plans with quaternion orientation. Documented receiver/emitter acoustic clocks and angular extrapolation; preserved continuous propagation and the current DOA boundary. Direct and room rotation partition tests and a closed-form rotating-source/microphone test pass.

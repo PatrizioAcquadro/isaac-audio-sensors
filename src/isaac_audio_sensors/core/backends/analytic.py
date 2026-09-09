@@ -21,7 +21,7 @@ from isaac_audio_sensors.core.backends._analytic.arrival import (
     ArrivalStream,
     emission_samples,
     moving_pair,
-    polar_gain,
+    pair_gain,
     retarded_path,
 )
 from isaac_audio_sensors.core.backends._analytic.block import assemble_signal_block
@@ -436,11 +436,9 @@ def _render_core(
                     + np.arange(prepared.window_sample_count)
                 ) / prepared.sample_rate_hz
                 microphone = prepared.sensor.microphones[mic_index]
-                offset = rotate_vector_by_quaternion(
-                    microphone.relative_position_m,
-                    prepared.sensor.orientation_world_quat,
+                receiver = array_trajectory.receiver_at(
+                    times, microphone.relative_position_m
                 )
-                receiver = array_trajectory.at(times) + offset
                 emission, distance, direction = retarded_path(
                     times,
                     receiver,
@@ -452,15 +450,14 @@ def _render_core(
                     4 * np.pi * distance
                 )
                 # Directional gain below is evaluated on the retarded direct path.
-                direct_gain = polar_gain(
-                    source.directivity, source.orientation_world_quat, direction
-                ) * polar_gain(
-                    microphone.directivity,
-                    microphone_world_orientation(
-                        prepared.sensor.orientation_world_quat,
-                        microphone.relative_orientation_quat,
-                    ),
-                    -direction,
+                direct_gain = pair_gain(
+                    source,
+                    microphone,
+                    source_trajectory,
+                    array_trajectory,
+                    emission,
+                    times,
+                    direction,
                 )
                 direct *= direct_gain
                 indirect = np.zeros_like(direct)
@@ -488,14 +485,19 @@ def _render_core(
                     indirect = emission_samples(
                         source, emission, prepared.sample_rate_hz
                     ) / (4 * np.pi * distance)
-                    indirect = (
-                        _apply_reflection_absorption(
-                            indirect,
-                            absorption=environment.surfaces[0].absorption,
-                            sample_rate_hz=prepared.sample_rate_hz,
-                            application="floor",
-                        )
-                        * direct_gain
+                    indirect = _apply_reflection_absorption(
+                        indirect,
+                        absorption=environment.surfaces[0].absorption,
+                        sample_rate_hz=prepared.sample_rate_hz,
+                        application="floor",
+                    ) * pair_gain(
+                        source,
+                        microphone,
+                        source_trajectory,
+                        array_trajectory,
+                        emission,
+                        times,
+                        receiver - source_trajectory.at(emission),
                     )
                 # Static directivity is applied below only to stationary pairs.
             else:

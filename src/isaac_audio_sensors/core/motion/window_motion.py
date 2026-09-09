@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from isaac_audio_sensors.core.motion.orientation import interpolate_orientation
 from isaac_audio_sensors.core.motion.pose_history import PoseHistory, Vector3
 
 
@@ -27,6 +28,8 @@ class SegmentEntityMotion:
     midpoint_position_world_m: Vector3
     velocity_world_mps: Vector3 | None
     velocity_source: str
+    start_orientation_world_xyzw: tuple | None = None
+    end_orientation_world_xyzw: tuple | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,9 +77,7 @@ def segment_boundaries(
     quotient, remainder = divmod(window_sample_count, segments_per_window)
     boundaries = [0]
     for index in range(segments_per_window):
-        boundaries.append(
-            boundaries[-1] + quotient + int(index < remainder)
-        )
+        boundaries.append(boundaries[-1] + quotient + int(index < remainder))
     return tuple(boundaries)
 
 
@@ -103,10 +104,7 @@ def build_window_motion(
         length = end_sample - start_sample
         segment_start_s = start_time_s + start_sample / sample_rate_hz
         segment_end_s = start_time_s + end_sample / sample_rate_hz
-        midpoint_s = (
-            start_time_s
-            + (start_sample + (length - 1) / 2.0) / sample_rate_hz
-        )
+        midpoint_s = start_time_s + (start_sample + (length - 1) / 2.0) / sample_rate_hz
         segment_entities: dict[str, SegmentEntityMotion] = {}
         for entity_id, entity in entities.items():
             result = pose_history.last_result(entity_id)
@@ -121,8 +119,7 @@ def build_window_motion(
                 samples = pose_history.samples(entity_id)
                 if (
                     len(samples) != 2
-                    or samples[0].time_s
-                    > start_time_s + bracket_tolerance_s
+                    or samples[0].time_s > start_time_s + bracket_tolerance_s
                     or samples[1].time_s < end_time_s - bracket_tolerance_s
                 ):
                     raise ValueError(
@@ -139,12 +136,23 @@ def build_window_motion(
                     entity_id, midpoint_s
                 )
                 velocity = entity.velocity_world_mps
+            poses = pose_history.samples(entity_id)
+            orientations = [p.orientation_world_xyzw for p in poses]
+            endpoints = [None, None]
+            if len(poses) == 2 and all(q is not None for q in orientations):
+                for j, stamp in enumerate((segment_start_s, segment_end_s)):
+                    weight = (stamp - poses[0].time_s) / (
+                        poses[1].time_s - poses[0].time_s
+                    )
+                    endpoints[j] = tuple(interpolate_orientation(*orientations, weight))
             segment_entities[entity_id] = SegmentEntityMotion(
                 start_position_world_m=start_position,
                 end_position_world_m=end_position,
                 midpoint_position_world_m=midpoint_position,
                 velocity_world_mps=velocity,
                 velocity_source=entity.velocity_source,
+                start_orientation_world_xyzw=endpoints[0],
+                end_orientation_world_xyzw=endpoints[1],
             )
         resolved.append(
             WindowMotionSegment(
@@ -172,9 +180,7 @@ def motion_segment_diagnostics(
     if len(doppler_factor_by_segment) != len(plan.segments):
         raise ValueError("doppler factor rows must match motion segments")
     rows: list[dict[str, object]] = []
-    for segment, factors in zip(
-        plan.segments, doppler_factor_by_segment, strict=True
-    ):
+    for segment, factors in zip(plan.segments, doppler_factor_by_segment, strict=True):
         entities = {
             entity_id: {
                 "start_position_world_m": entity.start_position_world_m,

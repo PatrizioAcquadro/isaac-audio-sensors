@@ -44,6 +44,8 @@ def assemble_signal_block(
             "clock": "absolute_sample_clock",
             "motion_model": "retarded_emission_time",
             "trajectory_model": "linear_positions_endpoint_velocity",
+            "orientation_model": "shortest_arc_slerp_endpoint_angular_velocity",
+            "orientation_first_pose": "held_before_first_bracket",
             "fractional_sampling": "linear",
             "room_visibility": "current_solver_geometry" if not core_solver else None,
             "late_field": "quasi_static" if prepared.ray_tracing else None,

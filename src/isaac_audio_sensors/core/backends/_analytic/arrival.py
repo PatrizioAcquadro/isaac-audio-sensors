@@ -12,6 +12,10 @@ from isaac_audio_sensors.core.backends._analytic.signals import (
 )
 from isaac_audio_sensors.core.directivity import pattern_coefficient
 from isaac_audio_sensors.core.math_utils import rotate_vector_by_quaternion
+from isaac_audio_sensors.core.motion.orientation import (
+    interpolate_orientation,
+    rotate_vectors,
+)
 from isaac_audio_sensors.core.types import AudioTimeWindow
 
 
@@ -23,9 +27,14 @@ class Trajectory:
     positions: list[tuple[float, float, float]] = field(default_factory=list)
     velocities: list[tuple[float, float, float]] = field(default_factory=list)
 
-    def observe(self, time, position, velocity):
+    orientations: list = field(default_factory=list)
+
+    def observe(self, time, position, velocity, orientation=None):
         index = int(np.searchsorted(self.times, time))
         row = tuple(position)
+        orientation = (
+            tuple(orientation) if orientation is not None else (0.0, 0.0, 0.0, 1.0)
+        )
         speed = tuple(velocity) if velocity is not None else (0.0, 0.0, 0.0)
         if velocity is None and index > 0 and time > self.times[index - 1]:
             speed = tuple(
@@ -35,10 +44,12 @@ class Trajectory:
         if index < len(self.times) and abs(self.times[index] - time) < 1e-9:
             self.positions[index] = row
             self.velocities[index] = speed
+            self.orientations[index] = orientation
         else:
             self.times.insert(index, time)
             self.positions.insert(index, row)
             self.velocities.insert(index, speed)
+            self.orientations.insert(index, orientation)
 
     def at(self, times):
         times = np.asarray(times, dtype=float)
@@ -56,11 +67,27 @@ class Trajectory:
         ]
         return values
 
+    def orientation_at(self, times):
+        """SLERP between poses; hold first, extrapolate last angular velocity."""
+        times = np.asarray(times)
+        if len(self.times) == 1:
+            return np.broadcast_to(self.orientations[0], (*times.shape, 4))
+        right = np.clip(np.searchsorted(self.times, times), 1, len(self.times) - 1)
+        left = right - 1
+        stamps = np.asarray(self.times)
+        weight = np.maximum(0, (times - stamps[left]) / (stamps[right] - stamps[left]))
+        poses = np.asarray(self.orientations)
+        return interpolate_orientation(poses[left], poses[right], weight)
+
+    def receiver_at(self, times, offset):
+        return self.at(times) + rotate_vectors(offset, self.orientation_at(times))
+
     def prune(self, before):
         count = max(0, int(np.searchsorted(self.times, before)) - 1)
         del self.times[:count]
         del self.positions[:count]
         del self.velocities[:count]
+        del self.orientations[:count]
 
 
 def emission_samples(source, times, sample_rate):
@@ -145,8 +172,8 @@ def polar_gain(pattern, orientation, directions):
         return np.ones(len(directions))
     if orientation is None:
         raise ValueError("Non-omni directivity requires an orientation.")
-    axis = rotate_vector_by_quaternion((1.0, 0.0, 0.0), orientation)
-    cosine = directions @ np.asarray(axis) / np.linalg.norm(directions, axis=-1)
+    axis = rotate_vectors((1.0, 0.0, 0.0), orientation)
+    cosine = np.sum(directions * axis, axis=-1) / np.linalg.norm(directions, axis=-1)
     return coefficient + (1 - coefficient) * np.clip(cosine, -1, 1)
 
 
@@ -208,17 +235,22 @@ class ArrivalStream:
                         segment.start_time_s,
                         motion.start_position_world_m,
                         motion.velocity_world_mps,
+                        motion.start_orientation_world_xyzw
+                        or entity.orientation_world_quat,
                     )
                     trajectory.observe(
                         segment.end_time_s,
                         motion.end_position_world_m,
                         motion.velocity_world_mps,
+                        motion.end_orientation_world_xyzw
+                        or entity.orientation_world_quat,
                     )
             else:
                 trajectory.observe(
                     window.start_time_s,
                     entity.position_world,
                     entity.velocity_world_mps,
+                    entity.orientation_world_quat,
                 )
         farthest = max(
             (
@@ -267,6 +299,10 @@ def moving_pair(trajectories, source_id, array_id):
     return any(
         any(np.linalg.norm(v) > 0 for v in trajectory.velocities)
         or len(set(trajectory.positions)) > 1
+        or any(
+            abs(np.dot(trajectory.orientations[0], q)) < 1 - 1e-12
+            for q in trajectory.orientations[1:]
+        )
         for trajectory in (
             trajectories[("source", source_id)],
             trajectories[("array", array_id)],
@@ -321,8 +357,6 @@ def moving_room_premix(room, sources, sensor, environment, window, trajectories,
 
     import pyroomacoustics as pra
 
-    from isaac_audio_sensors.core.directivity import microphone_world_orientation
-
     fs = sensor.sample_rate_hz
     n = max(1, round((window.end_time_s - window.start_time_s) * fs))
     guard = room.octave_bands.n_fft
@@ -346,20 +380,21 @@ def moving_room_premix(room, sources, sensor, environment, window, trajectories,
             matrices, offsets = image_transforms(room, provider_source)
         trajectory = trajectories[("source", source.source_id)]
         for mi, microphone in enumerate(sensor.microphones):
-            receiver = trajectories[("array", sensor.array_id)].at(times)
-            receiver += rotate_vector_by_quaternion(
-                microphone.relative_position_m, sensor.orientation_world_quat
+            array_trajectory = trajectories[("array", sensor.array_id)]
+            receiver = array_trajectory.receiver_at(
+                times, microphone.relative_position_m
             )
-            _, _, direct_direction = retarded_path(times, receiver, trajectory, c, fs)
-            direct_gain = polar_gain(
-                source.directivity, source.orientation_world_quat, direct_direction
+            emission, _, direct_direction = retarded_path(
+                times, receiver, trajectory, c, fs
             )
-            direct_gain *= polar_gain(
-                microphone.directivity,
-                microphone_world_orientation(
-                    sensor.orientation_world_quat, microphone.relative_orientation_quat
-                ),
-                -direct_direction,
+            direct_gain = pair_gain(
+                source,
+                microphone,
+                trajectory,
+                array_trajectory,
+                emission,
+                times,
+                direct_direction,
             )
             if not moving:
                 output[si, mi] = (
@@ -389,7 +424,16 @@ def moving_room_premix(room, sources, sensor, environment, window, trajectories,
                 else:
                     bands = room.octave_bands.analysis(signal)
                     filtered = np.sum(bands * np.asarray(amplitudes).T, axis=-1)
-                output[si, mi] += (filtered * direct_gain)[guard : guard + n]
+                path_gain = pair_gain(
+                    source,
+                    microphone,
+                    trajectory,
+                    array_trajectory,
+                    emission,
+                    times,
+                    receiver - trajectory.at(emission),
+                )
+                output[si, mi] += (filtered * path_gain)[guard : guard + n]
             if room.simulator_state["rt_needed"]:
                 from pyroomacoustics.simulation.ism import compute_ism_rir
 
@@ -416,3 +460,25 @@ def moving_room_premix(room, sources, sensor, environment, window, trajectories,
                     * direct_gain[guard : guard + n]
                 )
     return output
+
+
+def pair_gain(
+    source,
+    microphone,
+    source_trajectory,
+    array_trajectory,
+    emission,
+    reception,
+    directions,
+):
+    """Direct-path polar gains on their respective acoustic clocks."""
+    source_gain = polar_gain(
+        source.directivity, source_trajectory.orientation_at(emission), directions
+    )
+    local_axis = rotate_vectors(
+        (1.0, 0.0, 0.0), microphone.relative_orientation_quat or (0.0, 0.0, 0.0, 1.0)
+    )
+    axis = rotate_vectors(local_axis, array_trajectory.orientation_at(reception))
+    coefficient = pattern_coefficient(microphone.directivity)
+    cosine = np.sum(-directions * axis, axis=-1) / np.linalg.norm(directions, axis=-1)
+    return source_gain * (coefficient + (1 - coefficient) * np.clip(cosine, -1, 1))
