@@ -835,3 +835,45 @@ def test_guided_export_surfaces_impossible_default_ratios_for_two_groups(
     recovery = controller.guided_workflow.recovery_action(finding)
     assert recovery.label == "Adjust ratios"
     assert callable(recovery)
+
+
+def test_capture_failure_clears_current_gui_and_finalizes_incomplete_recording(
+    monkeypatch,
+    tmp_path,
+):
+    from isaac_audio_sensors.core.exceptions import IsaacIntegrationUnavailable
+
+    controller, sensor = _run_ready_controller(
+        monkeypatch, [_frame(index) for index in range(3)]
+    )
+    _enter_record_stage(controller)
+    root = tmp_path / "interrupted"
+    assert (
+        controller.guided_start_recording(
+            root,
+            "interrupted",
+            2,
+            False,
+            scene_id="scene",
+            environment_id="env",
+            split_group="scene",
+            session_seed=17,
+        )
+        is not None
+    )
+    assert controller.update_sensor() is not None
+
+    def unavailable(**kwargs):
+        raise IsaacIntegrationUnavailable("Requested occlusion unavailable")
+
+    monkeypatch.setattr(sensor, "update", unavailable)
+    assert controller.update_sensor() is None
+    assert not controller.state.sensor_running
+    assert not sensor.running
+    assert controller.state.latest_frame_id is None
+    assert controller.state.latest_bearing_deg is None
+    assert controller.state.latest_aggregate_rms == {}
+    assert "occlusion unavailable" in controller.state.error_message
+    manifest = json.loads((root / "manifest.json").read_text())
+    assert manifest["completion_state"] == "incomplete"
+    assert controller._recording._guided_recorder is None

@@ -380,6 +380,24 @@ class SensorSession(ControllerService):
                 self._host._replicator._write_replicator_frame(frame)
             return frame
         except Exception as exc:
+            if self.sensor is not None:
+                self.sensor.stop()
+            self.state.sensor_running = False
+            self.state.latest_frame_id = None
+            self.state.latest_timestamp_ms = None
+            self.state.latest_bearing_deg = None
+            self.state.latest_sector = None
+            self.state.latest_bearing_confidence = None
+            self.state.latest_candidate_bearings = ()
+            self.state.latest_occluded = None
+            self.state.latest_occlusion_summary = "Capture failed"
+            self.state.latest_aggregate_rms = {}
+            self.state.latest_waveform_paths = ()
+            self.state.latest_observation_count = 0
+            clear_latest_frames()
+            if self._host._recording._guided_recorder is not None:
+                self._host._recording.guided_cancel_recording()
+                self._host._recording.guided_workflow.fail_recording(str(exc))
             self._record_error("Sensor update failed", exc)
             return None
 
@@ -510,6 +528,14 @@ class SensorSession(ControllerService):
             () if doa is None else tuple(doa.candidate_bearing_deg)
         )
         self.state.latest_occluded = None
+        occlusion = frame.diagnostics.get("stage_snapshot", {}).get("occlusion", {})
+        if occlusion.get("status") == "computed":
+            self.state.latest_occlusion_summary = (
+                f"{occlusion.get('blocked_paths', 0)}/"
+                f"{occlusion.get('total_paths', 0)} direct paths blocked (simulation)"
+            )
+        else:
+            self.state.latest_occlusion_summary = "Not enabled / not supplied"
         self.state.latest_timestamp_ms = getattr(frame, "timestamp_ms", None)
         self.state.latest_waveform_paths = tuple(
             str(path) for path in (getattr(frame, "waveform_paths", ()) or ())

@@ -837,13 +837,14 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                     ("Bearing", "compass_bearing"),
                     ("Sector", "compass_sector"),
                     ("Confidence", "compass_confidence"),
-                    ("Occlusion", "compass_occlusion"),
                 ):
                     with ui.HStack(spacing=4, height=0):
                         ui.Label(label, width=82)
                         value = window._readonly_label(key)
                         if key == "compass_bearing":
                             window._labels["compass"] = value
+                ui.Label("Simulation occlusion (geometry)")
+                window._readonly_label("simulation_occlusion")
             with ui.VStack(spacing=3, height=0):
                 ui.Label("Per-mic RMS (dBFS)")
                 with ui.HStack(spacing=4, height=0):

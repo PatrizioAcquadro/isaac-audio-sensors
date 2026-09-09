@@ -1345,3 +1345,11 @@ Documented frame v4 nullable confidence, strict old-version rejection, unchanged
 ## 2026-09-09 — lint: Confidence contract synchronization
 
 Checked active schema references and fixture checksums, verified recording/replay and CPU/CUDA masks, and passed Ruff and whitespace checks. Historical phase-v3 attribution remains separate from the current frame-v4 contract.
+
+## 2026-09-09 — update: Solid-collider occlusion and explicit capture failure
+
+Documented complete-segment native queries, source/microphone loss preservation, unavailable-service capture interruption and independent simulation diagnostics. Actual PhysX primitives/meshes, audio recomposition and Kit widget checks pass; temporal perception remains open.
+
+## 2026-09-09 — lint: Occlusion ownership and validation limits
+
+Checked canonical links and implementation symbols, preserved direct-only and settled-transform limits, and kept full GUI/geometry work in 07.3/08. Ruff, whitespace, 1,041 host tests and 123 supported-runtime tests pass.

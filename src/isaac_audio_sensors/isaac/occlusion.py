@@ -37,7 +37,6 @@ from isaac_audio_sensors.core.types import (
 
 DEFAULT_UNKNOWN_MATERIAL_LOSS_DB = 20.0
 DEFAULT_ENDPOINT_EPSILON_M = 0.01
-DEFAULT_MAX_RECASTS = 4
 DEFAULT_MAX_HITS_PER_RAY = 8
 
 OCCLUSION_MODEL_RAYCAST_TRANSMISSION = "raycast_transmission_v1"
@@ -120,7 +119,11 @@ class LiveOcclusionState:
                 "error": str(exc),
             }
             self._frame_state = {"occlusion_recompute_count": 0}
-            return scene
+            raise IsaacIntegrationUnavailable(
+                "Requested occlusion is unavailable; capture stopped. "
+                "Enable the PhysX scene-query service or explicitly disable "
+                f"occlusion. {exc}"
+            ) from exc
 
         self.latest_trace = () if trace is None else tuple(trace)
 
@@ -149,6 +152,8 @@ class LiveOcclusionState:
         stage_diagnostics["occlusion"] = {
             "status": "computed",
             "record_count": len(records),
+            "blocked_paths": sum(sum(r.per_mic_blocked.values()) for r in records),
+            "total_paths": sum(len(r.per_mic_blocked) for r in records),
         }
         return replace(scene, occlusion=records)
 
@@ -255,7 +260,7 @@ class TransmissionLossResolver(Protocol):
 
 
 class IsaacPhysxRaycaster:
-    """Closest-hit raycaster backed by the PhysX scene-query interface.
+    """Complete-segment raycaster backed by the PhysX scene-query interface.
 
     The interface is acquired lazily on the first cast so that constructing
     sensors outside an Isaac Sim Python environment stays import-safe.
@@ -264,26 +269,42 @@ class IsaacPhysxRaycaster:
     def __init__(self) -> None:
         self._interface: Any | None = None
 
-    def raycast_closest(
+    def raycast_all(
         self,
         origin: Vector3,
         direction: Vector3,
         max_distance_m: float,
-    ) -> OcclusionHit | None:
-        """Return the closest collider hit along a ray, or ``None``."""
+    ) -> tuple[OcclusionHit, ...]:
+        """Return every collider hit without recasting from inside solids."""
 
         interface = self._acquire()
-        hit = interface.raycast_closest(
-            _carb_vec3(origin),
-            _carb_vec3(direction),
-            float(max_distance_m),
+        if not callable(getattr(interface, "raycast_all", None)):
+            raise IsaacIntegrationUnavailable("PhysX raycast_all is unavailable.")
+        hits: list[OcclusionHit] = []
+        failures: list[Exception] = []
+
+        def report(hit: Any) -> bool:
+            # Copy native callback data before PhysX reuses its hit structure.
+            try:
+                hits.append(OcclusionHit(
+                    prim_path=str(hit.collision), distance_m=float(hit.distance)
+                ))
+            except Exception as exc:
+                failures.append(exc)
+                return False
+            return True
+
+        any_hit = interface.raycast_all(
+            _carb_vec3(origin), _carb_vec3(direction),
+            float(max_distance_m), report, True
         )
-        if not hit or not hit.get("hit"):
-            return None
-        return OcclusionHit(
-            prim_path=str(hit.get("collision", "")),
-            distance_m=float(hit.get("distance", 0.0)),
-        )
+        if failures:
+            raise ValueError(
+                "Invalid PhysX occlusion hit; capture stopped."
+            ) from failures[0]
+        if bool(any_hit) != bool(hits):
+            raise ValueError("Incomplete PhysX occlusion query; capture stopped.")
+        return tuple(hits)
 
     def _acquire(self) -> Any:
         if self._interface is None:
@@ -492,7 +513,6 @@ def compute_scene_occlusion(
     *,
     unknown_material_loss_db: float = DEFAULT_UNKNOWN_MATERIAL_LOSS_DB,
     endpoint_epsilon_m: float = DEFAULT_ENDPOINT_EPSILON_M,
-    max_recasts: int = DEFAULT_MAX_RECASTS,
     transmission_resolver: TransmissionLossResolver | None = None,
     max_hits_per_ray: int = DEFAULT_MAX_HITS_PER_RAY,
     diagnostics_out: dict[str, Any] | None = None,
@@ -514,7 +534,6 @@ def compute_scene_occlusion(
     if not math.isfinite(endpoint_epsilon_m) or endpoint_epsilon_m <= 0.0:
         raise ValueError("endpoint_epsilon_m must be finite and positive.")
     for value, name, minimum in (
-        (max_recasts, "max_recasts", 0),
         (max_hits_per_ray, "max_hits_per_ray", 1),
     ):
         if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
@@ -546,7 +565,6 @@ def compute_scene_occlusion(
                     target=mic_position,
                     excluded_prefixes=excluded_prefixes,
                     endpoint_epsilon_m=endpoint_epsilon_m,
-                    max_recasts=max_recasts,
                     max_hits=max_hits_per_ray,
                 )
                 resolved_partitions: dict[
@@ -841,15 +859,9 @@ def _ray_hits(
     target: Vector3,
     excluded_prefixes: tuple[str, ...],
     endpoint_epsilon_m: float,
-    max_recasts: int,
     max_hits: int,
 ) -> tuple[_RayHit, ...]:
-    """Ordered distinct collider hits along one source-to-microphone ray.
-
-    Repeated hits on the same prim (e.g. the entry and exit faces of one
-    thick collider, or zero-distance re-hits from inside it) are recast past.
-    Acoustic-partition deduplication happens after material resolution.
-    """
+    """Ordered distinct collider hits on the open source/microphone segment."""
 
     delta = subtract(target, origin)
     total_distance = norm(delta)
@@ -857,42 +869,39 @@ def _ray_hits(
         return ()
     direction = scale(delta, 1.0 / total_distance)
     start = add(origin, scale(direction, endpoint_epsilon_m))
-    remaining = total_distance - 2.0 * endpoint_epsilon_m
-    blocking_hits: list[_RayHit] = []
-    blocking_paths: set[str] = set()
-    ignored_recasts = 0
-    while remaining > 0.0:
-        hit = raycaster.raycast_closest(start, direction, remaining)
-        if hit is None:
-            break
-        prim_path = str(hit.prim_path).strip()
-        if not prim_path:
-            raise ValueError("Occlusion raycast returned an empty prim path.")
-        distance_m = _validated_nonnegative_float(
-            hit.distance_m,
-            application=f"occlusion hit distance for {prim_path!r}",
+    distance = total_distance - 2.0 * endpoint_epsilon_m
+    query = getattr(raycaster, "raycast_all", None)
+    if not callable(query):
+        raise IsaacIntegrationUnavailable(
+            "Occlusion requires a complete-segment raycast_all implementation."
         )
-        point_world = add(start, scale(direction, distance_m))
-        if _path_excluded(prim_path, excluded_prefixes) or prim_path in blocking_paths:
-            ignored_recasts += 1
-            if ignored_recasts > max_recasts:
-                raise ValueError(
-                    "Occlusion ray exceeded max_recasts while skipping endpoint "
-                    "or repeated collider hits."
-                )
-        else:
-            if len(blocking_hits) >= max_hits:
-                raise ValueError(
-                    "Occlusion ray exceeded max_hits_per_ray; refusing truncated "
-                    "transmission loss."
-                )
-            blocking_paths.add(prim_path)
-            blocking_hits.append(
-                _RayHit(prim_path=prim_path, point_world=point_world)
+    hits = query(start, direction, distance)
+    validated: list[tuple[float, str]] = []
+    for hit in hits:
+        path = str(hit.prim_path).strip()
+        if not path:
+            raise ValueError("Occlusion raycast returned an empty prim path.")
+        travel = _validated_nonnegative_float(
+            hit.distance_m, application=f"occlusion hit distance for {path!r}"
+        )
+        if travel > distance:
+            raise ValueError("Occlusion hit lies outside the queried segment.")
+        if not _path_excluded(path, excluded_prefixes):
+            validated.append((travel, path))
+    blocking_hits: list[_RayHit] = []
+    seen: set[str] = set()
+    for travel, path in sorted(validated):
+        if path in seen:
+            continue
+        if len(seen) >= max_hits:
+            raise ValueError(
+                "Occlusion ray exceeded max_hits_per_ray; refusing truncated "
+                "transmission loss."
             )
-        advance = distance_m + endpoint_epsilon_m
-        start = add(start, scale(direction, advance))
-        remaining -= advance
+        seen.add(path)
+        blocking_hits.append(
+            _RayHit(prim_path=path, point_world=add(start, scale(direction, travel)))
+        )
     return tuple(blocking_hits)
 
 

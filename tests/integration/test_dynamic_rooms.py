@@ -509,10 +509,10 @@ class _MovingRaycaster:
     def __init__(self):
         self.blocked = False
 
-    def raycast_closest(self, _origin, _direction, _distance):
+    def raycast_all(self, _origin, _direction, _distance):
         if not self.blocked:
-            return None
-        return OcclusionHit(prim_path=WALL_PATH, distance_m=2.0)
+            return ()
+        return (OcclusionHit(prim_path=WALL_PATH, distance_m=2.0),)
 
 
 def test_live_sensor_preserves_static_environment_without_anchor(fake_room):

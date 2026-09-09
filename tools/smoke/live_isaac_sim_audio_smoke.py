@@ -56,13 +56,13 @@ SMOKE_PHASES = (
 class _AnalyticOcclusionTransitionRaycaster:
     """Deterministic blocked-before/clear-after lifecycle fixture."""
 
-    def raycast_closest(self, origin, direction, max_distance_m):
+    def raycast_all(self, origin, direction, max_distance_m):
         if float(origin[0]) <= 3.0:
-            return None
-        return OcclusionHit(
+            return ()
+        return (OcclusionHit(
             prim_path="/World/OcclusionFixture",
             distance_m=0.5 * float(max_distance_m),
-        )
+        ),)
 
 
 def main() -> int:

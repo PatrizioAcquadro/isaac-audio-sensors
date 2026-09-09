@@ -211,6 +211,7 @@ class ExtensionUiState:
     latest_bearing_confidence: float | None = None
     latest_candidate_bearings: tuple[float, ...] = ()
     latest_occluded: bool | None = None
+    latest_occlusion_summary: str = "Not captured"
     latest_timestamp_ms: int | None = None
     latest_array_prim_path: str | None = None
     latest_array_position_m: tuple[float, float, float] | None = None

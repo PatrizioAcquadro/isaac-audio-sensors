@@ -53,9 +53,9 @@ class FakeRaycaster:
         self.walls = walls
         self.casts: list[tuple[tuple[float, ...], tuple[float, ...], float]] = []
 
-    def raycast_closest(self, origin, direction, max_distance_m):
+    def raycast_all(self, origin, direction, max_distance_m):
         self.casts.append((tuple(origin), tuple(direction), float(max_distance_m)))
-        best: tuple[str, float] | None = None
+        hits = []
         for prim_path, x_plane, y_range in self.walls:
             if abs(direction[0]) < 1e-12:
                 continue
@@ -66,15 +66,12 @@ class FakeRaycaster:
                 y_cross = origin[1] + travel * direction[1]
                 if not y_range[0] <= y_cross <= y_range[1]:
                     continue
-            if best is None or travel < best[1]:
-                best = (prim_path, travel)
-        if best is None:
-            return None
-        return OcclusionHit(prim_path=best[0], distance_m=best[1])
+            hits.append(OcclusionHit(prim_path=prim_path, distance_m=travel))
+        return tuple(hits)
 
 
 class UnavailableRaycaster:
-    def raycast_closest(self, origin, direction, max_distance_m):
+    def raycast_all(self, origin, direction, max_distance_m):
         raise IsaacIntegrationUnavailable("no PhysX in this test environment")
 
 
@@ -204,7 +201,7 @@ def test_occlusion_loss_does_not_depend_on_obstacle_distance() -> None:
     assert near.per_mic_attenuation_db == far.per_mic_attenuation_db
 
 
-def test_compute_scene_occlusion_skips_source_and_array_hits_with_recast():
+def test_compute_scene_occlusion_skips_source_and_array_hits():
     self_hits = (
         (f"{SOURCE_PRIM_PATH}/collider", 3.95, None),
         (f"{ARRAY_PRIM_PATH}/mount", 0.05, None),
@@ -212,7 +209,7 @@ def test_compute_scene_occlusion_skips_source_and_array_hits_with_recast():
     clear = FakeRaycaster(walls=self_hits)
     records = compute_scene_occlusion(_scene(), clear)
     assert not any(records[0].per_mic_blocked.values())
-    assert len(clear.casts) > 2
+    assert len(clear.casts) == 2
 
     walled = FakeRaycaster(walls=(*self_hits, (WALL_PRIM_PATH, 2.0, None)))
     records = compute_scene_occlusion(_scene(), walled)
@@ -226,15 +223,13 @@ def test_compute_scene_occlusion_degenerate_short_ray_is_clear():
     records = compute_scene_occlusion(scene, raycaster)
 
     assert records[0].per_mic_blocked == {"front": False, "right": True}
-    assert len(raycaster.casts) == 2
+    assert len(raycaster.casts) == 1
 
 
 def test_default_frame_does_not_draw_oracle_bearing_rays():
     array = _quad_array()
     scene = _scene(arrays=(array,), occlusion=(_occlusion_record(),))
-    frame, _ = run_frame_pipeline(
-        AnalyticAcoustics(), scene, "rig_front", _window()
-    )
+    frame, _ = run_frame_pipeline(AnalyticAcoustics(), scene, "rig_front", _window())
     primitives = build_debug_primitives(
         frame=frame,
         scene=scene,
@@ -331,7 +326,12 @@ def test_live_sensor_occlusion_attenuates_and_reports_diagnostics():
         for mic_id in ("front", "right")
     ]
     occlusion_diag = frame.diagnostics["stage_snapshot"]["occlusion"]
-    assert occlusion_diag == {"status": "computed", "record_count": 1}
+    assert occlusion_diag == {
+        "status": "computed",
+        "record_count": 1,
+        "blocked_paths": 2,
+        "total_paths": 2,
+    }
     assert sensor.latest_debug_primitives == ()
     sensor.close()
 
@@ -403,18 +403,16 @@ def test_live_sensor_occlusion_disabled_by_default():
     sensor.close()
 
 
-def test_live_sensor_degrades_gracefully_when_raycaster_unavailable():
+def test_live_sensor_stops_when_requested_raycaster_is_unavailable():
     sensor = _live_sensor(
         _fake_stage(),
         occlusion_enabled=True,
         occlusion_raycaster=UnavailableRaycaster(),
     )
-    frame = sensor.update(sim_time_s=0.0)
-
-    assert frame.observations == ()
-    occlusion_diag = frame.diagnostics["stage_snapshot"]["occlusion"]
-    assert occlusion_diag["status"] == "unavailable"
-    assert "PhysX" in occlusion_diag["error"]
+    with pytest.raises(IsaacIntegrationUnavailable, match="capture stopped"):
+        sensor.update(sim_time_s=0.0)
+    assert sensor.latest_frame is None
+    assert sensor.latest_signal_block is None
     sensor.close()
 
 
@@ -625,8 +623,7 @@ def test_occlusion_diagnostics_round_trip_new_fields():
         },
     )
     frame, _ = run_frame_pipeline(
-        AnalyticAcoustics(),
-        _scene(occlusion=(record,)), "rig_front", _window()
+        AnalyticAcoustics(), _scene(occlusion=(record,)), "rig_front", _window()
     )
 
     restored = frame_from_trace_dict(frame_to_trace_dict(frame))
@@ -640,11 +637,11 @@ class _RepeatingHitRaycaster:
     def __init__(self, hit_count: int = 3) -> None:
         self.remaining_hits = hit_count
 
-    def raycast_closest(self, origin, direction, max_distance_m):
-        if self.remaining_hits <= 0:
-            return None
-        self.remaining_hits -= 1
-        return OcclusionHit(prim_path=WALL_PRIM_PATH, distance_m=0.05)
+    def raycast_all(self, origin, direction, max_distance_m):
+        return tuple(
+            OcclusionHit(prim_path=WALL_PRIM_PATH, distance_m=0.05 * i)
+            for i in range(self.remaining_hits)
+        )
 
 
 def test_compute_scene_occlusion_counts_one_thick_wall_once():
@@ -653,3 +650,57 @@ def test_compute_scene_occlusion_counts_one_thick_wall_once():
     record = records[0]
     assert record.per_mic_blocked["front"] is True
     assert record.per_mic_attenuation_db["front"] == 20.0
+
+
+def test_native_all_hit_query_rejects_truncation_and_orders_distinct_solids():
+    from types import SimpleNamespace
+
+    from isaac_audio_sensors.isaac.occlusion import IsaacPhysxRaycaster, _ray_hits
+
+    class Interface:
+        complete = True
+
+        def raycast_all(self, origin, direction, distance, report, both_sides):
+            assert both_sides
+            for path, travel in (("/B", 2), ("/A", 1), ("/A", 1.3)):
+                assert report(SimpleNamespace(collision=path, distance=travel))
+            return self.complete
+
+    caster = IsaacPhysxRaycaster()
+    caster._interface = Interface()
+    hits = _ray_hits(
+        caster,
+        origin=(0, 0, 0),
+        target=(4, 0, 0),
+        excluded_prefixes=(),
+        endpoint_epsilon_m=0.01,
+        max_hits=8,
+    )
+    assert [h.prim_path for h in hits] == ["/A", "/B"]
+    caster._interface.complete = False
+    with pytest.raises(ValueError, match="Incomplete"):
+        caster.raycast_all((0, 0, 0), (1, 0, 0), 4)
+
+
+@pytest.mark.parametrize("distance", [-1, float("nan"), 100])
+def test_complete_query_rejects_invalid_distances(distance):
+    class Invalid:
+        def raycast_all(self, *args):
+            return (OcclusionHit(prim_path=WALL_PRIM_PATH, distance_m=distance),)
+
+    with pytest.raises(ValueError):
+        compute_scene_occlusion(_scene(), Invalid())
+
+
+def test_occlusion_failure_clears_previous_capture_and_stops_sensor():
+    sensor = _live_sensor(
+        _fake_stage(), occlusion_enabled=True, occlusion_raycaster=FakeRaycaster()
+    )
+    sensor.start()
+    assert sensor.update(sim_time_s=0) is not None
+    sensor._occlusion_state.raycaster = UnavailableRaycaster()
+    with pytest.raises(IsaacIntegrationUnavailable, match="capture stopped"):
+        sensor.update(sim_time_s=0.1)
+    assert not sensor._running
+    assert sensor.latest_frame is None and sensor.latest_signal_block is None
+    sensor.close()

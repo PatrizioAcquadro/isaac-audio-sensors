@@ -414,14 +414,7 @@ class OmniReferenceWindow:
             "compass_confidence",
             "N/A" if view_model.confidence is None else f"{view_model.confidence:.2f}",
         )
-        self._set_label(
-            "compass_occlusion",
-            (
-                "Occluded"
-                if view_model.occluded is True
-                else ("Clear" if view_model.occluded is False else "Unknown")
-            ),
-        )
+        self._set_label("simulation_occlusion", state.latest_occlusion_summary)
         provider = self._instruments.get("compass_provider")
         if provider is not None and hasattr(provider, "set_bytes_data"):
             image = render_compass_rgba(view_model, size=COMPASS_IMAGE_SIZE)

@@ -896,12 +896,18 @@ class IsaacAudioArraySensor:
                     "for direct live capture."
                 )
             scene = self._enrich_live_motion(scene, time_s=sim_time_s)
-        return self._occlusion_state.apply(
-            scene,
-            stage=self.stage,
-            cache=cache,
-            stage_diagnostics=diagnostics,
-        )
+        try:
+            return self._occlusion_state.apply(
+                scene,
+                stage=self.stage,
+                cache=cache,
+                stage_diagnostics=diagnostics,
+            )
+        except Exception:
+            self.stop()
+            self.reset()
+            raise
+
 
     def _enrich_live_motion(
         self,
