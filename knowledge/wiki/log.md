@@ -1353,3 +1353,11 @@ Documented complete-segment native queries, source/microphone loss preservation,
 ## 2026-09-09 — lint: Occlusion ownership and validation limits
 
 Checked canonical links and implementation symbols, preserved direct-only and settled-transform limits, and kept full GUI/geometry work in 07.3/08. Ruff, whitespace, 1,041 host tests and 123 supported-runtime tests pass.
+
+## 2026-09-09 — experiment: Reject pre-07.2 acoustic front ends
+
+Recorded paired persistent OnlineWPE, normalized/weighted spatial evidence, combination and matched-history trials. Isolated motion/partial-occlusion gains do not preserve useful joint indoor sets; all candidates remain outside the product. Documented direct controls, static losses, unconsumed confirmation, timing limits and the unresolved user scope decision. Temporal perception stays open and 07.2 stays blocked. Synchronized completed frame-v4 and live-occlusion statements with all three passing GPU smoke checks and clean-source Python package audits. Corrected the Kit smoke to inspect instruments before deliberate capture failure and require cleared current output afterward.
+
+## 2026-09-09 — lint: Pre-07.2 result and unresolved gate
+
+Canonical wikilinks and index coverage pass; current confidence/schema claims are reconciled with v4 while historical phase attribution remains explicit. Ten focused documentation/evaluator tests, Ruff and whitespace checks pass. Maintained localizer/propagation source, raw material and protected evidence are unchanged. The documentation does not claim temporal completion, independent confirmation or permission to start 07.2.

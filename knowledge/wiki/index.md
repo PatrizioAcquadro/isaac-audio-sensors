@@ -51,7 +51,7 @@
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — confirmed indoor reference and rejected motion candidates; the earlier pause is superseded by a renewed pre-07.2 temporal objective, with reliability unresolved.
+- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — bounded indoor reference, rejected temporal/acoustic-front-end candidates and direct occlusion controls; joint temporal reliability remains unresolved before 07.2.
 
 ## Sources
 

@@ -10,7 +10,7 @@ Robot-specific mounts, assets, adapters, policies, task orchestration, acceptanc
 
 ## Current Compatibility Line
 
-The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, makes `AudioSceneSnapshot` the sole propagation-backend array-state authority, replaces the room-only scene contract with one analytic acoustic-environment contract, separates microphone signals from perception, and adopts the breaking `ias.audio_sensor_frame.v3` observed-only capture contract without compatibility shims.
+The current package is `3.0.0` on the v3 compatibility line. R5.0 previously removed the v1 root convenience imports; v3 keeps that semantic subsystem boundary, makes entity-owned directivity and amplitude-gain semantics authoritative, makes `AudioSceneSnapshot` the sole propagation-backend array-state authority, replaces the room-only scene contract with one analytic acoustic-environment contract, separates microphone signals from perception, and introduced the observed-only frame contract. The pre-07.2 confidence correction advances that contract to `ias.audio_sensor_frame.v4` without compatibility shims.
 
 The root exposes only `__version__`; contracts and services live under their owning modules. The CLI composes those public services without becoming a dependency of lower components.
 
@@ -27,7 +27,7 @@ The curated v3 entrypoint inventory is:
 
 Advanced public services remain importable from their canonical modules; they are not implied package-root entrypoints. The exact inventory above is enforced in fresh processes by `tests/contract/test_public_surface.py`.
 
-The current serialized contracts are `ias.audio_sensor_frame.v3`, `ias.audio_dataset_manifest.v1`, and `ias.audio_calibration_profile.v1`. Dataset and calibration wrapper versions remain unchanged because their own meanings are stable; dataset records embed the current frame v3 shape. Frame v1/v2 is not a current package contract.
+Current serialized versions and their ownership are listed in [[topics/public-contracts-and-recording|Public Contracts and Recording]]: frame v4, dataset-manifest v4, frame-record v2 and calibration-profile v1. The confidence migration changes only the embedded frame contract; frame v1–v3 inputs are rejected.
 
 ## Stable Promises
 
@@ -49,7 +49,7 @@ Optional Replicator, room-acoustics, Isaac, Kit, GPU, and pack capabilities do n
 
 Removing or renaming stable public fields, changing their semantics, changing units/provenance/coordinates/ambiguity/sector meaning, or silently changing a serialized shape is breaking and requires a new schema or major compatibility decision.
 
-Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, Lab `microphone_relative_offsets_m`, `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, parallel sample-rate inputs, `max_events`, `AudioDetection`, source-conditioned detection assembly, and frame v1/v2. Consumers must migrate to entity-owned directivity, `EntityBindingCfg.microphones`, `AcousticEnvironmentSpec`, `AudioSceneSnapshot.environment`, `[environment]`, array-owned sample rates, `MicrophoneSignalBlock`, `AudioObservation`, output-only `max_observations`, and frame v3. No alias, fallback parser, or parallel runtime implementation is retained.
+Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequency-point records, Lab `microphone_relative_offsets_m`, `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, parallel sample-rate inputs, `max_events`, `AudioDetection`, source-conditioned detection assembly, and frame v1/v2. Consumers must migrate to entity-owned directivity, `EntityBindingCfg.microphones`, `AcousticEnvironmentSpec`, `AudioSceneSnapshot.environment`, `[environment]`, array-owned sample rates, `MicrophoneSignalBlock`, `AudioObservation`, output-only `max_observations`, and the current observed frame contract. The subsequent nullable-confidence migration requires frame v4. No alias, fallback parser, or parallel runtime implementation is retained.
 
 Experimental or private names may change with clear release notes, but downstream project-specific surfaces are not preserved through permanent shims.
 

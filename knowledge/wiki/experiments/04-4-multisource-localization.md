@@ -241,6 +241,64 @@ On 2026-09-09 the user chose to close this iteration for now and retain the curr
 
 At that point, the pause lifted the earlier project-priority hold on 07.2 while preserving its bounded reference and validation requirements. It did not qualify Video 03: the separate production subsequently documented in [[topics/onr-video-production|ONR Video Production]] owns its scene-specific feasibility and media outcome. No 07.2 implementation, media, scene or ONR production was part of this investigation closeout.
 
-### Current project disposition — reopened before 07.2
+### Project disposition at reopening — before 07.2
 
 Later on 2026-09-09, following the occlusion/GUI audit, the user requested that joint count and direction over time be addressed before 07.2 for the SDK's long-term practical usefulness. This supersedes the pause as a sequencing decision; candidate failures and the bounded reference results remain unchanged. [[implementation_phases/04-observed-direction-estimation#Pre-07.2 Follow-up — Joint Count and Direction over Time|Phase 04]] owns the renewed outcome, without prescribing a library or treating display smoothing as perception. [[status|Current Status]] also records the separate confidence and live occlusion corrections. No further acoustic experiment or new qualification has been executed by this documentation update.
+
+## Pre-07.2 Acoustic Front-End Evaluation
+
+**Outcome on 2026-09-09: NO-GO for replacing the maintained localizer; the temporal objective remains open and 07.2 is blocked.** This follow-up executes the previously proposed acoustic-front-end comparison. It delivers confidence/occlusion corrections separately, but finds no frontend that supports ordinary indoor joint count/direction reliably across the maintained layouts. This rejects the tested implementations, not the feasibility of robot audition or OnlineWPE in general. The next scope decision belongs to the user; there is no automatic narrowing to whichever array or signal happened to improve.
+
+### Domain and method
+
+The requested domain remains triangle, square, raised and tetrahedral arrays at 16 kHz, 0–2 separable speech/non-speech events, nominal RT60 0.2–0.3 s, 20 dB global-mixture SNR, up to 6 dB emission imbalance and at least 70° separation. Motion references remain 1 m/s source speed, 0.25 m/s receiver translation and 0.7 rad/s rotation. Two events are a qualification domain, not an estimator count cap. Initial admission references are 90% complete sets within 20°, 95% precision/recall, at most 1% noise false events, approximately 500 ms p95 reaction including computation/backlog, and a three-point static non-inferiority margin. None alone is a sufficient certificate.
+
+Development reuses the consumed natural-speech combined-motion inputs above and 36 stationary controls. Twenty-four direct broadband controls add three single-source directions, all-channel occlusion, partial-channel occlusion and occlusion of only one source in a pair, with obstacle removal. The production renderer generates clear/blocked PCM with identical noise; the evaluator selects receive windows at 1–3 s with 20 dB path loss. Direct scoring now uses attenuated received paths, including when private `direct_premix` precedes attenuation. Clear/recovered PCM equality, unchanged noise and received-power scaling are regression-tested. These controls isolate the existing window-local direct-loss model; they do not model continuously moving edges or diffraction.
+
+Candidates consume received PCM through the existing streaming interface. Source count, positions, identities and separate contributions remain evaluator-only. Persistent [NARA OnlineWPE](https://github.com/fgnt/nara_wpe/blob/master/nara_wpe/wpe.py) uses six taps, delay two, forgetting factor 0.98, a 256-sample STFT and 64-sample hop, causal overlap-add and initially 400 ms spatial context. It advances through inactivity. A chunking check produces identical history for 50 and 100 ms ingestion: 16,000 input samples yield 15,808 processed samples, with 192 samples buffered (12 ms). Reset/new-stream parity passes. This is sample-handling evidence, not physical dereverberation qualification.
+
+The separate spatial candidate normalizes cross-channel covariance by measured channel powers and weights frequency bins by observed coherence, retaining observed-energy admission. A local time-frequency ablation uses three-frame coherence/energy support. Both use the existing group-sparse fit; coefficients remain diagnostic strengths, confidence remains unavailable. OnlineWPE and normalization are combined only after separate trials show complementary isolated gains. Shorter/longer spatial histories, a lower rejection threshold, and normalization after the maintained batch WPE isolate history and dereverberation confounding. No angular smoothing, rejected DP-RTF/ODAS rerun, learned model, source-truth input, scene-selected mode or new product dependency is introduced.
+
+### Joint moving-speech results
+
+All rows below use identical received episodes and exclude the common first 750 ms. Each geometry has only one consumed episode, with 26–30 fully resolvable updates; these correlated updates do not estimate population reliability. A correct set has the exact count and every one-to-one direction within 20°.
+
+| Geometry | Maintained | OnlineWPE, 400 ms | Normalized, 400 ms | Combined |
+| --- | ---: | ---: | ---: | ---: |
+| Triangle | 23.1% | 19.2% | 34.6% | 42.3% |
+| Square | 33.3% | 60.0% | 6.7% | 6.7% |
+| Raised | 13.8% | 17.2% | 6.9% | 10.3% |
+| Tetrahedral | 37.9% | 10.3% | 20.7% | 31.0% |
+
+The square OnlineWPE improvement still has only 63.3% exact count, 87.9% precision and 89.5% recall. Normalization raises square precision to 90.5% but recall falls to 33.3%: cleaner individual bearings conceal missing events. In the raised case the combined candidate has 81.5% precision, 45.8% recall, 83.6° angular p95 and a continuous 1.5 s incorrect-set sequence. No post-warm-up localization abstention in these four representative methods excuses those errors: output is available but often wrong or incomplete. Per-update reports retain unresolved received activity separately from resolved directional targets.
+
+Matched-history OnlineWPE at 750 ms reaches only 10.3–26.9% across geometries. Normalization after maintained batch WPE reaches 0–24.1% at 750 ms and 6.7–30.8% at 400 ms. Local time-frequency weighting also fails. Lower rejection can recover square recall but produces many extras elsewhere; the sensitive normalized triangle trial has 48 extras and 0% complete sets. Even selecting the best development variant separately for each geometry would reach no more than 63.3%, and such scene/geometry-specific promotion is not adopted. Changing the received-energy audibility reference by ±3 dB leaves rejection unchanged.
+
+### Preservation and occlusion counterexamples
+
+The representative methods are compared on the same 36 consumed stationary episodes. Natural-speech pair success for maintained/online/normalized/combined is 6.9/6.9/13.8/17.2% for triangle, 81.2/78.1/15.6/31.2% for square, 20.0/6.7/3.3/10.0% for raised and 70.0/16.7/46.7/43.3% for tetrahedral. These streamwise controls are not the historical stable-source confirmation protocol and do not retroactively relabel its 24 qualified groups.
+
+The disjoint-band stationary pair is an especially clear preservation failure:
+
+| Geometry | Maintained | OnlineWPE | Normalized | Combined |
+| --- | ---: | ---: | ---: | ---: |
+| Triangle | 100% | 0% | 9.1% | 0% |
+| Square | 100% | 0% | 100% | 0% |
+| Raised | 100% | 9.1% | 6.1% | 21.2% |
+| Tetrahedral | 100% | 63.6% | 75.8% | 93.9% |
+
+Across the three stationary noise controls per geometry, the maintained, normalized and combined methods produce no extras; OnlineWPE produces 12 triangle and four tetrahedral extras. These finite controls do not establish a population false-event rate or a statistical non-inferiority bound.
+
+Conversely, normalized evidence directly helps unequal-channel controls. With two attenuated microphones, maintained versus normalized complete-set success is 42.4% versus 100% for square, 30.3% versus 97.0% for raised, and 27.3% versus 97.0% for tetrahedral; triangle is 100% for both. The clear frontal tetrahedral control changes from 0% to 100%. This supports the channel-amplitude hypothesis in these direct cases, but cannot justify integrating a method that loses ordinary indoor pairs. The band-limited control also differs from the earlier live white-noise frontal audit; success on one signal is not a contradiction or a general single-source qualification.
+
+All-channel attenuation and removal remain perceptually imperfect despite correct received levels: representative complete-set results range from 42.4% to 78.8% across those episodes. Blocking only source zero in a pair preserves the other source's rendered contribution, but joint success remains 72.7–90.9%. Correct physics and level recovery therefore do not imply correct event recovery.
+
+### Timing, unexecuted qualification and disposition
+
+Reports retain exact count, matched precision/recall, complete sets, angular errors, unavailability, incorrect-set durations, localization interruptions, received transitions, missed responses, computation and accumulated backlog. In the moving screen, OnlineWPE computation p95 is approximately 14–64 ms per 100 ms update; this excludes rendering and is not reaction time. Natural speech produces missed received transitions, and no independent end-to-end p95 reaction qualification is claimed. Stationary and control timing runs overlapped, so their measurements do not establish realtime throughput. Rejection rests on joint quality and preservation failures, not the 500 ms reference alone.
+
+`local/pre72/PROTOCOL.md` separates development from two conditional fresh confirmation blocks with independent speakers, utterances, signal seeds and trajectories, 12 episodes per content/layout/block and paired episode uncertainty analysis. No confirmation assets were selected or consumed after the nominal screen failed. Intermediate/harder conditions, three sources, brief impulses, higher reverberation, full acoustic shadow and a new physical-data comparison were not expanded in this iteration. Sparse development episodes cannot establish confidence intervals for the requested domain. No independently qualified temporal operating domain is delivered.
+
+Ignored evidence and reproducible development scripts remain in `local/pre72/`: `summary.json`, the three `frontend-screen-*.json` reports, `stationary.json`, `controls.json`, `causal-check.txt`, `frontends.py`, `screen.py`, `stationary.py` and `summarize.py`. Reusable direct/occlusion scenarios are maintained in `tools/validation/joint_motion.py` and `motion_localization.py`; rejected frontends stay outside the product. Existing protected evidence and `knowledge/raw/` are unchanged.
+
+The maintained localizer and propagation source remain unchanged from `ba65cf3`. The separately completed confidence and native occlusion changes are owned by [[topics/public-contracts-and-recording|the observed contract]] and [[implementation_phases/r8-analytic-acoustics-backend|R8]]. Their host/runtime/package checks do not close this perceptual gate. Continue only after the user decides the next research scope or explicitly revises the domain; do not begin 07.2 on the basis of this result. Full GUI consolidation remains 07.3, advanced geometry remains 08 and realism distributions remain 09.

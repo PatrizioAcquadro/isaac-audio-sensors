@@ -33,6 +33,7 @@ from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     MicrophoneArraySpec,
     MicrophoneSpec,
+    SourceOcclusion,
 )
 
 FS = 16000
@@ -157,6 +158,8 @@ def render(
     snr_db=20.0,
     received_evidence=False,
     natural_speech=False,
+    per_mic_loss_db=None,
+    noise_rms=None,
 ):
     """Return received PCM and scoring truth, never pass truth to estimators."""
     rng = np.random.default_rng(seed)
@@ -175,6 +178,8 @@ def render(
         ),
     )
     az = float(rng.uniform(-12, 12))
+    if scenario in ("control_front", "control_20", "control_45"):
+        az = {"control_front": -20, "control_20": 0, "control_45": 25}[scenario]
     base = [
         center + 1.5 * direction(20 + az, 15 if three_d else 0),
         center + 1.5 * direction(90 + az, -25 if three_d else 0),
@@ -182,7 +187,19 @@ def render(
     count = (
         int(scenario[-1])
         if scenario.startswith("stationary")
-        else (1 if scenario in ("pass", "translate", "rotate") else 2)
+        else (
+            1
+            if scenario
+            in (
+                "pass",
+                "translate",
+                "rotate",
+                "control_front",
+                "control_20",
+                "control_45",
+            )
+            else 2
+        )
     )
     motion_kind = scenario.removeprefix("separated_")
     if scenario.startswith("separated_"):
@@ -277,6 +294,24 @@ def render(
         sources=tuple(sources),
         environment=environment,
     )
+    if per_mic_loss_db is not None:
+        losses = np.asarray(per_mic_loss_db, dtype=float)
+        if losses.shape != (count, len(positions)):
+            raise ValueError("Occlusion must specify every source/microphone path")
+        scene = replace(
+            scene,
+            occlusion=tuple(
+                SourceOcclusion(
+                    array_id=array.array_id,
+                    source_id=source.source_id,
+                    per_mic_blocked={str(m): bool(db > 0) for m, db in enumerate(row)},
+                    per_mic_attenuation_db={
+                        str(m): float(db) for m, db in enumerate(row)
+                    },
+                )
+                for source, row in zip(sources, losses, strict=True)
+            ),
+        )
     backend = AnalyticAcoustics(max_order=10 if rt60 else 0)
     truth = []
     start = 0.0
@@ -363,11 +398,14 @@ def render(
         all_directions.append(current_directions)
     values = block.samples.astype(float)
     noise_scale = np.sqrt(np.mean(values**2)) * 10 ** (-snr_db / 20) if count else 0.003
+    if noise_rms is not None:
+        noise_scale = float(noise_rms)
     values += rng.normal(0, noise_scale, values.shape)
     if received_evidence:
         steps = round(duration * 10)
         direct = rendered.direct_premix
-        if direct is None:
+        # direct_premix can precede occlusion; score the attenuated received path.
+        if direct is None or per_mic_loss_db is not None:
             direct_backend = AnalyticAcoustics(max_order=0)
             direct_backend.window_motion = backend.window_motion
             _, direct_rendered, _ = direct_backend._render_signal(

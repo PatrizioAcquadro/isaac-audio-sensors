@@ -236,6 +236,55 @@ def transitions(rows):
     return result
 
 
+def render_occlusion(
+    root,
+    layout,
+    content,
+    scenario,
+    rt60,
+    imbalance,
+    seed,
+    assets,
+    *,
+    duration=4.0,
+    snr_db=20.0,
+):
+    """Window-local direct loss with fixed noise, through the production renderer.
+
+    Both complete renders share emission samples, poses and noise. Select clear,
+    blocked, then clear receive windows; no crossfade or extra propagation delay.
+    This evaluates the current window-local attenuation model, not moving edges
+    or geometric indirect paths. Source contributions remain scoring-only.
+    """
+    base = "stationary2" if scenario == "occlusion_pair" else "control_20"
+    args = (root, layout, content, base, rt60, imbalance, seed, assets)
+    clear = render(
+        *args,
+        duration=duration,
+        snr_db=snr_db,
+        received_evidence=True,
+        natural_speech=True,
+    )
+    losses = np.zeros((clear["received_power"].shape[1], len(LAYOUTS[layout])))
+    losses[0, : 2 if scenario == "occlusion_partial" else losses.shape[1]] = 20
+    blocked = render(
+        *args,
+        duration=duration,
+        snr_db=snr_db,
+        received_evidence=True,
+        natural_speech=True,
+        per_mic_loss_db=losses,
+        noise_rms=np.sqrt(clear["noise_power"][0]),
+    )
+    mixed = {k: v.copy() for k, v in clear.items()}
+    start, end = 10, 30
+    sample_slice = slice(start * 1600, end * 1600)
+    mixed["samples"][:, sample_slice] = blocked["samples"][:, sample_slice]
+    for name in ("received_power", "direct_power"):
+        mixed[name][start:end] = blocked[name][start:end]
+    return mixed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -267,6 +316,12 @@ def main():
             "crossing",
             "transitions",
             "level_change",
+            "control_front",
+            "control_20",
+            "control_45",
+            "occlusion_one",
+            "occlusion_partial",
+            "occlusion_pair",
             "replacement",
         ],
         default=["separated_mixed", "separated_combined"],
@@ -344,7 +399,17 @@ def main():
                             with np.load(cache, allow_pickle=False) as archive:
                                 data = dict(archive)
                         else:
-                            data = render(
+                            renderer = (
+                                render_occlusion
+                                if scenario.startswith("occlusion_")
+                                else render
+                            )
+                            render_options = (
+                                {}
+                                if scenario.startswith("occlusion_")
+                                else {"received_evidence": True, "natural_speech": True}
+                            )
+                            data = renderer(
                                 Path(temp).resolve(),
                                 layout,
                                 content,
@@ -355,8 +420,7 @@ def main():
                                 assets,
                                 duration=6.0 if scenario == "transitions" else 4.0,
                                 snr_db=args.snr_db,
-                                received_evidence=True,
-                                natural_speech=True,
+                                **render_options,
                             )
                             np.savez_compressed(cache, **data)
                         for value in data.values():

@@ -58,7 +58,7 @@ Export an analytic trace and the public frame schema:
 
 ```bash
 isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --energy-threshold-dbfs -60 --out build/validation/isaac_audio_sensors/analytic_trace.json
-isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v3.schema.json
+isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v4.schema.json
 ```
 
 Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. `simulate` requires `--energy-threshold-dbfs` and resolves the registered Auditok detector at runtime. The value does not belong to TOML, and `-60` is specific to the maintained generated-signal example rather than a universal default. Auditok's initial 100 ms minimum activity means a first 50 ms block may legitimately have no observation. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still runs detection and renders the complete soundscape and aggregate RMS while suppressing final observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.

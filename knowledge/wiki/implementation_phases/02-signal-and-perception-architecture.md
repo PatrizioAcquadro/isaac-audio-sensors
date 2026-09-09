@@ -73,9 +73,9 @@ The public `AudioObservation` contains only:
 
 Scene source identity, source pose, oracle geometry, asset references, occlusion truth, and per-source measurements have left the observation contract. No classifier or tracker fields are reserved. `None` DOA means localization was not run; an unresolved `DoaEstimate` means it ran without a unique valid direction.
 
-**Planned pre-07.2 correction — confidence availability.** The current multisource localizer declares event confidence unavailable, but its observation carries the default zero; GUI and Lab consequently present that zero as available. Make unavailable confidence distinguishable from a measured zero throughout observations, recording/replay, GUI and Lab. Preserve estimator-specific meaning rather than interpreting solver weights as probabilities. Availability must belong to the observed contract, without giving policy consumers privileged diagnostics. This correction is pending; current fields and serialized behavior have not changed.
+**Completed pre-07.2 correction — confidence availability.** Frame v4 carries estimator-local `bearing_confidence: float | None = None`. Unavailable confidence remains null through recording/replay, appears as `N/A` in the GUI, and has a false Lab confidence mask; a measured zero retains a true mask. Direction availability remains independent. Solver weights are not confidence probabilities. See [[topics/public-contracts-and-recording|the current contract]] for strict version rejection and consumer semantics.
 
-`AudioSensorFrame` now uses `ias.audio_sensor_frame.v3`: `producer_id`, `channel_validity`, `max_observations`, and `observations` replace the backend/detection surface while timing, array pose, aggregate RMS, provenance, diagnostics, and recorder-managed waveform references remain. Readers reject frame v2, and the checked schema and v3 JSON/NDJSON fixtures regenerate byte-identically. Dataset-manifest v1 and calibration-profile v1 remain unchanged while dataset records embed frame v3.
+At the 02.2 boundary, `AudioSensorFrame` introduced `ias.audio_sensor_frame.v3`: `producer_id`, `channel_validity`, `max_observations`, and `observations` replace the backend/detection surface while timing, array pose, aggregate RMS, provenance, diagnostics, and recorder-managed waveform references remain. Readers reject frame v2, and the checked schema and v3 JSON/NDJSON fixtures regenerate byte-identically. Dataset-manifest v1 and calibration-profile v1 remain unchanged while dataset records embed frame v3.
 
 External observations must already be typed with `origin=external_system`. IDs are checked for uniqueness before the cap; the signal-derived observation precedes external observations deterministically; and `max_observations` truncates only that final order without comparing scores from different producers.
 
@@ -139,7 +139,7 @@ Subphase 02.1 produced the public `MicrophoneSignalBlock`, scene-to-signal propa
 - `src/isaac_audio_sensors/core/types/_frame.py`
 - `src/isaac_audio_sensors/core/perception.py`
 - `src/isaac_audio_sensors/core/simulation.py`
-- `src/isaac_audio_sensors/schemas/audio_sensor_frame.v3.schema.json`
+- `src/isaac_audio_sensors/schemas/audio_sensor_frame.v4.schema.json`
 
 Current cross-cutting contract ownership is described by [[topics/public-contracts-and-recording|Public Contracts and Recording]].
 

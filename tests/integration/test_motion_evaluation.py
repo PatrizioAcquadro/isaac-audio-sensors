@@ -85,3 +85,38 @@ def test_received_transitions_keep_unresolved_and_require_two_correct_updates():
     assert result[0]["response_ms"] is None
     assert result[1]["response_ms"] == pytest.approx(210.0)
     assert result[2]["response_ms"] is None
+
+
+def test_occlusion_reference_keeps_noise_and_restores_received_samples(
+    tmp_path, monkeypatch
+):
+    from tools.validation.joint_motion import render_occlusion
+    from tools.validation.motion_localization import render
+
+    monkeypatch.chdir(tmp_path)
+    common = (tmp_path, "square", "broadband")
+    clear = render(
+        *common,
+        "control_20",
+        0,
+        0,
+        73,
+        [],
+        duration=4,
+        received_evidence=True,
+        natural_speech=True,
+    )
+    occluded = render_occlusion(*common, "occlusion_one", 0, 0, 73, [])
+    np.testing.assert_array_equal(
+        occluded["samples"][:, :16000], clear["samples"][:, :16000]
+    )
+    np.testing.assert_array_equal(
+        occluded["samples"][:, 48000:], clear["samples"][:, 48000:]
+    )
+    np.testing.assert_array_equal(occluded["noise_power"], clear["noise_power"])
+    np.testing.assert_allclose(
+        occluded["received_power"][10:30],
+        clear["received_power"][10:30] * 0.01,
+        rtol=1e-5,
+    )
+    np.testing.assert_allclose(occluded["received_power"], occluded["direct_power"])
