@@ -1320,3 +1320,12 @@ Recorded full-video approval and the requested presentation revision: a close co
 ## 2026-09-09 — lint: ONR Video 3 presentation revision
 
 Documentation boundary tests pass (5); canonical links/index and whitespace checked. Production code and media remain ignored and local.
+
+
+## 2026-09-09 — update: ONR Video 3 RMS follows detection
+
+Corrected the interpretation of the user's RMS request: display the existing per-microphone meter whenever “Sound detected” is active. The shared SDK meters, causal smoothing and -90 to 0 dBFS scale are retained. Visibility agrees with detection in all 690 frames (615 visible). Both complete encodes and recorded-audio parity pass; the approved camera edit is reused.
+
+## 2026-09-09 — lint: ONR RMS visibility clarification
+
+Five documentation boundary checks pass; canonical topic/status/index and whitespace verified. Previous videos and public SDK interfaces remain unchanged.

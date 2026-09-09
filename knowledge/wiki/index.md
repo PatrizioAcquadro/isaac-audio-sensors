@@ -32,7 +32,7 @@
 
 ## Topics
 
-- [[topics/onr-video-production|ONR Video Production]] — local generator, approved videos 1 and 2, and the verified outdoor Video 3 with silent opening, robot-centered following and Doppler.
+- [[topics/onr-video-production|ONR Video Production]] — local generator, approved videos 1 and 2, and the verified outdoor Video 3 with silent opening, robot-centered following, detection-linked RMS and Doppler.
 
 - [[topics/getting-started|Getting Started]] — installation, CLI, examples, Isaac runtime launch, and contribution workflow.
 - [[topics/system-architecture|System Architecture]] — package layers, data flow, lazy dependencies, and downstream ownership.
