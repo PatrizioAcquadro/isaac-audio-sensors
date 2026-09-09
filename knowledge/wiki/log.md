@@ -1303,3 +1303,11 @@ Recorded user acceptance of the continuous-engine audition and the requested qui
 ## 2026-09-09 — lint: Video 3 gate evidence
 
 All five documentation-boundary checks pass, including canonical index coverage and internal wikilinks. Whitespace checks pass; reported values match the saved 23-second gate reports.
+
+## 2026-09-09 — update: Complete ONR Video 3 after excerpt review
+
+Recorded the accepted outdoor scene/vehicle and implemented the requested silent opening and initial observed turn. The 23-second run passes renewed GPU/audio gates and final 1440p/1080p media checks, including native replay parity, causal instruments, complete decoding and browser playback. Documented scene-specific sensitivity, source preparation, asset credits and remaining scope limits. The complete revised edit has not yet been separately viewed by the user.
+
+## 2026-09-09 — lint: Final Video 3 documentation
+
+All five documentation-boundary checks, internal wikilinks, index coverage and whitespace checks pass. Final claims were reconciled against the saved GPU, audio, onset, road and complete-media reports; raw material and prior deliveries remain unchanged.
