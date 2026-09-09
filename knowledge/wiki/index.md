@@ -32,7 +32,7 @@
 
 ## Topics
 
-- [[topics/onr-video-production|ONR Video Production]] — maintained local generator, original nine-video catalog, approved final videos 1 and 2, evidence and limits; sequential third-person/robot-camera comparison for video 2.
+- [[topics/onr-video-production|ONR Video Production]] — local generator, approved videos 1 and 2, and the bounded 23-second Video 3 GPU/audio gate, with outdoor asset and excerpt review outstanding.
 
 - [[topics/getting-started|Getting Started]] — installation, CLI, examples, Isaac runtime launch, and contribution workflow.
 - [[topics/system-architecture|System Architecture]] — package layers, data flow, lazy dependencies, and downstream ownership.

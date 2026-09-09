@@ -70,6 +70,28 @@ Following the user's correction, the images fill the full frame with no dark upp
 
 Both 1440p and 1080p encodes fully decode to 960 frames at 30 fps, with matching 32-second audio/video durations. Source-frame comparisons confirm the perspective order and synchronization. Both complete contact sheets and fullscreen arrival images were inspected; 1080p browser playback reached the end with audio enabled and no media error. The AAC signal-to-codec-error ratio is 47.33 dB, its peak is 0.739, and all 480 causal instrument states match across the two perspectives.
 
+## Video 3 — Outdoor Vehicle Gate
+
+The selected concept is one diesel service vehicle passing an outdoor logistics yard, with the approved full-body Alex V2, WSG32/UMI, nominal ReSpeaker geometry and head-camera mount. It demonstrates received audio and following estimated direction, not persistent identity or recognition. Visual geometry will not imply unmodeled reflections or occlusions.
+
+The September 9 gate uses the actual CUDA/PhysX articulation and current continuous direct-path backend, without the Video 2 adapter. Acoustics and the maintained 48 kHz single-event DOA run on CPU, with a constant -70 dBFS activity threshold and no added ambient interference. Source truth only scores directions and camera membership; it never commands the robot.
+
+The initial 12-second pass passed the numerical and articulation criteria. On listening, the user found the opening too loud and identified a change of engine near 8.5 s in the original recording. The revised source retains only 0.50–7.94 s of qubodup's CC0 [Truck Engine Idle Loops](https://freesound.org/people/qubodup/sounds/187564/) public high-quality preview, repeated with an 80 ms phase-matched crossfade. No pitch adjustment or source-level normalization is applied. The user accepted the continuous engine and clearer crescendo in the 28-second audition, requesting a slightly quieter opening and a 20–23-second duration if vehicle speed remained credible.
+
+The resulting pass lasts 23 s at 8 m/s (28.8 km/h), with 12 m lateral clearance and closest approach at 12.5 s. The source starts about 101 m away and ends about 85 m away. The front-microphone level rises by 17.86 dB from the opening to closest approach, using one constant presentation gain. The revised timing has passed numerical and articulation checks; the user has not separately listened to this exact 23-second export.
+
+The original ±36 m spatial gate now occupies 8–17 s. Phase times are scaled by speed, preserving the tested approach/pass/recede geometry. Distant opening/closing intervals intentionally allow unavailable directions below the activity threshold. Full-run direction availability is 44.8%, rather than a claim of detection at all distances.
+
+| Scored phase | Resolved windows | 95th-percentile current-world bearing error |
+| --- | --- | --- |
+| Approach, 8.75–11.75 s | 100% | 4.40° |
+| Pass, 11.75–13.25 s | 100% | 4.04° |
+| Recede, 13.25–17 s | 100% | 2.18° |
+
+The revised gate passes on RTX 4090: camera membership is 100% over 9.5–17 s, no directions are missing in the scored 8–17 s interval, the base remains fixed, and both yaw joints move within the approved bounds. All 460 microphone windows reload sample-identically through `SessionDataset`. Received audio contains no exact zero samples after the initial physical arrival. Matched-emission level error is 0.091 dB at the 95th percentile; measured frequency ratios are 1.02140 at 9.5 s and 0.97975 at 15.5 s, agreeing with retarded geometry. These bounded single-source results do not qualify fast indoor multisource perception.
+
+The scripts are in `local/onr/video3/`; the current source, native recording, poses, `gate.json`, `audio_gate.json` and listening sample are in `local/onr/data/video3_gate_v3/`. The earlier auditions remain in `video3_gate/` and `video3_gate_v2/`. Asset inspection is underway. No outdoor environment/vehicle asset has been accepted and no editorial video has been produced. A central-pass excerpt must be reviewed before completing production.
+
 ## Per-Video Checklist
 
 Numbers below follow the user's revised order. Old numbers identify the existing package only.
@@ -78,7 +100,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | --- | --- | --- | --- | --- |
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
 | 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Fullscreen sequential delivery verified; 2.85 s illustrative advantage |
-| 3 | Moving source | 4 | Following during emission; clearer instruments; discuss Doppler scope | Discuss individually |
+| 3 | Moving source | 4 | Outdoor vehicle; direction following, native instruments and Doppler | 23 s GPU/audio gates pass; assets and excerpt under review |
 | 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Discuss individually |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
 | 6 | Materials and acoustic spaces | 6 | Clarify what changes and make the acoustic result understandable | Deferred; design open |

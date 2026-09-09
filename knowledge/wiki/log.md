@@ -1291,3 +1291,15 @@ Recorded the user-directed closeout of the current iteration without claiming th
 ## 2026-09-09 — lint: Paused research and next-work boundaries
 
 All five documentation boundary, link and index checks pass; whitespace checks pass. Changes are documentation only, with no runtime or production artifacts modified.
+
+## 2026-09-09 — update: Video 3 articulation and audio feasibility
+
+Recorded the single-source outdoor-vehicle numerical/GPU gate and the user-directed audio revision: retain one engine, extend physical approach/recede, preserve speed and closest distance. The revised 28 s run passes the scored central interval, recording parity and received-audio physics checks. Distant unavailability and pending subjective listening review remain explicit; no outdoor production scene, editorial rendering or video is delivered.
+
+## 2026-09-09 — update: Shorten the accepted Video 3 engine pass
+
+Recorded user acceptance of the continuous-engine audition and the requested quieter opening/shorter timing. The 23-second, 8 m/s rerun passes the GPU and numerical audio gates, including 460 sample-identical replayed windows; outdoor asset inspection and excerpt review remain pending.
+
+## 2026-09-09 — lint: Video 3 gate evidence
+
+All five documentation-boundary checks pass, including canonical index coverage and internal wikilinks. Whitespace checks pass; reported values match the saved 23-second gate reports.
