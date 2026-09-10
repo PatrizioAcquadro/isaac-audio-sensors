@@ -345,8 +345,11 @@ with a 3.36 dB level change, and callback capture stays bounded at seven
 segments per source/microphone/frame key.
 
 Impulse probes confirm that Steam direct and pathing output omit geometric PCM
-arrival time, while reflection IRs already contain provider-native timing. A
-private continuous windowed-sinc scheduler therefore applies geometric delay
+arrival time. The reflection control verified byte preservation, not correct
+absolute arrival or physical reflected TDOA. The later
+[[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|08.2 native gate]]
+withdraws the stronger reflection-timing interpretation without rewriting these
+historical results. A private continuous windowed-sinc scheduler applies geometric delay
 once to direct and pathing only. Maximum direct/pathing arrival errors are
 0.475/0.370 samples, split-block and continuous static execution are identical,
 moving delay targets introduce no excess boundary step, and reflection samples
@@ -376,7 +379,8 @@ maintained.
 - Baked pathing may enter R10 only with the qualified independent-receiver,
   non-spatialized omnidirectional signal mapping and deterministic probe model.
 - IAS schedules direct and pathing arrival time once because Steam omits it from
-  PCM; provider-timed reflection IRs bypass this delay.
+  PCM. Reflection PCM bypassed that bridge in R9.4; this is not an absolute
+  reflected-arrival qualification, as the later 08.2 gate establishes.
 - Path diagnostics remain bounded optional evidence outside frames and ordinary
   datasets.
 

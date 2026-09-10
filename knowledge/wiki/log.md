@@ -1453,3 +1453,19 @@ Document the revised Kit sections, effective/mixed coefficients, selective valid
 ## 2026-09-10 — lint: Preparation follow-up wiki
 
 All wiki page links resolve, all pages remain indexed, referenced implementation paths exist, and whitespace checks pass. Keep R10 canonical and Plan 08 as the sequence reference.
+
+## 2026-09-10 — update: 08.2 native reflection gate NO-GO
+
+Record the attempted complete native-to-Lab candidate, bounded actual-GPU results,
+unresolved indoor scalar/CUDA count discrepancy and five repeated native reflected
+TDOA failures. Correct the former R9.4 absolute-reflection-timing interpretation
+using the qualified provider source and native-only waveform controls. Preserve
+candidate/evidence locally, remove the unqualified active backend, and require
+provider-native reflected microphone requalification before resuming 08.2.
+
+## 2026-09-10 — lint: 08.2 gate closeout
+
+Wiki links/index coverage and whitespace checks pass. The unqualified candidate
+is absent from active source; isolated replay preserves the native NO-GO exactly.
+The restored baseline passes all host checks and the actual RTX 4090 two-environment
+Lab smoke. No 08.2 completion, pathing integration or general indoor claim is made.

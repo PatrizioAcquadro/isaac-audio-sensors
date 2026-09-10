@@ -2,6 +2,25 @@
 
 Updated: 2026-09-10. Package version: `3.0.0`.
 
+## Subphase 08.2 / R10.2 — Initial gate blocked
+
+The attempted native direct/reflection → microphone PCM → CUDA Lab chain reached
+real RTX 4090 execution, but **08.2 is not completed**. Five repeated native
+single-reflector controls produce zero pairwise reflected lags where the
+physical microphone geometry requires differences up to 6.6754 samples at
+16 kHz. The qualified Steam build reconstructs reflection PCM from 10 ms energy
+bins and subtracts direct-path delay; the former wiki assumption of already
+correct absolute reflection timing was unsupported by the R9.4 preservation test.
+
+The unqualified backend and consumer changes were removed from active source.
+The candidate patch and evidence remain in `local/r10/08_2_gate/`. Native direct
+checks and a two-environment free-field Lab comparison pass; the indoor Lab
+count comparison is inconsistent across runs and remains unqualified. No full
+scaling comparison, GPU prototype, pathing integration or 08.3 work was completed.
+Analytic remains the operational backend; 08.1 scene preparation is unchanged.
+[[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2]]
+owns the measurements, limits and required reflected-signal requalification.
+
 ## Subphase 08.1 / R10.1 — Completed scene preparation
 
 Automatic composed-USD import, source-band materials, selective geometry/pose
@@ -55,8 +74,9 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 ## Current Priorities
 
 **08.1 and its preparation-editor follow-up are complete (2026-09-10).**
-08.2 starts with the R10.2 minimal complete-path and scaling decision gate,
-compared with the actual 07.2 free-field/CUDA-perception baseline. A targeted
+08.2 is blocked by its initial native reflection timing/coherence gate.
+Resolve that provider/rendering boundary before resuming the complete-path and
+07.2 comparison. A targeted
 Linux/NVIDIA GPU prototype depends on measured bottlenecks and end-to-end gain;
 CUDA delivery and analytic-backend retirement are not presumed. Operational
 diagnostics remain in 08.3. Automatic room recognition, deformables, subdivision,
@@ -380,7 +400,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) and [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remain planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
+Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) is blocked at its initial native reflection gate; [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

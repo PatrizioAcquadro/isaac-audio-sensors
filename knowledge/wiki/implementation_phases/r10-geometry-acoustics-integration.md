@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 and R10.3 remain planned.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 is blocked at its initial native reflection timing/coherence gate (2026-09-10); R10.3 remains planned.
 R9.4 risk retirement is complete and constrains the supported R10 scope.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -212,9 +212,12 @@ Prefer provider-native arrival-time rendering when a qualified stable Steam API
 supplies it. Steam `4.8.1` direct and pathing effects do not apply physical
 arrival time to PCM, so the private Steam adapter owns the qualified continuous
 fractional-delay scheduler on one shared source timeline. Apply it once to
-direct and pathing; reflection IRs retain their provider-native timing and
-bypass it. Remove this bridge when a requalified provider release owns
-equivalent PCM timing.
+direct and pathing. The earlier assumption that reflection IRs already supplied
+correct absolute microphone timing is withdrawn by the initial gate below.
+R9.4 verified unchanged reflection PCM, not absolute reflected arrival or
+inter-microphone timing. No additional delay, gain compensation or local
+reflection solver is admitted as a substitute for requalification. Remove the
+bridge when a requalified provider release owns equivalent PCM timing.
 
 The provider owns geometry-path occlusion and transmission exactly once. Isaac
 therefore does not run the legacy `SourceOcclusion` raycast-and-attenuation path
@@ -234,7 +237,64 @@ filterable by source, array, microphone, frame, and path type, and must not add
 path fields to the stable frame schema or ordinary datasets. Do not reconstruct
 provider paths locally.
 
-#### Early complete-path and scaling decision gate (planned)
+#### Initial complete-path gate — NO-GO (2026-09-10)
+
+A candidate extended the existing scene binding with persistent native direct
+and reflection effects, the R9.4 continuous delay bridge, `MicrophoneSignalBlock`,
+scalar sensing and isolated Lab producers feeding the unchanged CUDA perception.
+Four focused native tests passed direct/free-field amplitude and phase comparison,
+static split-block equality, short-distance gain, lifecycle rejection and
+functional reflected output behind a blocker. These were candidate checks;
+no new production backend was retained.
+
+The actual RTX 4090 planar free-field run used the 07.2 workload settings:
+16 kHz, 60 Hz acquisition, 10 Hz observations, 750 ms context, two independent
+active file sources, and 30 measured updates after warm-up. Two environments
+measured 78.17/81.39 ms mean/p95 and preserved scalar counts (2/2) and directions
+on identical received PCM. The restored Analytic baseline, rerun on the same
+host with the same two-environment workload, measured 40.04/40.90 ms
+and passed its scalar/CUDA and partial-reset checks. Sixteen indoor environments with native reflections
+measured 438.92/457.91 ms, but preserved counts in only 14/16 cases, below 97%.
+A later capture passed 16/16 at 440.16 ms mean. Both indoor runs produced many
+extra events; reliable indoor parity and perceptual utility are not established.
+The first failed run has no saved PCM, so its scalar/CUDA discrepancy remains
+unresolved. These are audio-only timings with a two-environment matched
+free-field comparison, not a completed scaling comparison or training run.
+
+**The decisive failure is native reflected microphone timing.** Five repetitions
+used a single planar reflector, zero absorption/scattering, 65536 rays, one
+bounce, four physical microphones and a delayed impulse at 16 kHz. With the R9
+default distance model, all six cross-correlation lags were zero; the physical
+single-plane image-source reference requires differences up to 6.6754 samples
+(0.4172 ms). This exceeds the one-sample coherence tolerance used for the
+microphone timing check. Capturing each native reflection output independently
+reproduced the result obtained by subtracting direct-only PCM from the mixture.
+A separate inverse-distance input control also failed. No output compensation
+or extra reflection delay was applied.
+
+Inspection of the exact qualified provider explains why preserving its IR bytes
+is insufficient. `reflection_simulator.cpp` subtracts direct-path delay from
+reflected travel time; `energy_field.cpp` uses 10 ms energy bins; the linear
+`reconstructor.cpp` modulates deterministic noise with that energy envelope.
+The public simulator selects this reconstruction. These facts invalidate the
+former absolute-timing assumption and expose a limit of this independent
+receiver/reflection-IR mapping. A common delay cannot restore missing physical
+inter-microphone differences. This is not a universal impossibility result for
+other providers, builds or rendering methods.
+
+**Decision:** stop before pathing integration, larger scaling runs or a GPU
+prototype. Retain Analytic as the operational baseline. The source/consumer
+candidate was removed from the active package; its patch, native probe scripts,
+PCM, reports and logs are preserved under `local/r10/08_2_gate/`, outside normal
+build cleanup. R9 evidence and the 08.1 implementation remain unchanged.
+Reapplying the saved candidate patch to an isolated copy of `5d96078` reproduced
+all five native reports identically. The restored baseline passes `make check`
+(646 unit/contract, 336 integration, 58 release tests) and its RTX 4090 Lab smoke.
+The next required work is provider-native reflected-signal requalification for
+physical microphone arrays, including absolute arrival and all-pair TDOA; then
+repeat the complete-path gate before resuming the remaining R10.2 work.
+
+#### Early complete-path and scaling decision gate (resume after blocker)
 
 Start 08.2 with a minimal production slice: prepared USD scene, source PCM,
 qualified CPU/Embree propagation, physical microphone PCM, and the unchanged
@@ -357,7 +417,8 @@ geometry-provider surface. R10.1 now provides the USD preparation service,
 shared Kit panel and private native scene binding. Local evidence is under
 `build/validation/r10/scene/` (GPU scene/Undo/Redo/coordinate checks and panel
 capture) and `build/validation/r10/kit/` (complete extension regression). R10.2
-and R10.3 artifacts remain future work.
+and R10.3 deliverables remain future work. The failed 08.2 candidate and decisive
+reflection evidence are preserved under `local/r10/08_2_gate/`.
 
 ## Files
 

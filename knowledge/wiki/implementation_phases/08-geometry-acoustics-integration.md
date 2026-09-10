@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 and 08.3 remain planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 blocked at its initial native reflection timing/coherence gate (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -25,7 +25,7 @@ This reference adds no requirements beyond R10.1.
 #### Implementation
 
 After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]]. Begin with its
-[[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (planned)|early complete-path and scaling decision gate]]:
+[[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (resume after blocker)|early complete-path and scaling decision gate]]:
 compare against the 07.2 practical baseline, locate bottlenecks, investigate
 Linux/NVIDIA acceleration and prototype GPU work only when justified. Decide
 whether to retain both backends after matched functional/performance checks;
@@ -37,6 +37,8 @@ CUDA support and analytic retirement are not assumed outcomes.
 
 #### Problems / Limitations
 
+The initial candidate failed the native reflection timing/coherence gate.
+See [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2 gate evidence and resumption condition]]. No production Geometry backend was retained.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3
