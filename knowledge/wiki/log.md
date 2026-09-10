@@ -1405,3 +1405,11 @@ Record the 07.3 frame-based GUI, multievent compass, availability and lifecycle 
 ## 2026-09-10 — update: Retire temporal campaign executables
 
 Consolidate received-PCM parity in the Lab validator, preserve rejected-method outcomes and retire unshipped streaming injection and redundant local research material. Correct the documented Kit dependency inventory against its existing lock.
+
+## 2026-09-10 — update: Close Subphase 07.3
+
+Record passed host, optional audio, actual GPU/runtime, scalar/CUDA parity, real Kit visual checks and distribution audit. The Kit gate now closes its temporary import window and verifies listener isolation before clearing sensor output. Preserve temporal limitations and keep geometry/realism in later phases.
+
+## 2026-09-10 — lint: Verify 07.3 canonical documentation
+
+All internal wikilinks resolve and every canonical page remains indexed. Affected code references exist; retired executables are explicitly historical Git references. Immutable raw material and append-only log history are preserved.

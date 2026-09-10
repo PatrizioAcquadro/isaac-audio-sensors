@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is complete within the baseline scope agreed on 2026-09-10; 07.3 consumer migration is in progress; live validation and cleanup are pending. The 2026-09-09 admission retained the maintained reference and suspended temporal research. The 2026-09-10 closeout treats 4096 environments as exploratory, characterizes practical smaller batches and defers component changes. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is complete within the baseline scope agreed on 2026-09-10; 07.3 consumer/GUI consolidation and local-commit cleanup are complete on 2026-09-10. The 2026-09-09 admission retained the maintained reference and suspended temporal research. The 2026-09-10 closeout treats 4096 environments as exploratory, characterizes practical smaller batches and defers component changes. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
 
 ## Objective
 
@@ -140,7 +140,7 @@ The shared Kit GUI retains the complete observed frame instead of selecting one 
 
 Activity, localization availability, causal context, actual sample rate and capacity loss come from frame diagnostics. New GUI arrays default to 16 kHz; explicit configuration and existing arrays retain their rates. Frame freshness remains distinct from perceptual response. History records each frame once; reset, reconfiguration and capture failure invalidate current data. Configuration import restores settings without reviving exported observations.
 
-Host consumer and supported Isaac tests pass. Live GUI inspection and final distribution checks remain in progress.
+Host, optional-audio, supported Isaac tests, all three live runtime gates and distribution audits pass. Real Kit captures were visually inspected for simultaneous events, unresolved alternatives, warm-up, unavailable localization and zero-capacity truncation.
 
 07.3 retains scalar reference and CUDA paths for their distinct roles, removes the redundant entity-observation wrapper, and preserves all policy tensors and angle scaling (bearings `[0, 2)`, elevations `[-1, 1]`). The live Lab smoke defaults to 16 environments and accepts any supported CUDA GPU; larger batches remain explicit options. `tools/validation/lab_perception.py` owns received-PCM comparison without the retired temporal-candidate framework. The 24 local commits were audited across production, consumers, tests, packaging and wiki; propagation, occlusion, confidence, causal-clock and numerical-independence fixes remain. Geometry/path displays remain in 08.3 and optional realism controls in Phase 09.
 
@@ -151,9 +151,13 @@ Host consumer and supported Isaac tests pass. Live GUI inspection and final dist
 
 #### Problems / Limitations
 
-Keep privileged reward or curriculum data only in explicit task-owned channels.
+Privileged reward or curriculum data remain in explicit task-owned channels. GUI colors and event numbers are frame-local, with no tracking. Temporal reliability and moderate-indoor extension remain the documented 07.2/04.4 limitations; GUI correctness does not improve acoustic recall or response.
 
 ## Artifacts
+
+07.3 validation passes 644 unit/contract, 336 integration and 58 release tests, plus 141 supported Isaac tests. Final focused reruns pass 36 propagation/rotation and 14 Lab runtime tests. Optional audio and Isaac Sim/Lab/Kit live smokes pass on RTX 4090. The consolidated 36-input / 1,440-update received-PCM comparison retains 100% activity/count agreement on all four geometries; direction-difference p95 remains below 0.00018 degrees. This preserves the bounded reference, including its errors.
+
+Local reports are `build/validation/isaac_audio_sensors/lab_received_parity.json`, the existing three live-smoke reports and eight GUI frame/capture pairs under `observed_gui/`. Source distribution, wheel built from that sdist and bundled Kit ZIP pass the release audit. The cleanup removes roughly 913 MB of retired prototypes, redundant caches/reports and copied builds; 36 active regression inputs, decisive experiment summaries, occlusion evidence and maintained ONR resources remain. ONR compass callers are migrated; existing videos were not regenerated.
 
 07.1 delivers the observed-only tensor contract, scalar-reference projection, finite masked consumer, and updated contract/runtime tests. The live smoke records local evidence under `build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json`. 04.4 subsequently supplies the qualified bounded multisource perceiver and its own GPU smoke; the scalable implementation and current measurements are recorded under 07.2.
 
@@ -164,6 +168,8 @@ The historical 07.1 validation passed 614 unit/contract, 282 integration, 58 rel
 Main implementation: `src/isaac_audio_sensors/lab/` (reference, entity PCM, CUDA perception and observation projection) and the maintained Lab example. Lifecycle/configuration, Isaac tests, and the existing live Lab smoke consume the same contract. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for the public interface.
 
 ## Version Notes
+
+- 2026-09-10: Complete 07.3 observed GUI, consumer migration and local-commit cleanup; retire unused temporal injection/campaigns while retaining paired Lab validation and rejected-method findings.
 
 - 2026-09-10: Close 07.2 within the agreed baseline scope after small-batch measurements; correct CUDA angle/order projection. Preserve moderate-indoor objectives and defer component studies.
 
