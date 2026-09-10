@@ -28,7 +28,7 @@
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — Steam selection plus qualified pathing, timing, diagnostics, operating cost, and a rejected paired transmission proxy.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native scene preparation; 08.2 native reflection NO-GO and revised timing boundary precede signal integration and analytic transfer.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native scene preparation; 08.2 reflection NO-GO persists after delay correction, with a bounded alternative timing control before provider requalification.
 
 ## Topics
 

@@ -294,6 +294,59 @@ The next required work is provider-native reflected-signal requalification for
 physical microphone arrays, including absolute arrival and all-pair TDOA; then
 repeat the complete-path gate before resuming the remaining R10.2 work.
 
+#### Reflection timing recheck — NO-GO after reference correction (2026-09-10)
+
+The follow-up explicitly restores the direct-path delay separately for every
+receiver, using only source/receiver distance and 343 m/s. It does not fit the
+output or use the reference reflection path to correct native PCM. Causal
+windowed-sinc and linear fractional-delay controls both fail the reflected TDOA
+criterion. Native direct and independent ideal-image controls pass, with maximum
+timing error below 0.124 samples. The earlier missing time reference was real,
+but correcting it is insufficient to qualify the reflected signal.
+
+Sixteen native cases completed: five original-geometry repetitions at each of
+Ambisonics orders 0 and 3, then array rotation, mirrored source and 48 kHz controls
+at both orders. Higher-order simulation renders only the omnidirectional W
+component at each independent physical receiver through the public channel-subset
+API. Its PCM is identical to order zero in all tested geometries.
+
+| Case | Corrected native maximum TDOA error | Pyroomacoustics control error |
+| --- | ---: | ---: |
+| Original, 16 kHz | 6.6754 samples | 0.1203 samples |
+| Array rotated 45 degrees, 16 kHz | 7.5758 samples | 0.1220 samples |
+| Mirrored source, 16 kHz | 6.6754 samples | 0.1203 samples |
+| Original, 48 kHz | 20.0262 samples | 0.0389 samples |
+
+All native cases fail the one-sample TDOA tolerance. In the original fixture,
+microphones 1 and 3 have the same 93.3691-sample direct delay but require reflected
+arrivals at 205.2817 and 211.9571 samples. Applying their equal direct delays
+cannot recover the missing reflected difference. Corrected native onsets at
+0.1% of peak are 571/417/578/574 samples after emission; threshold sensitivity and
+peak locations are retained in the reports. Native reflection timing is not
+qualified by changing the time origin, interpolation or sample rate.
+
+An attempted full 16-channel convolution effect also crashed in this build.
+GDB locates an aligned SIMD load on an unaligned accumulator in
+`array_math.cpp:260`. Full multichannel rendering remains unqualified; the
+completed W-only tests do not encounter this separate defect. No SDK was patched.
+The native rendering alternatives and replacement-provider decision belong to
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Provider selection reopened after the R10.2 reflection gate|R9's reopened selection]].
+
+The alternative control uses already-installed Pyroomacoustics 0.10.1 with its
+generic polyhedral `Room`, first-order image sources and five fully absorbing
+closure walls around the single reflector. It removes only the documented
+40-sample fractional-filter group delay. All four cases pass reflected TDOA;
+maximum peak-arrival error is 0.463 samples. This is a bounded reflection result,
+not qualification of arbitrary USD, transmission, dynamic doors, NLOS, streaming,
+Lab integration or performance. No replacement backend was registered.
+
+Evidence, PCM, shared measurement code, crash backtrace and a fresh-baseline
+reproduction runner are preserved in `local/r10/08_2_timing_recheck/`. These are
+CPU/Embree acoustic tests using Isaac's Python runtime, not an Isaac simulation
+or GPU throughput gate. Original R9 and initial 08.2 artifacts remain unchanged.
+The decision remains **NO-GO for the attempted Steam reflection mapping** and
+**GO only for bounded replacement-provider qualification**. Full 08.2 stays open.
+
 #### Early complete-path and scaling decision gate (resume after blocker)
 
 Start 08.2 with a minimal production slice: prepared USD scene, source PCM,

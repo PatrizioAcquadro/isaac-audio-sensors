@@ -1469,3 +1469,20 @@ Wiki links/index coverage and whitespace checks pass. The unqualified candidate
 is absent from active source; isolated replay preserves the native NO-GO exactly.
 The restored baseline passes all host checks and the actual RTX 4090 two-environment
 Lab smoke. No 08.2 completion, pathing integration or general indoor claim is made.
+
+## 2026-09-10 — update: Reflection time-reference requalification and provider reopening
+
+Record the executed per-receiver direct-delay correction, independent timing
+controls, higher-order omnidirectional rendering, rotated/source-position and
+48 kHz cases. All 16 native reflected TDOA cases fail; fresh baseline replay
+reproduces the reports. Localize the separate full-channel SIMD crash without
+altering the SDK. Record four passing generic-Room Pyroomacoustics reflection
+controls and the focused provider comparison. Reopen selection subject to the
+whole R9/R10 domain; retain Analytic and 08.1 with no production modification.
+
+## 2026-09-10 — lint: Reflection requalification closeout
+
+All five documentation-boundary tests and whitespace checks pass. Native/alternative
+probe scripts, PCM, reports, reproduction runner and crash evidence remain local
+and ignored. No raw material or historical R9/initial 08.2 evidence was changed;
+no new Lab/GPU qualification or completed 08.2 is claimed.

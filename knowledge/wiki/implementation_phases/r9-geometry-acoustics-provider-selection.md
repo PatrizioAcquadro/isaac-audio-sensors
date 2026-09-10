@@ -5,6 +5,10 @@ Status: R9.1 and R9.1.1 completed on 2026-09-01; R9.1.2 completed on
 after Plan 02.1 and before Plan 02.2 without reopening the provider decision or
 rewriting history.
 
+Follow-up on 2026-09-10: provider selection is reopened for R10.2 physical-array
+reflections after native timing requalification failed. Historical R9 artifacts
+remain unchanged; their passing scope does not establish this missing capability.
+
 The R9.2 through R9.4 execution order is referenced by
 [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
 That plan adds no technical requirements: this page is the sole authority for
@@ -397,6 +401,60 @@ general diffraction accuracy, mass-parallel scaling, physical material
 calibration, or sim-to-real validity. R10 must implement one production binding
 and validate it directly against the qualified version, signal, timing,
 assembly, pathing, and performance boundaries.
+
+## Provider selection reopened after the R10.2 reflection gate
+
+[[implementation_phases/r10-geometry-acoustics-integration#Reflection timing recheck — NO-GO after reference correction (2026-09-10)|R10.2's executed recheck]]
+rules out a delay-only repair of the selected independent-receiver reflection
+mapping. Restoring each direct-path delay, increasing simulation order and
+increasing sample rate do not recover physical reflected TDOA. R10 owns those
+measurements; this section owns the resulting provider decision.
+
+The supported Steam alternatives do not establish a replacement signal path:
+
+- Native order-3 simulation with W-only rendering was exercised and retains
+  the failed omnidirectional PCM. Full-channel convolution separately crashes
+  in the qualified build; it is not a passing alternative.
+- The public Ambisonics decoder rotates and decodes for speakers or binaural
+  listening. Custom speaker inputs are unit directions, not displaced microphone
+  coordinates. The qualified source's panning effect is a samplewise matrix.
+  It does not supply physical array translation. Adding such a renderer would
+  require a new acoustic model and qualification, not just selecting an API mode.
+  [Native decode API](https://valvesoftware.github.io/steam-audio/doc/capi/ambisonics-decode-effect.html)
+- Parametric reverb models decay rather than individual echoes; hybrid retains
+  the early convolution IR; TAN accelerates convolution. These modes were
+  inspected, not runtime-qualified as fixes. No documented mode here repairs
+  the failed early reflection timing.
+  [Reflection effect algorithms](https://valvesoftware.github.io/steam-audio/doc/capi/reflections-effect.html)
+
+The bounded replacement comparison is:
+
+| Candidate | Current evidence | Selection boundary |
+| --- | --- | --- |
+| Pyroomacoustics 0.10.1 | Installed generic polyhedral `Room` passes four equivalent first-reflection arrival/TDOA controls. Its ISM supports per-microphone RIRs. | First candidate for bounded reflection qualification; arbitrary USD, native transmission, dynamic openings/NLOS, streaming and throughput remain unqualified. No full-R10 selection. |
+| gpuRIR | Documented CUDA ISM supports many source/receiver pairs, using room dimensions and six wall coefficients. Not installed or executed in this follow-up. | Rectangular-room input does not cover the required general mesh/door domain. GPU speed is not evidence of that coverage. |
+| Habitat/SoundSpaces audio engine | Habitat documents mesh input, reflection, diffraction and transmission through RLR-Audio-Propagation. Not executed here. | The underlying engine repository is archived, distributes binaries/headers, and declares CC-BY-NC licensing; it does not satisfy the maintained open-source provider direction. |
+
+Primary references:
+[Pyroomacoustics room simulation](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.room.html),
+[Pyroomacoustics source](https://github.com/LCAV/pyroomacoustics),
+[gpuRIR API](https://github.com/DavidDiazGuerra/gpuRIR),
+[Habitat audio configuration](https://github.com/facebookresearch/habitat-sim/blob/main/docs/AUDIO.md),
+[RLR engine distribution and status](https://github.com/facebookresearch/rlr-audio-propagation),
+[RLR license](https://github.com/facebookresearch/rlr-audio-propagation/blob/main/LICENSE).
+This is a focused comparison, not an exhaustive survey or a legal compatibility opinion.
+
+**Decision:** retain Analytic and the qualified 08.1 preparation; do not promote
+Steam reflections or automatically replace Steam with Pyroomacoustics. First
+audit the latter against every required R9/R10 capability, especially transmission
+and changing openings, before writing a production adapter. Then qualify the
+remaining feasible domain with prepared polyhedral USD, material mapping,
+door/NLOS controls, coherent reflected signals and streaming resets. A missing
+mandatory capability prevents full-provider selection even if the simple
+reflection gate passes. Combining providers or narrowing the domain would be an
+explicit architecture change, not an assumed completion of the current plan.
+Only a qualified signal path may proceed to the common-perception/Lab and scaling
+gates. No new primary provider, custom solver or GPU implementation is selected.
 
 ## Artifacts
 

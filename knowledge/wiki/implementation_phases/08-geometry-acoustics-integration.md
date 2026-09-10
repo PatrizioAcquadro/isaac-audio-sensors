@@ -39,6 +39,9 @@ CUDA support and analytic retirement are not assumed outcomes.
 
 The initial candidate failed the native reflection timing/coherence gate.
 See [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2 gate evidence and resumption condition]]. No production Geometry backend was retained.
+The [[implementation_phases/r10-geometry-acoustics-integration#Reflection timing recheck — NO-GO after reference correction (2026-09-10)|timing recheck]]
+also fails after per-receiver delay correction; provider requalification precedes
+any resumption of this sequence.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3

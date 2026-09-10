@@ -21,6 +21,14 @@ Analytic remains the operational backend; 08.1 scene preparation is unchanged.
 [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2]]
 owns the measurements, limits and required reflected-signal requalification.
 
+The follow-up restores each receiver's direct delay and still fails all 16
+native reflection cases, including higher-order simulation and a 48 kHz control.
+Pyroomacoustics passes the four equivalent single-reflector timing controls;
+this is not full-domain qualification or an installed Geometry backend.
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Provider selection reopened after the R10.2 reflection gate|Provider selection is reopened]],
+with Pyroomacoustics first for bounded qualification. No delay-only production
+fix, SDK patch, mixed-engine integration or new GPU performance claim follows.
+
 ## Subphase 08.1 / R10.1 — Completed scene preparation
 
 Automatic composed-USD import, source-band materials, selective geometry/pose
