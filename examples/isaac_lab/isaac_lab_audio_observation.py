@@ -93,7 +93,7 @@ def audio_observation(
 
 
 def policy_inputs(data: Any) -> dict[str, Any]:
-    """Scale angles to [-1, 1], masking absent values without batch statistics.
+    """Scale bearings to [0, 2), elevations to [-1, 1], masking absent values.
 
     Scores retain their producer semantics. Boolean masks and integer counts
     are unmodified; degree suffixes are replaced by ``_scaled`` after scaling.

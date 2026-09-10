@@ -162,7 +162,8 @@ class AudioArraySensor(SensorBase):
         assert self._audio_time is not None
         timestamps = self._audio_time.index_select(0, env_ids)
         if self._entity_binding is not None:
-            observations = self._entity_observations(env_ids, timestamps)
+            assert self._entity_backend is not None
+            observations = self._entity_backend.observations(env_ids)
         else:
             assert self._reference_backend is not None
             observations = self._reference_backend.observations(
@@ -173,13 +174,6 @@ class AudioArraySensor(SensorBase):
             )
         self._data.write(env_ids, observations)
         self._audio_last_update[env_ids] = timestamps
-
-    def _entity_observations(
-        self, env_ids: torch.Tensor, timestamps: torch.Tensor
-    ) -> AudioArraySensorData:
-        del timestamps
-        assert self._entity_backend is not None
-        return self._entity_backend.observations(env_ids)
 
     @property
     def processing_status(self) -> dict[str, object]:

@@ -111,7 +111,7 @@ Simulation and physical results are separate claims. Existing single-source phys
 
 The subsequent motion comparison rejects adaptive/dual-window replacements: isolated-source improvements do not preserve useful joint behavior on moving indoor pairs. The maintained localizer remains unchanged; the [[experiments/04-4-multisource-localization|motion closeout]] owns the new numerical evaluator, failures and next boundary.
 
-The subsequent joint-motion investigation adds an explicit optional streaming injection contract. New samples, including inactive blocks, advance an injected component exactly once; receiver orientation is supplied explicitly and is optional. The default 750 ms localizer is unchanged. See [[topics/public-contracts-and-recording|Public Contracts and Recording]] for state, uncertainty and motion-input semantics. An interface test or candidate experiment is not motion qualification.
+The subsequent joint-motion investigation tested optional streaming injection and receiver orientation without changing the default 750 ms localizer. Subphase 07.3 removes that unshipped interface because only rejected candidates consumed it. [[experiments/04-4-multisource-localization|The experiment record]] preserves outcomes and counterexamples; no motion qualification follows from the interface tests.
 
 NARA-WPE 0.0.11 is an optional `room` dependency; the Kit archive includes the used numerical path and Click with licenses. The maintained code is evaluated through its public mixture-only interface; retired candidate implementations remain historical evidence outside the package. No ensemble, known-count input, two-event ceiling or condition-specific selector is introduced.
 

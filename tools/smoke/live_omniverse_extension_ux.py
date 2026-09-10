@@ -49,6 +49,7 @@ from isaac_audio_sensors.kit.constants import (
 from isaac_audio_sensors.kit.instruments import (
     compass_view_model,
     meter_view_models,
+    perception_status_text,
     timeline_rows,
 )
 from isaac_audio_sensors.kit.state import CurrentStageContext
@@ -400,16 +401,12 @@ def main() -> int:
                 controller,
                 stage=stage,
                 flac_destination=flac_session_path,
-            ),
-        )
-        evidence["kit_audio_mix"] = _step(
-            evidence,
-            "kit_audio_mix_live_qa",
-            lambda: _collect_kit_audio_mix_evidence(
-                controller,
-                stage=stage,
                 source_wav_path=kit_audio_source_path,
             ),
+        )
+        evidence["kit_audio_mix"] = evidence["audio_output"].get(
+            "kit_audio_mix",
+            {"status": "failed", "reason": "audio output did not complete"},
         )
 
         _validate_live_extension_outputs(evidence=evidence)
@@ -938,6 +935,9 @@ def _run_object_attach_scenario(
                 ),
             ),
         )
+        evidence["observed_gui"] = _collect_observed_gui_evidence(
+            controller, Path(evidence["evidence_path"]).parent / "observed_gui"
+        )
         evidence["usd_debug"] = _step(
             evidence,
             "usd_debug_live_qa",
@@ -1056,7 +1056,10 @@ def _probe_import_update_after_config(
     )
     imported.build_ui_if_available()
     import_result = imported.import_config_summary(config_path)
-    roundtrip = _probe_config_roundtrip(imported, config_path)
+    try:
+        roundtrip = _probe_config_roundtrip(imported, config_path)
+    finally:
+        imported._lifecycle._ui_window.close()
     imported.state.replicator_enabled = False
     imported.state.trace_enabled = False
     imported.close_sensor()
@@ -2575,6 +2578,127 @@ def _collect_instruments_evidence(
     return record
 
 
+def _collect_observed_gui_evidence(
+    controller: ExtensionController, root: Path
+) -> dict[str, Any]:
+    """Exercise real waveform perception through the live Kit widgets."""
+    from dataclasses import replace
+
+    from multisource_reference import reference_scenes
+
+    from isaac_audio_sensors.core.backends.base import get_backend
+    from isaac_audio_sensors.core.io.traces import write_frame_trace
+    from isaac_audio_sensors.core.perception import _build_standard_perception_pipeline
+    from isaac_audio_sensors.core.simulation import simulate_frame
+    from isaac_audio_sensors.core.types import AudioTimeWindow
+
+    scenes = reference_scenes(root / "signals")
+    scene = scenes[2]
+    stereo = replace(
+        scenes[0],
+        arrays=(
+            replace(
+                scenes[0].arrays[0], microphones=scenes[0].arrays[0].microphones[:2]
+            ),
+        ),
+        sources=scenes[0].sources[:1],
+    )
+    frames = {}
+    for name, current_scene, capacity, enabled in (
+        ("simultaneous", scene, 8, True),
+        ("ambiguous", stereo, 8, True),
+        ("truncated", scene, 1, True),
+        ("zero_capacity", scene, 0, True),
+        ("disabled", scene, 8, False),
+        (
+            "unavailable",
+            replace(scene, arrays=(replace(scene.arrays[0], sample_rate_hz=48000),)),
+            8,
+            True,
+        ),
+    ):
+        backend = get_backend("analytic_acoustics")
+        pipeline = _build_standard_perception_pipeline(
+            energy_threshold_dbfs=-60, doa_enabled=enabled, max_observations=capacity
+        )
+        for index in range(20):
+            frame, _ = simulate_frame(
+                backend,
+                current_scene,
+                current_scene.arrays[0].array_id,
+                AudioTimeWindow(
+                    start_time_s=index * 0.05,
+                    end_time_s=(index + 1) * 0.05,
+                    frame_index=index,
+                ),
+                perception=pipeline,
+            )
+            if name == "simultaneous" and index == 0:
+                frames["warmup"] = frame
+        frames[name] = frame
+        if name == "simultaneous":
+            for index in range(20, 40):
+                frame, _ = simulate_frame(
+                    backend,
+                    replace(current_scene, sources=()),
+                    current_scene.arrays[0].array_id,
+                    AudioTimeWindow(
+                        start_time_s=index * 0.05,
+                        end_time_s=(index + 1) * 0.05,
+                        frame_index=index,
+                    ),
+                    perception=pipeline,
+                )
+            frames["inactive"] = frame
+    if len(frames["simultaneous"].observations) < 2:
+        raise RuntimeError("GUI waveform control did not produce simultaneous events.")
+    ambiguous = [o.doa for o in frames["ambiguous"].observations]
+    if not any(
+        d is not None and d.estimated_bearing_deg is None and d.candidate_bearing_deg
+        for d in ambiguous
+    ):
+        raise RuntimeError(
+            "GUI stereo control did not preserve unresolved alternatives."
+        )
+    window = _reference_ui_window(controller)
+    window._set_section_collapsed("Guided Workflow", True)
+    window._scrolling_frame.scroll_y = 0
+    saved = controller.state.latest_frame
+    saved_history = list(controller.state.observation_history)
+    records = {}
+    try:
+        for name, frame in frames.items():
+            controller.state.latest_frame = frame
+            window.refresh_labels()
+            _settle_kit_ui()
+            view = compass_view_model(tuple(o.doa for o in frame.observations))
+            write_frame_trace(frame, root / f"{name}.json")
+            image = _capture_app_screenshot(root / f"{name}.png")
+            records[name] = {
+                "events": len(frame.observations),
+                "needles": len(view.needles),
+                "details": view.summary,
+                "perception": perception_status_text(frame),
+                "screenshot": image,
+            }
+            if image.get("status") != "captured":
+                raise RuntimeError(f"GUI {name} capture failed: {image}")
+        assert "Truncated: 1" in records["truncated"]["perception"]
+        assert "Capacity: 0 | Truncated: 2" in records["zero_capacity"]["perception"]
+        assert "Localization: warm-up" in records["warmup"]["perception"]
+        assert "Activity: inactive" in records["inactive"]["perception"]
+        assert records["inactive"]["events"] == 0
+        return {
+            "status": "passed",
+            "scope": "scalar waveform frames to live Kit widgets",
+            "cases": records,
+        }
+    finally:
+        controller.state.latest_frame = saved
+        controller.state.observation_history[:] = saved_history
+        window.refresh_labels()
+
+
 def _collect_omnigraph_evidence(controller: ExtensionController) -> dict[str, Any]:
     """Record the OmniGraph node registration outcome honestly."""
 
@@ -2640,6 +2764,7 @@ def _collect_audio_output_evidence(
     *,
     stage: Any,
     flac_destination: Path,
+    source_wav_path: Path,
 ) -> dict[str, Any]:
     """Exercise analytic closed-room audio, panel preview, and FLAC replay."""
 
@@ -2731,6 +2856,9 @@ def _collect_audio_output_evidence(
             "audio_frame_count": len(replay_frames),
             "first_audio_shape": list(replay_frames[0].audio.shape),
         }
+        record["kit_audio_mix"] = _collect_kit_audio_mix_evidence(
+            controller, stage=stage, source_wav_path=source_wav_path
+        )
         record["status"] = "passed"
     except Exception as exc:  # noqa: BLE001 - evidence records the exact error.
         record["status"] = "failed"

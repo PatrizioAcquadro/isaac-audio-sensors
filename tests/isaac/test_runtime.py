@@ -95,7 +95,6 @@ def test_reference_backend_resolves_selected_array_from_each_snapshot() -> None:
         array_ids=("selected",),
     )
     assert reference.array_ids == ("selected",)
-    assert reference.num_mics == len(selected.microphones)
 
 
 def test_reference_backend_supports_standard_doa_opt_in() -> None:
@@ -434,7 +433,6 @@ def test_entity_binding_rejects_non_free_field_analytic_environment() -> None:
             effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         ),
         is_initialized=False,
-        _bound_num_mics=lambda: 4,
     )
 
     with pytest.raises(ValueError, match="explicit free_field"):

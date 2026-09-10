@@ -154,21 +154,9 @@ Post-warm-up transition controls require two consecutive correct event sets and 
 
 The propagation correction passes reception-time rotating microphone offsets, retarded source orientation, shortest-arc interpolation, block partition equivalence, acoustic tails and the near-sonic arrival equation. When future poses are absent, angular extrapolation remains an explicit approximation. Accepted host checks cover the unchanged DOA consumers; supported Isaac Sim/Lab/Kit checks run on RTX 4090. The CPU localizer and empty-entity CUDA lifecycle measurements remain different workloads.
 
-`tools/validation/motion_localization.py` is a numerical evaluator of the maintained public `EventLocalizer` contract. It supports stationary and moving conditions, independent episode seeds, optional `module:factory` candidates, and optional cached PCM/truth arrays. Candidate inputs are read-only and contain no evaluator truth. Generated source WAVs are temporary; cached `.npz` files are numerical test inputs, not media deliveries. Use a new cache directory after changing renderer/scenario definitions. Utterance partitions are disjoint within this comparison; they are not a new speaker-disjoint physical or population qualification.
+The historical numerical evaluator exercised stationary/moving conditions with paired, read-only mixtures and private scoring truth. Its retired source is recoverable from Git commit `7ff38dc`; 07.3 removes the campaign CLI and candidate loaders. Utterance partitions were disjoint within this comparison, not a new physical or population qualification.
 
-Example maintained-only run:
-
-```bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src \
-  .venv/bin/python tools/validation/motion_localization.py \
-  --suite moving --partition confirmation --episodes 1 \
-  --contents speech --scenarios separated_mixed separated_combined \
-  --rt60 0.3 --imbalance 6 --seed-base 1175000 \
-  --cache-dir build/validation/motion_final_indoor_inputs \
-  --output build/validation/isaac_audio_sensors/motion_maintained.json
-```
-
-Local closeout: `build/validation/isaac_audio_sensors/motion_closeout.json`. Supporting reports include `motion_final_decision.json`, `motion_stationary_refinement_control.json`, `motion_final_direct_confirmation.json`, `motion_transition_controls.json`, and `motion_stress_controls.json`. Earlier candidate reports retain their at-run column names; their `maintained` column can refer to a rejected candidate temporarily under evaluation, not the delivered SDK. Rejected prototypes remain outside the maintained package.
+Local closeout: `build/validation/isaac_audio_sensors/motion_closeout.json`. Supporting reports include `motion_final_decision.json`, `motion_stationary_refinement_control.json`, `motion_final_direct_confirmation.json`, `motion_transition_controls.json`, and `motion_stress_controls.json`. Earlier candidate reports retain their at-run column names; their `maintained` column can refer to a rejected candidate temporarily under evaluation, not the delivered SDK. Rejected prototypes were removed in 07.3; the decisive findings remain here.
 
 The next useful investigation must jointly estimate changing event count and direction from temporal acoustic evidence. The present results do not justify choosing a particular tracker or library, predicting missing directions, or advancing 07.2. Signal-level movement corrections are complete within their documented approximations; responsive indoor multisource perception is not complete.
 
@@ -178,7 +166,7 @@ The next useful investigation must jointly estimate changing event count and dir
 
 ### Evaluation boundary and interpretation
 
-`tools/validation/joint_motion.py` feeds consecutive 100 ms blocks through the common `AudioPerceptionPipeline`, including Auditok at −60 dBFS, warm-up, silence and tails. Streaming candidates consume each new block once; the maintained method retains its existing causal buffer and activity gate. A separate localizer-only option bypasses Auditok for diagnosis. Full pipeline compute and simulated processing backlog are measured; source rendering time is excluded. These CPU NumPy/SciPy and native-C workloads are separate from GPU consumer validation.
+The historical joint-motion evaluator fed consecutive 100 ms blocks through the common `AudioPerceptionPipeline`, including Auditok at −60 dBFS, warm-up, silence and tails. Streaming candidates consume each new block once; the maintained method retains its existing causal buffer and activity gate. A separate localizer-only option bypasses Auditok for diagnosis. Full pipeline compute and simulated processing backlog are measured; source rendering time is excluded. These CPU NumPy/SciPy and native-C workloads are separate from GPU consumer validation.
 
 The evaluator alone obtains total per-source received power from the same private render used to assemble public PCM. A matching order-zero room render supplies direct-path power; it does not replace or renormalize the mixture. The original numerical evaluator and its default speech construction remain available for historical comparisons. The original four-geometry moving-pair baseline reproduces exactly: triangle/square/raised/tetrahedral have 26/42/19/28 joint successes out of 66 updates each.
 
@@ -217,21 +205,11 @@ Joint azimuth/count success is 11.4% for the maintained algorithm, 12.7% for tem
 
 ### Delivered result and next step
 
-`StreamingEventLocalizer` and explicit optional receiver orientation are documented in [[topics/public-contracts-and-recording|Public Contracts and Recording]]. Standard selection remains unchanged. No calibrated confidence estimator or reliable moving-source count has been delivered. The requested robust listening capability remains open.
+The maintained selection was unchanged. Subphase 07.3 removes the unshipped streaming interface, explicit receiver-orientation injection, candidate loaders and campaign executables. Their source remains in Git commit `7ff38dc`; no calibrated confidence estimator or reliable moving-source count was delivered.
 
-Reusable baseline evaluation:
+Numerical reports remain under `evidence/qualification/multisource/reports/joint-motion-*.json`. The 36 stationary received-PCM controls used by the maintained scalar/CUDA comparison now live in `local/lab/received_stationary/`. Development prototypes, isolated research dependencies and superseded caches were removed. This retains the active regression role without maintaining the abandoned research harness.
 
-```bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src:. \
-  .venv/bin/python tools/validation/joint_motion.py \
-  --layouts square --contents speech --scenarios separated_combined \
-  --orientation --cache-dir build/validation/joint_motion_inputs \
-  --output build/validation/joint_motion_baseline.json
-```
-
-Ignored numerical evidence is retained under `evidence/qualification/multisource/reports/joint-motion-*.json`; development prototypes and isolated dependencies remain outside the maintained package in `build/validation/joint_motion/`. `joint-motion-closeout.json` groups post-warm-up and sensitivity summaries; per-update reports preserve misses, extras, availability and censored responses. No candidate-specific executable is added to the public package.
-
-Validation passes 641 unit/contract, 335 integration and 58 release tests, including received-reference/transition checks and streaming reset/inactive/recording tests. The optional-audio smoke and all three supported Isaac Sim/Lab/Kit smokes pass on RTX 4090. Forty-eight focused propagation/rotation/consumer regressions pass; propagation, motion and maintained localization source files have no diff from `0d44f0c`. GPU lifecycle/projection checks do not establish perceptual accuracy or CPU localizer throughput.
+Historical validation passed 641 unit/contract, 335 integration and 58 release tests, including received-reference/transition checks and streaming reset/inactive/recording tests. The optional-audio smoke and all three supported Isaac Sim/Lab/Kit smokes pass on RTX 4090. Forty-eight focused propagation/rotation/consumer regressions pass; propagation, motion and maintained localization source files have no diff from `0d44f0c`. GPU lifecycle/projection checks do not establish perceptual accuracy or CPU localizer throughput.
 
 The next experiment should target the acoustic front end on these exact weak-speech/combined-motion counterexamples: test whether causal multichannel dereverberation or time-frequency source discrimination improves current directional evidence and weak-source recall without increasing extras. Compare the resulting event sets before adding further track persistence. The present evidence does not justify another direction smoother or a library selection based only on responsiveness.
 
@@ -297,9 +275,9 @@ All-channel attenuation and removal remain perceptually imperfect despite correc
 
 Reports retain exact count, matched precision/recall, complete sets, angular errors, unavailability, incorrect-set durations, localization interruptions, received transitions, missed responses, computation and accumulated backlog. In the moving screen, OnlineWPE computation p95 is approximately 14–64 ms per 100 ms update; this excludes rendering and is not reaction time. Natural speech produces missed received transitions, and no independent end-to-end p95 reaction qualification is claimed. Stationary and control timing runs overlapped, so their measurements do not establish realtime throughput. Rejection rests on joint quality and preservation failures, not the 500 ms reference alone.
 
-`local/pre72/PROTOCOL.md` separates development from two conditional fresh confirmation blocks with independent speakers, utterances, signal seeds and trajectories, 12 episodes per content/layout/block and paired episode uncertainty analysis. No confirmation assets were selected or consumed after the nominal screen failed. Intermediate/harder conditions, three sources, brief impulses, higher reverberation, full acoustic shadow and a new physical-data comparison were not expanded in this iteration. Sparse development episodes cannot establish confidence intervals for the requested domain. No independently qualified temporal operating domain is delivered.
+The historical protocol separated development from two conditional fresh confirmation blocks with independent speakers, utterances, signal seeds and trajectories, 12 episodes per content/layout/block and paired episode uncertainty analysis. No confirmation assets were selected or consumed after the nominal screen failed. Intermediate/harder conditions, three sources, brief impulses, higher reverberation, full acoustic shadow and a new physical-data comparison were not expanded in this iteration. Sparse development episodes cannot establish confidence intervals for the requested domain. No independently qualified temporal operating domain is delivered.
 
-Ignored evidence and reproducible development scripts remain in `local/pre72/`: `summary.json`, the three `frontend-screen-*.json` reports, `stationary.json`, `controls.json`, `causal-check.txt`, `frontends.py`, `screen.py`, `stationary.py` and `summarize.py`. Reusable direct/occlusion scenarios are maintained in `tools/validation/joint_motion.py` and `motion_localization.py`; rejected frontends stay outside the product. Existing protected evidence and `knowledge/raw/` are unchanged.
+Subphase 07.3 retains `local/pre72/summary.json` and the live occlusion evidence directories; it removes the frontend prototypes, screening scripts, redundant per-update reports and generated control caches. The summary and findings above preserve the tested methods, decisive regressions and reasons for rejection. `knowledge/raw/` and protected qualification evidence remain unchanged.
 
 The maintained localizer and propagation source remain unchanged from `ba65cf3`. The separately completed confidence and native occlusion changes are owned by [[topics/public-contracts-and-recording|the observed contract]] and [[implementation_phases/r8-analytic-acoustics-backend|R8]]. Their host/runtime/package checks do not close this perceptual gate. The failed candidates do not authorize perceptual claims; the later user decision below separately governs 07.2 admission. Full GUI consolidation remains 07.3, advanced geometry remains 08 and realism distributions remain 09.
 
@@ -307,4 +285,10 @@ The maintained localizer and propagation source remain unchanged from `ba65cf3`.
 
 After reviewing these results, the user explicitly suspends this research iteration and authorizes: **07.2 is admitted on the current reference and within its verified domain; general temporal reliability remains unqualified.** The maintained localizer, numerical outcomes, counterexamples, unexecuted confirmation and limits are preserved. The candidates remain rejected; neither this decision nor subsequent scaling is evidence of perceptual improvement.
 
-The unresolved temporal problem no longer generally blocks repository progression. [[implementation_phases/07-isaac-lab-observation-integration|07.2]] must preserve available perception, including delays, uncertainty and missing/extra events, without source truth or artificially perfect observations. Keep optimization proportional and allow a later localizer improvement. Follow with 07.3 and its planned GUI, then 08–09 geometry/realism; these do not automatically repair perceptual failures. Qualification remains required for declared capabilities and [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]]. Reconsider temporal research against concrete robot behaviors requiring reliable dynamic multisource listening. This disposition updates documentation only; 07.2 implementation has not started.
+The unresolved temporal problem no longer generally blocks repository progression. [[implementation_phases/07-isaac-lab-observation-integration|07.2]] must preserve available perception, including delays, uncertainty and missing/extra events, without source truth or artificially perfect observations. Keep optimization proportional and allow a later localizer improvement. Follow with 07.3 and its planned GUI, then 08–09 geometry/realism; these do not automatically repair perceptual failures. Qualification remains required for declared capabilities and [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]]. Reconsider temporal research against concrete robot behaviors requiring reliable dynamic multisource listening. This was a documentation-only admission; the subsequent 07.2 implementation and 07.3 cleanup are recorded in Phase 07.
+
+## Subphase 07.3 — Maintained Regression Boundary
+
+The retained comparison is `tools/validation/lab_perception.py`, consuming the same 36 stationary archives from `local/lab/received_stationary/`. It runs the unchanged scalar pipeline and CUDA path on identical PCM, preserving one-to-one direction matching, observed activity, missing/extra events and unavailable/diffuse-tail distinctions. Truth is used only by scoring. Count agreement remains at least 97%, activity agreement 100%, and direction-difference p95 at most 5 degrees; these are integration-preservation gates, not new acoustic qualification.
+
+Rejected float32 WPE, short/online contexts, normalization, DP-RTF and ODAS remain documented failures, not selectable runtime modes. Existing propagation, rotating-arrival, occlusion and batch-independence regressions remain maintained because they protect delivered behavior. Future temporal research should begin with the counterexamples and measured limitations above rather than revive every previous executable.

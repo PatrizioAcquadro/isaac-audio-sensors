@@ -83,3 +83,9 @@ Downstream learners must keep statistical normalization and observation modifier
 `tools/validation/lab_perception.py` compares scalar and CUDA processing on supplied received-PCM archives, keeping private scoring truth outside perception. The maintained stationary comparison covers 36 recordings and 1,440 updates across triangle, square, raised and tetrahedral arrays, 0/1/2 events, speech/broadband/disjoint content, 20 dB SNR, nominal RT60 0.3 s and 6 dB imbalance. Activity and count agree on every update; direction-difference p95 is below 0.00018 degrees on the final float64 path. Misses/extras agree as well. This preserves the reference's known failures and is an integration comparison, not a fresh physical or general acoustic qualification. Exact measurements and scale limits belong to [[implementation_phases/07-isaac-lab-observation-integration|Subphase 07.2]].
 
 The historical 07.1 closeout passed 116 runtime tests and measured 0.212 ms/step over 4096 **empty** entity environments. That result is not an active-perception baseline or a throughput claim for 07.2.
+
+## Consumer and Validation Closeout
+
+Subphase 07.3 keeps the scalar reference and CUDA paths behind the existing sensor lifecycle, with unchanged finite tensors, masks, ordering and truncation. The example scales bearings by 180 to `[0, 2)` and elevations by 90 to `[-1, 1]`; it does not normalize across environments or change mask/count values. `processing_status` remains separate from policy data.
+
+The live smoke defaults to 16 active environments on a supported CUDA GPU; larger `--perf-envs` values remain explicit exploratory measurements. Paired received-PCM validation is consolidated in `tools/validation/lab_perception.py`, with 36 maintained stationary inputs under `local/lab/received_stationary/`. The retired temporal campaign loaders and streaming-candidate interface are not compatibility paths.

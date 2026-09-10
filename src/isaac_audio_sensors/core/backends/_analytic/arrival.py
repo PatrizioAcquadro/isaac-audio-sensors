@@ -225,18 +225,18 @@ class ArrivalStream:
         from dataclasses import replace
 
         signature = (scene.environment, array.sample_rate_hz, array.microphones)
-        restarted = (self.signature is not None and self.signature != signature) or (
-            self.last_start is not None and window.start_time_s < self.last_start - 1e-9
+        restarted = (
+            (self.signature is not None and self.signature != signature)
+            or (
+                self.last_start is not None
+                and window.start_time_s < self.last_start - 1e-9
+            )
+            or (
+                self.last_end is not None
+                and window.start_time_s > self.last_end + 0.5 / array.sample_rate_hz
+            )
         )
         if restarted:
-            self.trajectories.clear()
-            self.sources.clear()
-            self.rooms.clear()
-        if (
-            self.last_end is not None
-            and window.start_time_s > self.last_end + 0.5 / array.sample_rate_hz
-        ):
-            restarted = True
             self.trajectories.clear()
             self.sources.clear()
             self.rooms.clear()

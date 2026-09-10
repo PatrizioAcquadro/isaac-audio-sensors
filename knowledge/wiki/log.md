@@ -1401,3 +1401,7 @@ The angle/order correction passes 141 supported-runtime tests on the actual GPU;
 ## 2026-09-10 — update: Observed GUI migration
 
 Record the 07.3 frame-based GUI, multievent compass, availability and lifecycle semantics. Host checks pass; live validation and cleanup are pending.
+
+## 2026-09-10 — update: Retire temporal campaign executables
+
+Consolidate received-PCM parity in the Lab validator, preserve rejected-method outcomes and retire unshipped streaming injection and redundant local research material. Correct the documented Kit dependency inventory against its existing lock.

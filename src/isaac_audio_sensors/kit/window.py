@@ -401,6 +401,7 @@ class OmniReferenceWindow:
         self._set_label(
             "compass", "No current observations" if not view_model.event_rows else ""
         )
+        self._labels["compass"].visible = not bool(view_model.event_rows)
         if self._instruments.get("event_rows") != view_model.event_rows:
             container = self._instruments["events"]
             container.clear()

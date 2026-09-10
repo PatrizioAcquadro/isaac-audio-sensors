@@ -8,14 +8,201 @@ import time
 from pathlib import Path
 
 import numpy as np
-import torch
 
-from isaac_audio_sensors.lab._torch_perception import TorchPerception
-from tools.validation.joint_motion import assess, run_stream, summarize
-from tools.validation.motion_localization import LAYOUTS, direction, score
+from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
+from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+from isaac_audio_sensors.core.types import (
+    AudioTimeWindow,
+    MicrophoneArraySpec,
+    MicrophoneSignalBlock,
+    MicrophoneSpec,
+)
+
+FS = 16000
+LAYOUTS = ("triangle", "square", "raised", "tetra")
+
+
+def score(found, truth):
+    from scipy.optimize import linear_sum_assignment
+
+    errors = []
+    matches = []
+    if len(found) and len(truth):
+        cost = np.degrees(
+            np.arccos(np.clip(np.asarray(found) @ np.asarray(truth).T, -1, 1))
+        )
+        rows, cols = linear_sum_assignment(cost)
+        errors = cost[rows, cols].tolist()
+        matches = [int(c) for r, c in zip(rows, cols, strict=True) if cost[r, c] <= 20]
+    return dict(
+        exact=len(matches) == len(found) == len(truth),
+        count=len(found) == len(truth),
+        misses=len(truth) - len(matches),
+        extras=len(found) - len(matches),
+        errors=errors,
+        matched=matches,
+        expected=len(truth),
+        detected=len(found),
+        directions=np.asarray(found).reshape(-1, 3).tolist(),
+        truth=np.asarray(truth).reshape(-1, 3).tolist(),
+    )
+
+
+def direction(azimuth, elevation=0.0):
+    az, el = np.radians([azimuth, elevation])
+    return np.array([np.cos(az) * np.cos(el), np.sin(az) * np.cos(el), np.sin(el)])
+
+
+def received_reference(data, step, threshold_db=0.0):
+    """Audibility proxy, not a perceptual oracle: 100 ms received energy vs noise.
+
+    Presence includes reverberant tails. A source direction is scored only while
+    its direct component exceeds the noise floor; the remainder is unresolved
+    received activity. Sensitivity at +/-3 dB accompanies every result.
+    """
+    floor = max(float(data["noise_power"][step]), 1e-12) * 10 ** (threshold_db / 10)
+    present = data["received_power"][step] > floor
+    direct = present & (data["direct_power"][step] > floor)
+    return dict(
+        present=present, direct=direct, directions=data["directions"][step][direct]
+    )
+
+
+def assess(found, diagnostic, data, step, threshold_db=0.0):
+    reference = received_reference(data, step, threshold_db)
+    result = score(found, reference["directions"])
+    result["source_indices"] = np.flatnonzero(reference["direct"]).tolist()
+    result["matched_source_indices"] = [
+        result["source_indices"][i] for i in result["matched"]
+    ]
+    result["received_count"] = int(reference["present"].sum())
+    result["unresolved_received_count"] = int(
+        (reference["present"] & ~reference["direct"]).sum()
+    )
+    result["scheduled_count"] = int(data["scheduled_count"][step])
+    result["excess_over_received"] = max(0, len(found) - result["received_count"])
+    result["available"] = diagnostic.get("status") != "unavailable"
+    result["count_status"] = diagnostic.get("count_status", "unspecified")
+    result["fully_resolvable"] = result["unresolved_received_count"] == 0
+    if not result["available"] or result["count_status"] == "uncertain":
+        result["exact"] = result["count"] = False
+    # Directional count is not the number of audible contributors in diffuse tails.
+    if not result["fully_resolvable"]:
+        result["exact"] = result["count"] = None
+    return result
+
+
+def run_stream(data, *, threshold_dbfs=-60):
+    estimator = MaintainedEventLocalizer()
+    positions = np.array(data["positions"], dtype=float, copy=True)
+    positions.setflags(write=False)
+    array = MicrophoneArraySpec(
+        array_id="rig",
+        prim_path="/Array",
+        position_world=(0, 0, 0),
+        orientation_world_quat=(0, 0, 0, 1),
+        sample_rate_hz=FS,
+        microphones=tuple(
+            MicrophoneSpec(mic_id=str(i), relative_position_m=tuple(p))
+            for i, p in enumerate(positions)
+        ),
+    )
+    perception = AudioPerceptionPipeline(
+        activity_detector=AuditokActivityDetector(energy_threshold_dbfs=threshold_dbfs),
+        event_localizer=estimator,
+    )
+    rows = []
+    backlog = 0.0
+    for step, end in enumerate(range(1600, data["samples"].shape[1] + 1, 1600)):
+        samples = np.array(data["samples"][:, end - 1600 : end], dtype=np.float32)
+        samples.setflags(write=False)
+        block = MicrophoneSignalBlock(
+            samples=samples,
+            microphone_ids=tuple(str(i) for i in range(len(positions))),
+            microphone_positions_m=tuple(map(tuple, positions)),
+            array_id="rig",
+            sample_rate_hz=FS,
+            time_window=AudioTimeWindow(
+                start_time_s=step / 10, end_time_s=(step + 1) / 10, frame_index=step
+            ),
+            clock_domain="evaluation",
+            discontinuity=False,
+            channel_validity=(True,) * len(positions),
+            channel_clipping=(False,) * len(positions),
+            producer_id="received_pcm",
+            provenance="room_acoustics",
+        )
+        start = time.perf_counter()
+        frame = perception.process(block, array, frame_id=f"frame_{step}")
+        events = [o.doa for o in frame.observations if o.doa is not None]
+        diag = frame.diagnostics["perception"]["localization"]
+        activity = frame.diagnostics["perception"]["activity_detected"]
+        elapsed = time.perf_counter() - start
+        backlog = max(0.0, backlog - 0.1) + elapsed
+        found = np.array(
+            [
+                direction(e.estimated_bearing_deg, e.estimated_elevation_deg or 0)
+                for e in events
+                if e.estimated_bearing_deg is not None
+            ]
+        ).reshape(-1, 3)
+        if bool(data.get("azimuth_only", False)) and len(found):
+            found[:, 2] = 0
+            found /= np.maximum(np.linalg.norm(found, axis=1)[:, None], 1e-12)
+        result = assess(found, diag, data, step)
+        result.update(
+            time_s=(step + 1) / 10,
+            compute_ms=elapsed * 1000,
+            completion_delay_ms=backlog * 1000,
+            activity=activity,
+            diagnostic=diag,
+        )
+        rows.append(result)
+    return rows
+
+
+def summarize(rows):
+    resolved = [r for r in rows if r["exact"] is not None]
+    errors = [e for r in resolved for e in r["errors"]]
+    matches = sum(r["expected"] - r["misses"] for r in resolved)
+    detected = sum(r["detected"] for r in resolved)
+    expected = sum(r["expected"] for r in resolved)
+    longest_error = current_error = 0
+    fragments = 0
+    previous_matched = set()
+    for row in rows:
+        current_error = current_error + 1 if row["exact"] is False else 0
+        longest_error = max(longest_error, current_error)
+        current_matched = set(row.get("matched_source_indices", ()))
+        current_sources = set(row["source_indices"])
+        fragments += len((previous_matched & current_sources) - current_matched)
+        previous_matched = current_matched
+    return dict(
+        updates=len(rows),
+        longest_joint_error_s=longest_error * 0.1,
+        localization_interruptions=fragments,
+        resolvable_updates=len(resolved),
+        exact=float(np.mean([r["exact"] for r in resolved])) if resolved else None,
+        count=float(np.mean([r["count"] for r in resolved])) if resolved else None,
+        precision=matches / detected if detected else None,
+        recall=matches / expected if expected else None,
+        angular_p95=float(np.percentile(errors, 95)) if errors else None,
+        unavailable=sum(not r["available"] for r in rows),
+        excess_over_received=sum(r["excess_over_received"] for r in rows),
+        uncertain_count=sum(r["count_status"] == "uncertain" for r in rows),
+        extras=sum(r["extras"] for r in resolved),
+        misses=sum(r["misses"] for r in resolved),
+        compute_p95_ms=float(np.percentile([r["compute_ms"] for r in rows], 95)),
+        max_completion_delay_ms=max(r["completion_delay_ms"] for r in rows),
+    )
 
 
 def main():
+    import torch
+
+    from isaac_audio_sensors.lab._torch_perception import TorchPerception
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)

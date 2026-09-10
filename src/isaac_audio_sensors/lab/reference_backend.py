@@ -56,7 +56,6 @@ class ReferenceBackend:
             raise ValueError(
                 "All reference arrays must have the same microphone count."
             )
-        self.num_mics = mic_counts.pop()
         self._sample_rates = tuple(array.sample_rate_hz for array in selected_arrays)
         self.max_observations = max_observations
         self.max_doa_candidates = max_doa_candidates

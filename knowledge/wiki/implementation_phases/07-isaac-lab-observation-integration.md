@@ -140,7 +140,9 @@ The shared Kit GUI retains the complete observed frame instead of selecting one 
 
 Activity, localization availability, causal context, actual sample rate and capacity loss come from frame diagnostics. New GUI arrays default to 16 kHz; explicit configuration and existing arrays retain their rates. Frame freshness remains distinct from perceptual response. History records each frame once; reset, reconfiguration and capture failure invalidate current data. Configuration import restores settings without reviving exported observations.
 
-Host consumer tests pass. Live GUI inspection, Lab consolidation and the local-commit cleanup remain in progress. Geometry/path displays remain in 08.3 and optional realism controls in Phase 09.
+Host consumer and supported Isaac tests pass. Live GUI inspection and final distribution checks remain in progress.
+
+07.3 retains scalar reference and CUDA paths for their distinct roles, removes the redundant entity-observation wrapper, and preserves all policy tensors and angle scaling (bearings `[0, 2)`, elevations `[-1, 1]`). The live Lab smoke defaults to 16 environments and accepts any supported CUDA GPU; larger batches remain explicit options. `tools/validation/lab_perception.py` owns received-PCM comparison without the retired temporal-candidate framework. The 24 local commits were audited across production, consumers, tests, packaging and wiki; propagation, occlusion, confidence, causal-clock and numerical-independence fixes remain. Geometry/path displays remain in 08.3 and optional realism controls in Phase 09.
 
 #### Key Decisions
 

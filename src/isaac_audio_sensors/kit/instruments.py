@@ -138,9 +138,13 @@ def perception_status_text(frame: Any | None) -> str:
         reason == "insufficient_context" or context.get("complete") is False
     ):
         status = "warm-up"
-    method = localization.get("doa_estimator", "not reported")
+    selection = localization.get("selection", {})
+    method = localization.get(
+        "doa_estimator", selection.get("selected_estimator_id", "not reported")
+    )
     role = localization.get(
-        "localization_scope", localization.get("role", "not reported")
+        "localization_scope",
+        localization.get("role", selection.get("role", "not reported")),
     )
     lines = [
         f"Activity: {activity} | Localization: {status}"
