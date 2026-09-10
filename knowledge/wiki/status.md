@@ -9,15 +9,33 @@ updates and the shared Kit preparation panel are implemented. The optional
 private Steam Audio 4.8.1 binding creates and updates actual native assemblies;
 no Geometry Acoustics signal producer or backend is registered yet.
 
-The host gate passes 645 unit/contract, 336 integration and 58 release tests.
-The supported Isaac suite passes 159 tests, including 18 focused real-USD/native
-preparation cases. The RTX 4090 live scene gate checks shared panel edits,
-Undo/Redo, native coordinate parity, and PhysX motion when USD pose writes are
-disabled. The bounded native coordinate comparison is below 1e-5 m; the measured
-run is approximately 4.3e-8 m. The complete extension workflow/screenshot gate
-also passes. Runtime tests require the repository's existing audio dependencies
-on the Isaac interpreter's Python path; missing Auditok/NARA WPE caused the
-initial environment-only failures and were resolved without new installations.
+The preparation-editor follow-up adds seven documented scattering-only records
+in the same catalog (30 entries total), conservative construction-name inference,
+selection-populated roots, mixed/effective coefficient fields, selective atomic
+coefficient edits, per-family reset, and Undo/Redo for acoustic-proxy relationships.
+The Kit panel follows the Advanced Tools section/field conventions. Legacy
+nominal presets remain explicit options; generic names no longer infer their
+transmission curves. Ordinary material scattering remains nominal 0.05.
+
+The current host gate passes 646 unit/contract, 336 integration and 58 release
+tests. The supported Isaac suite passes 162 tests (21 focused USD/native cases).
+The RTX 4090 scene/editor gate and complete extension workflow/screenshot gate
+pass. The scene gate checks selection, mixed values, unchanged coefficient
+families, invalid-edit atomicity, roots, scattering, proxy Undo/Redo (also after changing roots), native
+coordinate parity, articulated robot/door PhysX movement without USD pose writes, reset and stage
+replacement. Evidence and inspected screenshots are under
+`build/validation/r10/editor_followup/`; earlier 08.1 evidence remains preserved.
+
+A controlled scene with 266 objects / 3192 triangles covers repeated references,
+visual/collision duplication, two room shells, robot links and sensor/source
+housing. Profiling found quadratic direct-microphone-child discovery. A direct
+child index plus unchanged-scene pose polling reduces idle preparation p95 from
+about 493 ms to 0.48 ms in live Kit. Initial import is about 302 ms; a local
+movement/material edit takes about 135/145 ms, without rebuilding unrelated
+geometry. This is a bounded preparation measurement, not a general 10 Hz
+large-scene guarantee, audio benchmark or training result. CPU/Embree owns native
+geometry; Isaac uses the actual GPU. Initial sandbox CUDA access failures were
+resolved by running the supported tests with host GPU access.
 
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] owns the exact
 supported shapes, authoring API, material assumptions and native binary boundary.
@@ -36,7 +54,13 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Current Priorities
 
-**08.1 is complete (2026-09-10).** Continue with 08.2 microphone-array propagation; the preparation panel is already delivered and operational diagnostics remain in 08.3.
+**08.1 and its preparation-editor follow-up are complete (2026-09-10).**
+08.2 starts with the R10.2 minimal complete-path and scaling decision gate,
+compared with the actual 07.2 free-field/CUDA-perception baseline. A targeted
+Linux/NVIDIA GPU prototype depends on measured bottlenecks and end-to-end gain;
+CUDA delivery and analytic-backend retirement are not presumed. Operational
+diagnostics remain in 08.3. Automatic room recognition, deformables, subdivision,
+point instancers and thick/sequential-construction transmission remain deferred.
 
 **07.3 is complete (2026-09-10).** The observed GUI now shows simultaneous events and unresolved alternatives, with explicit activity, context, localization availability and truncation. New GUI arrays default to 16 kHz; current frames and bounded history have separate lifecycle semantics. The local-commit cleanup removes abandoned streaming experiments and redundant campaign surfaces while preserving the scalar/CUDA roles and decisive negative results. Host, actual GPU/runtime, visual Kit and distribution gates pass; see [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]] for evidence and limits.
 

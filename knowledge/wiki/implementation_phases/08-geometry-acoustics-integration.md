@@ -24,7 +24,12 @@ This reference adds no requirements beyond R10.1.
 
 #### Implementation
 
-After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]].
+After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]]. Begin with its
+[[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (planned)|early complete-path and scaling decision gate]]:
+compare against the 07.2 practical baseline, locate bottlenecks, investigate
+Linux/NVIDIA acceleration and prototype GPU work only when justified. Decide
+whether to retain both backends after matched functional/performance checks;
+CUDA support and analytic retirement are not assumed outcomes.
 
 #### Key Decisions
 

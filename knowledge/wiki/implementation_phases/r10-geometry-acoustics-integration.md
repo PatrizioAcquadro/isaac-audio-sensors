@@ -115,6 +115,19 @@ Kit Undo/Redo restores only the touched properties. Reimport preserves authored
 corrections. Native scene verification is optional; backend operation and
 propagation diagnostics remain R10.3 responsibilities.
 
+The follow-up editor uses collapsible sections consistent with Advanced Tools,
+selection-populated roots, separate inclusion/motion/source columns and focused
+filters. Component selection resolves descendant and per-face materials; fields
+show common effective values or Mixed, with independent frequency grids.
+Applying coefficients validates all pending inputs first and writes only edited
+families. Per-family reset, full automatic-material restoration, documented
+scattering assignment, editable persisted defaults and selection-based acoustic
+proxy relationships share the same USD service and Kit Undo/Redo. Unchanged
+refreshes at the same time code poll dynamic poses and skip repeated traversal
+when those poses are unchanged. PhysX movement without normal USD notices still
+triggers a full selective update. Shared discovery indexes direct children rather
+than rescanning the complete stage for every potential array.
+
 Preparation state distinguishes unprepared, prepared, preparation with issues,
 and native scene verification. These states do not establish microphone audio
 or perceptual qualification.
@@ -138,6 +151,12 @@ representations; unusual authoring requires explicit inclusion/exclusion or an
 acoustic-geometry relationship. Instance-proxy properties are edited at the
 instance root or source material, respecting USD composition rules.
 
+Automatic semantic room reconstruction, deformable/subdivision/point-instanced
+geometry and transmission through thick or sequential constructions remain
+deferred. Existing room volumes identify containment; their absence does not
+prevent importing physical room surfaces. Multi-construction transmission needs
+a separate provider/model investigation and requalification, not a UI workaround.
+
 Native qualification is restricted to the selected binary and tested scene
 family. Planar assembly preparation does not qualify predictable transmission
 through sequential constructions, physical material calibration, or general
@@ -159,6 +178,13 @@ and explicit proxies outside selection roots. Exported native vertices match
 USD vertices after transform updates. The live RTX 4090 gate verifies Kit
 editing, Undo/Redo, PhysX motion with USD transform writes disabled, native
 resource reuse and panel capture. The complete Kit extension regression passes.
+The follow-up adds selection/mixed-value and independent-family tests, proxy
+relationship persistence and live Undo/Redo. The 266-object preparation fixture
+checks native/static reuse, duplicated representations, robot/housing inclusion,
+removal, reset and stage replacement. Profiling removes quadratic child discovery;
+idle p95 is about 0.48 ms, initial import about 302 ms, and local movement/material
+updates about 135/145 ms in the measured Kit run. Those update costs remain a limit
+for larger/dynamic stages and must be included in the early R10.2 profiling gate.
 Host and supported-runtime gate totals are recorded in [[status|Current Status]].
 
 ## Subphase R10.2 — Passive Microphone-Array Propagation
@@ -208,6 +234,64 @@ filterable by source, array, microphone, frame, and path type, and must not add
 path fields to the stable frame schema or ordinary datasets. Do not reconstruct
 provider paths locally.
 
+#### Early complete-path and scaling decision gate (planned)
+
+Start 08.2 with a minimal production slice: prepared USD scene, source PCM,
+qualified CPU/Embree propagation, physical microphone PCM, and the unchanged
+observed-only perception/Lab projection. Verify this slice before expanding
+provider features or implementing GPU acceleration. 08.1 scene creation alone
+is not a propagation or training benchmark.
+
+Use [[implementation_phases/07-isaac-lab-observation-integration#Practical Baseline Closeout|07.2 practical measurements]]
+as the historical comparison, and rerun its maintained workload on the same
+host/runtime when comparing implementations. That baseline is an entity-bound
+free-field PCM producer plus CUDA perception, not a qualification of arbitrary
+rooms or all AnalyticAcoustics solver modes. It uses 16 kHz PCM, 60 Hz acquisition,
+10 Hz observations, a 750 ms past context, two independent active file sources,
+and planar four-microphone / raised five-microphone layouts. Preserve these
+settings and the scalar received-PCM reference, including misses and extra events.
+The historical 4096-copy run is exploratory, not a required performance target.
+
+Measure 2/16 environments first, then 32/64/128/256 as memory and time permit.
+Separate matched free-field behavior from representative indoor geometry:
+compare waveform/timing correctness on equivalent physical cases, and compare
+perception against the scalar reference on each provider's actual received PCM.
+Do not require reverberant PCM to equal free-field PCM or rank providers after
+silently dropping reflections, sources, channels or observation work.
+
+Report uninstrumented steady-state mean/p95 wall time, simulated/wall ratio,
+aggregate environment updates per wall second, host memory, peak GPU memory,
+CPU use, warm-up and partial-reset cost. Profile USD discovery/update, native
+scene commit, acoustic simulation/refresh, PCM rendering/delays, CPU/GPU copies
+and synchronization, context, detector, WPE, localization and projection
+separately; nested timings must not be summed twice. Distinguish audio-only
+runs from runs sharing GPU resources with Isaac rendering/physics and, when
+available, actual learning. Do not describe an extrapolated duration as a
+completed training run. 07.2 found WPE/localization dominant in its free-field
+workload; that does not establish the bottleneck of geometric propagation.
+
+Review Linux + NVIDIA feasibility early. Steam 4.8.1 does not expose a qualified
+CUDA switch in the maintained build. Its documented Radeon Rays path is not a
+ready Linux solution. Custom ray-tracing callbacks are an investigation option,
+not proof that simulation, convolution or multi-environment scheduling moves to
+CUDA. Consult the current [Steam guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html)
+and [Scene API](https://valvesoftware.github.io/steam-audio/doc/capi/scene.html).
+Only prototype GPU acceleration for a measured bottleneck, on the actual RTX
+4090, with matched fidelity, transfer/synchronization cost and competing GPU
+workloads included. Prefer an existing maintained implementation over a new
+repository-owned ray tracer. Proceed to a production option only after a
+meaningful end-to-end gain and correctness/packaging qualification. A negative
+feasibility or gain result is an acceptable documented outcome; no CUDA delivery
+or full-GPU pipeline is promised by this plan.
+
+Retain AnalyticAcoustics during implementation and measurement. At this gate,
+record whether geometric and analytic paths serve distinct verified roles.
+Retire the analytic path only if the geometric implementation covers its active
+consumers, platform/installation needs, controllable simple scenarios, signal
+contracts and practical training throughput, followed by migration and regression
+checks. Otherwise keep both with explicit roles. GPU acceleration alone is not
+a retirement criterion, and retaining both forever is not predetermined.
+
 #### Key Decisions
 
 - The backend simulates a robot-mounted microphone array, not a human listener or qualitative device mix.
@@ -242,16 +326,16 @@ Expose useful acoustic participation, material assumptions, unavailable capabili
 
 Complete the geometry-backed sensor-to-instrument chain for a bounded occlusion demonstration. [[topics/onr-video-production|ONR Video 4]] can target this point for the fuller geometry version, after its specific scene is shown to work. Completion of 08.3 is not automatic approval of a video or proof of every possible occlusion scenario.
 
-Target high-quality operation for one or a few Isaac environments. Expose geometry-derived acoustic statistics or bounded parameters that can inform R8 randomization for mass-parallel Isaac Lab training without requiring the geometry provider in every environment.
+Target high-quality operation for one or a few Isaac environments first. Apply the R10.2 scaling/retention decision when choosing the maintained training path. If the analytic path retains a distinct role, expose bounded geometry-derived statistics that can inform its randomization without requiring the geometry provider in every environment.
 
-Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. Consume those distributions offline through the scalable analytic path completed in R8.3; do not introduce an online geometry-provider dependency into mass-parallel execution. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
+Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. When the analytic path is retained, consume those distributions offline through R8.3. An online geometry provider for parallel execution requires the R10.2 complete-path scaling gate; it is neither assumed nor categorically excluded. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
 
 The temporary R9 adapters, runners, fixtures, report builders, validators, and tests are already removed. Implement one production Steam binding and validate provider-version upgrades directly through focused version, timing, assembly, pathing, signal, and performance tests at that boundary. Remove redundant geometry, material, or occlusion paths as the production integration settles. NVIDIA RTX Acoustic remains documentation and historical evidence only, with no executable or configurable provider surface. Do not keep provider-specific public observations or test-only runtime shortcuts.
 
 #### Key Decisions
 
 - `GeometryAcoustics` is the primary daily high-fidelity Isaac path.
-- `AnalyticAcoustics` remains the scalable Isaac Lab path.
+- Retain `AnalyticAcoustics` as the current Lab baseline; apply the R10.2 evidence-based decision before retiring it or maintaining both paths long term.
 - One selected geometry provider is the maintained high-fidelity integration.
 - Provider-specific controls remain behind the provider capability boundary.
 - One production Steam adapter owns runtime behavior and focused requalification.

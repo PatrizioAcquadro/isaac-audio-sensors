@@ -1441,3 +1441,15 @@ and protected ignored evidence remain unchanged.
 ## 2026-09-10 — update: Source-backed scattering and conservative inference
 
 Extend R10.1 with seven scattering-only records in the shared catalog, independent family selection, and construction-specific default associations. Preserve all legacy presets and authored maps.
+
+## 2026-09-10 — update: Early 08.2 scaling and provider decision
+
+Plan a minimal complete geometry-to-observation path compared with the actual 07.2 free-field/CUDA-perception workload. Separate costs, qualify any targeted Linux/NVIDIA GPU prototype, and decide analytic retention only after consumer and performance evidence. Room recognition and thick/sequential transmission remain deferred.
+
+## 2026-09-10 — update: Selection-driven preparation and bounded cost
+
+Document the revised Kit sections, effective/mixed coefficients, selective validated edits, per-family resets and selection-based roots/proxies. Record source-backed scattering, 266-object preparation costs, removal of quadratic child discovery and preserved dynamic/native behavior. Host, supported Isaac and both live Kit gates pass; GPU acceleration and backend retirement remain future evidence-based decisions.
+
+## 2026-09-10 — lint: Preparation follow-up wiki
+
+All wiki page links resolve, all pages remain indexed, referenced implementation paths exist, and whitespace checks pass. Keep R10 canonical and Plan 08 as the sequence reference.
