@@ -1486,3 +1486,23 @@ All five documentation-boundary tests and whitespace checks pass. Native/alterna
 probe scripts, PCM, reports, reproduction runner and crash evidence remain local
 and ignored. No raw material or historical R9/initial 08.2 evidence was changed;
 no new Lab/GPU qualification or completed 08.2 is claimed.
+
+## 2026-09-10 — update: Pyroomacoustics coverage and hybrid architecture decision
+
+Compare a primary PRA provider, alternatives and a hybrid using prepared USD,
+closed/open door, NLOS, co-located receiver coherence and native motion controls.
+Select the hybrid direction but reject the executed Steam-direct/PRA-reflection
+qualification adapter: direct transmission passes while invalid reflected paths
+and incoherent ray-traced pressure block full coverage. Record RAC native delay
+failure, GSound admission limits and bounded CPU RIR refresh measurements. Keep
+the adapter, reproduction runner and evidence ignored; retain production Analytic
+and 08.1 without new dependencies, SDK modifications or a claimed definitive
+Geometry adapter. Streaming/Isaac/full scaling gates remain outstanding.
+
+## 2026-09-10 — lint: Hybrid coverage decision
+
+All five documentation-boundary tests, whitespace and local runner syntax checks
+pass. Fresh isolated reproduction confirms the reported negative acoustic gates
+and passing direct transmission control. Only canonical wiki files are tracked;
+qualification adapters/evidence remain local and ignored. No new production,
+GPU, Kit or full 08.2 qualification is claimed.

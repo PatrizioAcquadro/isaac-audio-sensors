@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 is blocked at its initial native reflection timing/coherence gate (2026-09-10); R10.3 remains planned.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 remains blocked after native reflection requalification and the subsequent hybrid coverage gate (2026-09-10); R10.3 remains planned.
 R9.4 risk retirement is complete and constrains the supported R10 scope.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -8,7 +8,7 @@ This page is the sole authority for the geometry integration.
 
 ## Objective
 
-Integrate the provider selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as the primary high-fidelity simulated signal producer for one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture.
+Integrate the provider architecture selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as one high-fidelity simulated signal producer for one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture. The authorized hybrid direction permits complementary native engines behind this boundary; each contribution still requires qualification.
 
 Geometry integration improves received-signal modeling; it does not automatically resolve the maintained localizer's count/direction failures. Follow the bounded 07.2 and 07.3 progression in [[status|Current Status]], preserve the shared audio-only perception boundary, and qualify perceptual claims separately under [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]]. General temporal reliability remains unqualified while its research iteration is suspended.
 
@@ -198,13 +198,17 @@ material transmission, and functional indirect NLOS output, then return one
 phase-coherent final waveform per physical microphone through the common
 `MicrophoneSignalBlock` boundary.
 
-Enable the R9.4-qualified baked pathing path: deterministic `DYNAMIC` probe
+When using Steam pathing, enable the R9.4-qualified baked path: deterministic `DYNAMIC` probe
 batches, provider-default UTD deviation, one independent point receiver and
 `IPLPathEffect` per microphone, and the omnidirectional component of the
 non-spatialized Ambisonic field. Retain dynamic validation, alternate-path
 search, and bounded path-visualization callbacks. These capabilities support
 approximate pathing in the qualified scenario family; they do not establish
 general diffraction accuracy.
+The hybrid architecture must qualify ownership and non-overlap with the selected
+reflection renderer before summing these contributions. R9 permits functional
+indirect NLOS through native reflections or pathing; a replacement renderer does
+not inherit the Steam-specific API requirement, nor its historical qualification.
 
 Isaac Audio Sensors owns source content, provider lifecycle, source and array translation, microphone semantics, signal effects not owned by the provider, diagnostics, and signal provenance. The external engine owns mesh acceleration, ray traversal, multi-bounce reflection, scattering, and every enabled path-search or deviation algorithm. `AudioPerceptionPipeline`, outside the geometry backend, owns activity detection, optional DOA estimation, `AudioObservation` creation, and `AudioSensorFrame` construction.
 
@@ -347,6 +351,87 @@ or GPU throughput gate. Original R9 and initial 08.2 artifacts remain unchanged.
 The decision remains **NO-GO for the attempted Steam reflection mapping** and
 **GO only for bounded replacement-provider qualification**. Full 08.2 stays open.
 
+#### Provider coverage and hybrid admission gate (2026-09-10)
+
+The follow-up implements an **executable local qualification adapter**, not a
+registered backend: prepared USD → Steam direct/planar transmission plus native
+Pyroomacoustics ISM reflections → combined microphone impulse responses.
+It reuses the archived native receiver in an isolated checkout, disables Steam
+reflections, selects positive native PRA image orders, applies continuous delay
+once to direct PCM, and removes PRA's documented fixed 40-sample filter latency.
+Both branches use the existing source amplitude convention, once. There is no
+output fitting, local reflection search, `SourceOcclusion` input or perception
+change. **The candidate fails admission and remains local.**
+
+The audit uses installed PRA 0.10.1 and actual USD preparation in Isaac's Python
+runtime. CPU is appropriate for these native acoustic engines; SimulationApp,
+CUDA perception and Isaac physics/rendering are not running in these probes.
+
+| Executed control | Result and boundary |
+| --- | --- |
+| Prepared box, partition/door, and L-shaped corridor | Native ISM can consume the prepared vertices. High-level `Room` enclosure tests reject receivers around internal planar partitions; empty visibility can raise an error. Its no-visible-source int32 fallback is also interpreted as image indices during RIR rendering. Explicit native obstruction lists and boolean masks fix these wrapper issues, not all geometry cases. |
+| Native original-face ISM | Reassembling original USD polygon boundaries avoids triangle-only duplication but does not eliminate invalid closed-partition paths. A separate asymmetric configuration gives zero closed-door/direct-NLOS PCM and nonzero open-door/corridor reflections. This is bounded static recomputation, not general door or diffraction qualification. |
+| Hybrid closed/open/closed and opaque door | Five source offsets, four microphones, 16 kHz, 20 states. Steam direct loss is 12.0000 dB and native occlusion changes correctly. In all 15 closed states, PRA specular peak remains about 0.0209–0.0227 despite a continuous partition. Raising door loss to 120 dB reduces direct peak below 3.83e-8 but leaves those reflections. The opaque specular subproblem has no valid route across the partition. Hybrid summation does not repair this failure. |
+| PRA ray-traced scattered field | Five seeds, two identical co-located omni receivers, 8192 rays, 150 ms horizon and 4 ms energy bins. Histograms are identical, but PCM relative L2 error is 1.38–1.49 and correlation -0.058–0.028, failing the 1e-5 co-location tolerance. Independent stochastic RIR reconstruction does not provide a shared physical pressure field. |
+| RAC native delay component | Compile unchanged 3DTI `Waveguide`/`Vector3` used by RoomAcoustiCpp's source/image-source DSP. At 16 kHz, moving the receiver 5 mm per 128-sample block takes distance from 2 to 2.5 m: expected arrival grows from 93.29 to 116.62 samples, measured delay remains 93. Static delay is integer-rounded. This rejects that temporal component as-is; the full RAC scene runtime was not compiled or qualified. |
+
+The door fixture is a 6 × 6 × 3 m room with a full-height x=3 partition and a
+1 m door opening. The source is (2, 3+offset, 1.2) m; the four-microphone array is
+centered at (4, 3, 1.2) m with 80 mm arms. Offsets are 0, 0.1, 1, 10 and 100 mm.
+The open door translates 6 m along y; broadband absorption is 0.2 and scattering
+is zero. Native triangle, two-sided and original-face mappings were explored;
+the final hybrid uses original faces and explicit obstruction checks. Failure
+of this allowed planar USD input does not imply every PRA enclosure is invalid.
+Changing pose symmetry or inventing wall thickness is not a supported repair.
+
+The RT control uses a closed generic room with absorption 0.2, scattering 0.3,
+and 0.1 m receiver radius. Co-location removes geometric uncertainty: identical
+noise-free receivers must sample the same pressure. Seeding each receiver alike
+would not establish spatial coherence for displaced microphones. Neither PRA RT
+nor the previously rejected Steam reflection reconstruction is admitted as the
+hybrid's diffuse field.
+
+**Component performance only.** The i9-14900KF run uses two source positions,
+4/5 microphones, 16 kHz, a generic six-face room, and 2/16 isolated prepared
+copies. Each case warms up for five full-batch RIR refreshes and measures 20
+without profiling. Engine construction and native ISM/RIR generation are included;
+initial USD preparation is separate. `refresh_benchmark.json` records mean/p95,
+process CPU time and peak RSS. The fresh replay gives these full-batch wall times:
+
+| Copies / microphones | Direct-only ISM mean / p95 | Order-three indoor ISM mean / p95 |
+| --- | --- | --- |
+| 2 / 4 | 18.21 / 24.33 ms | 21.74 / 25.88 ms |
+| 2 / 5 | 23.83 / 30.44 ms | 19.96 / 23.23 ms |
+| 16 / 4 | 136.98 / 154.18 ms | 148.61 / 169.45 ms |
+| 16 / 5 | 162.77 / 200.65 ms | 178.79 / 215.13 ms |
+
+Two runs retain timing variability; for example, the first 2-copy/5-microphone
+indoor mean was 27.20 ms. Small-case ordering is not evidence that higher order
+is faster. These are RIR refresh costs, not received-stream
+throughput: there is no convolution stream, matched 60 Hz acquisition/10 Hz
+observation workload, CUDA transfer/perception, partial reset or Isaac stepping.
+Order-zero and indoor order-three controls are kept separate. Scaling stops at
+16 because correctness fails; no 32–256 result, memory-limit claim or GPU
+optimization decision follows. Full 07.2 comparison remains outstanding.
+
+Evidence and the reproduction runner are in `local/r10/08_2_architecture/`:
+`coverage.py`, `hybrid_probe.py`, `hybrid.json`, waveform NPZs, `rt_coherence.json`,
+native RAC delay/motion probes, build logs, `refresh_benchmark.json`, and derived
+`evaluation.json`. A fresh isolated replay reproduces the negative acoustic
+gates. GSound's isolated Python 3.12 build fails before PCM qualification; source
+and dependency checks for that candidate and RAC are retained locally. No
+historical evidence, qualified Steam source, `knowledge/raw/`, production package,
+frame/tensor schema, or installed dependency was changed.
+
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Architecture decision after the Pyroomacoustics coverage audit|R9 owns the three-option decision]]:
+hybrid direction, but no admitted definitive adapter. Native reflected visibility
+and coherent diffuse pressure must be resolved before promotion. Source/mic
+directivity, continuous moving-scene PCM, tails, block equivalence, partial resets,
+same-PCM scalar/CUDA agreement and real Isaac Sim/Lab integration remain required;
+static scene recomputation does not satisfy them. No new `make check`, Kit or GPU
+qualification is claimed for this local-only candidate; documentation checks are
+separate from the previously recorded production baseline gates.
+
 #### Early complete-path and scaling decision gate (resume after blocker)
 
 Start 08.2 with a minimal production slice: prepared USD scene, source PCM,
@@ -414,8 +499,9 @@ a retirement criterion, and retaining both forever is not predetermined.
 - Provider-native path diagnostics are optional review outputs, not sensor observations or a second propagation implementation.
 - Provider-private stems or path contributions are optional diagnostics and never required by perception.
 - Relative physical coherence is required; absolute calibration remains deployment-specific and optional.
-- R9.4-qualified baked pathing, default UTD deviation, arrival scheduling, and
-  bounded callbacks enter the maintained backend; the failed proxy does not.
+- If Steam pathing is retained in the selected hybrid, use R9.4-qualified probes,
+  default UTD deviation, arrival scheduling and bounded callbacks, then qualify
+  its combination with the reflection renderer; the failed proxy does not enter.
 - Structural vibration, a complete wave-equation solver, and active ultrasound are outside this phase.
 
 #### Problems / Limitations

@@ -8,6 +8,9 @@ rewriting history.
 Follow-up on 2026-09-10: provider selection is reopened for R10.2 physical-array
 reflections after native timing requalification failed. Historical R9 artifacts
 remain unchanged; their passing scope does not establish this missing capability.
+The subsequent coverage audit selects a hybrid architecture direction, but the
+executed Steam/Pyroomacoustics candidate fails admission; no replacement signal
+provider is qualified for full R10.
 
 The R9.2 through R9.4 execution order is referenced by
 [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
@@ -61,7 +64,9 @@ erase a valid core-integration result.
 - Functional indirect NLOS output through native reflections or pathing is sufficient; a dedicated pathing API or true diffraction solver is not mandatory.
 - Core-integration and full-R10 suitability are separate derived conclusions.
 - Missing harness coverage is recorded as `blocked`; only executed contrary evidence can fail a behavioral gate.
-- The maintained product should select one primary passive provider.
+- The original single-primary-provider preference is superseded by the explicitly
+  authorized hybrid comparison below. Keep one public microphone-signal producer;
+  admit internal engines by measured complementary coverage.
 - Native provider capabilities take precedence over repository-owned reimplementations when they satisfy the sensor contract and maintenance boundary.
 - An outcome of `qualified` records only measured profile coverage; R9.3 still owns provider selection.
 
@@ -444,17 +449,69 @@ Primary references:
 [RLR license](https://github.com/facebookresearch/rlr-audio-propagation/blob/main/LICENSE).
 This is a focused comparison, not an exhaustive survey or a legal compatibility opinion.
 
-**Decision:** retain Analytic and the qualified 08.1 preparation; do not promote
-Steam reflections or automatically replace Steam with Pyroomacoustics. First
-audit the latter against every required R9/R10 capability, especially transmission
-and changing openings, before writing a production adapter. Then qualify the
-remaining feasible domain with prepared polyhedral USD, material mapping,
-door/NLOS controls, coherent reflected signals and streaming resets. A missing
-mandatory capability prevents full-provider selection even if the simple
-reflection gate passes. Combining providers or narrowing the domain would be an
-explicit architecture change, not an assumed completion of the current plan.
-Only a qualified signal path may proceed to the common-perception/Lab and scaling
-gates. No new primary provider, custom solver or GPU implementation is selected.
+This timing recheck initially retained Analytic and 08.1 pending the following
+whole-domain coverage audit. A passing single-reflector control did not select
+Pyroomacoustics as a full provider.
+
+## Architecture decision after the Pyroomacoustics coverage audit
+
+The user explicitly authorized comparison of a primary Pyroomacoustics provider,
+another provider, and a hybrid rather than forcing one engine to own every
+phenomenon. [[implementation_phases/r10-geometry-acoustics-integration#Provider coverage and hybrid admission gate (2026-09-10)|R10's executed coverage gate]]
+owns the fixtures, measured failures and component timings.
+
+**Decision: select option 3 as the architecture direction; reject the current
+Steam-direct/Pyroomacoustics-reflection adapter for production.** Pyroomacoustics
+alone does not meet essential requirements. None of the inspected alternatives
+is a qualified full replacement. Complementary native capabilities justify a
+hybrid direction, but combining incomplete models does not establish full R10.
+There is currently no admitted definitive adapter, including a hybrid one.
+
+| Criterion | Pyroomacoustics as primary | Another primary provider | Hybrid architecture |
+| --- | --- | --- | --- |
+| Physical correctness | ISM passes bounded specular controls. No through-wall transmission model; tested planar partition mapping leaks specular paths. | Steam direct/planar transmission remains useful, but its reflection field fails. GSound and RAC are not qualified replacements. | Separates complementary phenomena; the executed combination still leaks reflected sound through a closed partition. No fitted gain can repair path visibility. |
+| Inter-microphone timing | ISM passes the four earlier timing controls. RT pressure fails five co-located receiver tests despite identical native energy histograms. | Steam reflection timing fails. RAC's native delay component rounds samples and fails the executed slow-motion arrival test. | Requires a common clock and coherent native contributions. Steam direct delay plus PRA ISM is feasible in the bounded control, not proof of a coherent diffuse field. |
+| R9/R10 coverage | Missing transmission; functional reflected NLOS demonstrated in one L corridor, not general diffraction. Full material/scattering domain fails admission. | Steam covers the historical bounded pathing/transmission domain but not the newly required reflection field. No inspected replacement covers all gates. | Can retain Steam's useful direct/transmission/pathing roles and select another reflection renderer. Reflected visibility and diffuse field remain blockers; historical pathing still needs combined qualification. |
+| Dynamic scenes | Static RIR recomputation responds to the tested asymmetric opening. General door topology, continuous motion, tails and resets are unqualified. | RAC advertises dynamic image-edge tracing; its public runtime uses wall-clock background work and shared audio state, and the tested delay component loses slow movement. | One scene revision must update every contribution; stale RIRs and independent reset clocks are unacceptable. This lifecycle is not yet qualified. |
+| USD / Isaac | Prepared vertices/materials can be translated, but Room's enclosure assumptions do not match arbitrary 08.1 meshes and planar partitions. | Steam reuses qualified 08.1 mesh instances. RAC accepts triangles but needs a new binding and synchronous, isolated receiver lifecycle. | Reuse one `AcousticSceneSession`; translate its geometry to each admitted engine. Do not invent thickness, room boxes or pose jitter to hide unsupported USD. |
+| Performance | Native RIR refresh measured at 2/16 copies; generic ISM cost and reconstruction grow with geometry/order. This is not a streaming/Lab benchmark. | GSound's attempted Python 3.12 build fails; RAC full-runtime cost is unmeasured. Prior Steam timings cannot rank these replacements. | Includes scene duplication, simulation, rendering and mixing costs. Correctness currently stops scaling/GPU optimization; no end-to-end advantage is established. |
+| Complexity / maintenance | Existing optional dependency, but full coverage would require native/model changes, not just an adapter. | GSound's published distribution terms and build failure prevent admission. RAC would require temporal and lifecycle work beyond a thin binding. | Prefer a fixed, explicit split behind one producer, with each engine justified by a passing capability. Higher internal complexity is accepted only for actual coverage, not speculative fallbacks. |
+
+**Concrete split to qualify.** Steam owns direct occlusion and bounded planar
+transmission, with the existing continuous arrival bridge applied once. A
+separate native renderer owns coherent reflected pressure; PRA ISM remains a
+candidate only for its bounded specular role. Diffuse scattering and indirect
+pathing must have explicit ownership and passing spatial/temporal tests. Do not
+mix full outputs from both engines: the local candidate selects strictly positive
+PRA image orders and disables Steam reflections. Any eventual pathing split must
+also prove that the same physical contribution is not counted twice.
+
+The public boundary remains `GeometryAcoustics.propagate(...) ->
+MicrophoneSignalBlock`, feeding unchanged audio-only perception and Lab tensors.
+Prepared geometry, source time, units, sample count and reset ownership are
+shared; provider internals remain private and lazy. This is an architecture
+constraint, not a newly registered backend or a generic plugin framework.
+
+**Alternative admission limits.** The checked GSound/pygsound distribution
+restricts commercial use and third-party redistribution; the local build also
+fails with its bundled pybind11 on Python 3.12. No PCM qualification was reached.
+[Published terms](https://github.com/GAMMA-UMD/pygsound/blob/8f41cb13da5dba9aa09cac3f42e668005ed5cf11/LICENSE.txt).
+RoomAcoustiCpp at `241be79` is LGPLv3 according to its checked repository license,
+superseding older website GPL wording. It provides image-edge diffraction and a
+mono mode, but its native 3DTI waveguide fails the executed motion control; shared
+global audio-pool ownership and asynchronous scene work also need integration
+changes. Only that component was compiled/tested, not the full RAC runtime.
+[Repository and models](https://github.com/IoSR-Surrey/RoomAcoustiCpp),
+[checked license](https://github.com/IoSR-Surrey/RoomAcoustiCpp/blob/241be79a07de4aeeb3d8f08ddfaa01b895b89712/ROOMACOUSTICPP_LICENSE).
+
+**Implementation consequence.** Keep the executable hybrid qualification adapter
+and failing PCM locally, but do not promote it or narrow R10 silently. Admission
+requires native reflected visibility across the allowed partition/door topology
+and a coherent diffuse receiver field. A provider correction/replacement must
+pass those controls before streaming lifecycle, common perception, Isaac and
+full scaling work resumes. Analytic and the qualified 08.1 scene service remain
+operational. No SDK fork, repository-owned reflection solver, production GPU
+implementation or definitive Geometry adapter is delivered by this decision.
 
 ## Artifacts
 

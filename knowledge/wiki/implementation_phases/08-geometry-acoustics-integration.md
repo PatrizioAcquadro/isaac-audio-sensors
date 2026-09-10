@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 blocked at its initial native reflection timing/coherence gate (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 blocked after reflection and hybrid provider coverage gates (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -42,6 +42,10 @@ See [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-
 The [[implementation_phases/r10-geometry-acoustics-integration#Reflection timing recheck — NO-GO after reference correction (2026-09-10)|timing recheck]]
 also fails after per-receiver delay correction; provider requalification precedes
 any resumption of this sequence.
+The subsequent [[implementation_phases/r10-geometry-acoustics-integration#Provider coverage and hybrid admission gate (2026-09-10)|coverage audit]]
+tests Pyroomacoustics and an executable hybrid candidate. R9 selects a hybrid
+architecture direction, but the candidate fails admission and remains local;
+there is no definitive production adapter or full 08.2 completion.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3

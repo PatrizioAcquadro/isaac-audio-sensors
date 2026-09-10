@@ -2,7 +2,7 @@
 
 Updated: 2026-09-10. Package version: `3.0.0`.
 
-## Subphase 08.2 / R10.2 — Initial gate blocked
+## Subphase 08.2 / R10.2 — Provider coverage gate blocked
 
 The attempted native direct/reflection → microphone PCM → CUDA Lab chain reached
 real RTX 4090 execution, but **08.2 is not completed**. Five repeated native
@@ -27,7 +27,24 @@ Pyroomacoustics passes the four equivalent single-reflector timing controls;
 this is not full-domain qualification or an installed Geometry backend.
 [[implementation_phases/r9-geometry-acoustics-provider-selection#Provider selection reopened after the R10.2 reflection gate|Provider selection is reopened]],
 with Pyroomacoustics first for bounded qualification. No delay-only production
-fix, SDK patch, mixed-engine integration or new GPU performance claim follows.
+fix or SDK patch follows.
+
+The subsequent [[implementation_phases/r9-geometry-acoustics-provider-selection#Architecture decision after the Pyroomacoustics coverage audit|three-option coverage decision]]
+selects a **hybrid direction, with no admitted definitive adapter**. PRA alone
+lacks through-wall transmission, its tested planar-USD ISM mapping leaks sound
+across a closed partition, and its ray-traced PCM fails five co-located receiver
+coherence controls. An executable local Steam-direct/PRA-reflection adapter
+passes direct transmission but retains the invalid reflections. RAC's native
+delay component also fails a slow-motion control; no alternative full provider
+is qualified. This is a measured coverage blocker, not a missing wrapper.
+
+The local adapter, PCM, CPU RIR refresh measurements at 2/16 copies and a fresh
+reproduction runner are preserved in `local/r10/08_2_architecture/`.
+[[implementation_phases/r10-geometry-acoustics-integration#Provider coverage and hybrid admission gate (2026-09-10)|R10 owns these results and their limits]].
+No production code or dependency was added. Native reflected visibility and a
+coherent diffuse field must pass before streaming, partial reset, same-PCM
+scalar/CUDA, actual Isaac and full scaling gates resume. Analytic remains active;
+neither its retirement nor GPU acceleration is justified by this audit.
 
 ## Subphase 08.1 / R10.1 — Completed scene preparation
 
@@ -82,8 +99,8 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 ## Current Priorities
 
 **08.1 and its preparation-editor follow-up are complete (2026-09-10).**
-08.2 is blocked by its initial native reflection timing/coherence gate.
-Resolve that provider/rendering boundary before resuming the complete-path and
+08.2 remains blocked after the reflection and hybrid coverage gates.
+Resolve reflected visibility and coherent receiver rendering before resuming the complete-path and
 07.2 comparison. A targeted
 Linux/NVIDIA GPU prototype depends on measured bottlenecks and end-to-end gain;
 CUDA delivery and analytic-backend retirement are not presumed. Operational
