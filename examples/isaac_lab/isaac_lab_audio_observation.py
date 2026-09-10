@@ -14,7 +14,9 @@ from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.types import AudioSceneSnapshot
 
 
-def bind_entities(scene: object):
+def bind_entities(
+    scene: object, *, audio_asset_path: str, energy_threshold_dbfs: float
+):
     """Create the batched training sensor after AppLauncher starts."""
 
     from isaac_audio_sensors.lab import (
@@ -27,9 +29,11 @@ def bind_entities(scene: object):
     sensor = AudioArraySensor(
         AudioArraySensorCfg(
             prim_path="{ENV_REGEX_NS}/Robot/audio_array",
-            update_period=0.05,
+            update_period=0.1,
             backend="analytic_acoustics",
-            max_observations=1,
+            max_observations=3,
+            energy_threshold_dbfs=energy_threshold_dbfs,
+            doa_enabled=True,
         )
     )
     return sensor.bind_entities(
@@ -39,7 +43,14 @@ def bind_entities(scene: object):
             robot_entity_name="robot",
             array_mount_body_name="head",
             microphone_layout="quad_front",
-            source_entities=(SourceEntityCfg(entity_name="speaker"),),
+            source_entities=(
+                SourceEntityCfg(
+                    entity_name="speaker",
+                    audio_asset_path=audio_asset_path,
+                    duration_s=None,
+                    loop_count=-1,
+                ),
+            ),
         ),
     )
 

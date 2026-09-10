@@ -31,6 +31,8 @@ class SourceEntityCfg:
     entity_name: str
     body_name: str | None = None
     source_id: str | None = None
+    audio_asset_path: str | None = None
+    loop_count: int = 0
     start_time_s: float = 0.0
     duration_s: float | None = 1.0
     gain_db: float = 0.0
@@ -40,6 +42,10 @@ class SourceEntityCfg:
 
     def __post_init__(self) -> None:
         _require_name(self.entity_name, "entity_name")
+        if self.audio_asset_path is not None:
+            _require_name(self.audio_asset_path, "audio_asset_path")
+        if type(self.loop_count) is not int or self.loop_count < -1:
+            raise ValueError("loop_count must be -1 or a non-negative integer.")
         if self.body_name is not None:
             _require_name(self.body_name, "body_name")
         if self.source_id is not None:
@@ -78,6 +84,7 @@ class EntityBindingCfg:
     """Define the array mount, microphones, and source entities."""
 
     environment: AcousticEnvironmentSpec
+    sample_rate_hz: int = 16000
     robot_entity_name: str = "robot"
     array_mount_body_name: str | None = None
     array_relative_position_m: Vector3 = (0.0, 0.0, 0.0)
@@ -90,6 +97,8 @@ class EntityBindingCfg:
     state_quat_order: Literal["wxyz", "xyzw"] = "wxyz"
 
     def __post_init__(self) -> None:
+        if type(self.sample_rate_hz) is not int or self.sample_rate_hz != 16000:
+            raise ValueError("Entity audio currently supports sample_rate_hz=16000.")
         if not isinstance(self.environment, AcousticEnvironmentSpec):
             raise TypeError("environment must be an AcousticEnvironmentSpec.")
         _require_name(self.robot_entity_name, "robot_entity_name")

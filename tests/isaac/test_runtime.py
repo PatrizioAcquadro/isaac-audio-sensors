@@ -224,9 +224,9 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
 def test_lab_bindings_enforce_threshold_ownership() -> None:
     entity_sensor = SimpleNamespace(
         is_initialized=False,
-        cfg=SimpleNamespace(energy_threshold_dbfs=-60.0, doa_enabled=False),
+        cfg=SimpleNamespace(energy_threshold_dbfs=None, doa_enabled=False),
     )
-    with pytest.raises(ValueError, match="not supported by the entity binding"):
+    with pytest.raises(ValueError, match="required by the entity binding"):
         AudioArraySensor.bind_entities(entity_sensor, object(), object())
 
     reference_sensor = SimpleNamespace(
@@ -240,7 +240,7 @@ def test_lab_bindings_enforce_threshold_ownership() -> None:
         is_initialized=False,
         cfg=SimpleNamespace(energy_threshold_dbfs=None, doa_enabled=True),
     )
-    with pytest.raises(ValueError, match="does not produce microphone waveforms"):
+    with pytest.raises(ValueError, match="required by the entity binding"):
         AudioArraySensor.bind_entities(doa_entity_sensor, object(), object())
 
 
@@ -564,3 +564,37 @@ def test_reference_clock_consumes_elapsed_audio_and_deferred_intervals(monkeypat
         device="cpu",
     )
     assert not empty.observation_mask.any()
+
+
+def test_lab_clock_keeps_substep_precision_after_a_long_episode(monkeypatch):
+    import warp as wp
+
+    class ClockSensor(AudioArraySensor):
+        def __init__(self):
+            self._is_initialized = True
+            self._audio_time = torch.tensor([86400.0, 0.0], dtype=torch.float64)
+            self._audio_compensation = torch.zeros_like(self._audio_time)
+            self._audio_last_update = self._audio_time.clone()
+            self._entity_backend = None
+            self._is_outdated = wp.from_torch(torch.zeros(2, dtype=torch.bool))
+            self.cfg = SimpleNamespace(update_period=0.1)
+
+        def __del__(self):
+            pass
+
+    monkeypatch.setattr(SensorBase, "update", lambda *args, **kwargs: None)
+    sensor = ClockSensor()
+    for _ in range(6):
+        sensor.update(1 / 60)
+    assert wp.to_torch(sensor._is_outdated).all()
+    for _ in range(594):
+        sensor.update(1 / 60)
+    torch.testing.assert_close(
+        sensor._audio_time,
+        torch.tensor([86410.0, 10.0], dtype=torch.float64),
+        rtol=0,
+        atol=1e-11,
+    )
+    for invalid in (-0.1, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="dt"):
+            sensor.update(invalid)

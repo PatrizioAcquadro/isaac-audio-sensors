@@ -63,6 +63,7 @@ class ReferenceBackend:
         self._next_samples = [0] * len(self.snapshots)
         self._frame_indices = [0] * len(self.snapshots)
         self._observations = [()] * len(self.snapshots)
+        self.processing_status = [{} for _ in self.snapshots]
         kwargs: dict[str, object] = {
             "effects": effects,
             "speed_of_sound_mps": speed_of_sound_mps,
@@ -124,6 +125,7 @@ class ReferenceBackend:
                 self._next_samples[env_id] = stop_sample
                 self._frame_indices[env_id] += 1
                 self._observations[env_id] = frame.observations
+                self.processing_status[env_id] = frame.diagnostics["perception"]
             observations.append(self._observations[env_id])
         return AudioArraySensorData.from_observations(
             observations,
@@ -139,6 +141,7 @@ class ReferenceBackend:
             self._next_samples[env_id] = 0
             self._frame_indices[env_id] = 0
             self._observations[env_id] = ()
+            self.processing_status[env_id] = {}
             self._perception[int(env_id)].reset()
             reset = getattr(self._backends[int(env_id)], "reset", None)
             if callable(reset):
