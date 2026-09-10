@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
 import time
 import traceback
 from contextlib import suppress
@@ -14,14 +16,25 @@ from types import SimpleNamespace
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--perf-envs", type=int, default=4096)
-    parser.add_argument("--perf-steps", type=int, default=50)
-    parser.add_argument("--perf-budget-ms", type=float, default=20.0)
+    parser.add_argument("--perf-steps", type=int, default=5)
+    parser.add_argument("--perf-budget-ms", type=float, default=None)
     parser.add_argument(
         "--out",
         type=Path,
         default=Path("build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json"),
     )
+    parser.add_argument("--profile", action="store_true")
+    parser.add_argument("--perf-sources", type=int, choices=(1, 2), default=2)
+    parser.add_argument(
+        "--perf-layout",
+        choices=("quad_front", "triangle", "square", "raised", "tetra"),
+        default="quad_front",
+    )
     args = parser.parse_args()
+    if args.perf_envs < 2 or args.perf_steps < 1:
+        parser.error(
+            "Performance checks require at least two environments and one step."
+        )
     evidence = {"status": "started", "phase": "app_launcher"}
     _write_evidence(args.out, evidence)
 
@@ -35,6 +48,7 @@ def main() -> int:
         evidence["phase"] = "runtime_imports"
         _write_evidence(args.out, evidence)
         import isaaclab.sim as sim_utils
+        import numpy as np
         import torch
         from isaaclab.sensors import SensorBase, SensorBaseCfg
         from isaaclab.sim import SimulationContext
@@ -68,6 +82,10 @@ def main() -> int:
         evidence["phase"] = "sensor_setup"
         _write_evidence(args.out, evidence)
 
+        from multisource_reference import reference_scenes
+
+        source_scenes = reference_scenes(args.out.parent / "multisource_signals")
+        asset = source_scenes[1].sources[0].audio_asset_path
         entity_scene = _entity_scene(
             torch,
             ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
@@ -81,6 +99,8 @@ def main() -> int:
                     prim_path="/World/reference/env_.*/AudioSensor",
                     backend=backend_id,
                     max_observations=2,
+                    energy_threshold_dbfs=-60.0,
+                    update_period=0.1,
                 )
             ).bind_entities(
                 entity_scene,
@@ -88,7 +108,14 @@ def main() -> int:
                     environment=free_field_environment(
                         environment_id="lab_parity_free_field"
                     ),
-                    source_entities=(SourceEntityCfg(entity_name="speaker"),),
+                    source_entities=(
+                        SourceEntityCfg(
+                            entity_name="speaker",
+                            audio_asset_path=asset,
+                            duration_s=None,
+                            loop_count=-1,
+                        ),
+                    ),
                 ),
             )
             reference_sensor = AudioArraySensor(
@@ -103,16 +130,59 @@ def main() -> int:
             ).bind_reference(snapshots, array_ids)
             sensor_pairs.append((backend_id, entity_sensor, reference_sensor))
 
+        rng = np.random.default_rng(72)
+        angles = rng.uniform(-np.pi, np.pi, args.perf_envs)
+        radii = rng.uniform(1.5, 3.0, args.perf_envs)
+        heights = (
+            radii * np.tan(rng.uniform(-np.pi / 6, np.pi / 6, args.perf_envs))
+            if args.perf_layout in ("raised", "tetra")
+            else np.zeros_like(radii)
+        )
         perf_scene = _entity_scene(
             torch,
             tuple((0.0, 0.0, 0.0) for _ in range(args.perf_envs)),
-            tuple((4.0, 1.0, 0.0) for _ in range(args.perf_envs)),
+            tuple(
+                (float(r * np.cos(a)), float(r * np.sin(a)), float(z))
+                for r, a, z in zip(radii, angles, heights, strict=True)
+            ),
         )
+        perf_sources = [
+            SourceEntityCfg(
+                entity_name="speaker",
+                audio_asset_path=asset,
+                duration_s=None,
+                loop_count=-1,
+            )
+        ]
+        if args.perf_sources == 2:
+            state = perf_scene["speaker"].data.root_state_w.clone()
+            x, y = state[:, 0].clone(), state[:, 1].clone()
+            state[:, 0], state[:, 1] = -y, x
+            perf_scene["second_speaker"] = SimpleNamespace(
+                data=SimpleNamespace(root_state_w=state)
+            )
+            perf_sources.append(
+                SourceEntityCfg(
+                    entity_name="second_speaker",
+                    audio_asset_path=source_scenes[1].sources[1].audio_asset_path,
+                    duration_s=None,
+                    loop_count=-1,
+                )
+            )
+        perf_microphones = None
+        if args.perf_layout != "quad_front":
+            layout_index = ("triangle", "square", "raised", "tetra").index(
+                args.perf_layout
+            )
+            perf_microphones = source_scenes[layout_index].arrays[0].microphones
         perf_sensor = AudioArraySensor(
             AudioArraySensorCfg(
                 prim_path="/World/perf/env_.*/AudioSensor",
                 backend="analytic_acoustics",
-                max_observations=1,
+                max_observations=3,
+                energy_threshold_dbfs=-60.0,
+                doa_enabled=True,
+                update_period=0.1,
             )
         ).bind_entities(
             perf_scene,
@@ -120,13 +190,12 @@ def main() -> int:
                 environment=free_field_environment(
                     environment_id="lab_performance_free_field"
                 ),
-                source_entities=(SourceEntityCfg(entity_name="speaker"),),
+                source_entities=tuple(perf_sources),
+                microphones=perf_microphones,
             ),
         )
 
-        from multisource_reference import reference_scenes
-
-        multisource_scenes = reference_scenes(args.out.parent / "multisource_signals")
+        multisource_scenes = source_scenes
         multisource_scenes = (multisource_scenes[1], multisource_scenes[3])
         multisource_ids = tuple(
             scene.arrays[0].array_id for scene in multisource_scenes
@@ -165,15 +234,15 @@ def main() -> int:
             resolved = False
             for tick in range(6):
                 entity_sensor.update(0.05, force_recompute=True)
-                reference_sensor.update(
-                    0.05, force_recompute=True
-                )
+                reference_sensor.update(0.05, force_recompute=True)
                 entity_data = entity_sensor.data
                 reference_data = reference_sensor.data
                 _assert_contract(entity_data, num_envs=2, max_observations=2)
                 _assert_contract(reference_data, num_envs=2, max_observations=2)
-                if entity_data.observation_mask.any():
-                    raise RuntimeError("Entity binding fabricated observations.")
+                if tick >= 1 and not entity_data.observation_mask[:, 0].all():
+                    raise RuntimeError(
+                        "Entity PCM activity did not reach observations."
+                    )
                 frames = [
                     simulate_frame(
                         scalar_backend,
@@ -223,9 +292,7 @@ def main() -> int:
         reset_data = reset_sensor.data
         for name, expected in untouched.items():
             torch.testing.assert_close(getattr(reset_data, name)[0], expected)
-        torch.testing.assert_close(
-            reset_sensor._audio_time[0], untouched_index
-        )
+        torch.testing.assert_close(reset_sensor._audio_time[0], untouched_index)
         if reset_data.observation_mask[1].any():
             raise RuntimeError("Reset did not clear the detector's minimum context.")
         reset_sensor.update(0.1, force_recompute=True)
@@ -322,28 +389,62 @@ def main() -> int:
             )
 
         for _ in range(10):
-            perf_sensor.update(1.0 / 60.0, force_recompute=True)
+            perf_sensor.update(0.1, force_recompute=True)
+        before = perf_sensor._audio_last_update.clone()
+        for _ in range(6):
+            perf_sensor.update(1 / 60)
+        torch.testing.assert_close(perf_sensor._audio_last_update, before)
+        data = perf_sensor.data
+        torch.testing.assert_close(perf_sensor._audio_last_update, before + 0.1)
+        samples_before_read = perf_sensor._entity_backend.perception.samples.clone()
+        _assert_same(torch, data, perf_sensor.data)
+        torch.testing.assert_close(
+            perf_sensor._entity_backend.perception.samples, samples_before_read
+        )
         evidence["phase"] = "performance"
         _write_evidence(args.out, evidence)
         torch.cuda.synchronize()
-        started = time.perf_counter()
+        torch.cuda.reset_peak_memory_stats()
+        step_ms = []
         for _ in range(args.perf_steps):
-            perf_sensor.update(1.0 / 60.0, force_recompute=True)
-        torch.cuda.synchronize()
-        mean_ms = (time.perf_counter() - started) * 1000.0 / args.perf_steps
-        _assert_contract(
-            perf_sensor.data,
-            num_envs=args.perf_envs,
-            max_observations=1,
-        )
-        if mean_ms >= args.perf_budget_ms:
+            started = time.perf_counter()
+            perf_sensor.update(0.1, force_recompute=True)
+            torch.cuda.synchronize()
+            step_ms.append((time.perf_counter() - started) * 1000)
+        mean_ms = statistics.mean(step_ms)
+        _assert_contract(perf_sensor.data, num_envs=args.perf_envs, max_observations=3)
+        if not perf_sensor.data.observation_mask.any():
             raise RuntimeError(
-                f"Mean step time {mean_ms:.3f} ms exceeds {args.perf_budget_ms:.3f} ms."
+                "Active perception benchmark returned only empty observations."
             )
-
+        if args.perf_budget_ms is not None and mean_ms >= args.perf_budget_ms:
+            raise RuntimeError(
+                f"Mean step time {mean_ms:.3f} ms exceeds requested budget."
+            )
+        stages = {}
+        if args.profile:
+            with torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                ]
+            ) as profile:
+                perf_sensor.update(0.1, force_recompute=True)
+                torch.cuda.synchronize()
+            stages = {
+                event.key: {
+                    "cpu_total_ms": event.cpu_time_total / 1000
+                    if event.cpu_time_total
+                    else None,
+                    "cuda_total_ms": event.device_time_total / 1000,
+                }
+                for event in profile.key_averages()
+                if event.key.startswith("audio.")
+            }
+        quality = _entity_quality(torch, perf_sensor, perf_scene, args.perf_sources)
         evidence = {
-            "status": "passed",
-            "phase": "complete",
+            "status": "measured",
+            "phase": "quality_and_reset",
             "gpu": gpu_name,
             "scalar_reference_parity": reference_parity,
             "multisource_planar_and_3d": True,
@@ -354,13 +455,43 @@ def main() -> int:
             ),
             "reference_activity_and_doa": True,
             "reference_warmup_and_silence": True,
-            "performance_role": "empty_entity_lifecycle_only",
-            "partial_reset": True,
+            "performance_role": "active_cuda_free_field_waveforms_and_perception",
+            "partial_reset": False,
             "perf_envs": args.perf_envs,
+            "perf_sources": args.perf_sources,
+            "perf_layout": args.perf_layout,
             "perf_steps": args.perf_steps,
             "mean_ms_per_step": mean_ms,
+            "p95_ms_per_step": sorted(step_ms)[math.ceil(0.95 * len(step_ms)) - 1],
+            "step_ms": step_ms,
+            "profile_stages": stages,
+            "entity_quality": quality,
+            "input_randomization": (
+                "seed 72; 360-degree azimuth and 1.5-3 m range; "
+                "raised/tetra elevation in [-30, 30] degrees"
+            ),
+            "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
+            "simulated_seconds_per_wall_second": 100.0 / mean_ms,
+            "simulated_audio_hz": 10,
+            "entity_observation_fraction": float(
+                perf_sensor.data.observation_mask.any(dim=1).float().mean()
+            ),
             "budget_ms_per_step": args.perf_budget_ms,
         }
+        _write_evidence(args.out, evidence)
+        if quality["complete_sets_within_20deg"] < 0.95:
+            raise RuntimeError(f"Nominal free-field event-set gate failed: {quality}")
+        sample_clock = perf_sensor._audio_time.clone()
+        untouched = perf_sensor._entity_backend.perception.history[0].clone()
+        perf_sensor.reset([1])
+        torch.testing.assert_close(perf_sensor._audio_time[0], sample_clock[0])
+        torch.testing.assert_close(
+            perf_sensor._entity_backend.perception.history[0], untouched
+        )
+        if perf_sensor.data.observation_mask[1].any():
+            raise RuntimeError("Entity reset retained old observations.")
+
+        evidence.update(status="passed", phase="complete", partial_reset=True)
         _write_evidence(args.out, evidence)
         print(json.dumps(evidence, sort_keys=True))
         return 0
@@ -387,6 +518,37 @@ def main() -> int:
             with suppress(Exception):
                 simulation_context.clear_instance()
         simulation_app.close(exit_code=gate_exit_code)
+
+
+def _entity_quality(torch, sensor, scene, sources):
+    """Evaluate nominal observed sets; scene truth never enters perception."""
+    names = ("speaker", "second_speaker")[:sources]
+    positions = torch.stack(
+        [scene[name].data.root_state_w[:, :3] for name in names], dim=1
+    )
+    expected = torch.nn.functional.normalize(positions, dim=-1)
+    observed = sensor.data
+    az, el = torch.deg2rad(observed.bearing_deg), torch.deg2rad(observed.elevation_deg)
+    vectors = torch.stack(
+        [torch.cos(az) * torch.cos(el), torch.sin(az) * torch.cos(el), torch.sin(el)],
+        dim=-1,
+    )
+    difference = torch.rad2deg(
+        torch.acos((vectors @ expected.transpose(-1, -2)).clamp(-1, 1))
+    )
+    errors = difference.masked_fill(
+        ~observed.bearing_deg_mask[..., None], torch.inf
+    ).amin(dim=1)
+    counts = observed.observation_mask.sum(dim=1)
+    complete = (counts == sources) & (errors <= 20).all(dim=1)
+    finite = errors[torch.isfinite(errors)]
+    return {
+        "complete_sets_within_20deg": float(complete.float().mean()),
+        "observed_count_distribution": torch.bincount(counts, minlength=4).tolist(),
+        "nearest_direction_p95_deg": float(torch.quantile(finite, 0.95))
+        if finite.numel()
+        else None,
+    }
 
 
 def _write_evidence(path: Path, evidence: dict[str, object]) -> None:

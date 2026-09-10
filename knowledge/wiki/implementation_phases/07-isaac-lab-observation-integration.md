@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is in progress; 07.3 remains unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2 has a bounded implementation with performance closure still open; 07.3 remains unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
 
 ## Objective
 
@@ -16,7 +16,7 @@ Plan 07 follows the [[decisions/minimal-maintained-repository-surface|Minimal Ma
 
 The reference binding now projects actual scalar `simulate_frame()` observations instead of discarding them. Each environment keeps its own uncapped standard pipeline; only the Lab projection truncates. Reference windows align to the sample clock so ordinary float32 timestamp rounding does not repeatedly reset causal context. Allocation, selected writes, and partial reset cover every new field.
 
-The maintained example requires an explicit reference threshold and exposes optional DOA. Its consumer uses masked fixed angle scaling, forwards all masks/counts, and applies no statistical normalization. The old six-tensor contract is directly replaced; per-event RMS and redundant sectors are absent, with no aliases. The entity binding remains empty pending 07.2. Core/recording schemas, package version, and lazy runtime imports are unchanged.
+The maintained example requires an explicit reference threshold and exposes optional DOA. Its consumer uses masked fixed angle scaling, forwards all masks/counts, and applies no statistical normalization. The old six-tensor contract is directly replaced; per-event RMS and redundant sectors are absent, with no aliases. At the 07.1 closeout, the entity binding remained empty; 07.2 below replaces it. Core/recording schemas, package version, and lazy runtime imports are unchanged.
 
 #### Key Decisions
 
@@ -38,28 +38,46 @@ Resolved by 04.4: the common scalar localizer emits actual multiple events in it
 
 #### Implementation
 
-**Implemented causal-clock milestone:** the Lab sensor now advances a float64 episode clock; the reference consumes only past integer-sample intervals and catches up deferred reads without duplicating audio. Initial and repeated reads produce no additional samples. Partial reset clears only selected clocks, cursors and perception state. Thirty-one focused runtime tests and the actual RTX 4090 Lab smoke pass, including scalar parity, multisource warm-up and partial reset. This milestone does not implement scalable perception. Evidence: `build/validation/phase07_2/clock-live.json`.
+The scalar reference now consumes only elapsed audio with compensated float64 episode time and integer sample cursors. Time-zero and repeated reads do not process future or duplicate samples. Deferred reference reads consume intervening windows; reset clears only selected clocks, cursors, backend and perception state. The original 07.1 future-window behavior is corrected.
 
-Begin from the maintained WPE/group-sparse scalar reference and its [[experiments/04-4-multisource-localization|verified bounded stable-source domain]], not from the rejected moving-source candidates. The 16 kHz triangle, square, raised and tetrahedral reference has 750 ms causal context and 100 ms updates as its measured starting point; two events describe qualification coverage, not a forced count. Preserve its documented weak-speech misses, extra events, 1–1.5 s responses in some transitions and geometry-dependent CPU cost. Stereo and other planar rates retain their existing separately bounded roles. The completed confidence and live-occlusion corrections remain part of the integration contract.
+The entity binding now produces actual 16 kHz free-field microphone mixtures from explicit file sources and observed entity poses, then runs independent CUDA perception and unchanged observation projection. Acquisition follows physics updates even when policy reads are deferred. The producer alone owns source schedules, poses, polar gains and propagation; the detector/localizer accepts mixtures, microphone geometry and continuity only. Context is retained on the device, including the maintained 750 ms past window. Detector timing, unavailable confidence, event discovery, masks and capacity truncation retain their observable meaning. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for configuration, file-loop semantics and lifecycle diagnostics.
 
-Use scalar waveform perception as the semantic reference. Maintain a CUDA-native scalable approximation only where thousands of environments require it, with explicit limits and randomized inputs. Geometry- or real-data-derived distributions may replace expensive online propagation but never appear as exact sensed truth. Phase 08 need not run in every environment, and full Phase 09 realism is not a prerequisite for this integration.
-
-Preserve observed delay, warm-up, uncertainty, missing/extra events and unavailable confidence throughout projection and any scalable approximation. Neither source schedules/counts/poses nor private stems may repair, complete or stabilize observations for a policy. Assess integration parity and performance separately from perceptual accuracy; an approximation needs its own measured limits and must not produce artificially perfect event sets.
-
-Keep effort proportional to the supported workloads. Reuse the existing perception interfaces and avoid extensive kernels, caches or assumptions specific to the current WPE/group-sparse implementation unless a measured need justifies them. A later localizer improvement must remain possible without redesigning policy observation semantics.
-
-Carry detector and DOA context per environment with correct partial reset. Reset only selected environments, prevent cross-environment state leakage, keep latency explicit, and retain temporal buffers on the intended device.
+The CUDA localizer reuses NARA-WPE primitives, Torch spectral/linear-algebra operations and the maintained WPE/group-sparse method. It does not introduce a learned surrogate, oracle observations, event smoothing, a source-count cap or a second acoustic research candidate. Geometry-only dictionaries are prepared once; runtime work is chunked across environments. Each environment has its own numerical floors and convergence state. This fixes the installed NARA Torch implementation's cross-batch floor dependence; exact reference grid-neighborhood boundaries are also preserved.
 
 #### Key Decisions
 
-- Reference parity compares observable meaning, not internal algorithms.
-- CPU fallback does not validate the supported GPU path.
-- Geometry Acoustics need not run in every parallel environment.
-- Stateful context follows episode lifecycle independently per environment.
+- Scalar waveform perception remains the semantic reference. The CUDA adaptation has a separate measured scale role and can be replaced behind the internal processing/reset boundary without redesigning policy tensors.
+- Profile the whole path before simplifying. At 256 environments with one source, float64 WPE consumed about 456 ms of a 541 ms update. Float32 WPE reduced the complete update to 134 ms and peak allocation from about 3.44 GiB to 1.75 GiB, but was **rejected** after the randomized raised control exposed extra events. On the same 64 mixtures, count agreement fell to 78.125% and complete event sets to 79.6875%, versus 95.3125% for the reference. Restoring float64 restores count agreement to 100% and the reference's 95.3125% complete sets. Final WPE uses float64 on every geometry; spatial fitting retains the reference's float32 arithmetic. No geometry-specific precision switch is introduced.
+- The paired stationary comparison covers 36 existing received-audio recordings / 1,440 updates across all four geometries and 0/1/2 speech/non-speech events. The controls measure activity, count, direction, misses, extras and response against the same scalar inputs. These controls preserve imperfect observations, not a new general-room qualification. The rejected float32 variant passed this bounded indoor subset; that success did not justify the wider numerical approximation. Final float64 validation has 100% count/activity agreement, with angular-difference p95 of 0.000015/0.000010/0.000174/0.000164 degrees for triangle/square/raised/tetrahedral. Reference/CUDA misses and extras are identical: 8/72, 1/8, 14/36 and 0/14 respectively.
+- CUDA bulk data stays on the device; initialization prepares geometry/assets on the host. Small control synchronizations and chunk loops remain. There is no per-environment scalar perception loop or silent CPU fallback.
+- The old 20 ms empty-entity budget is replaced by reporting complete active-perception cost; an explicit caller budget remains optional.
 
 #### Problems / Limitations
 
-Feature-domain scale may not reproduce full waveform perception. Context length must balance policy value, memory, latency, and GPU cost. Successful scaling or scalar parity does not qualify reliable dynamic multisource listening. Qualification remains necessary for the capabilities actually claimed and for Phase 10; revisit temporal research against concrete robot behaviors when those limits become material.
+The CUDA producer currently supports free-field file sources at 16 kHz. Stationary fractional-delay PCM agrees with Core. Moving paths interpolate reception-time distance and polar gain between physics observations: this is a quasi-static approximation, not Core's retarded-source trajectory integration. A physics interval above 100 ms explicitly drops unavailable pose history, clears acoustic context and reports a discontinuity rather than fabricating past samples. Ordinary smaller physics steps and deferred policy reads remain supported.
+
+The four-geometry comparison validates CUDA perception on supplied indoor mixtures; it does not implement or qualify a CUDA indoor propagation model. Stereo and other rates remain scalar-reference roles. Weak-speech misses, extra events and roughly 1–1.5 s responses remain reference limitations; no general temporal, physical, downstream learner or sim-to-real qualification is added. GUI migration belongs to 07.3, and geometry/realism remain Phases 08–09.
+
+#### Validation and Scale
+
+Actual RTX 4090, active free-field mixtures from two independent file sources, seed-72 randomized azimuth/range, 100 ms simulated audio periods, 20 uninstrumented updates per planar batch after warm-up:
+
+| Environments | Mean update (ms) | p95 (ms) | Peak Torch allocation (GiB) | Simulated / wall time | Complete nominal sets within 20 degrees |
+| --- | --- | --- | --- | --- | --- |
+| 256 | 465.1 | 466.4 | 3.44 | 0.2150 | 100.00% |
+| 1024 | 1854.7 | 1857.7 | 3.62 | 0.0539 | 100.00% |
+| 4096 | 6644.3 | 6654.3 | 4.35 | 0.0151 | 99.95% |
+
+Repository checks pass 645 unit/contract, 338 integration, 58 release and 139 supported-runtime Isaac tests. The source distribution builds a wheel whose 167 Python modules exactly match current source; version sync, Ruff, whitespace and wiki boundary checks pass. Local reports are under `build/validation/phase07_2/`: `indoor-parity-final.json`, `double-256.json`, `double-1024.json`, `double-4096.json`, `double-raised-4096.json` and runtime/host logs. These regenerable run artifacts remain Git-ignored.
+
+Every run also checks deferred reads, finite observation masks, causal warm-up and partial reset. Peak allocation includes the live smoke's other resident sensors; it is Torch allocation, not total driver-reserved VRAM. The 4096 result has two extra-event environments (4094 with two observations, two with three). Matched direction p95 is 1.17 degrees. This is a steady-state throughput measurement with stationary randomized geometry; startup, arbitrary motion and physical acoustics are separate claims.
+
+A separate raised-array run uses five microphones, 642 spherical search directions and randomized elevations in [-30, 30] degrees. At 4096 environments, five uninstrumented updates average **12,979.3 ms**, p95 **12,986.9 ms** (the maximum of this short sample), peak Torch allocation **5.58 GiB**, and simulated/wall ratio **0.0077**. Complete nominal sets reach **96.48%**: 3952 environments have two observations and 144 have three; matched direction p95 is **5.60 degrees**. The fixed 95% nominal set gate passes without suppressing extra events. This does not establish uniform per-content 3D accuracy or qualify arbitrary dynamic scenes. The separate instrumented update spends about 6.17 s in transforms/WPE and 6.75 s in sparse fitting, so both dominate the 3D path.
+
+An additional instrumented 256-environment update measures about 392.2 ms for transforms/WPE, 68.1 ms for sparse fitting, 3.0 ms for the detector, 3.8 ms for geometry, 0.8 ms for propagation, 0.7 ms for context-buffer operations, 1.8 ms for peaks and 0.3 ms for projection. Buffer ranges nest inside propagation and must not be added twice. These CUDA profiler durations are separate from uninstrumented wall timing. Initialization uploads reusable assets and dictionaries; steady-state PCM/context remain on CUDA. Scalar control synchronizations are included in wall time, but their individual transfer cost is not resolved by this runtime profiler.
+
+**Delivery status: bounded implementation delivered; full 07.2 performance closure remains open.** 4096 environments process 10 Hz of simulated audio, but the current reference-preserving implementation does not sustain that rate in realtime: about 66 seconds of wall time per simulated second. The float32 shortcut is rejected; no shorter context, oracle filling, confidence invention or temporal research is introduced to hide the cost. Further throughput work needs an explicit deployment budget and a separately validated optimization scope.
+
 
 ## Subphase 07.3 — Lab Migration and Cleanup
 
@@ -82,15 +100,17 @@ Keep privileged reward or curriculum data only in explicit task-owned channels.
 
 ## Artifacts
 
-07.1 delivers the observed-only tensor contract, scalar-reference projection, finite masked consumer, and updated contract/runtime tests. The live smoke records local evidence under `build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json`. 04.4 subsequently supplies the qualified bounded multisource perceiver and its own GPU smoke; the scalable path remains 07.2 work.
+07.1 delivers the observed-only tensor contract, scalar-reference projection, finite masked consumer, and updated contract/runtime tests. The live smoke records local evidence under `build/validation/isaac_audio_sensors/isaac_lab_live_smoke.json`. 04.4 subsequently supplies the qualified bounded multisource perceiver and its own GPU smoke; the scalable implementation and current measurements are recorded under 07.2.
 
-Validation passes 614 unit/contract, 282 integration, 58 release, and 116 supported-runtime Isaac tests, plus version synchronization, Ruff, and whitespace. The live RTX 4090 smoke passes independent scalar/reference tensor parity, activity and DOA warm-up, resolved direction, silence, and partial reset. Fifty updates across 4096 empty entity environments average 0.212 ms/step against the existing 20 ms budget. Runtime checks use the existing isolated Auditok 0.5.2 path without replacing Kit NumPy or installing dependencies. These results do not qualify multisource perception or a downstream learner.
+The historical 07.1 validation passed 614 unit/contract, 282 integration, 58 release, and 116 supported-runtime Isaac tests, plus version synchronization, Ruff, and whitespace. The live RTX 4090 smoke passes independent scalar/reference tensor parity, activity and DOA warm-up, resolved direction, silence, and partial reset. Fifty updates across 4096 empty entity environments average 0.212 ms/step against the existing 20 ms budget. Runtime checks use the existing isolated Auditok 0.5.2 path without replacing Kit NumPy or installing dependencies. These results do not qualify multisource perception or a downstream learner.
 
 ## Files
 
-Main implementation: `src/isaac_audio_sensors/lab/audio_array_sensor_data.py`, `src/isaac_audio_sensors/lab/reference_backend.py`, and the maintained Lab example. Lifecycle/configuration, Isaac tests, and the existing live Lab smoke consume the same contract. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for the public interface.
+Main implementation: `src/isaac_audio_sensors/lab/` (reference, entity PCM, CUDA perception and observation projection) and the maintained Lab example. Lifecycle/configuration, Isaac tests, and the existing live Lab smoke consume the same contract. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for the public interface.
 
 ## Version Notes
+
+- 2026-09-09: Deliver bounded 07.2 clocks, entity PCM and CUDA perception; reject float32 WPE after a raised-array regression. Active 4096-environment processing is verified, with realtime throughput still unmet.
 
 - 2026-09-09: Reopened pre-07.2 joint temporal perception and correctness prerequisites; assigned observed GUI consolidation to 07.3. No runtime implementation changed.
 

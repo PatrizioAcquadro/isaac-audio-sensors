@@ -1373,3 +1373,15 @@ Five documentation-boundary tests pass, including wiki links and index coverage;
 ## 2026-09-09 — update: 07.2 causal Lab reference clock
 
 Replace future-window sampling with elapsed-sample processing, float64 episode clocks, deferred reference catch-up and selective reset. Focused runtime tests and the actual RTX 4090 Lab smoke pass; scalable perception is not yet implemented.
+
+## 2026-09-09 — update: Stateful CUDA Lab microphone perception
+
+Implement explicit file-backed free-field entity acquisition, device-resident context, observed-only Torch WPE/group-sparse perception, independent detector/reset state and timing diagnostics. Preserve the scalar reference and public observation tensors. Paired indoor inputs retain count/activity and reference errors; float32 WPE is admitted after measured cost and parity checks. All 1,041 host tests and 138 supported-runtime tests pass. Active planar scaling through 4096 environments is measured separately from realtime capability; 3D cost confirmation and final closeout follow.
+
+## 2026-09-09 — update: Final 07.2 numerical disposition and scale limits
+
+The wider randomized raised test supersedes the preliminary float32 admission above: float32 WPE introduces extra events and is rejected. Restore float64 for all geometries; paired count/activity and known misses/extras now match on all 1,440 indoor updates, with direction-difference p95 below 0.00018 degrees. Actual RTX 4090 live tests pass at 256/1024/4096 active environments, including raised 3D and partial reset. At 4096, planar updates average 6.64 s and raised updates 12.98 s: 10 Hz simulated audio is supported, realtime throughput is not. Preserve the bounded implementation and leave full 07.2 performance closure open. Add a permanent correlated-channel regression test and a discontinuity counter that survives deferred reads. All 139 runtime tests and the sdist-to-wheel 167-module source inventory pass. GUI/07.3, temporal research, policy training and publication remain outside this delivery.
+
+## 2026-09-09 — lint: Bounded 07.2 implementation delivery
+
+Final `make check` passes 645 unit/contract, 338 integration and 58 release tests, including wiki link/index coverage; Ruff, version synchronization and whitespace pass. Supported `make test-isaac` passes 139 tests. The permanent raised regression test rejects the discarded float32 path. Preserve historical evidence and clarify formerly empty entity behavior as the 07.1 state. Current phase, Lab topic, architecture, status and index agree on bounded implementation, preserved perception errors and open performance closure. Source-to-wheel module parity passes; TODO and generated validation reports remain ignored. No publication or push.
