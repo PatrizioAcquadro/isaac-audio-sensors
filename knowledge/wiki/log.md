@@ -1413,3 +1413,7 @@ Record passed host, optional audio, actual GPU/runtime, scalar/CUDA parity, real
 ## 2026-09-10 — lint: Verify 07.3 canonical documentation
 
 All internal wikilinks resolve and every canonical page remains indexed. Affected code references exist; retired executables are explicitly historical Git references. Immutable raw material and append-only log history are preserved.
+
+## 2026-09-10 — update: R10.1 material preparation
+
+Retain native absorption bands and expand the common catalog while preserving analytic resolution; separate nominal scattering provenance. Scene import and Kit preparation are in progress.

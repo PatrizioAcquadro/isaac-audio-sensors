@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from isaac_audio_sensors.core.acoustics.materials import SEMANTIC_ABSORPTION
 from isaac_audio_sensors.core.math_utils import Vector3
 from isaac_audio_sensors.isaac.pose_resolver import vec3_from_any
 
@@ -22,20 +23,7 @@ _SEMANTIC_DATA_SUFFIX = ":semanticData"
 # Broadband energy-absorption coefficients for common wall labels, used when
 # an environment prim carries a material/semantic tag instead of an explicit
 # ias:absorption value.
-DEFAULT_SEMANTIC_ABSORPTION: tuple[tuple[str, float], ...] = (
-    ("concrete", 0.05),
-    ("brick", 0.04),
-    ("glass", 0.05),
-    ("metal", 0.05),
-    ("plaster", 0.10),
-    ("drywall", 0.10),
-    ("wood", 0.10),
-    ("fabric", 0.40),
-    ("curtain", 0.40),
-    ("carpet", 0.30),
-    ("acoustic_panel", 0.70),
-    ("foam", 0.70),
-)
+DEFAULT_SEMANTIC_ABSORPTION = SEMANTIC_ABSORPTION
 
 
 def world_aligned_bbox(

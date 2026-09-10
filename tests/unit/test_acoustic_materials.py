@@ -53,13 +53,16 @@ def test_frozen_material_table_rows_and_source_provenance_are_exact():
         2000.0,
         4000.0,
     )
-    assert len(MATERIAL_TABLE) == 16
+    assert len(MATERIAL_TABLE) == 23
     assert PYROOMACOUSTICS_MATERIALS_SHA256 == (
         "1249f0cfdcd4598cf98ec9be05230f910e53aa1da4861d7fe3f88de23a24e0e0"
     )
     for material_id, absorption in MEASURED.items():
         entry = MATERIAL_TABLE[material_id]
-        assert entry.absorption == absorption
+        assert (
+            resolve_material_coefficients(material_id, "absorption").values
+            == absorption
+        )
         assert entry.transmission_db is None
         assert entry.evidence == "measured"
         assert entry.citation == PYROOMACOUSTICS_MATERIAL_CITATION
@@ -168,3 +171,20 @@ def test_usd_material_resolution_precedence_and_fail_closed_matrix():
     prim.attributes = {"ias:transmission_loss_db_bands": (1, 2, 3, 4, 5, 6, 7)}
     with pytest.raises(ValueError, match="exactly 6"):
         resolver.loss_for("/World/Wall")
+
+
+def test_native_bands_and_scattering_keep_distinct_evidence():
+    native = resolve_material_coefficients(
+        "pra.carpet_cotton", "absorption", band_centers_hz=None
+    )
+    assert native.band_centers_hz[-1] == 8000
+    assert native.values[-1] == 0.48
+    converted = resolve_material_coefficients(
+        "pra.carpet_cotton", "absorption", band_centers_hz=(400.0, 2500.0, 15000.0)
+    )
+    assert converted.values[-1] == 0.48
+    assert 0.31 < converted.values[0] < 0.49
+    scattering = resolve_material_coefficients("pra.carpet_cotton", "scattering")
+    assert scattering.values == (0.05,) * 6
+    assert scattering.evidence == "nominal"
+    assert scattering.citation is None

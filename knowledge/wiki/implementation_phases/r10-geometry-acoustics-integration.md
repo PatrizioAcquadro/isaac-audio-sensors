@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: Planned after the shared signal and observed-perception migration.
+Status: R10.1 implementation in progress; R10.2 and R10.3 remain planned.
 R9.4 risk retirement is complete and constrains the supported R10 scope.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -33,6 +33,14 @@ baseline. R10 may expose only the previously qualified single planar-assembly
 mapping and must label distinct sequential-assembly transmission unsupported.
 It must not collapse several constructions into a route-dependent material or
 add post-render attenuation correction.
+
+Material preparation now retains the source absorption frequencies through 8 kHz
+where available, with the existing six-band analytic resolver preserved. The
+shared catalog includes common flooring and absorber constructions. Scattering
+has separate nominal provenance; log-frequency resampling holds endpoints and
+does not establish measured high-frequency behavior. Automatic USD import and
+a shared Python/Kit preparation panel are authorized within R10.1; operational
+provider controls and propagation diagnostics remain in R10.3.
 
 #### Key Decisions
 
