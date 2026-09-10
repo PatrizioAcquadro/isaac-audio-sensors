@@ -87,7 +87,6 @@ def test_real_multisource_common_consumers(tmp_path, monkeypatch, array_index):
     controller = ExtensionController()
     controller._sensor_session._record_latest_frame(frames[-1])
     assert controller.state.latest_observation_count == 2
-    assert controller.state.latest_bearing_deg is None
     assert len(controller.state.observation_history) == 2
     monkeypatch.setattr(
         IsaacAudioArraySensor, "_scene_for_capture", lambda self, **kwargs: scene

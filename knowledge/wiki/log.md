@@ -1397,3 +1397,7 @@ The user confirms 4096 copies were exploratory, retains the moderate-indoor obje
 ## 2026-09-10 — lint: Practical 07.2 baseline closeout
 
 The angle/order correction passes 141 supported-runtime tests on the actual GPU; `make check` passes 645 unit/contract, 338 integration and 58 release tests. Final Ruff, whitespace and five documentation-boundary tests pass. Current phase, Lab topic, status and index agree on the user-approved bounded closeout; historical performance and diagnostic failures remain visible. The runtime perception algorithm and its parameters are unchanged. TODO and generated measurements stay ignored; no raw material, release or remote state is changed.
+
+## 2026-09-10 — update: Observed GUI migration
+
+Record the 07.3 frame-based GUI, multievent compass, availability and lifecycle semantics. Host checks pass; live validation and cleanup are pending.

@@ -42,10 +42,7 @@ from isaac_audio_sensors.isaac.viz.usd_debug import UsdDebugGeometryAuthor
 from ._service import ControllerService, _raise_first
 from .audition import AuditionPlayer
 from .constants import DEFAULT_FREE_FIELD_ENVIRONMENT_ID
-from .formatting import (
-    _aggregate_rms_from_frame,
-    _frame_is_new,
-)
+from .formatting import _frame_is_new
 from .instruments import append_observation_history
 from .paths import _resolve_gui_output_path
 from .stage_context import (
@@ -129,6 +126,7 @@ class SensorSession(ControllerService):
             )
             return sensor
         except Exception as exc:
+            self.invalidate_frame()
             self._record_error("Sensor configure failed", exc)
             return None
 
@@ -383,18 +381,8 @@ class SensorSession(ControllerService):
             if self.sensor is not None:
                 self.sensor.stop()
             self.state.sensor_running = False
-            self.state.latest_frame_id = None
-            self.state.latest_timestamp_ms = None
-            self.state.latest_bearing_deg = None
-            self.state.latest_sector = None
-            self.state.latest_bearing_confidence = None
-            self.state.latest_candidate_bearings = ()
-            self.state.latest_occluded = None
+            self.invalidate_frame()
             self.state.latest_occlusion_summary = "Capture failed"
-            self.state.latest_aggregate_rms = {}
-            self.state.latest_waveform_paths = ()
-            self.state.latest_observation_count = 0
-            clear_latest_frames()
             if self._host._recording._guided_recorder is not None:
                 self._host._recording.guided_cancel_recording()
                 self._host._recording.guided_workflow.fail_recording(str(exc))
@@ -428,6 +416,13 @@ class SensorSession(ControllerService):
             self.sensor.close()
         self.sensor = None
         self.state.sensor_running = False
+        self.invalidate_frame()
+
+    def invalidate_frame(self) -> None:
+        """Discard current presentation at an episode or configuration boundary."""
+        self.state.latest_frame = None
+        self.state.latest_occlusion_summary = "Not captured"
+        self.state.observation_history.clear()
         clear_latest_frames()
 
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
@@ -509,25 +504,10 @@ class SensorSession(ControllerService):
         }
 
     def _record_latest_frame(self, frame: Any) -> None:
-        observations = tuple(frame.observations)
-        first = observations[0] if len(observations) == 1 else None
-        doa = None if first is None else first.doa
-        self.state.latest_frame_id = frame.frame_id
-        self.state.latest_observation_count = len(observations)
-        self.state.latest_producer = frame.producer_id
-        self.state.latest_source_prim_path = None
-        self.state.latest_source_position_m = None
-        self.state.latest_bearing_deg = (
-            None if doa is None else doa.estimated_bearing_deg
-        )
-        self.state.latest_sector = None if doa is None else doa.bearing_sector
-        self.state.latest_bearing_confidence = (
-            None if doa is None else doa.bearing_confidence
-        )
-        self.state.latest_candidate_bearings = (
-            () if doa is None else tuple(doa.candidate_bearing_deg)
-        )
-        self.state.latest_occluded = None
+        if _frame_is_new(self.state.latest_frame, frame):
+            append_observation_history(self.state.observation_history, frame)
+        self.state.latest_frame = frame
+        observations = frame.observations
         occlusion = frame.diagnostics.get("stage_snapshot", {}).get("occlusion", {})
         if occlusion.get("status") == "computed":
             self.state.latest_occlusion_summary = (
@@ -536,11 +516,6 @@ class SensorSession(ControllerService):
             )
         else:
             self.state.latest_occlusion_summary = "Not enabled / not supplied"
-        self.state.latest_timestamp_ms = getattr(frame, "timestamp_ms", None)
-        self.state.latest_waveform_paths = tuple(
-            str(path) for path in (getattr(frame, "waveform_paths", ()) or ())
-        )
-        append_observation_history(self.state.observation_history, frame)
         array_pose = getattr(frame, "array_pose", None)
         self.state.latest_array_prim_path = (
             None
@@ -559,7 +534,6 @@ class SensorSession(ControllerService):
             None if array_orientation is None else quat_from_any(array_orientation)
         )
         self.state.latest_mic_world_positions = self._latest_mic_world_positions()
-        self.state.latest_aggregate_rms = _aggregate_rms_from_frame(frame)
         primitives: tuple[DebugPrimitive, ...] = (
             () if self.sensor is None else tuple(self.sensor.latest_debug_primitives)
         )

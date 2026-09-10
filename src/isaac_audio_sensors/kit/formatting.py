@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -91,19 +90,6 @@ def _frame_is_new(previous_frame: Any | None, frame: Any) -> bool:
     if previous_id is None or current_id is None:
         return frame is not previous_frame
     return current_id != previous_id
-
-
-def _aggregate_rms_from_frame(frame: Any) -> dict[str, float]:
-    raw = getattr(frame, "aggregate_per_mic_rms", {}) or {}
-    rms: dict[str, float] = {}
-    for mic_id, value in dict(raw).items():
-        try:
-            numeric = float(value)
-        except (TypeError, ValueError):
-            continue
-        if math.isfinite(numeric):
-            rms[str(mic_id)] = numeric
-    return rms
 
 
 def _optional_vec3_text(value: tuple[float, float, float] | None) -> str:

@@ -247,7 +247,6 @@ def test_extension_controller_profile_apply_preserves_attachment_and_frame_metad
     _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
     assert source.attributes["ias:source_id"] == "oven_source"
-    assert controller.state.latest_source_prim_path is None
 
 
 def test_extension_controller_source_position_read_apply_presets_and_drag_update(
@@ -313,7 +312,6 @@ def test_extension_controller_source_position_read_apply_presets_and_drag_update
     _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != right_frame.aggregate_per_mic_rms
     assert source.attributes["xformOp:translate"] == (0.0, -2.0, 0.0)
-    assert controller.state.latest_source_position_m is None
 
 
 def test_extension_controller_attaches_source_to_object_and_motion_updates_frame(
@@ -369,8 +367,6 @@ def test_extension_controller_attaches_source_to_object_and_motion_updates_frame
     assert first_frame.observations == ()
     _assert_auditok_activity(moved_frame)
     assert moved_frame.aggregate_per_mic_rms != first_frame.aggregate_per_mic_rms
-    assert controller.state.latest_source_prim_path is None
-    assert controller.state.latest_source_position_m is None
     assert controller.state.latest_aggregate_rms == moved_frame.aggregate_per_mic_rms
 
     detached = controller.detach_source_from_object(stage=stage)

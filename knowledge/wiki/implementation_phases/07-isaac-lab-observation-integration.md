@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is complete within the baseline scope agreed on 2026-09-10; 07.3 remains unimplemented. The 2026-09-09 admission retained the maintained reference and suspended temporal research. The 2026-09-10 closeout treats 4096 environments as exploratory, characterizes practical smaller batches and defers component changes. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is complete within the baseline scope agreed on 2026-09-10; 07.3 consumer migration is in progress; live validation and cleanup are pending. The 2026-09-09 admission retained the maintained reference and suspended temporal research. The 2026-09-10 closeout treats 4096 environments as exploratory, characterizes practical smaller batches and defers component changes. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
 
 ## Objective
 
@@ -136,11 +136,11 @@ Reports and the derived CSV/JSON table remain in ignored `build/validation/phase
 
 #### Implementation
 
-After 07.2, finish migration of maintained Lab consumers and remove obsolete bindings, duplicate conversions, compatibility paths, and unused supporting surfaces. The tensor contract and maintained example were already migrated in 07.1, including removal of per-event RMS and the old tensor fields. Retain scalar and CUDA-native paths only for their distinct correctness and scale roles.
+The shared Kit GUI retains the complete observed frame instead of selecting one bearing. The compass renders simultaneous events in distinct frame-local colors, with dashed candidate bearings even when no primary direction exists. Current event details include independent elevation alternatives and confidence availability. Both the main and guided views use the same observed presentation. Mixture RMS and simulation occlusion remain separate.
 
-Consolidate the shared observed GUI with this consumer migration. Represent all simultaneous events and distinguish them from alternative directions of one ambiguous event. Show current activity, warm-up, unavailable localization and capacity truncation separately from historical events. Make the active localization role, sample rate and context understandable: the current 48 kHz GUI default does not enable the maintained 16 kHz multisource role merely by increasing observation capacity. Preserve frame-age warnings and distinguish frame freshness from perceptual response delay. This GUI work is planned; the immediate confidence and unavailable-occlusion indications belong to the pre-07.2 corrections.
+Activity, localization availability, causal context, actual sample rate and capacity loss come from frame diagnostics. New GUI arrays default to 16 kHz; explicit configuration and existing arrays retain their rates. Frame freshness remains distinct from perceptual response. History records each frame once; reset, reconfiguration and capture failure invalidate current data. Configuration import restores settings without reviving exported observations.
 
-The present compass hides bearings when there is more than one observation, and hides ambiguous candidates when no primary bearing exists. Correct those presentations without inventing event identities or carrying stale directions as fresh observations. Keep the RMS of the complete microphone mixture separate from individual event estimates. Geometry-derived occlusion/path displays belong to 08.3, and optional realism controls belong to Phase 09.
+Host consumer tests pass. Live GUI inspection, Lab consolidation and the local-commit cleanup remain in progress. Geometry/path displays remain in 08.3 and optional realism controls in Phase 09.
 
 #### Key Decisions
 

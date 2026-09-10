@@ -871,7 +871,6 @@ def test_capture_failure_clears_current_gui_and_finalizes_incomplete_recording(
     assert not controller.state.sensor_running
     assert not sensor.running
     assert controller.state.latest_frame_id is None
-    assert controller.state.latest_bearing_deg is None
     assert controller.state.latest_aggregate_rms == {}
     assert "occlusion unavailable" in controller.state.error_message
     manifest = json.loads((root / "manifest.json").read_text())

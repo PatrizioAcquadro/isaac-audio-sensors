@@ -17,6 +17,7 @@ from .instruments import (
     METER_MAX_ROWS,
     compass_view_model,
     meter_view_models,
+    perception_status_text,
 )
 from .spectro import (
     SPECTROGRAM_IMAGE_HEIGHT,
@@ -378,14 +379,13 @@ def build_guided_section(window: OmniReferenceWindow) -> None:
             f"producer={summary['producer_id']} | "
             f"capabilities={summary['capability_generation']}",
         )
+        frame = window.controller.state.latest_frame
         compass = compass_view_model(
-            bearing_deg=window.controller.state.latest_bearing_deg,
-            candidate_bearings=window.controller.state.latest_candidate_bearings,
-            sector=window.controller.state.latest_sector,
-            confidence=window.controller.state.latest_bearing_confidence,
-            occluded=window.controller.state.latest_occluded,
+            () if frame is None else tuple(o.doa for o in frame.observations)
         )
-        _set_widget_text(inspect_compass, f"Bearing: {compass.summary}")
+        _set_widget_text(
+            inspect_compass, compass.summary + "\n" + perception_status_text(frame)
+        )
         meters = meter_view_models(window.controller.state.latest_aggregate_rms)
         _set_widget_text(
             inspect_meters,
@@ -833,20 +833,12 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                         width=COMPASS_IMAGE_SIZE,
                         height=COMPASS_IMAGE_SIZE,
                     )
-                for label, key in (
-                    ("Bearing", "compass_bearing"),
-                    ("Sector", "compass_sector"),
-                    ("Confidence", "compass_confidence"),
-                ):
-                    with ui.HStack(spacing=4, height=0):
-                        ui.Label(label, width=82)
-                        value = window._readonly_label(key)
-                        if key == "compass_bearing":
-                            window._labels["compass"] = value
+                ui.Label("Solid: resolved | Dashed: alternatives", word_wrap=True)
+                ui.Label("Colors group events within this frame", word_wrap=True)
                 ui.Label("Simulation occlusion (geometry)")
                 window._readonly_label("simulation_occlusion")
             with ui.VStack(spacing=3, height=0):
-                ui.Label("Per-mic RMS (dBFS)")
+                ui.Label("Mixture per-mic RMS (dBFS)")
                 with ui.HStack(spacing=4, height=0):
                     ui.Spacer(width=48)
                     with ui.HStack(spacing=0, height=0):
@@ -890,9 +882,13 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
                             "value": value,
                         }
                     )
+        ui.Label("Current observations")
+        window._readonly_label("compass")
+        event_container = ui.VStack(spacing=2, height=0)
+        window._readonly_label("perception")
         empty_label = ui.Label("", word_wrap=True)
         ui.Spacer(height=7)
-        ui.Label("Recent observations")
+        ui.Label("Observation history (newest first)")
         timeline_labels: list[object] = []
 
         def _build_timeline_rows() -> None:
@@ -905,6 +901,7 @@ def build_instruments_section(window: OmniReferenceWindow) -> None:
             _build_timeline_rows()
         observation_empty_label = ui.Label("No recent observations.")
     window._instruments = {
+        "events": event_container,
         "compass": compass_image,
         "compass_provider": provider,
         "meter_min_label": meter_min_label,

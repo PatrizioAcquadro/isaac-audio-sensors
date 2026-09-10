@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .instruments import COLOR_CLEAR
+WAVEFORM_COLOR = (0.05, 0.9, 0.35, 1.0)
 
 WAVEFORM_IMAGE_WIDTH = 420
 WAVEFORM_IMAGE_HEIGHT = 96
@@ -94,7 +94,7 @@ def render_waveform_rgba(
     scale = (height / 2 - 2) / peak if peak > 0 else 0.0
     center = height / 2.0
     color = np.array(
-        [int(channel * 255) for channel in COLOR_CLEAR[:3]],
+        [int(channel * 255) for channel in WAVEFORM_COLOR[:3]],
         dtype=np.uint8,
     )
     for column in range(width):

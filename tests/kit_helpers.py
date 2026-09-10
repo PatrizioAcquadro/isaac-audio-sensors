@@ -109,6 +109,9 @@ class _FakeWidget:
         _FakeWidget._context_stack.pop()
         return False
 
+    def clear(self) -> None:
+        self.children.clear()
+
     def set_visibility_changed_fn(self, callback: object) -> None:
         self.visibility_changed_fn = callback
 

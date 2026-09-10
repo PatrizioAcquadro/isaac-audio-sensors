@@ -106,6 +106,7 @@ class ConfigurationService(ControllerService):
                 )
             )
             self._preflight_config_summary(payload)
+            self._host.close_sensor()
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = (
@@ -325,10 +326,9 @@ class ConfigurationService(ControllerService):
                     "frame_id": state.latest_frame_id,
                     "producer_id": state.latest_producer,
                     "observation_count": state.latest_observation_count,
-                    "source_prim_path": state.latest_source_prim_path,
-                    "source_position_m": state.latest_source_position_m,
-                    "bearing_deg": state.latest_bearing_deg,
-                    "sector": state.latest_sector,
+                    "observations": []
+                    if state.latest_frame is None
+                    else list(state.latest_frame.observations),
                     "array_prim_path": state.latest_array_prim_path,
                     "array_position_m": state.latest_array_position_m,
                     "array_orientation_xyzw": state.latest_array_orientation_xyzw,
@@ -735,32 +735,6 @@ class ConfigurationService(ControllerService):
             _authored_metadata_from_dict(item)
             for item in payload.get("authored_metadata", ())
         )
-        latest_frame = dict(payload.get("latest_frame", {}))
-        self.state.latest_frame_id = latest_frame.get("frame_id")
-        self.state.latest_producer = latest_frame.get("producer_id")
-        self.state.latest_observation_count = int(
-            latest_frame.get("observation_count", 0)
-        )
-        self.state.latest_source_prim_path = latest_frame.get("source_prim_path")
-        source_position = latest_frame.get("source_position_m")
-        self.state.latest_source_position_m = (
-            None if source_position is None else vec3_from_any(source_position)
-        )
-        self.state.latest_bearing_deg = latest_frame.get("bearing_deg")
-        self.state.latest_sector = latest_frame.get("sector")
-        self.state.latest_array_prim_path = latest_frame.get("array_prim_path")
-        array_position = latest_frame.get("array_position_m")
-        self.state.latest_array_position_m = (
-            None if array_position is None else vec3_from_any(array_position)
-        )
-        array_orientation = latest_frame.get("array_orientation_xyzw")
-        self.state.latest_array_orientation_xyzw = (
-            None if array_orientation is None else quat_from_any(array_orientation)
-        )
-        self.state.latest_mic_world_positions = {
-            str(key): vec3_from_any(value)
-            for key, value in dict(latest_frame.get("mic_world_positions", {})).items()
-        }
         overlay = dict(payload.get("overlay", {}))
         self.state.latest_overlay_primitive_count = int(
             overlay.get("primitive_count", 0)
@@ -833,9 +807,7 @@ class ConfigurationService(ControllerService):
                 "activity_detection.energy_threshold_dbfs must be a real number."
             )
         if not math.isfinite(float(threshold_dbfs)):
-            raise ValueError(
-                "activity_detection.energy_threshold_dbfs must be finite."
-            )
+            raise ValueError("activity_detection.energy_threshold_dbfs must be finite.")
         direction_estimation = payload.get("direction_estimation")
         if not isinstance(direction_estimation, Mapping):
             raise ValueError("direction_estimation must be a JSON object.")
@@ -926,9 +898,7 @@ class ConfigurationService(ControllerService):
                 getattr(self.state, f"analytic_{field_name}"),
             )
             if type(value) is not bool:
-                raise ValueError(
-                    f"analytic_acoustics.{field_name} must be a boolean."
-                )
+                raise ValueError(f"analytic_acoustics.{field_name} must be a boolean.")
         source = payload.get("source", {})
         if not isinstance(source, Mapping):
             raise ValueError("source must be a JSON object.")

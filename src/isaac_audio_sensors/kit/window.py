@@ -27,7 +27,9 @@ from .formatting import (
 from .instruments import (
     COMPASS_IMAGE_SIZE,
     compass_view_model,
+    event_color,
     meter_view_models,
+    perception_status_text,
     render_compass_rgba,
     timeline_rows,
 )
@@ -297,9 +299,7 @@ class OmniReferenceWindow:
             f"{state.latest_frame_id or 'none'} | "
             f"timestamp={state.latest_timestamp_ms} | "
             f"observations={state.latest_observation_count} | "
-            f"producer={state.latest_producer or state.backend} | "
-            f"source={state.latest_source_prim_path or state.source_prim_path} | "
-            f"pos={_optional_vec3_text(state.latest_source_position_m)}",
+            f"producer={state.latest_producer or state.backend}",
         )
         self._set_label(
             "live_status",
@@ -394,26 +394,28 @@ class OmniReferenceWindow:
         if not self._instruments:
             return
         state = self.controller.state
+        frame = state.latest_frame
         view_model = compass_view_model(
-            bearing_deg=state.latest_bearing_deg,
-            candidate_bearings=state.latest_candidate_bearings,
-            sector=state.latest_sector,
-            confidence=state.latest_bearing_confidence,
-            occluded=state.latest_occluded,
+            () if frame is None else tuple(o.doa for o in frame.observations)
         )
         self._set_label(
-            "compass_bearing",
-            (
-                "—"
-                if not view_model.needles
-                else f"{view_model.needles[0].bearing_deg:.1f} deg"
-            ),
+            "compass", "No current observations" if not view_model.event_rows else ""
         )
-        self._set_label("compass_sector", view_model.sector or "—")
-        self._set_label(
-            "compass_confidence",
-            "N/A" if view_model.confidence is None else f"{view_model.confidence:.2f}",
-        )
+        if self._instruments.get("event_rows") != view_model.event_rows:
+            container = self._instruments["events"]
+            container.clear()
+            with container:
+                for index, text in enumerate(view_model.event_rows):
+                    r, g, b, _ = event_color(index)
+                    color = (
+                        0xFF000000
+                        | (round(b * 255) << 16)
+                        | (round(g * 255) << 8)
+                        | round(r * 255)
+                    )
+                    self.ui.Label(text, word_wrap=True, style={"color": color})
+            self._instruments["event_rows"] = view_model.event_rows
+        self._set_label("perception", perception_status_text(frame))
         self._set_label("simulation_occlusion", state.latest_occlusion_summary)
         provider = self._instruments.get("compass_provider")
         if provider is not None and hasattr(provider, "set_bytes_data"):
@@ -447,7 +449,7 @@ class OmniReferenceWindow:
         for index, label in enumerate(self._instruments.get("timeline", ())):
             visible = index < len(rows)
             label.visible = visible
-            _set_widget_text(label, rows[index].text if visible else "")
+            _set_widget_text(label, rows[index] if visible else "")
         empty = self._instruments.get("empty")
         if empty is not None:
             empty.visible = not bool(state.latest_frame_id)

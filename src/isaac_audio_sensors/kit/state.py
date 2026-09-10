@@ -7,11 +7,9 @@ from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.core.constants import (
-    COORDINATE_CONVENTION,
-    DEFAULT_SAMPLE_RATE_HZ,
-)
+from isaac_audio_sensors.core.constants import COORDINATE_CONVENTION
 from isaac_audio_sensors.core.directivity import DirectivityPattern
+from isaac_audio_sensors.core.types import AudioSensorFrame
 from isaac_audio_sensors.isaac.replicator import (
     DEFAULT_REPLICATOR_ANNOTATOR_NAME,
     DEFAULT_REPLICATOR_WRITER_NAME,
@@ -94,7 +92,7 @@ class ExtensionUiState:
     array_prim_path: str = "/World/Rig/AudioArray"
     array_id: str = "rig_front"
     layout_name: str = "quad_front"
-    sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
+    sample_rate_hz: int = 16000
     coordinate_convention: str = COORDINATE_CONVENTION
     author_child_microphones: bool = True
     array_position_x_m: float = 0.0
@@ -201,27 +199,15 @@ class ExtensionUiState:
     authored_metadata: tuple[AuthoredMetadataSummary, ...] = ()
 
     sensor_running: bool = False
-    latest_frame_id: str | None = None
-    latest_observation_count: int = 0
-    latest_producer: str | None = None
-    latest_source_prim_path: str | None = None
-    latest_source_position_m: tuple[float, float, float] | None = None
-    latest_bearing_deg: float | None = None
-    latest_sector: str | None = None
-    latest_bearing_confidence: float | None = None
-    latest_candidate_bearings: tuple[float, ...] = ()
-    latest_occluded: bool | None = None
+    latest_frame: AudioSensorFrame | None = None
     latest_occlusion_summary: str = "Not captured"
-    latest_timestamp_ms: int | None = None
     latest_array_prim_path: str | None = None
     latest_array_position_m: tuple[float, float, float] | None = None
     latest_array_orientation_xyzw: tuple[float, float, float, float] | None = None
     latest_mic_world_positions: dict[str, tuple[float, float, float]] = field(
         default_factory=dict
     )
-    latest_aggregate_rms: dict[str, float] = field(default_factory=dict)
     observation_history: list[dict[str, Any]] = field(default_factory=list)
-    latest_waveform_paths: tuple[str, ...] = ()
     audition_status: str = "Sensor WAV audition idle."
     kit_listener_prim_path: str | None = None
     kit_listener_status: str = "Kit listener idle."
@@ -238,6 +224,32 @@ class ExtensionUiState:
     latest_overlay_labels: tuple[str, ...] = ()
     latest_overlay_status: str = "none"
     latest_overlay_error: str | None = None
+
+    @property
+    def latest_frame_id(self) -> str | None:
+        return None if self.latest_frame is None else self.latest_frame.frame_id
+
+    @property
+    def latest_observation_count(self) -> int:
+        return 0 if self.latest_frame is None else len(self.latest_frame.observations)
+
+    @property
+    def latest_producer(self) -> str | None:
+        return None if self.latest_frame is None else self.latest_frame.producer_id
+
+    @property
+    def latest_timestamp_ms(self) -> int | None:
+        return None if self.latest_frame is None else self.latest_frame.timestamp_ms
+
+    @property
+    def latest_aggregate_rms(self) -> Mapping[str, float]:
+        return (
+            {} if self.latest_frame is None else self.latest_frame.aggregate_per_mic_rms
+        )
+
+    @property
+    def latest_waveform_paths(self) -> tuple[str, ...]:
+        return () if self.latest_frame is None else self.latest_frame.waveform_paths
 
 
 def _jsonable_mapping(mapping: Mapping[str, Any]) -> dict[str, Any]:

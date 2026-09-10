@@ -49,7 +49,6 @@ def test_extension_controller_auto_update_skips_duplicate_replicator_writes(
     forced = controller.update_sensor()
 
     assert forced is not None
-    assert controller.state.latest_sector is None
     assert controller.state.replicator_write_count == 2
     assert len((tmp_path / "frames.jsonl").read_text().splitlines()) == 2
 

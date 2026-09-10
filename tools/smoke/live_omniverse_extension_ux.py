@@ -1851,9 +1851,7 @@ def _frame_signal_summary(frame: Any) -> dict[str, Any]:
         "observation_detector_ids": [item.detector_id for item in observations],
         "observation_scores": [item.detection_score for item in observations],
         "observation_has_doa": [item.doa is not None for item in observations],
-        "aggregate_per_mic_rms": dict(
-            getattr(frame, "aggregate_per_mic_rms", {})
-        ),
+        "aggregate_per_mic_rms": dict(getattr(frame, "aggregate_per_mic_rms", {})),
     }
 
 
@@ -1986,8 +1984,7 @@ def _array_rotation_changed(
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
         "valid_activity_output": (
-            _valid_activity_summary(before)
-            and _valid_activity_summary(after)
+            _valid_activity_summary(before) and _valid_activity_summary(after)
         ),
     }
     passed = (
@@ -2019,8 +2016,7 @@ def _array_move_changed(
             before.get("aggregate_per_mic_rms") != after.get("aggregate_per_mic_rms")
         ),
         "valid_activity_output": (
-            _valid_activity_summary(before)
-            and _valid_activity_summary(after)
+            _valid_activity_summary(before) and _valid_activity_summary(after)
         ),
     }
     passed = (
@@ -2086,9 +2082,7 @@ def _expected_config_state(payload: dict[str, Any]) -> dict[str, Any]:
     direction_estimation = payload.get("direction_estimation", {})
     return {
         "backend": payload.get("backend"),
-        "energy_threshold_dbfs": activity_detection.get(
-            "energy_threshold_dbfs"
-        ),
+        "energy_threshold_dbfs": activity_detection.get("energy_threshold_dbfs"),
         "doa_enabled": direction_estimation.get("enabled"),
         "array_prim_path": array.get("prim_path"),
         "array_position_world": array.get("position_world"),
@@ -2502,11 +2496,9 @@ def _collect_instruments_evidence(
     state = controller.state
     window = _reference_ui_window(controller)
     view_model = compass_view_model(
-        bearing_deg=state.latest_bearing_deg,
-        candidate_bearings=state.latest_candidate_bearings,
-        sector=state.latest_sector,
-        confidence=state.latest_bearing_confidence,
-        occluded=state.latest_occluded,
+        ()
+        if state.latest_frame is None
+        else tuple(o.doa for o in state.latest_frame.observations)
     )
     meters = meter_view_models(state.latest_aggregate_rms)
     rows = timeline_rows(state.observation_history)
@@ -2516,10 +2508,6 @@ def _collect_instruments_evidence(
         "observation_count": state.latest_observation_count,
         "history_count": len(state.observation_history),
         "compass": {
-            "bearing_deg": state.latest_bearing_deg,
-            "sector": state.latest_sector,
-            "confidence": state.latest_bearing_confidence,
-            "occluded": state.latest_occluded,
             "needle_count": len(view_model.needles),
             "needle_unit_xy": (
                 list(view_model.needles[0].unit_xy) if view_model.needles else None
@@ -2696,9 +2684,7 @@ def _collect_audio_output_evidence(
         paths = controller.state.latest_waveform_paths
         record["waveform_paths"] = list(paths)
         if not paths:
-            raise RuntimeError(
-                "analytic_acoustics update produced no waveform_paths"
-            )
+            raise RuntimeError("analytic_acoustics update produced no waveform_paths")
         from isaac_audio_sensors.core.io.wave_read import read_wav
 
         data = read_wav(paths[-1])
@@ -3470,9 +3456,10 @@ def _validate_attach_scenario(name: str, result: dict[str, Any]) -> None:
     if not observed_payloads:
         raise RuntimeError(f"{name} Replicator did not preserve activity observations.")
     observation = observed_payloads[-1].get("frame", {}).get("observations", [{}])[0]
-    if observation.get("origin") != "signal_derived" or observation.get(
-        "detector_id"
-    ) != "auditok":
+    if (
+        observation.get("origin") != "signal_derived"
+        or observation.get("detector_id") != "auditok"
+    ):
         raise RuntimeError(f"{name} Replicator activity observation is invalid.")
 
 

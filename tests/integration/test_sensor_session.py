@@ -45,8 +45,6 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert sensor is not None
     assert frame is not None
     assert controller.state.latest_observation_count == 0
-    assert controller.state.latest_bearing_deg is None
-    assert controller.state.latest_sector is None
     assert controller.state.latest_overlay_primitive_count >= 4
     assert latest_path == tmp_path / "latest.json"
     assert config_path == tmp_path / "binding.json"
@@ -70,8 +68,9 @@ def test_extension_controller_authors_runs_overlays_and_exports(tmp_path):
     assert summary["array"]["prim_path"] == "/World/Rig/AudioArray"
     assert summary["source"]["prim_path"] == "/World/Sources/SpeakerA"
     assert summary["source"]["position_world"] == [2.0, 0.0, 0.0]
-    assert summary["latest_frame"]["source_prim_path"] is None
-    assert summary["latest_frame"]["source_position_m"] is None
+    assert "source_prim_path" not in summary["latest_frame"]
+    assert imported.state.latest_frame is None
+    assert "source_position_m" not in summary["latest_frame"]
     assert summary["latest_frame"]["observation_count"] == 0
     assert summary["lifecycle"]["writer_path"].endswith("frames.jsonl")
     assert summary["recording"]["package_jsonl"]["path"].endswith("frames.jsonl")
@@ -119,13 +118,19 @@ def test_extension_controller_emits_signal_activity_after_causal_warmup(tmp_path
     assert observation.doa is None
     assert observation.diagnostics["activity_detector"]["threshold_dbfs"] == -60.0
     assert controller.state.latest_observation_count == 1
-    assert controller.state.observation_history[-1]["detector_id"] == "auditok"
+    assert controller.state.latest_frame is active
+    assert (
+        controller.state.observation_history[-1]["observation_id"]
+        == observation.observation_id
+    )
     records = [
         json.loads(line)
         for line in (tmp_path / "activity.frames.jsonl").read_text().splitlines()
     ]
     assert records[-1]["observations"][0]["origin"] == "signal_derived"
     assert records[-1]["observations"][0]["detector_id"] == "auditok"
+
+
 def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     monkeypatch,
     tmp_path,
@@ -159,20 +164,11 @@ def test_extension_controller_auto_update_refreshes_live_frame_state_and_rms(
     assert controller.start_sensor(stage=stage) is not None
 
     stream.trigger()
-    first_position = controller.state.latest_source_position_m
-    first_bearing = controller.state.latest_bearing_deg
-    first_sector = controller.state.latest_sector
     first_rms = dict(controller.state.latest_aggregate_rms)
 
     oven.attributes["xformOp:translate"] = (0.0, 2.0, 0.0)
     stream.trigger()
 
-    assert first_position is None
-    assert first_bearing is None
-    assert first_sector is None
-    assert controller.state.latest_source_position_m is None
-    assert controller.state.latest_bearing_deg is None
-    assert controller.state.latest_sector is None
     assert controller.state.latest_aggregate_rms != first_rms
     assert controller.state.observation_history == []
 
@@ -370,3 +366,65 @@ def test_extension_controller_environment_anchor_missing_prim_records_error():
     assert controller.sensor is None
     assert controller.state.error_message is not None
     assert "/World/MissingEnvironment" in controller.state.error_message
+
+
+def test_observed_gui_frame_history_and_reset_boundaries(tmp_path):
+    from dataclasses import replace
+
+    from isaac_audio_sensors.core.types import AudioObservation, DoaEstimate
+    from isaac_audio_sensors.kit.instruments import compass_view_model
+
+    stage = _FakeStage((_FakePrim("/World", "Xform", {}),))
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert controller.state.sample_rate_hz == 16000
+    controller.state.environment_resolution_mode = "manual_free_field"
+    controller.state.trace_enabled = False
+    controller.author_array(stage=stage)
+    controller.author_source(stage=stage)
+    sensor = controller.start_sensor(stage=stage, subscribe_to_update_stream=False)
+    frame = controller.update_sensor()
+    events = (
+        AudioObservation(
+            observation_id="a",
+            detector_id="external",
+            origin="external_system",
+            doa=DoaEstimate(estimated_bearing_deg=45),
+        ),
+        AudioObservation(
+            observation_id="b",
+            detector_id="external",
+            origin="external_system",
+            doa=DoaEstimate(
+                estimated_bearing_deg=None, candidate_bearing_deg=(90, 270)
+            ),
+        ),
+    )
+    observed = replace(frame, frame_id="observed", observations=events)
+    session = controller._sensor_session
+    session._record_latest_frame(observed)
+    session._record_latest_frame(observed)
+    assert controller.state.latest_frame is observed
+    assert len(controller.state.observation_history) == 2
+    view = compass_view_model(
+        tuple(o.doa for o in controller.state.latest_frame.observations)
+    )
+    assert len(view.needles) == 3
+    session._record_latest_frame(replace(frame, frame_id="silent", observations=()))
+    assert controller.state.latest_observation_count == 0
+    assert len(controller.state.observation_history) == 2
+    sensor.reset()
+    assert controller.state.latest_frame is None
+    assert controller.state.observation_history == []
+    session._record_latest_frame(observed)
+    assert controller.configure_sensor(stage=stage)
+    assert controller.state.latest_frame is None
+    session._record_latest_frame(observed)
+    controller.state.sample_rate_hz = 48000
+    exported = controller.export_config_summary(tmp_path / "config.json")
+    assert exported is not None
+    assert controller.import_config_summary(exported) is not None
+    assert controller.state.sample_rate_hz == 48000
+    assert controller.state.latest_frame is None
+    assert controller.state.observation_history == []

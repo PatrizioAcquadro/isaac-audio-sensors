@@ -116,7 +116,6 @@ class ReplicatorService(ControllerService):
                     "source_local_offset_m": (
                         self._host._authoring._source_local_offset_from_state()
                     ),
-                    "latest_source_position_m": self.state.latest_source_position_m,
                     "array_position_m": (
                         self._host._authoring._array_position_from_state()
                     ),

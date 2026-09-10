@@ -806,6 +806,7 @@ class RecordingWorkflow(ControllerService):
     def guided_notify_simulator_reset(self) -> None:
         """Mark the next recorded frame as the start of a reset episode."""
 
+        self._host._sensor_session.invalidate_frame()
         if self._guided_recorder is not None:
             self._guided_reset_pending = True
 
