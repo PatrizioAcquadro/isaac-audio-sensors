@@ -16,22 +16,20 @@ ATTRS = {
     "transmission_db": "ias:transmission_loss_db",
     "scattering": "ias:scattering",
 }
+# Match construction descriptions, not generic visual substance names.
 DEFAULT_ASSOCIATIONS = {
-    "concrete": "nominal.concrete",
-    "brick": "nominal.brick",
-    "glass": "nominal.glass",
-    "wood": "nominal.wood",
-    "metal": "nominal.metal",
-    "drywall": "nominal.drywall",
-    "plaster": "nominal.plaster",
-    "fabric": "nominal.fabric",
-    "curtain": "nominal.curtain",
-    "carpet": "pra.carpet_cotton",
-    "ceramic": "pra.ceramic_tiles",
-    "linoleum": "pra.linoleum_on_concrete",
-    "rubber": "pra.carpet_rubber_5mm",
-    "foam": "pra.ceiling_melamine_foam",
-    "acoustic_panel": "pra.ceiling_fibre_absorber",
+    "rough_concrete": "pra.rough_concrete",
+    "rendered_brickwork": "pra.brickwork",
+    "glass_3mm": "pra.glass_3mm",
+    "wood_1_6cm": "pra.wood_1_6cm",
+    "carpet_cotton": "pra.carpet_cotton",
+    "curtains_cotton_0_5": "pra.curtains_cotton_0_5",
+    "ceramic_tiles": "pra.ceramic_tiles",
+    "linoleum_on_concrete": "pra.linoleum_on_concrete",
+    "rubber_5mm": "pra.carpet_rubber_5mm",
+    "ceiling_fissured_tile": "pra.ceiling_fissured_tile",
+    "ceiling_fibre_absorber": "pra.ceiling_fibre_absorber",
+    "ceiling_melamine_foam": "pra.ceiling_melamine_foam",
 }
 
 
@@ -110,6 +108,19 @@ def resolve(
             if family in selected:
                 continue
             curve = _explicit(owner, family, time)
+            if curve is None and family == "scattering":
+                scattering_id = attribute(owner, "ias:scattering_material_id", time)
+                if scattering_id is not None:
+                    r = resolve_material_coefficients(
+                        scattering_id, family, band_centers_hz=None
+                    )
+                    curve = Curve(
+                        r.values,
+                        r.band_centers_hz,
+                        f"preset:{r.material_id}",
+                        r.evidence,
+                        r.citation,
+                    )
             if (
                 curve is None
                 and entry is not None

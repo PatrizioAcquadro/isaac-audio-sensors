@@ -31,7 +31,7 @@ PYROOMACOUSTICS_MATERIAL_CITATION = (
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MaterialEntry:
-    """One immutable catalog record; scattering has nominal provenance."""
+    """One immutable catalog record with independent scattering provenance."""
 
     material_id: str
     description: str
@@ -40,7 +40,9 @@ class MaterialEntry:
     evidence: EvidenceTag
     citation: str | None
     absorption_band_centers_hz: tuple[float, ...] = MATERIAL_BAND_CENTERS_HZ
-    scattering: float = 0.05
+    scattering: float | tuple[float, ...] = 0.05
+    scattering_band_centers_hz: tuple[float, ...] = MATERIAL_BAND_CENTERS_HZ
+    scattering_citation: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -262,9 +264,22 @@ def _build_material_table(
             raise ValueError(f"Measured material {material_id!r} needs a citation.")
         if entry.evidence == "nominal" and entry.citation is not None:
             raise ValueError(f"Nominal material {material_id!r} cannot cite a source.")
-        if entry.absorption is None and entry.transmission_db is None:
+        if (
+            entry.absorption is None
+            and entry.transmission_db is None
+            and entry.scattering_citation is None
+        ):
             raise ValueError(f"Material {material_id!r} has no coefficient family.")
-        if not math.isfinite(entry.scattering) or not 0 <= entry.scattering <= 1:
+        scatter = entry.scattering
+        if isinstance(scatter, tuple):
+            resample_coefficients(
+                scatter,
+                entry.scattering_band_centers_hz,
+                entry.scattering_band_centers_hz,
+            )
+        else:
+            scatter = (scatter,)
+        if any(not math.isfinite(v) or not 0 <= v <= 1 for v in scatter):
             raise ValueError("Scattering must be finite and in [0, 1].")
         for family, values in (
             ("absorption", entry.absorption),
@@ -339,7 +354,9 @@ def resample_coefficients(
         raise ValueError("Finite coefficients must match their frequency centers.")
     result = []
     for target in targets:
-        if target <= frequencies[0]:
+        if target in frequencies:
+            result.append(float(values[frequencies.index(target)]))
+        elif target <= frequencies[0]:
             result.append(float(values[0]))
         elif target >= frequencies[-1]:
             result.append(float(values[-1]))
@@ -355,8 +372,110 @@ def resample_coefficients(
     return tuple(result)
 
 
+_SCATTERING_ENTRIES = (
+    MaterialEntry(
+        material_id="pra.rpg_skyline",
+        description="Diffuser RPG Skyline",
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.01, 0.08, 0.45, 0.82, 1.0),
+        scattering_band_centers_hz=(125.0, 250.0, 500.0, 1000.0, 2000.0),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.rpg_qrd",
+        description="Diffuser RPG QRD",
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.06, 0.15, 0.45, 0.95, 0.88, 0.91),
+        scattering_band_centers_hz=(125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.theatre_audience",
+        description="Theatre Audience",
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.3, 0.5, 0.6, 0.6, 0.7, 0.7, 0.7),
+        scattering_band_centers_hz=(
+            125.0,
+            250.0,
+            500.0,
+            1000.0,
+            2000.0,
+            4000.0,
+            8000.0,
+        ),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.classroom_tables",
+        description="Rows of classroom tables and persons on chairs",
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.2, 0.3, 0.4, 0.5, 0.5, 0.6, 0.6),
+        scattering_band_centers_hz=(
+            125.0,
+            250.0,
+            500.0,
+            1000.0,
+            2000.0,
+            4000.0,
+            8000.0,
+        ),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.amphitheatre_steps",
+        description="Amphitheatre steps, length 82 cm, height 30 cm (Farnetani 2005)",
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.05, 0.45, 0.75, 0.9, 0.9),
+        scattering_band_centers_hz=(125.0, 250.0, 500.0, 1000.0, 2000.0),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.rect_prism_boxes",
+        description=(
+            "Rectangular and prism boxes (studio wall), Round Robin III "
+            "(after Bork 2005a)"
+        ),
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.5, 0.9, 0.95, 0.95, 0.95, 0.95),
+        scattering_band_centers_hz=(125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+    MaterialEntry(
+        material_id="pra.trapezoidal_boxes",
+        description=(
+            "Trapezoidal boxes (studio ceiling), Round Robin III (after Bork 2005a)"
+        ),
+        absorption=None,
+        transmission_db=None,
+        evidence="nominal",
+        citation=None,
+        scattering=(0.13, 0.56, 0.95, 0.95, 0.95, 0.95),
+        scattering_band_centers_hz=(125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0),
+        scattering_citation=PYROOMACOUSTICS_MATERIAL_CITATION,
+    ),
+)
+
+
 MATERIAL_TABLE = _build_material_table(
-    _MEASURED_ENTRIES + _NOMINAL_ENTRIES,
+    _MEASURED_ENTRIES + _NOMINAL_ENTRIES + _SCATTERING_ENTRIES,
     LEGACY_MATERIAL_ALIASES,
 )
 
@@ -411,15 +530,26 @@ def resolve_material_coefficients(
         else MATERIAL_BAND_CENTERS_HZ
     )
     if coefficient == "scattering":
-        values = (entry.scattering,) * len(frequencies)
+        frequencies = entry.scattering_band_centers_hz
+        values = (
+            entry.scattering
+            if isinstance(entry.scattering, tuple)
+            else (entry.scattering,) * len(frequencies)
+        )
     targets = frequencies if band_centers_hz is None else band_centers_hz
     values = resample_coefficients(values, frequencies, targets)
     return MaterialResolution(
         material_id=entry.material_id,
         coefficient=coefficient,
         values=values,
-        evidence="nominal" if coefficient == "scattering" else entry.evidence,
-        citation=None if coefficient == "scattering" else entry.citation,
+        evidence=(
+            ("measured" if entry.scattering_citation else "nominal")
+            if coefficient == "scattering"
+            else entry.evidence
+        ),
+        citation=entry.scattering_citation
+        if coefficient == "scattering"
+        else entry.citation,
         description=entry.description,
         band_centers_hz=tuple(targets),
     )

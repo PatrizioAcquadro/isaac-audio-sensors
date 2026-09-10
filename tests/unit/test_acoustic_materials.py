@@ -53,7 +53,7 @@ def test_frozen_material_table_rows_and_source_provenance_are_exact():
         2000.0,
         4000.0,
     )
-    assert len(MATERIAL_TABLE) == 23
+    assert len(MATERIAL_TABLE) == 30
     assert PYROOMACOUSTICS_MATERIALS_SHA256 == (
         "1249f0cfdcd4598cf98ec9be05230f910e53aa1da4861d7fe3f88de23a24e0e0"
     )
@@ -188,3 +188,15 @@ def test_native_bands_and_scattering_keep_distinct_evidence():
     assert scattering.values == (0.05,) * 6
     assert scattering.evidence == "nominal"
     assert scattering.citation is None
+
+
+def test_documented_scattering_has_native_bands_and_no_invented_absorption():
+    curve = resolve_material_coefficients(
+        "pra.rpg_skyline", "scattering", band_centers_hz=None
+    )
+    assert curve.values == (0.01, 0.08, 0.45, 0.82, 1.0)
+    assert curve.band_centers_hz == (125, 250, 500, 1000, 2000)
+    assert curve.evidence == "measured"
+    assert curve.citation == PYROOMACOUSTICS_MATERIAL_CITATION
+    with pytest.raises(ValueError, match="no requested absorption"):
+        resolve_material_coefficients("pra.rpg_skyline", "absorption")

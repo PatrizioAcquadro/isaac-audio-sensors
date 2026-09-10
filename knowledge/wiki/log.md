@@ -1437,3 +1437,7 @@ outside this subphase. No push or publication.
 Internal links and index coverage resolve; affected phase/topic claims match
 code and bounded runtime evidence. Whitespace and Ruff checks pass. Raw material
 and protected ignored evidence remain unchanged.
+
+## 2026-09-10 — update: Source-backed scattering and conservative inference
+
+Extend R10.1 with seven scattering-only records in the shared catalog, independent family selection, and construction-specific default associations. Preserve all legacy presets and authored maps.

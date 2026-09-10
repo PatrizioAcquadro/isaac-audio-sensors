@@ -70,6 +70,25 @@ in the private adapter using the R9-qualified amplitude mapping
 `10**(-loss_db/20)`; the documented Scene API energy wording does not justify
 changing the qualified direct-effect mapping.
 
+The 08.1 preparation follow-up adds seven scattering-only entries from the
+same frozen Pyroomacoustics database: RPG Skyline/QRD, theatre audience,
+classroom tables with seated persons, amphitheatre steps, and the Round Robin
+III wall/ceiling boxes. Their native bands and source conditions are retained;
+`ias:scattering_material_id` selects this family without replacing absorption or
+transmission. Coefficient overrides still take precedence. These configurations
+must not be inferred for generic walls or double-count explicitly modelled
+furniture. The original 23 absorption presets retain nominal scattering 0.05.
+The catalog now contains 30 entries; consumers request only the families they use.
+Source: [Pyroomacoustics scattering database](https://pyroomacoustics.readthedocs.io/en/pypi-release/pyroomacoustics.materials.database.html#scattering-coefficients).
+
+The nine legacy nominal presets and aliases remain available for explicit
+selection. Default name associations now require construction-specific labels;
+generic wood/glass/metal labels no longer silently assign nominal transmission.
+Missing families use identified scene fallbacks. Existing authored association
+maps remain authoritative and editable, including deliberately nominal maps.
+No physical measurement by the user is required; source data do not establish
+calibration of an arbitrary imported asset.
+
 **Assemblies and native scene.** `ias:acoustic_partition_id` and USD component
 identity group fragments without reparenting visual objects. Equal labels or
 nearby surfaces alone do not merge distinct constructions. Coplanar fragments
