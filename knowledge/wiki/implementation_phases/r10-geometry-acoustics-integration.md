@@ -18,49 +18,117 @@ R10 follows the [[decisions/minimal-maintained-repository-surface|Minimal Mainta
 
 #### Implementation
 
-Make Isaac own acoustic-geometry selection, room and array containment, material mapping, static-scene caching, and dynamic-object updates. Visual materials are not treated as calibrated acoustic truth; relevant surfaces use explicit absorption, scattering, and transmission properties with provenance.
+`AcousticSceneSession(stage, roots=None)` prepares the composed USD stage without
+requiring per-object selection or collision APIs. The session imports polygonal
+meshes, cubes, spheres, cylinders, cones and capsules, including referenced and
+instanced geometry. Concave polygons use boundary-preserving triangulation and
+USD hole faces remain absent. Curved primitives use bounded polygonal
+approximations (32 radial segments; sphere/capsule caps use 16 angular intervals).
+Units, up-axis and transforms are converted to Steam's meter/Y-up convention.
 
-Include acoustically relevant room surfaces, doors, openings, large objects, robot body, and microphone housing while excluding technical source and sensor prims that are not physical obstacles. Static geometry is reusable; moving doors, robots, and objects update without rebuilding unrelated scene state.
+Explicit `ias:acoustic_geometry` relationships replace the owner's visual
+geometry. Otherwise physical geometry participates automatically. Guide/debug
+geometry, invisible geometry and conventional collision siblings of visual
+representations are excluded with reasons; explicit inclusion can override the
+selection. Technical sound/listener/Xform prims do not become triangles, while
+physical robot, source and microphone-housing children remain eligible.
+Selection is conservative: there is no automatic triangle decimation or
+replacement of an object by its bounding box.
 
-Make the distinction between visible objects and acoustically active geometry understandable in the authoring workflow. A rendered obstacle must not imply acoustic participation or calibrated material behavior. The pre-07.2 solid-collider and unavailable-occlusion fixes belong to the existing analytic/Isaac path; this phase owns the subsequent provider scene integration.
+The service owns separate cached geometry, resolved materials, partition
+qualification and poses. USD change notices invalidate affected objects;
+steady-state refreshes reuse static geometry. Rigid bodies and animation are
+detected automatically, with optional static/dynamic overrides. During live
+PhysX simulation, body poses are read from PhysX even when transform writes to
+USD are disabled. Reset and close release owned native resources. The existing
+room resolver checks complete arrays against authored room volumes; absent or
+ambiguous containment remains unknown. Local room selection never cuts the
+provider scene or excludes sources in another room.
 
-Represent acoustic partitions independently from visual or collision fragmentation. One wall, door, panel, or authored construction may own several meshes or colliders while resolving to one acoustic assembly and one material/transmission definition. Prefer the selected provider's native scene and material representation; introduce IAS-specific partition metadata only where the provider cannot express the required USD mapping directly.
+**Materials.** The single Core catalog now retains original absorption bands,
+including 8 kHz where supplied by PyRoom's documented table, and includes common
+hard surfaces, ceramic, linoleum, rubber floor coverings, ceiling tile, fibre
+absorbers and melamine foam. Existing identifiers/aliases remain valid and
+`resolve_material_coefficients()` still defaults to the six analytic bands.
+Passing `band_centers_hz=None` returns native catalog bands. Scattering is a
+separately labeled nominal coefficient, not measured evidence inherited from
+absorption. Existing nominal broadband labels derive from the shared catalog.
 
-Do not enable the R9.4 closed/paired-face transmission proxy. Although its
-oblique, thickness, and fragmentation variants were invariant, a 12 dB
-assembly measured 18 dB and distinct assemblies did not add from that measured
-baseline. R10 may expose only the previously qualified single planar-assembly
-mapping and must label distinct sequential-assembly transmission unsupported.
-It must not collapse several constructions into a route-dependent material or
-add post-render attenuation correction.
+Resolution is per coefficient: prim/construction overrides, bound acoustic
+material properties, configured name/semantic associations, then scene defaults.
+Associations are inferred, not calibrated visual-material truth. Invalid explicit
+coefficients fail preparation. The defaults are `pra.hard_surface` absorption,
+nominal scattering 0.05, and opaque transmission when no usable curve exists.
+Missing coefficient families retain their own fallback provenance.
 
-Material preparation now retains the source absorption frequencies through 8 kHz
-where available, with the existing six-band analytic resolver preserved. The
-shared catalog includes common flooring and absorber constructions. Scattering
-has separate nominal provenance; log-frequency resampling holds endpoints and
-does not establish measured high-frequency behavior. Automatic USD import and
-a shared Python/Kit preparation panel are authorized within R10.1; operational
-provider controls and propagation diagnostics remain in R10.3.
+Steam absorption and transmission are resampled at 400/2500/15000 Hz with linear
+interpolation on log frequency and endpoint hold. The high-frequency extension
+is an approximation, not measured 15 kHz material data. Banded scattering is
+sampled at 1000 Hz for Steam's scalar field. Transmission dB is converted once
+in the private adapter using the R9-qualified amplitude mapping
+`10**(-loss_db/20)`; the documented Scene API energy wording does not justify
+changing the qualified direct-effect mapping.
+
+**Assemblies and native scene.** `ias:acoustic_partition_id` and USD component
+identity group fragments without reparenting visual objects. Equal labels or
+nearby surfaces alone do not merge distinct constructions. Coplanar fragments
+with consistent whole-assembly properties enter one native assembly. Closed or
+nonplanar constructions remain opaque, with an explicit unsupported-transmission
+message. The rejected paired-face proxy and output gain compensation are absent.
+Distinct sequential-assembly transmission remains unsupported.
+
+The private optional Steam binding owns an Embree device, scene, static meshes
+and movable native instances. Updates replace only affected assemblies or update
+their transforms. Native OBJ export supports geometry preparation review. Steam
+4.8.1 has no exact runtime version query and accepts newer compatible minor APIs;
+therefore the binding checks the exact qualified R9 Release/Embree binary before
+loading it. A different build needs requalification. The library is not bundled
+or downloaded, and no audio backend is registered by this subphase.
+
+**Shared authoring and Kit panel.** The existing extension window includes
+“Acoustic Scene”: import/update, roots, searchable object list and stage
+selection, multiple-object inclusion and motion overrides, catalog selection,
+coefficient/frequency fields, grouping, scene defaults and editable associations.
+Selection details expose coefficient sources and provider values. Python edits
+and Kit actions operate on the same USD properties and current edit target;
+Kit Undo/Redo restores only the touched properties. Reimport preserves authored
+corrections. Native scene verification is optional; backend operation and
+propagation diagnostics remain R10.3 responsibilities.
+
+Preparation state distinguishes unprepared, prepared, preparation with issues,
+and native scene verification. These states do not establish microphone audio
+or perceptual qualification.
 
 #### Key Decisions
 
-- USD remains the scene authority, while acoustic inclusion and material meaning are explicit.
-- Visual prims, collision prims, and acoustic partitions are separate concerns; mesh count must not change transmission.
-- Provider-native assembly and material semantics are reused before adding IAS metadata or algorithms.
-- The failed R9.4 paired proxy is excluded; R10 does not claim predictable
-  sequential-partition transmission.
-- Multiple rooms form one connected acoustic problem when sound can travel between them.
-- A selected local room aids containment and diagnostics but does not discard external sources.
+- USD remains the authoring authority; there is no separate Kit material catalog.
+- Preserve the analytic six-band interface while retaining source frequency data.
+- Keep the qualified planar transmission boundary and explicit opaque fallbacks.
+- Reuse provider-native mesh/instance operations; no IAS propagation solver.
+- The preparation panel is intentionally delivered in 08.1; operational controls
+  and propagation diagnostics remain in 08.3.
 
 #### Problems / Limitations
 
-Arbitrary visual detail may be acoustically irrelevant or too expensive.
-Geometry selection and simplification must preserve meaningful propagation
-without treating every rendered triangle as necessary acoustic input. Assembly
-transmission still depends on authored or qualified coefficient data; the
-integration does not infer cavity resonance, thickness, or structural coupling
-from mesh layering. Distinct sequential assemblies remain unsupported for
-direct transmission.
+Subdivision surfaces, deformable meshes, point instancers and unsupported Gprim
+forms require an explicit polygonal acoustic representation. Missing payloads,
+composition failures and invalid geometry prevent an unqualified completion
+state. Automatic visual/collision deduplication recognizes conventional sibling
+representations; unusual authoring requires explicit inclusion/exclusion or an
+acoustic-geometry relationship. Instance-proxy properties are edited at the
+instance root or source material, respecting USD composition rules.
+
+Native qualification is restricted to the selected binary and tested scene
+family. Planar assembly preparation does not qualify predictable transmission
+through sequential constructions, physical material calibration, or general
+acoustic realism. Source content, propagation PCM, pathing and perception remain
+R10.2 work.
+
+The native matrix update initially used an incorrect ctypes array-by-value ABI.
+A coordinate comparison caught the problem; the binding now passes the actual
+matrix struct. Native exported coordinates are checked against transformed USD
+vertices after movement. This is a geometry integration test, not an acoustic
+output claim.
 
 ## Subphase R10.2 — Passive Microphone-Array Propagation
 
@@ -170,8 +238,16 @@ Expected artifacts are a provider-backed `MicrophoneSignalBlock` producer, USD
 acoustic mapping within the qualified transmission boundary, baked pathing,
 bounded lifecycle and diagnostics, unchanged perception semantics across
 analytic, geometry, and physical inputs, and one consolidated maintained
-geometry-provider surface. No R10 implementation artifacts exist yet.
+geometry-provider surface. R10.1 now provides the USD preparation service,
+shared Kit panel and private native scene binding. Local evidence is under
+`build/validation/r10/scene/` (GPU scene/Undo/Redo/coordinate checks and panel
+capture) and `build/validation/r10/kit/` (complete extension regression). R10.2
+and R10.3 artifacts remain future work.
 
 ## Files
 
-Implementation files remain to be determined by the selected provider's adapter design.
+- `src/isaac_audio_sensors/isaac/acoustic_scene/`
+- `src/isaac_audio_sensors/core/acoustics/materials.py`
+- `src/isaac_audio_sensors/kit/acoustic_scene.py`
+- `tests/isaac/test_acoustic_scene.py`
+- `tools/smoke/live_acoustic_scene.py`

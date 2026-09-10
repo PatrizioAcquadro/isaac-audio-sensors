@@ -1417,3 +1417,7 @@ All internal wikilinks resolve and every canonical page remains indexed. Affecte
 ## 2026-09-10 — update: R10.1 material preparation
 
 Retain native absorption bands and expand the common catalog while preserving analytic resolution; separate nominal scattering provenance. Scene import and Kit preparation are in progress.
+
+## 2026-09-10 — update: R10.1 USD and native scene
+
+Document automatic USD preparation, material precedence, selective cache refresh, native assembly grouping and exact-binary qualification. Record the matrix ABI correction and preserve unsupported transmission and geometry boundaries.
