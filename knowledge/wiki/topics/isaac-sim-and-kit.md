@@ -70,7 +70,7 @@ The UI permanently labels this path `Kit listener/device mix — qualitative, no
 
 ## Native Kit Window
 
-The native `omni.ui` window has exactly three top-level areas: Guided Workflow, Live Monitor, and Advanced Tools. Guided and Live Monitor are open on first use, while Advanced Tools is closed. Guided and Advanced are mutually exclusive accordions; Live Monitor remains independently available as the primary operating surface.
+The native `omni.ui` window has four top-level areas: Guided Workflow, Acoustic Scene, Live Monitor, and Advanced Tools. Guided and Live Monitor are open on first use; Acoustic Scene and Advanced Tools are closed. Guided and Advanced are mutually exclusive accordions; Live Monitor remains independently available as the primary operating surface.
 
 ![Isaac Audio Sensors native Kit window](../../../exts/isaac_audio_sensors.omni/data/preview.png)
 
@@ -159,6 +159,32 @@ construction grouping, defaults, name associations and Undo/Redo. It shares
 `AcousticSceneSession` with Python and writes corrections to the current USD
 edit target. Save the stage normally to persist edits. The panel refreshes
 prepared geometry/poses at 10 Hz; it does not start geometry-backed audio.
+
+The preparation editor uses the same collapsible-section pattern and field
+styling as Advanced Tools. Scene roots can be populated from Stage/viewport
+selection, or cleared with Entire stage. Object rows distinguish inclusion,
+motion and material origin; clicking a name replaces selection and +/- extends
+it. Filters expose selected, dynamic, excluded and fallback objects. Component
+selection shows effective descendant materials, including per-face differences.
+
+Coefficient fields follow selection, show Mixed when values/frequencies differ,
+and retain pending inputs while unrelated UI updates occur. Each family has its
+own frequencies. Apply edited coefficients validates the whole pending edit
+before writing only changed families. An empty field does not silently erase an
+override; Reset explicitly removes that family's local coefficients. Restore
+automatic material clears all local acoustic material overrides. Assign preset
+replaces those overrides with the chosen preset; documented scattering can be
+assigned independently. Sources and effective Steam values are a separate
+read-only section. Legacy nominal presets are visibly labelled and retained.
+
+Structures and acoustic geometry offers grouping without reparenting and a
+selection-based proxy workflow: remember selected proxy targets, select the
+owner, then assign. These USD relationship edits use the same Undo/Redo command
+as material changes, including Undo/Redo after import roots change.
+Instance proxies still require authoring at the instance
+root or source material. Issues and provider separates geometry verification
+from audio production. All sections operate through the shared session service.
+
 
 ```python
 from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession

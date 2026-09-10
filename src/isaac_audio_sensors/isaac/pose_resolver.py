@@ -46,6 +46,10 @@ class IsaacStagePoseResolver:
         self.time_code = time_code
         self.prims = tuple(stage.Traverse()) if prims is None else tuple(prims)
         self.prims_by_path = {prim_path(prim): prim for prim in self.prims}
+        self.children_by_path: dict[str, list[Any]] = {}
+        for path, prim in self.prims_by_path.items():
+            parent = path.rsplit("/", 1)[0] or "/"
+            self.children_by_path.setdefault(parent, []).append(prim)
 
     def resolve_world_pose(
         self,

@@ -896,14 +896,7 @@ def _has_direct_microphone_child(
     array_path: str,
     resolver: IsaacStagePoseResolver,
 ) -> bool:
-    prefix = f"{array_path.rstrip('/')}/"
-    for prim in resolver.prims:
-        path = prim_path(prim)
-        if not path.startswith(prefix):
-            continue
-        relative_path = path.removeprefix(prefix)
-        if "/" in relative_path:
-            continue
+    for prim in resolver.children_by_path.get(array_path, ()):
         attrs = resolver.attrs(prim)
         if _looks_like_microphone_child(attrs, prim):
             return True

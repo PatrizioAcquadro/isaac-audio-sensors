@@ -361,3 +361,79 @@ def test_unsupported_dynamic_representation_prevents_ready_state(kind):
     assert session.refresh()["state"] == "preparation with issues"
     assert any("/World/Unsupported" in issue for issue in session.issues)
     session.close()
+
+
+def test_scattering_family_assignment_and_conservative_inference():
+    s = stage()
+    plane(s, "/World/wood")
+    session = AcousticSceneSession(s)
+    session.refresh()
+    material = session.objects["/World/wood"].materials[0]
+    assert material.absorption.origin == "fallback:pra.hard_surface"
+    assert material.transmission_db is None
+    session.edit(["/World/wood"], {"ias:scattering_material_id": "pra.rpg_qrd"})
+    material = session.objects["/World/wood"].materials[0]
+    assert material.scattering.values == (0.06, 0.15, 0.45, 0.95, 0.88, 0.91)
+    assert material.scattering.evidence == "measured"
+    assert material.absorption.origin == "fallback:pra.hard_surface"
+    session.edit(["/World/wood"], {"ias:scattering": 0.2})
+    assert session.objects["/World/wood"].materials[0].scattering.values == (0.2,)
+    session.close()
+
+
+def test_shared_selection_editor_mixed_values_and_selective_edit():
+    from isaac_audio_sensors.kit.acoustic_scene_editor import (
+        coefficient_changes,
+        selected_objects,
+        selection_curves,
+    )
+
+    s = stage()
+    plane(s, "/World/Robot/Body")
+    plane(s, "/World/Robot/Housing", x=2)
+    session = AcousticSceneSession(s)
+    session.refresh()
+    session.edit(["/World/Robot/Body"], {"ias:absorption": 0.2})
+    selected = selected_objects(session, ["/World/Robot"])
+    assert len(selected) == 2
+    assert selection_curves(selected)["ias:absorption"] == "mixed"
+    before = session.objects["/World/Robot/Body"].materials[0].absorption
+    values = coefficient_changes(
+        {"ias:scattering": "0.4"}, {"ias:scattering": ""}, {"ias:scattering"}
+    )
+    session.edit(["/World/Robot"], values)
+    assert session.objects["/World/Robot/Body"].materials[0].absorption == before
+    assert all(
+        o.materials[0].scattering.values == (0.4,) for o in session.objects.values()
+    )
+    for text, frequencies in [("nan", ""), ("1.1", ""), ("0.1 0.2", "1000"), ("", "")]:
+        with pytest.raises(ValueError):
+            coefficient_changes(
+                {"ias:scattering": text},
+                {"ias:scattering": frequencies},
+                {"ias:scattering"},
+            )
+    session.close()
+
+
+def test_author_acoustic_representation_through_shared_service(tmp_path):
+    from isaac_audio_sensors.isaac.acoustic_scene.session import REPRESENTATION
+
+    s = stage()
+    UsdGeom.Cube.Define(s, "/World/Owner")
+    plane(s, "/Proxies/Wall")
+    session = AcousticSceneSession(s, roots=("/World",))
+    session.refresh()
+    session.edit(["/World/Owner"], {REPRESENTATION: ("/Proxies/Wall",)})
+    assert set(session.objects) == {"/Proxies/Wall"}
+    path = tmp_path / "proxy.usda"
+    s.GetRootLayer().Export(str(path))
+    reopened = AcousticSceneSession(Usd.Stage.Open(str(path)), roots=("/World",))
+    reopened.refresh()
+    assert set(reopened.objects) == {"/Proxies/Wall"}
+    with pytest.raises(ValueError, match="owner"):
+        session.edit(["/World/Owner"], {REPRESENTATION: ("/World/Owner",)})
+    session.edit(["/World/Owner"], {REPRESENTATION: None})
+    assert set(session.objects) == {"/World/Owner"}
+    reopened.close()
+    session.close()

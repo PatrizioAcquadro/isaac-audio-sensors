@@ -99,6 +99,30 @@ class AcousticSceneSession:
         if self.closed:
             raise RuntimeError("Acoustic scene session is closed")
         time = Usd.TimeCode.Default() if time is None else Usd.TimeCode(time)
+        if (
+            self._prepared
+            and not self._dirty
+            and not self._structural
+            and time == self._last_time
+        ):
+            # PhysX can move bodies without emitting a USD change notice.
+            xforms = UsdGeom.XformCache(time)
+            for obj in self.objects.values():
+                if not obj.dynamic:
+                    continue
+                try:
+                    pose = (
+                        self._world_transform(
+                            self.stage.GetPrimAtPath(obj.path), xforms
+                        )
+                        @ self._conversion
+                    )
+                except ValueError:
+                    break  # The full pass records the affected object as invalid.
+                if not np.allclose(obj.transform, pose, rtol=0, atol=1e-10):
+                    break
+            else:
+                return self.summary()
         self.issues, self.warnings, self.excluded = [], [], {}
         settings = self.stage.GetPrimAtPath(SETTINGS)
         associations = dict(DEFAULT_ASSOCIATIONS)
@@ -129,6 +153,7 @@ class AcousticSceneSession:
         conversion[:3, :3] *= unit
         if UsdGeom.GetStageUpAxis(self.stage) == "Z":
             conversion[:3, :3] = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]) * unit
+        self._conversion = conversion
         replacements = {}
         for prim in self._prims:
             rel = prim.GetRelationship(REPRESENTATION)
@@ -606,10 +631,31 @@ class AcousticSceneSession:
                 raise ValueError(
                     "Edit the instance root or source material for instance proxies"
                 )
+        if REPRESENTATION in values and values[REPRESENTATION] is not None:
+            targets = values[REPRESENTATION]
+            if not isinstance(targets, (tuple, list)) or not targets:
+                raise ValueError("Select at least one acoustic geometry target")
+            for target in targets:
+                if not self.stage.GetPrimAtPath(target):
+                    raise ValueError(f"Missing acoustic geometry target {target}")
+                if any(
+                    target == path or path.startswith(target.rstrip("/") + "/")
+                    for path in paths
+                ):
+                    raise ValueError(
+                        "Acoustic geometry cannot target its owner or an ancestor"
+                    )
         with Sdf.ChangeBlock():
             for path in paths:
                 prim = self.stage.GetPrimAtPath(path)
                 for name, value in values.items():
+                    if name == REPRESENTATION:
+                        rel = prim.CreateRelationship(name, custom=True)
+                        if value is None:
+                            rel.ClearTargets(True)
+                        else:
+                            rel.SetTargets(value)
+                        continue
                     if value is None:
                         attr = prim.GetAttribute(name)
                         if attr:

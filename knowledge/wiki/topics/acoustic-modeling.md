@@ -120,7 +120,24 @@ Real hardware claims require measured array geometry and response, controlled re
 The shared material catalog retains source absorption frequencies through 8 kHz
 where available. `resolve_material_coefficients()` defaults to the existing six
 analytic bands; `band_centers_hz=None` exposes the source bands. Scattering has
-separate nominal provenance. Geometry preparation labels inferred material
+independent provenance: nominal defaults or documented construction curves. Geometry preparation labels inferred material
 associations, missing-family fallbacks and frequency extrapolation explicitly.
 See [[implementation_phases/r10-geometry-acoustics-integration|R10.1 material preparation]]
 for the canonical USD precedence and Steam conversion rules.
+
+
+## Scattering and preparation presets
+
+R10.1 keeps absorption, scattering and transmission provenance separate in the
+shared catalog. Seven documented scattering-only configurations can be selected
+through `ias:scattering_material_id`; their native frequency curves are retained
+and Steam uses their 1000 Hz value for its scalar scattering field. Do not assign
+seating/box ensemble curves to generic walls or geometry that already resolves
+the same scattering details. Ordinary absorption presets retain nominal 0.05
+scattering; source-backed absorption does not make that default measured.
+
+Legacy nominal presets/aliases remain explicit compatibility options. Default
+preparation associations require construction-specific names and never infer
+nominal transmission from generic substance names. Existing authored mappings
+remain unchanged. See [[implementation_phases/r10-geometry-acoustics-integration|R10]]
+for sources, native conversion and supported transmission boundaries.
