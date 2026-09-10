@@ -2,6 +2,32 @@
 
 Updated: 2026-09-10. Package version: `3.0.0`.
 
+## Subphase 08.1 / R10.1 — Completed scene preparation
+
+Automatic composed-USD import, source-band materials, selective geometry/pose
+updates and the shared Kit preparation panel are implemented. The optional
+private Steam Audio 4.8.1 binding creates and updates actual native assemblies;
+no Geometry Acoustics signal producer or backend is registered yet.
+
+The host gate passes 645 unit/contract, 336 integration and 58 release tests.
+The supported Isaac suite passes 159 tests, including 18 focused real-USD/native
+preparation cases. The RTX 4090 live scene gate checks shared panel edits,
+Undo/Redo, native coordinate parity, and PhysX motion when USD pose writes are
+disabled. The bounded native coordinate comparison is below 1e-5 m; the measured
+run is approximately 4.3e-8 m. The complete extension workflow/screenshot gate
+also passes. Runtime tests require the repository's existing audio dependencies
+on the Isaac interpreter's Python path; missing Auditok/NARA WPE caused the
+initial environment-only failures and were resolved without new installations.
+
+[[implementation_phases/r10-geometry-acoustics-integration|R10]] owns the exact
+supported shapes, authoring API, material assumptions and native binary boundary.
+Subdivision/deformable geometry remains explicit unsupported input; conventional
+visual/collision deduplication may require manual correction for unusual assets.
+Nonplanar transmission falls back to opaque; predictable sequential-assembly
+transmission remains unsupported. These checks do not establish received audio,
+material calibration or perceptual qualification. Next: 08.2 / R10.2 passive
+microphone-array propagation.
+
 ## Product Boundary
 
 `isaac-audio-sensors` is a reusable robot-audition SDK that owns pure audio contracts and backends, calibration, generic recording/replay, optional Isaac Sim and Isaac Lab integration, the Kit extension, examples, and release tooling.
@@ -9,6 +35,8 @@ Updated: 2026-09-10. Package version: `3.0.0`.
 Robot-specific assets and mounts, downstream adapters and policies, task orchestration, measurement campaigns, holdouts, acceptance criteria, and experiment evidence remain outside the distributed product.
 
 ## Current Priorities
+
+**08.1 is complete (2026-09-10).** Continue with 08.2 microphone-array propagation; the preparation panel is already delivered and operational diagnostics remain in 08.3.
 
 **07.3 is complete (2026-09-10).** The observed GUI now shows simultaneous events and unresolved alternatives, with explicit activity, context, localization availability and truncation. New GUI arrays default to 16 kHz; current frames and bounded history have separate lifecycle semantics. The local-commit cleanup removes abandoned streaming experiments and redundant campaign surfaces while preserving the scalar/CUDA roles and decisive negative results. Host, actual GPU/runtime, visual Kit and distribution gates pass; see [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]] for evidence and limits.
 
@@ -317,7 +345,7 @@ Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain ava
 - Phase 06 physical evidence uses nominal geometry and ±5° placement uncertainty on one bench. Ambient levels do not isolate microphone self-noise; analog saturation, measured clock drift, calibrated SPL, and absolute physical latency remain unknown. Common reference alignment and host timing do not remove these limits. No gain correction is admitted.
 - Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
 - Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- Steam Audio is selected but not yet integrated. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, and a downstream physical-capture producer uses it; no public Geometry Acoustics producer exists yet.
+- Steam Audio has a verified R10.1 USD/native scene integration; the microphone-signal producer remains unimplemented. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, and a downstream physical-capture producer uses it; no public Geometry Acoustics producer exists yet.
 
 ## Next Work
 
@@ -328,7 +356,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The selected Geometry Acoustics provider and [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remain planned; historical gain corrections remain rejected/inconclusive.
+Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) and [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remain planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

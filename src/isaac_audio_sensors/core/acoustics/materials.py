@@ -31,7 +31,7 @@ PYROOMACOUSTICS_MATERIAL_CITATION = (
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MaterialEntry:
-    """One immutable, evidence-homogeneous acoustic material record."""
+    """One immutable catalog record; scattering has nominal provenance."""
 
     material_id: str
     description: str

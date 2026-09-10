@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: Planned after Plans 01–07, including 07.3 GUI consolidation. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 and 08.3 remain planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -10,7 +10,7 @@ Record the execution order of the R10 geometry-integration work. This page is a 
 
 #### Implementation
 
-Implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.1 — USD Acoustic Scene|R10.1 USD Acoustic Scene]].
+Completed [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.1 — USD Acoustic Scene|R10.1 USD Acoustic Scene]], including automatic import and the shared Python/Kit preparation panel. Operational backend controls and propagation diagnostics remain in 08.3.
 
 #### Key Decisions
 

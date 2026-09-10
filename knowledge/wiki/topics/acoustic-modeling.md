@@ -113,3 +113,14 @@ The corrected Subphase 04.2 qualification is role-based. `pyroomacoustics_srp` p
 Deterministic correctness, GPU execution, plausible waveforms, and agreement between backends do not prove physical fidelity.
 
 Real hardware claims require measured array geometry and response, controlled recordings, calibrated references, and a separate sim-to-real validation protocol.
+
+
+## Native-band material preparation
+
+The shared material catalog retains source absorption frequencies through 8 kHz
+where available. `resolve_material_coefficients()` defaults to the existing six
+analytic bands; `band_centers_hz=None` exposes the source bands. Scattering has
+separate nominal provenance. Geometry preparation labels inferred material
+associations, missing-family fallbacks and frequency extrapolation explicitly.
+See [[implementation_phases/r10-geometry-acoustics-integration|R10.1 material preparation]]
+for the canonical USD precedence and Steam conversion rules.

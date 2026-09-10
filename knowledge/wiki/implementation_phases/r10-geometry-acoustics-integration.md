@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 implementation in progress; R10.2 and R10.3 remain planned.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 and R10.3 remain planned.
 R9.4 risk retirement is complete and constrains the supported R10 scope.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -32,7 +32,8 @@ geometry, invisible geometry and conventional collision siblings of visual
 representations are excluded with reasons; explicit inclusion can override the
 selection. Technical sound/listener/Xform prims do not become triangles, while
 physical robot, source and microphone-housing children remain eligible.
-Selection is conservative: there is no automatic triangle decimation or
+Explicit proxy targets are included even outside the selected roots or when
+hidden for rendering. Selection is conservative: there is no automatic triangle decimation or
 replacement of an object by its bounding box.
 
 The service owns separate cached geometry, resolved materials, partition
@@ -129,6 +130,17 @@ A coordinate comparison caught the problem; the binding now passes the actual
 matrix struct. Native exported coordinates are checked against transformed USD
 vertices after movement. This is a geometry integration test, not an acoustic
 output claim.
+
+#### Completion Evidence
+
+The 18 focused real-USD/native tests cover concave polygons, hole faces,
+primitives, instances, units, per-face materials, explicit precedence,
+selective refresh, partition grouping, persistence, connected-room containment
+and explicit proxies outside selection roots. Exported native vertices match
+USD vertices after transform updates. The live RTX 4090 gate verifies Kit
+editing, Undo/Redo, PhysX motion with USD transform writes disabled, native
+resource reuse and panel capture. The complete Kit extension regression passes.
+Host and supported-runtime gate totals are recorded in [[status|Current Status]].
 
 ## Subphase R10.2 — Passive Microphone-Array Propagation
 

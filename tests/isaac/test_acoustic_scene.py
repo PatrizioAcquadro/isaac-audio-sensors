@@ -344,3 +344,20 @@ def test_explicit_proxy_outside_roots_is_included_even_when_invisible():
     assert set(session.objects) == {"/Acoustics/Wall"}
     assert not session.issues
     session.close()
+
+
+@pytest.mark.parametrize("kind", ["point_instancer", "skinned_mesh"])
+def test_unsupported_dynamic_representation_prevents_ready_state(kind):
+    from pxr import UsdSkel
+
+    s = stage()
+    UsdGeom.Cube.Define(s, "/World/Usable")
+    if kind == "point_instancer":
+        UsdGeom.PointInstancer.Define(s, "/World/Unsupported")
+    else:
+        mesh = plane(s, "/World/Unsupported")
+        UsdSkel.BindingAPI.Apply(mesh.GetPrim())
+    session = AcousticSceneSession(s)
+    assert session.refresh()["state"] == "preparation with issues"
+    assert any("/World/Unsupported" in issue for issue in session.issues)
+    session.close()

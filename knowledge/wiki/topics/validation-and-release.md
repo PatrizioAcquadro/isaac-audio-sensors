@@ -75,3 +75,24 @@ Before closeout, run the packaged Kit smoke from an extracted ZIP with offline p
 Passing software gates establishes the implemented contract within their environments; it does not establish physical acoustic fidelity, hardware calibration, downstream policy quality, or sim-to-real behavior.
 
 Current verified results and exact limitations belong in [[status|Current Status]], while release chronology belongs in the root `CHANGELOG.md`.
+
+
+## R10.1 native scene gate
+
+`tests/isaac/test_acoustic_scene.py` uses real USD. Native cases additionally
+require the local qualified Steam binary and skip explicitly if it is absent.
+The live GPU/panel gate is:
+
+```bash
+PYTHONPATH=src:tools/smoke:exts/isaac_audio_sensors.omni CUDA_VISIBLE_DEVICES=0 \
+  "$HOME/IsaacLab/isaaclab.sh" -p tools/smoke/live_acoustic_scene.py \
+  --library /absolute/path/to/qualified/libphonon.so \
+  --out build/validation/r10/scene
+```
+
+For this checkout, the complete Isaac/Kit regression also needs the existing
+`.venv/lib/python3.12/site-packages` on `PYTHONPATH` for Auditok and NARA WPE;
+this does not replace the Isaac interpreter or its CUDA PyTorch runtime.
+The gate compares native exported coordinates, exercises PhysX poses without
+USD writes, tests shared Kit edits and Undo/Redo, and captures the actual panel.
+It does not qualify propagation PCM or perceptual accuracy.

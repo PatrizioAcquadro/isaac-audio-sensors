@@ -144,6 +144,7 @@ class OmniReferenceWindow:
         self._buttons: list[str] = []
         self._instruments: dict[str, Any] = {}
         self._audio_panel: dict[str, Any] = {}
+        self._acoustic_scene_panel = None
         self._active_section = ""
         self._active_subsection = ""
         self._field_metadata: dict[str, tuple[str, str]] = {}
@@ -188,6 +189,9 @@ class OmniReferenceWindow:
     def close(self) -> None:
         """Detach callbacks and release widget references."""
 
+        if self._acoustic_scene_panel is not None:
+            self._acoustic_scene_panel.close()
+            self._acoustic_scene_panel = None
         self.controller.detach_window_callbacks()
         for subscription in self._model_change_subscriptions:
             for method_name in ("unsubscribe", "revoke"):
@@ -232,6 +236,11 @@ class OmniReferenceWindow:
                 on_collapsed_changed=self._guided_collapsed_changed,
             ):
                 build_guided_section(self)
+        with self._section("Acoustic Scene", collapsed=True):
+            from .acoustic_scene import AcousticScenePanel
+
+            self._acoustic_scene_panel = AcousticScenePanel(self.ui)
+            self._acoustic_scene_panel.build()
         with self._section("Live Monitor", collapsed=False):
             build_live_monitor_section(self)
         with self._section(

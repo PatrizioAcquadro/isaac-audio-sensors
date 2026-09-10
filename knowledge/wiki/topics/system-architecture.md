@@ -77,3 +77,15 @@ Optional absence is a supported state for pure functionality, but a requested op
 Robot-specific mounts, assets, policies, task orchestration, acceptance criteria, research campaigns, and consumer adapters belong to downstream repositories.
 
 See [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] for the maintained promises and exclusions.
+
+
+## USD acoustic preparation boundary
+
+`isaac.acoustic_scene.AcousticSceneSession` owns composed-USD geometry selection,
+material resolution, partition identity and selective pose updates. Its private
+Steam scene adapter owns native geometry resources only; the Kit preparation
+panel calls the same service and authors the same USD properties as Python.
+This layer is optional and does not register a propagation backend or change
+Core signal, observation, frame or dataset contracts. See
+[[implementation_phases/r10-geometry-acoustics-integration|R10.1]] for supported
+geometry, material provenance and native qualification limits.

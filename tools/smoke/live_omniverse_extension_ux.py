@@ -58,6 +58,7 @@ from isaac_audio_sensors.kit.window import _UiDiagnostic
 EXTENSION_ID = "isaac_audio_sensors.omni"
 EXPECTED_UI_SECTIONS = (
     "Guided Workflow",
+    "Acoustic Scene",
     "Live Monitor",
     "Advanced Tools",
 )

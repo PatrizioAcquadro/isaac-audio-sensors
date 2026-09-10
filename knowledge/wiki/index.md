@@ -13,7 +13,7 @@
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1–07.3: observed tensors, bounded scalar/CUDA perception, practical batch measurements, multievent GUI and consumer cleanup.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — R10.1–R10.3 sequence, including geometry-backed occlusion and provider diagnostics for the fuller Video 4 scope.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — completed 08.1 automatic USD/native scene preparation and shared Kit panel; propagation and operational diagnostics remain in 08.2–08.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — useful effects, evidence-backed variation and coherent GUI controls after geometry integration; received levels, noise and weak-signal activity remain priorities.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
 - [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — classification, tracking, speech and separation remain deferred; simultaneous localization moves to 04.4.
@@ -28,7 +28,7 @@
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — Steam selection plus qualified pathing, timing, diagnostics, operating cost, and a rejected paired transmission proxy.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — planned provider-backed signals and analytic transfer constrained to R9-qualified capabilities, followed by one maintained Steam adapter.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native scene preparation; planned provider-backed signals and analytic transfer remain constrained to R9-qualified capabilities.
 
 ## Topics
 

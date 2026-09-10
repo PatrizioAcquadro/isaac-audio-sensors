@@ -149,3 +149,30 @@ Forced updates on a paused timeline can repeat the same signal window. The commo
 - 2026-08-24: Migrated authoring and live validation to `OmniSound` and `OmniListener`, corrected native schema units and metadata precedence, and retained deprecated-alias read compatibility.
 - 2026-08-24: Refined the existing three-area UI with visual guided indicators, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, field-specific recovery, and transient field provenance without changing controller, serialization, or audio contracts.
 - 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.
+
+
+## Acoustic scene preparation
+
+The **Acoustic Scene** section imports the open composed stage and supports
+multiple-object selection, inclusion/exclusion, material coefficients,
+construction grouping, defaults, name associations and Undo/Redo. It shares
+`AcousticSceneSession` with Python and writes corrections to the current USD
+edit target. Save the stage normally to persist edits. The panel refreshes
+prepared geometry/poses at 10 Hz; it does not start geometry-backed audio.
+
+```python
+from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
+
+scene = AcousticSceneSession(stage)  # Or roots=("/World/Building",).
+report = scene.refresh()
+scene.edit(["/World/Door"], {"ias:acoustic_material_id": "nominal.wood"})
+# Optional: exact qualified Release/Embree library supplied by the application.
+report = scene.verify_provider(library_path)
+# Refresh at simulation time codes; close when the stage/session ends.
+scene.close()
+```
+
+Preparation works without the native library. A different Steam binary fails
+explicitly until requalified. See [[implementation_phases/r10-geometry-acoustics-integration|R10.1]]
+for the supported geometry, metadata, provenance and transmission limitations.
+Operational backend controls and propagation diagnostics remain in 08.3.

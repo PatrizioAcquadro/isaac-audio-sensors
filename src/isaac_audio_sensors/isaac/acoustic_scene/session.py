@@ -151,6 +151,15 @@ class AcousticSceneSession:
                 continue
             if not prim.IsLoaded():
                 self.issues.append(f"{path}: unloaded payload")
+            if prim.IsA(UsdGeom.PointInstancer):
+                if (
+                    self._inherited(prim, INCLUDE, time) is not False
+                    and path not in replacements
+                ):
+                    self.issues.append(
+                        f"{path}: point instancer requires an acoustic representation"
+                    )
+                continue
             if not prim.IsA(UsdGeom.Gprim):
                 continue
             reason = self._exclude(prim, replacements, time)
@@ -158,7 +167,10 @@ class AcousticSceneSession:
                 self.excluded[path] = reason
                 continue
             try:
-                if any("Deformable" in str(s) for s in prim.GetAppliedSchemas()):
+                if any(
+                    "Deformable" in str(s) or "SkelBinding" in str(s)
+                    for s in prim.GetAppliedSchemas()
+                ):
                     raise ValueError(
                         "Deformable geometry requires an acoustic representation"
                     )

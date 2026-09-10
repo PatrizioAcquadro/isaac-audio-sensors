@@ -1421,3 +1421,19 @@ Retain native absorption bands and expand the common catalog while preserving an
 ## 2026-09-10 — update: R10.1 USD and native scene
 
 Document automatic USD preparation, material precedence, selective cache refresh, native assembly grouping and exact-binary qualification. Record the matrix ABI correction and preserve unsupported transmission and geometry boundaries.
+
+## 2026-09-10 — update: Close 08.1 scene preparation and Kit authoring
+
+Complete automatic USD/native scene preparation and the shared Kit panel. The
+final host gate passes 645 unit/contract, 336 integration and 58 release tests;
+the supported Isaac suite passes 159 tests. RTX 4090 scene and complete Kit
+workflow gates pass, with native coordinate parity and live PhysX pose updates.
+Existing venv audio dependencies resolve the initial runtime import failures.
+Keep received audio, propagation diagnostics and general acoustic qualification
+outside this subphase. No push or publication.
+
+## 2026-09-10 — lint: 08.1 canonical documentation
+
+Internal links and index coverage resolve; affected phase/topic claims match
+code and bounded runtime evidence. Whitespace and Ruff checks pass. Raw material
+and protected ignored evidence remain unchanged.
