@@ -1385,3 +1385,7 @@ The wider randomized raised test supersedes the preliminary float32 admission ab
 ## 2026-09-09 — lint: Bounded 07.2 implementation delivery
 
 Final `make check` passes 645 unit/contract, 338 integration and 58 release tests, including wiki link/index coverage; Ruff, version synchronization and whitespace pass. Supported `make test-isaac` passes 139 tests. The permanent raised regression test rejects the discarded float32 path. Preserve historical evidence and clarify formerly empty entity behavior as the 07.1 state. Current phase, Lab topic, architecture, status and index agree on bounded implementation, preserved perception errors and open performance closure. Source-to-wheel module parity passes; TODO and generated validation reports remain ignored. No publication or push.
+
+## 2026-09-10 — update: Correct CUDA bearing order during baseline closeout
+
+Paired small-batch verification found that CUDA used signed bearings while Core normalizes to 0–360 degrees. Correct angle projection and bearing/elevation order before capacity truncation. The discovered directions, WPE and spatial method are unchanged. New actual-GPU tests compare the Core prefix at capacities one and three; all 141 supported-runtime tests pass. This repairs the observation contract rather than introducing a perceptual variant.

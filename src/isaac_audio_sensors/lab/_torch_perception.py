@@ -155,7 +155,8 @@ class TorchPerception:
                 result.doa_mask[chunk, :keep] = mask
                 result.bearing_deg_mask[chunk, :keep] = mask
                 result.bearing_deg[chunk, :keep] = (
-                    torch.rad2deg(torch.atan2(v[..., 1], v[..., 0])) * mask
+                    torch.rad2deg(torch.atan2(v[..., 1], v[..., 0])).remainder(360)
+                    * mask
                 )
                 if self.localizer.three_d:
                     result.elevation_deg_mask[chunk, :keep] = mask

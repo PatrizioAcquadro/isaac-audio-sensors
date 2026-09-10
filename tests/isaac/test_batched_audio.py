@@ -99,6 +99,45 @@ def test_cuda_localizer_matches_scalar_mixtures(positions, cuda):
     )
 
 
+@pytest.mark.parametrize("capacity", [1, 3])
+def test_cuda_bearing_order_and_truncation_match_core(cuda, capacity):
+    from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+    from isaac_audio_sensors.lab._torch_perception import TorchPerception
+
+    positions = np.asarray(LAYOUTS[1])
+    angle = np.radians(60)
+    rotation = np.array(
+        [
+            [np.cos(angle), -np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1],
+        ]
+    )
+    samples = mixture(positions @ rotation.T)
+    events, _ = MaintainedEventLocalizer().localize(samples, positions, 16000)
+    expected = sorted(event.estimated_bearing_deg for event in events)
+    assert len(expected) == 2 and expected[0] < 180 < expected[1]
+    p = TorchPerception(
+        num_envs=1,
+        positions=positions,
+        threshold_dbfs=-60,
+        doa_enabled=True,
+        max_observations=capacity,
+        max_doa_candidates=2,
+        device=cuda,
+    )
+    ids = torch.tensor([0], device=cuda)
+    p.ingest(
+        ids,
+        torch.tensor(samples[None], device=cuda),
+        torch.tensor([12000], device=cuda),
+    )
+    data = p.observations(ids)
+    actual = data.bearing_deg[0, data.bearing_deg_mask[0]].cpu().numpy()
+    np.testing.assert_allclose(actual, expected[:capacity], atol=0.1, rtol=0)
+    assert int(data.observations_truncated[0]) == max(0, len(expected) - capacity)
+
+
 def test_raised_correlated_channels_preserve_reference_events(cuda):
     from isaac_audio_sensors.core.plugins._multisource_sparse import WpeSparseCovariance
 

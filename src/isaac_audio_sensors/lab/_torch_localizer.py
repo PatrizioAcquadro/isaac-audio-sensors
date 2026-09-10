@@ -229,8 +229,15 @@ class TorchEventLocalizer:
             eligible &= ~self.exclusion[index] & present[:, None]
             slot += 1
         # Match Core event order; policy capacity is applied only after discovery.
-        bearing = torch.atan2(directions[..., 1], directions[..., 0])
-        order = bearing.masked_fill(~occupied, torch.inf).argsort(dim=-1, stable=True)
+        bearing = torch.atan2(directions[..., 1], directions[..., 0]).remainder(
+            2 * math.pi
+        )
+        elevation = torch.atan2(
+            directions[..., 2], torch.linalg.vector_norm(directions[..., :2], dim=-1)
+        )
+        secondary = elevation.argsort(dim=-1, stable=True)
+        primary = bearing.masked_fill(~occupied, torch.inf).gather(1, secondary)
+        order = secondary.gather(1, primary.argsort(dim=-1, stable=True))
         return directions.gather(
             1, order[..., None].expand(-1, -1, 3)
         ), occupied.gather(1, order)
