@@ -132,7 +132,7 @@ class AcousticSceneSession:
         replacements = {}
         for prim in self._prims:
             rel = prim.GetRelationship(REPRESENTATION)
-            if rel and rel.GetTargets():
+            if rel and rel.GetTargets() and self._in_roots(str(prim.GetPath())):
                 targets = tuple(map(str, rel.GetTargets()))
                 if any(not self.stage.GetPrimAtPath(p) for p in targets):
                     self.issues.append(
@@ -142,7 +142,12 @@ class AcousticSceneSession:
         active = {}
         for prim in self._prims:
             path = str(prim.GetPath())
-            if not self._in_roots(path):
+            explicit_target = any(
+                path == target or path.startswith(target + "/")
+                for targets in replacements.values()
+                for target in targets
+            )
+            if not self._in_roots(path) and not explicit_target:
                 continue
             if not prim.IsLoaded():
                 self.issues.append(f"{path}: unloaded payload")
@@ -363,7 +368,11 @@ class AcousticSceneSession:
         enabled = self._inherited(prim, INCLUDE, time)
         if enabled is False:
             return "explicit exclusion"
-        if enabled is True:
+        if enabled is True or any(
+            path == target or path.startswith(target + "/")
+            for targets in replacements.values()
+            for target in targets
+        ):
             return None
         if any(
             part.lower()

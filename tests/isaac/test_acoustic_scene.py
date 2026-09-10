@@ -329,3 +329,18 @@ def test_standard_primitives_have_finite_nondegenerate_geometry(schema):
     assert np.all(area > 1e-9)
     assert np.isfinite(obj.points).all()
     session.close()
+
+
+def test_explicit_proxy_outside_roots_is_included_even_when_invisible():
+    s = stage()
+    owner = UsdGeom.Cube.Define(s, "/World/Wall")
+    proxy = plane(s, "/Acoustics/Wall")
+    proxy.CreateVisibilityAttr("invisible")
+    owner.GetPrim().CreateRelationship("ias:acoustic_geometry").SetTargets(
+        ["/Acoustics/Wall"]
+    )
+    session = AcousticSceneSession(s, roots=("/World",))
+    session.refresh()
+    assert set(session.objects) == {"/Acoustics/Wall"}
+    assert not session.issues
+    session.close()
