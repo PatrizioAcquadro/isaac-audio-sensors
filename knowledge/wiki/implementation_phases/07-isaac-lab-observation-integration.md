@@ -1,6 +1,6 @@
 # Implementation Plan 07 — Isaac Lab Observation Integration
 
-Status: Subphase 07.1 implemented on 2026-09-08; 07.2 has a bounded implementation with performance closure still open; 07.3 remains unimplemented. The latest user decision on 2026-09-09 admits 07.2 on the maintained reference within its verified domain and suspends the unsuccessful temporal research iteration. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
+Status: Subphase 07.1 implemented on 2026-09-08; 07.2 is complete within the baseline scope agreed on 2026-09-10; 07.3 remains unimplemented. The 2026-09-09 admission retained the maintained reference and suspended temporal research. The 2026-09-10 closeout treats 4096 environments as exploratory, characterizes practical smaller batches and defers component changes. General temporal reliability remains unqualified. Confidence and bounded live occlusion are corrected. This supersedes the earlier general temporal prerequisite; the subsequent 07.2 causal-clock implementation is recorded below.
 
 ## Objective
 
@@ -51,6 +51,7 @@ The CUDA localizer reuses NARA-WPE primitives, Torch spectral/linear-algebra ope
 - The paired stationary comparison covers 36 existing received-audio recordings / 1,440 updates across all four geometries and 0/1/2 speech/non-speech events. The controls measure activity, count, direction, misses, extras and response against the same scalar inputs. These controls preserve imperfect observations, not a new general-room qualification. The rejected float32 variant passed this bounded indoor subset; that success did not justify the wider numerical approximation. Final float64 validation has 100% count/activity agreement, with angular-difference p95 of 0.000015/0.000010/0.000174/0.000164 degrees for triangle/square/raised/tetrahedral. Reference/CUDA misses and extras are identical: 8/72, 1/8, 14/36 and 0/14 respectively.
 - CUDA bulk data stays on the device; initialization prepares geometry/assets on the host. Small control synchronizations and chunk loops remain. There is no per-environment scalar perception loop or silent CPU fallback.
 - The old 20 ms empty-entity budget is replaced by reporting complete active-perception cost; an explicit caller budget remains optional.
+- The user clarified on 2026-09-10 that 4096 environments are an exploratory scale point, not a mandatory realtime requirement. Close 07.2 by characterizing practical smaller batches on the unchanged baseline. Moderate indoor reverberation remains a product objective; WPE, context, cadence and localizer comparisons are explicitly deferred.
 
 #### Problems / Limitations
 
@@ -76,7 +77,59 @@ A separate raised-array run uses five microphones, 642 spherical search directio
 
 An additional instrumented 256-environment update measures about 392.2 ms for transforms/WPE, 68.1 ms for sparse fitting, 3.0 ms for the detector, 3.8 ms for geometry, 0.8 ms for propagation, 0.7 ms for context-buffer operations, 1.8 ms for peaks and 0.3 ms for projection. Buffer ranges nest inside propagation and must not be added twice. These CUDA profiler durations are separate from uninstrumented wall timing. Initialization uploads reusable assets and dictionaries; steady-state PCM/context remain on CUDA. Scalar control synchronizations are included in wall time, but their individual transfer cost is not resolved by this runtime profiler.
 
-**Delivery status: bounded implementation delivered; full 07.2 performance closure remains open.** 4096 environments process 10 Hz of simulated audio, but the current reference-preserving implementation does not sustain that rate in realtime: about 66 seconds of wall time per simulated second. The float32 shortcut is rejected; no shorter context, oracle filling, confidence invention or temporal research is introduced to hide the cost. Further throughput work needs an explicit deployment budget and a separately validated optimization scope.
+The initial delivery left performance closure open because 4096 environments did not sustain realtime operation. The user clarified on 2026-09-10 that this was an exploratory measurement, not a mandatory closure gate. The measured limit remains valid: the planar 4096 workload takes about 66 wall seconds per simulated second. The float32 shortcut remains rejected.
+
+#### Practical Baseline Closeout
+
+The agreed closeout measures smaller batches without changing WPE, the 750 ms context, 16 kHz sample rate or 10 Hz observation cadence. Moderate indoor reverberation remains an intended domain; no component exclusion, shorter context, new backend, tracking study or policy training is introduced. This stage establishes practical audio cost, not the number of environments needed for a particular learner to succeed.
+
+The small-batch workload uses 60 Hz acquisition (six calls per 100 ms observation update), two continuously active independent file sources, diversified fixed source poses, 30 synchronized uninstrumented updates after warm-up, and the actual RTX 4090. Robot dynamics, rendering, policy inference/optimization, setup and the separate scalar verification are outside these timings. The measured path includes microphone-mixture generation, context maintenance, detector, WPE, localization and observation projection. The free-field producer does not add room reverberation; the separate four-geometry indoor PCM qualification remains the evidence for indoor perception, not scalable room propagation.
+
+Baseline verification compares the same final received PCM with the scalar localizer and preserves its false events. All reports retain nominal two-source quality separately. A diagnostic requiring a maximum difference of one degree failed on one 128-environment raised batch at 3.41 degrees, despite identical counts. That extra maximum-only diagnostic is not the established 07.2 paired criterion: the maintained baseline checks require count agreement of at least 97% and direction-difference p95 at most five degrees. The report exposes both p95 and maximum; the stricter diagnostic and its failed report remain local evidence. No localizer parameter was adjusted in response.
+
+
+
+**Planar (four microphones)**
+
+| Copies | Mean / p95 update (ms) | Peak Torch allocation (GiB) | Aggregate audio updates / wall second | Estimated wall minutes for 10 simulated minutes per copy |
+| --- | --- | --- | --- | --- |
+| 2 | 40.2 / 41.4 | 0.07 | 50 | 4.0 |
+| 16 | 62.7 / 63.9 | 0.44 | 255 | 6.3 |
+| 32 | 86.9 / 87.8 | 0.87 | 368 | 8.7 |
+| 64 | 140.4 / 142.6 | 1.71 | 456 | 14.0 |
+| 128 | 250.1 / 253.4 | 3.41 | 512 | 25.0 |
+| 256 | 462.3 / 481.5 | 3.44 | 554 | 46.2 |
+
+**Raised 3D (five microphones)**
+
+| Copies | Mean / p95 update (ms) | Peak Torch allocation (GiB) | Aggregate audio updates / wall second | Estimated wall minutes for 10 simulated minutes per copy |
+| --- | --- | --- | --- | --- |
+| 2 | 42.4 / 44.0 | 0.17 | 47 | 4.2 |
+| 16 | 90.9 / 99.1 | 0.64 | 176 | 9.1 |
+| 32 | 142.6 / 144.4 | 1.18 | 224 | 14.3 |
+| 64 | 252.6 / 253.7 | 2.25 | 253 | 25.3 |
+| 128 | 471.7 / 475.9 | 4.39 | 271 | 47.2 |
+| 256 | 935.6 / 965.3 | 4.43 | 274 | 93.6 |
+
+The 64/128-copy planar measurements were repeated because their initial p95 values showed more variability while host checks were running; the table uses the repeat after those checks finished, with both reports retained. All batches preserve reference counts on their final PCM: 996/996 environment comparisons. The maximum direction differences are 0.254 degrees planar and 4.143 degrees raised. The 128/256-copy raised runs have p95 differences of 0.014/0.018 degrees; the isolated larger differences are not hidden by that statistic. Nominal raised complete-set fractions range from 92.19% to 100%, and the scalar reference reproduces the extra-event counts. No successful-detection or new room-qualification claim follows from throughput. Every accepted run verifies deferred reads, finite padding and partial reset; one-row reset costs 2.8–4.0 ms, measured separately without an episode-length assumption. Reset warm-up remains part of the sensor behavior.
+
+**Practical starting points:** use 16 copies for short interactive development runs, and 128 copies as the first batch setting for collecting simulated experience. These are guidance for this audio workload, not changed SDK defaults. At 16 copies, audio-only p95 is about 64 ms planar and 99 ms raised; the latter leaves almost no realtime margin for additional robot/learning work. At 128 copies, aggregate throughput is about 92% of the 256-copy planar result and 99% of the raised result, while each copy advances almost twice as fast. Larger batches remain available but are not automatically a better practical choice.
+
+The waiting-time column is an extrapolation from steady-state measurements, not a completed ten-minute simulation or training run. For example, 128 copies each advancing ten simulated minutes cost about 25 wall minutes planar or 47 minutes raised for audio alone. They represent 1280 aggregate simulated minutes; they do not establish independent learning samples, task success or a required training dataset size. At the same rates, 100,000 environment audio updates cost about 3.3/6.1 wall minutes. Robot physics, rendering and learning add cost and must be measured in their eventual task. Intermittent activity and episode resets may change the average.
+
+Reproduce a selected batch with the maintained runtime, the existing isolated optional dependencies and the flags below (replace the layout/count to sweep the table):
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+PYTHONPATH=src:build/validation/phase06_1/runtime_deps:build/validation/continuity_runtime_deps \
+"$HOME/IsaacLab/isaaclab.sh" -p tools/smoke/live_isaac_lab_audio_smoke.py \
+  --perf-envs 128 --perf-layout raised --perf-steps 30 --perf-substeps 6 \
+  --perf-reference-check --out build/validation/phase07_2/practical/recheck.json
+```
+
+Reports and the derived CSV/JSON table remain in ignored `build/validation/phase07_2/practical/`. The sensor's angle/order correction passes all 141 Isaac runtime tests; `make check` passes 645 unit/contract, 338 integration and 58 release tests. The unchanged paired indoor recordings remain the bounded indoor preservation evidence.
+
+**Closure: 07.2 is complete within the scope agreed on 2026-09-10.** It supplies causal independent environment state, explicit audio content, mixture-only CUDA perception, the common observation contract, measured scale limits and practical baseline settings. Neither 4096-copy realtime operation nor a fast complete policy-training run is a closure requirement. Moderate indoor usefulness remains an objective with the documented reference limits. WPE removal, precision changes, context/cadence changes, alternative components and tracking research are deferred. The next implementation phase is 07.3 consumer/GUI migration; it does not erase these acoustic or performance limits.
 
 
 ## Subphase 07.3 — Lab Migration and Cleanup
@@ -109,6 +162,8 @@ The historical 07.1 validation passed 614 unit/contract, 282 integration, 58 rel
 Main implementation: `src/isaac_audio_sensors/lab/` (reference, entity PCM, CUDA perception and observation projection) and the maintained Lab example. Lifecycle/configuration, Isaac tests, and the existing live Lab smoke consume the same contract. See [[topics/isaac-lab-integration|Isaac Lab Integration]] for the public interface.
 
 ## Version Notes
+
+- 2026-09-10: Close 07.2 within the agreed baseline scope after small-batch measurements; correct CUDA angle/order projection. Preserve moderate-indoor objectives and defer component studies.
 
 - 2026-09-09: Deliver bounded 07.2 clocks, entity PCM and CUDA perception; reject float32 WPE after a raised-array regression. Active 4096-environment processing is verified, with realtime throughput still unmet.
 

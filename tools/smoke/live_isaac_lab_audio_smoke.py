@@ -17,6 +17,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--perf-envs", type=int, default=4096)
     parser.add_argument("--perf-steps", type=int, default=5)
+    parser.add_argument("--perf-substeps", type=int, default=1)
+    parser.add_argument("--perf-reference-check", action="store_true")
     parser.add_argument("--perf-budget-ms", type=float, default=None)
     parser.add_argument(
         "--out",
@@ -31,9 +33,9 @@ def main() -> int:
         default="quad_front",
     )
     args = parser.parse_args()
-    if args.perf_envs < 2 or args.perf_steps < 1:
+    if args.perf_envs < 2 or args.perf_steps < 1 or args.perf_substeps < 1:
         parser.error(
-            "Performance checks require at least two environments and one step."
+            "Performance checks require two environments and positive steps/substeps."
         )
     evidence = {"status": "started", "phase": "app_launcher"}
     _write_evidence(args.out, evidence)
@@ -389,7 +391,7 @@ def main() -> int:
             )
 
         for _ in range(10):
-            perf_sensor.update(0.1, force_recompute=True)
+            _advance_audio(perf_sensor, args.perf_substeps)
         before = perf_sensor._audio_last_update.clone()
         for _ in range(6):
             perf_sensor.update(1 / 60)
@@ -408,7 +410,7 @@ def main() -> int:
         step_ms = []
         for _ in range(args.perf_steps):
             started = time.perf_counter()
-            perf_sensor.update(0.1, force_recompute=True)
+            _advance_audio(perf_sensor, args.perf_substeps)
             torch.cuda.synchronize()
             step_ms.append((time.perf_counter() - started) * 1000)
         mean_ms = statistics.mean(step_ms)
@@ -429,7 +431,7 @@ def main() -> int:
                     torch.profiler.ProfilerActivity.CUDA,
                 ]
             ) as profile:
-                perf_sensor.update(0.1, force_recompute=True)
+                _advance_audio(perf_sensor, args.perf_substeps)
                 torch.cuda.synchronize()
             stages = {
                 event.key: {
@@ -442,6 +444,11 @@ def main() -> int:
                 if event.key.startswith("audio.")
             }
         quality = _entity_quality(torch, perf_sensor, perf_scene, args.perf_sources)
+        # Snapshot memory before the optional, untimed scalar verification.
+        peak_allocated_mib = torch.cuda.max_memory_allocated() / 2**20
+        reference_quality = (
+            _entity_reference_parity(perf_sensor) if args.perf_reference_check else None
+        )
         evidence = {
             "status": "measured",
             "phase": "quality_and_reset",
@@ -461,17 +468,25 @@ def main() -> int:
             "perf_sources": args.perf_sources,
             "perf_layout": args.perf_layout,
             "perf_steps": args.perf_steps,
+            "perf_substeps": args.perf_substeps,
+            "simulated_acquisition_hz": 10 * args.perf_substeps,
             "mean_ms_per_step": mean_ms,
             "p95_ms_per_step": sorted(step_ms)[math.ceil(0.95 * len(step_ms)) - 1],
             "step_ms": step_ms,
             "profile_stages": stages,
             "entity_quality": quality,
+            "entity_reference_parity": reference_quality,
+            "quality_gate": (
+                "reference_preservation" if args.perf_reference_check else "nominal"
+            ),
             "input_randomization": (
                 "seed 72; 360-degree azimuth and 1.5-3 m range; "
                 "raised/tetra elevation in [-30, 30] degrees"
             ),
-            "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
+            "peak_allocated_mib": peak_allocated_mib,
             "simulated_seconds_per_wall_second": 100.0 / mean_ms,
+            "aggregate_env_updates_per_wall_second": args.perf_envs * 1000 / mean_ms,
+            "aggregate_env_seconds_per_wall_second": args.perf_envs * 100 / mean_ms,
             "simulated_audio_hz": 10,
             "entity_observation_fraction": float(
                 perf_sensor.data.observation_mask.any(dim=1).float().mean()
@@ -479,11 +494,19 @@ def main() -> int:
             "budget_ms_per_step": args.perf_budget_ms,
         }
         _write_evidence(args.out, evidence)
-        if quality["complete_sets_within_20deg"] < 0.95:
+        if reference_quality is not None and not reference_quality["passed"]:
+            raise RuntimeError(f"Reference preservation failed: {reference_quality}")
+        if reference_quality is None and quality["complete_sets_within_20deg"] < 0.95:
             raise RuntimeError(f"Nominal free-field event-set gate failed: {quality}")
         sample_clock = perf_sensor._audio_time.clone()
         untouched = perf_sensor._entity_backend.perception.history[0].clone()
+        torch.cuda.synchronize()
+        reset_started = time.perf_counter()
         perf_sensor.reset([1])
+        torch.cuda.synchronize()
+        evidence["single_environment_reset_ms"] = (
+            time.perf_counter() - reset_started
+        ) * 1000
         torch.testing.assert_close(perf_sensor._audio_time[0], sample_clock[0])
         torch.testing.assert_close(
             perf_sensor._entity_backend.perception.history[0], untouched
@@ -518,6 +541,72 @@ def main() -> int:
             with suppress(Exception):
                 simulation_context.clear_instance()
         simulation_app.close(exit_code=gate_exit_code)
+
+
+def _advance_audio(sensor, substeps):
+    """Advance 100 ms of audio; physics and policy learning are not timed here."""
+    for step in range(substeps):
+        sensor.update(0.1 / substeps, force_recompute=step == substeps - 1)
+
+
+def _entity_reference_parity(sensor):
+    """Untimed scalar check on identical PCM, preserving existing false events."""
+    import numpy as np
+
+    from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+
+    backend = sensor._entity_backend
+    samples = backend.perception.history[:, :, -12000:].cpu().numpy()
+    positions = backend.binding.static.mic_offsets_local.cpu().numpy()
+    data = sensor.data
+    localizer = MaintainedEventLocalizer()
+    counts, matches, errors = [], [], []
+    for row, values in enumerate(samples):
+        events, _ = localizer.localize(values, positions, 16000)
+        events = sorted(
+            events,
+            key=lambda event: (
+                event.estimated_bearing_deg,
+                event.estimated_elevation_deg or 0,
+            ),
+        )
+        counts.append(len(events))
+        valid = data.observation_mask[row]
+        observed_count = int(valid.sum() + data.observations_truncated[row])
+        matches.append(observed_count == len(events))
+        expected = events[: data.observation_mask.shape[1]]
+        if len(expected) != int(valid.sum()):
+            continue
+        actual = np.radians(
+            np.stack(
+                [
+                    data.bearing_deg[row, valid].cpu().numpy(),
+                    data.elevation_deg[row, valid].cpu().numpy(),
+                ],
+                axis=-1,
+            )
+        )
+        for (azimuth, elevation), event in zip(actual, expected, strict=True):
+            ref_az, ref_el = np.radians(
+                [event.estimated_bearing_deg, event.estimated_elevation_deg or 0]
+            )
+            cosine = np.cos(elevation) * np.cos(ref_el) * np.cos(
+                azimuth - ref_az
+            ) + np.sin(elevation) * np.sin(ref_el)
+            errors.append(float(np.degrees(np.arccos(np.clip(cosine, -1, 1)))))
+    maximum_error = max(errors, default=0)
+    p95_error = float(np.percentile(errors, 95)) if errors else 0.0
+    count_agreement = sum(matches) / len(samples)
+    return {
+        "environments": len(samples),
+        "count_matches": sum(matches),
+        "count_agreement": count_agreement,
+        "scalar_count_distribution": np.bincount(counts).tolist(),
+        "max_retained_direction_difference_deg": maximum_error,
+        "retained_direction_difference_p95_deg": p95_error,
+        "direction_p95_tolerance_deg": 5.0,
+        "passed": count_agreement >= 0.97 and p95_error <= 5.0,
+    }
 
 
 def _entity_quality(torch, sensor, scene, sources):
