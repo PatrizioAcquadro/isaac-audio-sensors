@@ -1570,3 +1570,18 @@ No package propagation, observation schemas, raw material or historical SDK chan
 Document the authorized NLOS/usefulness follow-up, native per-route filtering and
 emission-clock controls. Keep the moving-obstacle interception limit explicit;
 production Geometry and the full R10 admission boundary remain unchanged.
+
+## 2026-09-11 — experiment: NLOS value and diffuse observation sensitivity
+
+Record controlled native NLOS and fixed-surface/moving-ray comparisons: 888 CUDA
+PCM streams, paired ray/time-step refinements, 960 scalar/CUDA comparison frames,
+and a passing actual Isaac Sim intermediate smoke. Distinguish substantial
+weak-direct observation bias from mixed multisource scores and unqualified
+navigation/full-room behavior. Retain the dynamic interception blocker and full
+R10 scope; no replacement provider evaluation or final scaling was run.
+
+## 2026-09-11 — lint: Targeted R10 follow-up evidence
+
+Wiki links/index, documentation-boundary tests, source/evidence references and
+whitespace checks pass. Final host checks pass 653 unit/contract, 336 integration
+and 58 release tests. Preserve immutable raw material and all prior native builds.

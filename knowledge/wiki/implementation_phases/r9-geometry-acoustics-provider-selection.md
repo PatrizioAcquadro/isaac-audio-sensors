@@ -625,6 +625,19 @@ Steam interface/build tool is retained for further native work. Exact implementa
 results and replay are owned by
 [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10's native-extension gate]].
 
+#### Targeted usefulness follow-up (2026-09-11)
+
+The user authorizes measuring the observation impact before a broader native
+redesign or replacement evaluation. The controlled follow-up establishes that
+corrected NLOS delays improve arrival-direction interpretation, and that the
+moving-ray diffuse field can substantially bias weak-direct moving-source
+observations. Strong-direct and competing-source cases show that this effect is
+selective; realism does not universally improve localization scores. The evidence
+supports targeted further work without selecting another provider.
+[[implementation_phases/r10-geometry-acoustics-integration#Targeted NLOS and observation-sensitivity follow-up (2026-09-11)|R10 owns the paired measurements, native renderer, dynamic interception limit and validation]].
+Production admission, persistent PRA transport versus replacement, and full R10
+closure remain separate decisions/gates. No new provider evaluation was started.
+
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit

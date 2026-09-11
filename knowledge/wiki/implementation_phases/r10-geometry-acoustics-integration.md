@@ -543,6 +543,82 @@ LOS exclusion, two distinct screen routes per microphone, obstacle removal and
 restoration. These improve the reusable native experiment, not the full acoustic
 coverage claim. Evidence: `local/r10/08_2_usefulness/README.md`.
 
+**Observed NLOS value.** Twelve paired source realizations in the initial/restored
+corridor give mean final-segment arrival-direction error **0.03685 degrees** with
+selected-route delays versus **57.99938 degrees** in a delay-only ablation. That
+ablation preserves route EQ, gain and weight but substitutes Euclidean delay;
+it isolates the archived failure mechanism, not every difference from the old
+aggregate renderer. Hidden-source bearing is scored separately and never used
+as an NLOS target. At 16 kHz, corrected peaks are 266–273 samples initially and
+436–443 after the blocker moves; the incorrect delay stays at 183–190 samples.
+The moved-blocker PCM is -61.85 dBFS and yields no observation at the unchanged
+-60 dBFS activity threshold. Correct propagation does not guarantee audibility.
+
+**Diffuse observation experiment.** Actual native PRA ray-event pressure is
+compared with a fixed Lambertian surface-element reference on one finite plane.
+Both start from the same native quadrature and stochastic realization. The
+reference updates incident illumination by the cosine/inverse-square law and
+incoming delay while retaining scattering positions on the surface. No fitted
+gain or post-render covariance correction is used. This reference isolates the
+phase-model defect; it is not a general room solver or production replacement.
+
+Four microphones form an 8 cm square. The source moves normally to the plane at
+0, 0.1 or 0.5 m/s. Conditions include unit direct gain, direct gain 0.1 and an
+independent competing source. Direct attenuation is a sensitivity axis, not an
+occluding-door model. There are 24 paired phase/signal realizations per condition:
+432 streams at 4096 rays/20 ms updates, 192 refinement streams at 16384 rays, and
+192 at 5 ms updates. All **72 stationary PCM pairs are exactly identical**.
+Signals stop at 2.1 s; complete streams last 2.4 s. Direction scoring uses
+0.8–2.1 s, excluding mandatory 750 ms perception warmup and source-stop tails.
+
+Production `TorchPerception` runs on RTX 4090 and receives only PCM and microphone
+positions. Truth enters scoring afterward. A miss is no assigned direction within
+20 degrees, including wrong directions; it is not necessarily a missing output.
+Extra directions, no-DOA rate, assignment error, first-match latency/censoring and
+per-frame outputs are retained. Confidence intervals bootstrap paired trial means,
+not correlated frames; they are descriptive, without a multiple-comparison claim.
+
+| Single-source condition | Reference misses | Moving-ray misses | Paired excess percentage points (95% CI) |
+| --- | ---: | ---: | ---: |
+| Strong direct, 0.5 m/s, 4096 rays | 0% | 0% | 0 |
+| Weak direct, 0.1 m/s, 16384 rays | 13.39% | 13.10% | -0.30 [-12.80, 11.01] |
+| Weak direct, 0.5 m/s, 4096 rays | 33.93% | 77.08% | 43.15 [31.85, 54.47] |
+| Weak direct, 0.5 m/s, 16384 rays | 35.71% | 69.94% | 34.23 [26.48, 42.56] |
+| Weak direct, 0.5 m/s, 5 ms updates | 34.23% | 74.11% | 39.88 [27.38, 52.38] |
+
+Strong-direct mean DRR is about +10 to +12 dB; paired angular differences stay
+below 0.14 degrees. Weak-direct DRR is about -8.5 to -10.4 dB. At 0.5 m/s and
+16384 rays, the defective model increases assignment angular error by 8.97 degrees
+[5.06, 13.39]. It never recovers the single target during the scored/source-active
+trial in 3/24 realizations, versus 0/24 for the reference. Conditional first-match
+latency difference has a CI crossing zero; no general latency benefit is claimed.
+
+The competing-source result is mixed: at 0.1 m/s/16384 rays, the defective model
+*reduces* misses by 12.95 percentage points [5.35, 21.43]; at 0.5 m/s both variants
+miss 50% of target directions. Both fields produce extra estimates in difficult
+cases. These results establish material, scenario-dependent observation bias,
+not universally worse scores, complete moving-source perception or navigation
+success. The physically better reference need not make a task easier.
+
+**Validation and decision.** The 816 diffuse plus 72 NLOS PCM streams use actual
+CUDA inference. Forty selected streams (960 frames) also pass scalar comparisons:
+100% count/activity agreement, maximum direction difference 3.798 degrees, within
+the existing 5-degree control. Native acoustic engines stay on their supported CPU
+path. Actual Isaac Sim 6 on RTX 4090 passes the maintained intermediate Geometry
+smoke (native PCM, scalar observations, source-stop/reset). This is preservation
+of the existing producer, not live USD admission of the experimental path branch.
+`make check` passes **653 unit/contract + 336 integration + 58 release** tests;
+the separate optional native filter control passes.
+
+The evidence justifies targeted NLOS integration and persistent diffuse-field
+work for weak-direct moving-source scenarios. It does not justify assuming that
+a third provider is necessary or already suitable. A broader PRA redesign versus
+replacement evaluation is still a separate architectural decision. Full R10,
+continuous dynamic visibility, general-room admission and closed-loop navigation
+remain open. No new provider, physical recording, policy training or final scaling
+qualification was introduced. Detailed controls, raw observations, figure and
+replay instructions are in `local/r10/08_2_usefulness/README.md`.
+
 #### Milestone 2 native extensions — dynamic-field blocker (2026-09-11)
 
 **Milestone 2 is not achieved; final scope is unchanged.** The authorized
