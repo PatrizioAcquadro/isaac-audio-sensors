@@ -68,7 +68,7 @@ GitHub Actions runs the deterministic host gate on Python 3.10, 3.11, and 3.12 p
 
 After publication, verify the remote tag and immutable GitHub asset against the release commit and digest. Verify the PyPI JSON and Integrity APIs expose only the expected sdist and wheel with provenance, then repeat base and optional-extra installation checks from the public index. Community Registry closeout additionally requires discovery, installation, enable/disable, and launch from the registry; a valid GitHub release is only the crawler input, not proof of registry publication.
 
-Before closeout, run the packaged Kit smoke from an extracted ZIP with offline pip settings, no checkout package path, and a precreated `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, fixed-threshold Auditok detection, room waveform, FLAC, and shutdown.
+Before closeout, extract the ZIP into an `isaac_audio_sensors.omni` directory so Extension Manager resolves its identifier. Run the packaged Kit smoke with offline pip settings, no checkout package path, and a precreated `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. Run from a directory containing the generated audio assets, as required by the public asset-path contract. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, fixed-threshold Auditok detection, room waveform, FLAC, and shutdown.
 
 ## Interpretation
 

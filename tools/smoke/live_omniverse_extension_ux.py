@@ -292,28 +292,15 @@ def main() -> int:
         evidence["omni_module"] = str(getattr(omni, "__file__", "built-in"))
         _record_loaded_runtime_modules(evidence)
         _record_gpu_preflight(evidence)
-        evidence["kit_extension_manager"] = _try_enable_extension_manager(
-            extension_id=EXTENSION_ID,
-            extension_path=Path(evidence["extension_path"]),
-        )
-        managed_id = _enabled_extension_id(evidence) or EXTENSION_ID
-        evidence["kit_extension_manager_pre_manual_disable"] = (
-            _try_disable_extension_manager(extension_id=managed_id)
-        )
-        if (
-            evidence["kit_extension_manager_pre_manual_disable"].get("status")
-            != "disabled"
-        ):
-            raise RuntimeError(
-                "Could not isolate the manager-owned extension before UX smoke: "
-                f"{evidence['kit_extension_manager_pre_manual_disable']}"
-            )
-        evidence["managed_window_cleanup"] = _destroy_workspace_extension_window()
-        if evidence["managed_window_cleanup"].get("status") == "failed":
-            raise RuntimeError(
-                "Could not remove the disabled manager window before UX smoke: "
-                f"{evidence['managed_window_cleanup']}"
-            )
+        stage = _create_stage(evidence)
+        evidence["stage_mode"] = "omni_usd_context_stage"
+        _author_minimal_stage(stage)
+        _update_kit_once(evidence)
+
+        startup_ext_id = EXTENSION_ID
+        evidence["manual_extension_startup_id"] = startup_ext_id
+        extension = Extension()
+        extension.on_startup(startup_ext_id)
         evidence["package_origin"] = _probe_package_origin(
             Path(evidence["extension_path"])
         )
@@ -321,15 +308,6 @@ def main() -> int:
             Path(evidence["extension_path"])
         )
 
-        stage = _create_stage(evidence)
-        evidence["stage_mode"] = "omni_usd_context_stage"
-        _author_minimal_stage(stage)
-        _update_kit_once(evidence)
-
-        startup_ext_id = _enabled_extension_id(evidence) or EXTENSION_ID
-        evidence["manual_extension_startup_id"] = startup_ext_id
-        extension = Extension()
-        extension.on_startup(startup_ext_id)
         controller = extension.controller
         controller.ext_id = startup_ext_id
         controller.state.backend = "analytic_acoustics"
@@ -410,6 +388,20 @@ def main() -> int:
             {"status": "failed", "reason": "audio output did not complete"},
         )
 
+        # Kit unloads package modules on disable; finish the manual client first.
+        extension.on_shutdown()
+        evidence["extension_shutdown"] = "ok"
+        extension = None
+        evidence["manual_window_cleanup"] = _destroy_workspace_extension_window()
+        if evidence["manual_window_cleanup"].get("status") == "failed":
+            raise RuntimeError(
+                "Could not remove the manual window: "
+                f"{evidence['manual_window_cleanup']}"
+            )
+        evidence["kit_extension_manager"] = _try_enable_extension_manager(
+            extension_id=EXTENSION_ID,
+            extension_path=args.extension_path,
+        )
         _validate_live_extension_outputs(evidence=evidence)
         evidence["status"] = "passed"
     except BaseException as exc:  # noqa: BLE001 - smoke evidence records exact error.
@@ -3629,7 +3621,7 @@ def _try_enable_extension_manager(
 
 
 def _destroy_workspace_extension_window() -> dict[str, Any]:
-    """Remove the disabled manager instance before the isolated UX probe."""
+    """Release the manual window before the manager lifecycle probe."""
 
     try:
         import omni.ui  # type: ignore

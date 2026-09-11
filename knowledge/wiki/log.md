@@ -1655,3 +1655,10 @@ Recorded scoped runtime/test cleanup and isolated optional-dependency validation
 
 All 35 pages remain indexed; internal pages/headings and append-only log checks
 pass. No raw material, historical evidence or ONR delivery was changed.
+
+## 2026-09-11 — update: Validate the packaged geometry cleanup
+
+Clean-source Python/Kit artifacts pass inventory and dependency audits. Corrected
+the UX smoke order: finish the manual client before Extension Manager unloads its
+modules. The isolated, offline packaged Kit run passes; documented extraction
+identity and asset-path prerequisites. Wiki links and whitespace checks pass.

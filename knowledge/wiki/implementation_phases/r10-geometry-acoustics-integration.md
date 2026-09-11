@@ -1374,6 +1374,10 @@ supported Isaac tests, eight selected-route native tests against the rebuilt
 library, and 40 optional tests. Actual RTX 4090 Sim, Lab, acoustic editor and
 complete Kit extension smokes pass. Editor checks include default-setting
 Undo/Redo and invalid-edit atomicity. Evidence is in `build/validation/cleanup/`.
+Clean-source sdist, wheel-from-sdist and locked Kit ZIP audits pass. The extracted
+Kit smoke passes offline with packaged dependency origins and Kit-owned NumPy.
+The UX smoke now completes its manual client before Extension Manager unloads
+package modules, preserving separate manual and managed lifecycle checks.
 These are maintenance regressions, not new profile admission or Phase 08 closure.
 
 ## Artifacts
