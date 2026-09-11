@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,6 +16,23 @@ DYNAMIC = "ias:acoustic_dynamic"
 PARTITION = "ias:acoustic_partition_id"
 REPRESENTATION = "ias:acoustic_geometry"
 SETTINGS = "/IASAcousticScene"
+
+
+def _configuration_values(
+    *, associations=None, fallback_material=None, fallback_scattering=None
+):
+    from isaac_audio_sensors.core.acoustics.materials import resolve_material
+
+    values = {}
+    if associations is not None:
+        for value in associations.values():
+            resolve_material(value)
+        values["ias:material_associations"] = json.dumps(associations, sort_keys=True)
+    if fallback_material is not None:
+        values["ias:fallback_material"] = fallback_material
+    if fallback_scattering is not None:
+        values["ias:fallback_scattering"] = fallback_scattering
+    return values
 
 
 @dataclass
@@ -94,7 +112,7 @@ class AcousticSceneSession:
         return None
 
     def refresh(self, time=None):
-        from pxr import Usd, UsdGeom, UsdShade
+        from pxr import Usd, UsdGeom
 
         if self.closed:
             raise RuntimeError("Acoustic scene session is closed")
@@ -124,25 +142,7 @@ class AcousticSceneSession:
             else:
                 return self.summary()
         self.issues, self.warnings, self.excluded = [], [], {}
-        settings = self.stage.GetPrimAtPath(SETTINGS)
-        associations = dict(DEFAULT_ASSOCIATIONS)
-        fallback_id, fallback_scattering = "pra.hard_surface", 0.05
-        if settings:
-            mapping = attribute(settings, "ias:material_associations", time)
-            if mapping is not None:
-                import json
-
-                associations = json.loads(mapping)
-                if not isinstance(associations, dict):
-                    raise ValueError("Material associations must be an object")
-            fallback_id = (
-                attribute(settings, "ias:fallback_material", time) or fallback_id
-            )
-            value = attribute(settings, "ias:fallback_scattering", time)
-            if value is not None:
-                fallback_scattering = float(value)
-                if not np.isfinite(value) or not 0 <= value <= 1:
-                    raise ValueError("Fallback scattering must be in [0, 1]")
+        material_settings = self._material_settings(time)
         if self._structural:
             self._prims = list(
                 Usd.PrimRange.Stage(self.stage, Usd.TraverseInstanceProxies())
@@ -154,16 +154,7 @@ class AcousticSceneSession:
         if UsdGeom.GetStageUpAxis(self.stage) == "Z":
             conversion[:3, :3] = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]) * unit
         self._conversion = conversion
-        replacements = {}
-        for prim in self._prims:
-            rel = prim.GetRelationship(REPRESENTATION)
-            if rel and rel.GetTargets() and self._in_roots(str(prim.GetPath())):
-                targets = tuple(map(str, rel.GetTargets()))
-                if any(not self.stage.GetPrimAtPath(p) for p in targets):
-                    self.issues.append(
-                        f"{prim.GetPath()}: missing acoustic representation"
-                    )
-                replacements[str(prim.GetPath())] = targets
+        replacements = self._representations()
         active = {}
         for prim in self._prims:
             path = str(prim.GetPath())
@@ -192,163 +183,9 @@ class AcousticSceneSession:
                 self.excluded[path] = reason
                 continue
             try:
-                if any(
-                    "Deformable" in str(s) or "SkelBinding" in str(s)
-                    for s in prim.GetAppliedSchemas()
-                ):
-                    raise ValueError(
-                        "Deformable geometry requires an acoustic representation"
-                    )
-                if any(
-                    a.ValueMightBeTimeVarying()
-                    for a in prim.GetAttributes()
-                    if a.GetName()
-                    in ("points", "faceVertexIndices", "faceVertexCounts")
-                ):
-                    raise ValueError("Deforming/time-varying topology is unsupported")
-                old = self.objects.get(path)
-                animated = self._last_time != time and any(
-                    a.ValueMightBeTimeVarying()
-                    for a in prim.GetAttributes()
-                    if not a.GetName().startswith("xformOp")
+                active[path] = self._refresh_object(
+                    prim, time, xforms, material_settings
                 )
-                changed = (
-                    old is None
-                    or animated
-                    or any(
-                        (
-                            self._affects(path, p)
-                            or (
-                                old
-                                and any(self._affects(d, p) for d in old.dependencies)
-                            )
-                        )
-                        for p in self._dirty
-                        if not p.rsplit(".", 1)[-1].startswith("xformOp")
-                    )
-                )
-                transform = self._world_transform(prim, xforms) @ conversion
-                if (
-                    not np.isfinite(transform).all()
-                    or abs(np.linalg.det(transform[:3, :3])) < 1e-15
-                ):
-                    raise ValueError("Invalid or singular world transform")
-                dynamic = self._dynamic(prim, time)
-                if changed:
-                    geometry_changed = (
-                        old is None
-                        or animated
-                        or any(
-                            self._affects(path, p)
-                            and (
-                                "." not in p
-                                or p.rsplit(".", 1)[-1]
-                                in (
-                                    "points",
-                                    "faceVertexIndices",
-                                    "faceVertexCounts",
-                                    "holeIndices",
-                                    "orientation",
-                                    "size",
-                                    "radius",
-                                    "height",
-                                    "axis",
-                                    "subdivisionScheme",
-                                )
-                            )
-                            for p in self._dirty
-                        )
-                    )
-                    if geometry_changed:
-                        points, triangles, faces = extract(prim, time)
-                        self.geometry_builds += 1
-                    else:
-                        points, triangles, faces = (
-                            old.points,
-                            old.triangles,
-                            old.face_indices,
-                        )
-                    if (
-                        not len(triangles)
-                        or points.ndim != 2
-                        or points.shape[1] != 3
-                        or not np.isfinite(points).all()
-                    ):
-                        raise ValueError("Empty or invalid acoustic geometry")
-                    material, _ = UsdShade.MaterialBindingAPI(
-                        prim
-                    ).ComputeBoundMaterial()
-                    bound = material.GetPrim() if material else None
-                    kwargs = dict(
-                        time=time,
-                        associations=associations,
-                        fallback_id=fallback_id,
-                        fallback_scattering=fallback_scattering,
-                    )
-                    dependencies = [str(bound.GetPath())] if bound else []
-                    materials = [resolve(prim, bound, **kwargs)]
-                    material_indices = np.zeros(len(triangles), dtype=np.int32)
-                    assigned = set()
-                    for subset in UsdShade.MaterialBindingAPI(
-                        prim
-                    ).GetMaterialBindSubsets():
-                        indices = set(subset.GetIndicesAttr().Get(time) or ())
-                        if any(
-                            i < 0
-                            or i
-                            >= len(
-                                UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get(time)
-                            )
-                            for i in indices
-                        ):
-                            raise ValueError("Material subset refers to a missing face")
-                        if assigned & indices:
-                            raise ValueError("Overlapping material subsets")
-                        assigned |= indices
-                        material, _ = UsdShade.MaterialBindingAPI(
-                            subset.GetPrim()
-                        ).ComputeBoundMaterial()
-                        if material:
-                            dependencies.append(str(material.GetPath()))
-                        materials.append(
-                            resolve(
-                                prim,
-                                material.GetPrim() if material else bound,
-                                **kwargs,
-                            )
-                        )
-                        material_indices[np.isin(faces, list(indices))] = (
-                            len(materials) - 1
-                        )
-                    partition = self._inherited(prim, PARTITION, time)
-                    if partition is not None and not str(partition).strip():
-                        raise ValueError("Acoustic partition ID must be nonempty")
-                    partition = partition or self._object_owner(prim)
-                    obj = AcousticObject(
-                        path,
-                        str(partition),
-                        points,
-                        triangles,
-                        faces,
-                        transform,
-                        tuple(materials),
-                        material_indices,
-                        dynamic,
-                        revision=0
-                        if old is None
-                        else old.revision + int(geometry_changed),
-                        dependencies=tuple(dependencies),
-                    )
-                else:
-                    obj = old
-                    if not np.allclose(obj.transform, transform, rtol=0, atol=1e-10):
-                        obj.transform = transform
-                        obj.dynamic = (
-                            True  # Unexpected rigid edits become selectively movable.
-                        )
-                        self.transform_updates += 1
-                    obj.dynamic |= dynamic
-                active[path] = obj
             except (ValueError, TypeError, RuntimeError) as exc:
                 self.issues.append(f"{path}: {exc}")
         self.objects = active
@@ -388,6 +225,189 @@ class AcousticSceneSession:
         if self.provider:
             self.provider.sync(self.objects, valid=not self.issues)
         return self.summary()
+
+    def _material_settings(self, time):
+        settings = self.stage.GetPrimAtPath(SETTINGS)
+        associations = dict(DEFAULT_ASSOCIATIONS)
+        fallback_id, fallback_scattering = "pra.hard_surface", 0.05
+        if settings:
+            mapping = attribute(settings, "ias:material_associations", time)
+            if mapping is not None:
+                associations = json.loads(mapping)
+                if not isinstance(associations, dict):
+                    raise ValueError("Material associations must be an object")
+            fallback_id = (
+                attribute(settings, "ias:fallback_material", time) or fallback_id
+            )
+            value = attribute(settings, "ias:fallback_scattering", time)
+            if value is not None:
+                fallback_scattering = float(value)
+                if not np.isfinite(value) or not 0 <= value <= 1:
+                    raise ValueError("Fallback scattering must be in [0, 1]")
+        return dict(
+            associations=associations,
+            fallback_id=fallback_id,
+            fallback_scattering=fallback_scattering,
+        )
+
+    def _representations(self):
+        replacements = {}
+        for prim in self._prims:
+            rel = prim.GetRelationship(REPRESENTATION)
+            if rel and rel.GetTargets() and self._in_roots(str(prim.GetPath())):
+                targets = tuple(map(str, rel.GetTargets()))
+                if any(not self.stage.GetPrimAtPath(p) for p in targets):
+                    self.issues.append(
+                        f"{prim.GetPath()}: missing acoustic representation"
+                    )
+                replacements[str(prim.GetPath())] = targets
+        return replacements
+
+    def _refresh_object(self, prim, time, xforms, material_settings):
+        path = str(prim.GetPath())
+        if any(
+            "Deformable" in str(s) or "SkelBinding" in str(s)
+            for s in prim.GetAppliedSchemas()
+        ):
+            raise ValueError("Deformable geometry requires an acoustic representation")
+        if any(
+            a.ValueMightBeTimeVarying()
+            for a in prim.GetAttributes()
+            if a.GetName() in ("points", "faceVertexIndices", "faceVertexCounts")
+        ):
+            raise ValueError("Deforming/time-varying topology is unsupported")
+        old = self.objects.get(path)
+        animated = self._last_time != time and any(
+            a.ValueMightBeTimeVarying()
+            for a in prim.GetAttributes()
+            if not a.GetName().startswith("xformOp")
+        )
+        changed = (
+            old is None
+            or animated
+            or any(
+                (
+                    self._affects(path, p)
+                    or (old and any(self._affects(d, p) for d in old.dependencies))
+                )
+                for p in self._dirty
+                if not p.rsplit(".", 1)[-1].startswith("xformOp")
+            )
+        )
+        transform = self._world_transform(prim, xforms) @ self._conversion
+        if (
+            not np.isfinite(transform).all()
+            or abs(np.linalg.det(transform[:3, :3])) < 1e-15
+        ):
+            raise ValueError("Invalid or singular world transform")
+        dynamic = self._dynamic(prim, time)
+        if changed:
+            geometry_changed = (
+                old is None
+                or animated
+                or any(
+                    self._affects(path, p)
+                    and (
+                        "." not in p
+                        or p.rsplit(".", 1)[-1]
+                        in (
+                            "points",
+                            "faceVertexIndices",
+                            "faceVertexCounts",
+                            "holeIndices",
+                            "orientation",
+                            "size",
+                            "radius",
+                            "height",
+                            "axis",
+                            "subdivisionScheme",
+                        )
+                    )
+                    for p in self._dirty
+                )
+            )
+            if geometry_changed:
+                points, triangles, faces = extract(prim, time)
+                self.geometry_builds += 1
+            else:
+                points, triangles, faces = (
+                    old.points,
+                    old.triangles,
+                    old.face_indices,
+                )
+            if (
+                not len(triangles)
+                or points.ndim != 2
+                or points.shape[1] != 3
+                or not np.isfinite(points).all()
+            ):
+                raise ValueError("Empty or invalid acoustic geometry")
+            materials, material_indices, dependencies = self._face_materials(
+                prim, faces, time, material_settings
+            )
+            partition = self._inherited(prim, PARTITION, time)
+            if partition is not None and not str(partition).strip():
+                raise ValueError("Acoustic partition ID must be nonempty")
+            partition = partition or self._object_owner(prim)
+            obj = AcousticObject(
+                path,
+                str(partition),
+                points,
+                triangles,
+                faces,
+                transform,
+                tuple(materials),
+                material_indices,
+                dynamic,
+                revision=0 if old is None else old.revision + int(geometry_changed),
+                dependencies=tuple(dependencies),
+            )
+        else:
+            obj = old
+            if not np.allclose(obj.transform, transform, rtol=0, atol=1e-10):
+                obj.transform = transform
+                # Unexpected rigid edits become selectively movable.
+                obj.dynamic = True
+                self.transform_updates += 1
+            obj.dynamic |= dynamic
+        return obj
+
+    @staticmethod
+    def _face_materials(prim, faces, time, material_settings):
+        from pxr import UsdGeom, UsdShade
+
+        material, _ = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()
+        bound = material.GetPrim() if material else None
+        dependencies = [str(bound.GetPath())] if bound else []
+        materials = [resolve(prim, bound, time=time, **material_settings)]
+        material_indices = np.zeros(len(faces), dtype=np.int32)
+        assigned = set()
+        for subset in UsdShade.MaterialBindingAPI(prim).GetMaterialBindSubsets():
+            indices = set(subset.GetIndicesAttr().Get(time) or ())
+            if any(
+                i < 0
+                or i >= len(UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get(time))
+                for i in indices
+            ):
+                raise ValueError("Material subset refers to a missing face")
+            if assigned & indices:
+                raise ValueError("Overlapping material subsets")
+            assigned |= indices
+            material, _ = UsdShade.MaterialBindingAPI(
+                subset.GetPrim()
+            ).ComputeBoundMaterial()
+            if material:
+                dependencies.append(str(material.GetPath()))
+            materials.append(
+                resolve(
+                    prim,
+                    material.GetPrim() if material else bound,
+                    time=time,
+                    **material_settings,
+                )
+            )
+            material_indices[np.isin(faces, list(indices))] = len(materials) - 1
+        return materials, material_indices, dependencies
 
     @staticmethod
     def _affects(path, changed):
@@ -675,24 +695,12 @@ class AcousticSceneSession:
     def configure(
         self, *, associations=None, fallback_material=None, fallback_scattering=None
     ):
-        import json
-
         self.stage.DefinePrim(SETTINGS, "Scope")
-        values = {}
-        if associations is not None:
-            for value in associations.values():
-                from isaac_audio_sensors.core.acoustics.materials import (
-                    resolve_material,
-                )
-
-                resolve_material(value)
-            values["ias:material_associations"] = json.dumps(
-                associations, sort_keys=True
-            )
-        if fallback_material is not None:
-            values["ias:fallback_material"] = fallback_material
-        if fallback_scattering is not None:
-            values["ias:fallback_scattering"] = fallback_scattering
+        values = _configuration_values(
+            associations=associations,
+            fallback_material=fallback_material,
+            fallback_scattering=fallback_scattering,
+        )
         return self.edit([SETTINGS], values)
 
     def verify_provider(self, library_path):

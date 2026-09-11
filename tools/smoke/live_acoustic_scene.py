@@ -151,6 +151,22 @@ def main():
         session = panel.session
         assert not session.issues, session.issues
         assert len(session.objects) == 2
+        panel.fallback_scattering.set_value(0.12)
+        panel.apply_defaults()
+        assert panel.last_error is None, panel.last_error
+        assert session.objects["/World/Door"].materials[0].scattering.values == (0.12,)
+        panel.undo()
+        assert session.objects["/World/Door"].materials[0].scattering.values == (0.05,)
+        panel.redo()
+        assert session.objects["/World/Door"].materials[0].scattering.values == (0.12,)
+        panel.undo()
+        associations = panel.associations.get_value_as_string()
+        layer_before = stage.GetRootLayer().ExportToString()
+        panel.associations.set_value("wall=missing-material")
+        panel.apply_defaults()
+        assert panel.last_error
+        assert stage.GetRootLayer().ExportToString() == layer_before
+        panel.associations.set_value(associations)
         omni.usd.get_context().get_selection().set_selected_prim_paths(
             ["/World/Wall"], False
         )
@@ -233,7 +249,7 @@ def main():
         panel._render()
         evidence["editor_checks"] = (
             "selection, mixed values, selective apply, invalid edit, roots, "
-            "scattering, proxy relation, undo/redo"
+            "scattering, defaults, proxy relation, undo/redo"
         )
         robot = stage.DefinePrim("/World/Robot", "Xform")
         UsdPhysics.ArticulationRootAPI.Apply(robot)

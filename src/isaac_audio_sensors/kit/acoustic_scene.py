@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import json
 
-from isaac_audio_sensors.core.acoustics.materials import (
-    MATERIAL_TABLE,
-    resolve_material,
-)
+from isaac_audio_sensors.core.acoustics.materials import MATERIAL_TABLE
 from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
 from isaac_audio_sensors.isaac.acoustic_scene.session import (
     DYNAMIC,
@@ -15,6 +12,7 @@ from isaac_audio_sensors.isaac.acoustic_scene.session import (
     PARTITION,
     REPRESENTATION,
     SETTINGS,
+    _configuration_values,
 )
 from isaac_audio_sensors.isaac.acoustic_scene.steam import converted_material
 
@@ -497,24 +495,19 @@ class AcousticScenePanel:
                 if line.strip()
             )
             associations = {k.strip(): v.strip() for k, v in associations.items()}
-            for key, value in associations.items():
-                if not key:
-                    raise ValueError("Association labels cannot be empty")
-                resolve_material(value)
+            if any(not key for key in associations):
+                raise ValueError("Association labels cannot be empty")
             scatter = self.fallback_scattering.get_value_as_float()
             if not 0 <= scatter <= 1:
                 raise ValueError("Fallback scattering must be in [0, 1]")
-            self.session.stage.DefinePrim(SETTINGS, "Scope")
             index = self.fallback_material.get_item_value_model().get_value_as_int()
-            edit_with_undo(
-                self.session,
-                [SETTINGS],
-                {
-                    "ias:material_associations": json.dumps(associations),
-                    "ias:fallback_material": self.presets[index],
-                    "ias:fallback_scattering": scatter,
-                },
+            values = _configuration_values(
+                associations=associations,
+                fallback_material=self.presets[index],
+                fallback_scattering=scatter,
             )
+            self.session.stage.DefinePrim(SETTINGS, "Scope")
+            edit_with_undo(self.session, [SETTINGS], values)
 
         self._run(run)
 

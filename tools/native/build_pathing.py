@@ -1,10 +1,7 @@
 """Build the experimental Steam 4.8.1 selected-route interface on Linux.
 
-Requires its existing CMake Makefiles build with CPU/Embree dependencies. Reuses
-unchanged native objects, replacing path_simulator.cpp and adding native segment
-queries without changing the C++ object layout.
-Does not download dependencies or modify the source SDK, build, or installed PCM
-provider. This interface alone does not qualify complete R10 propagation.
+Reuses an existing CPU/Embree CMake build without modifying its sources or binary.
+Adds route capture and segment queries; does not qualify complete R10 propagation.
 """
 
 import argparse
@@ -61,35 +58,25 @@ def main():
             check=True,
         )
         obj = work / "path_simulator.cpp.o"
-        subprocess.run(
-            [
-                link[0],
-                *flags["CXX_DEFINES"],
-                *flags["CXX_INCLUDES"],
-                *flags["CXX_FLAGS"],
-                "-I" + str(source / "src/core"),
-                "-c",
-                str(path),
-                "-o",
-                str(obj),
-            ],
-            check=True,
-        )
         visibility = work / "steam_visibility.o"
-        subprocess.run(
-            [
-                link[0],
-                *flags["CXX_DEFINES"],
-                *flags["CXX_INCLUDES"],
-                *flags["CXX_FLAGS"],
-                "-I" + str(source / "src/core"),
-                "-c",
-                str(Path(__file__).with_name("steam_visibility.cpp").resolve()),
-                "-o",
-                str(visibility),
-            ],
-            check=True,
-        )
+        for source_file, object_file in (
+            (path, obj),
+            (Path(__file__).with_name("steam_visibility.cpp").resolve(), visibility),
+        ):
+            subprocess.run(
+                [
+                    link[0],
+                    *flags["CXX_DEFINES"],
+                    *flags["CXX_INCLUDES"],
+                    *flags["CXX_FLAGS"],
+                    "-I" + str(source / "src/core"),
+                    "-c",
+                    str(source_file),
+                    "-o",
+                    str(object_file),
+                ],
+                check=True,
+            )
         link.append(str(visibility))
         library = work / "libphonon.so"
         link[link.index("-o") + 1] = str(library)

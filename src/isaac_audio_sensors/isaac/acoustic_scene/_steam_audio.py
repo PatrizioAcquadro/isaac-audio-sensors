@@ -64,19 +64,16 @@ def bind_audio(lib):
         "iplSourceRemove": (None, [Handle, Handle]),
         "iplSourceSetInputs": (None, [Handle, C.c_int, p(_SimulationInputs)]),
         "iplSourceGetOutputs": (None, [Handle, C.c_int, p(_SimulationOutputs)]),
+        "iplDirectEffectCreate": (
+            C.c_int,
+            [Handle, p(_AudioSettings), p(_DirectEffectSettings), p(Handle)],
+        ),
+        "iplDirectEffectRelease": (None, [p(Handle)]),
+        "iplDirectEffectApply": (
+            C.c_int,
+            [Handle, p(_DirectEffectParams), p(_AudioBuffer), p(_AudioBuffer)],
+        ),
     }
-    for name, settings, params in (
-        ("Direct", _DirectEffectSettings, _DirectEffectParams),
-    ):
-        specs[f"ipl{name}EffectCreate"] = (
-            C.c_int,
-            [Handle, p(_AudioSettings), p(settings), p(Handle)],
-        )
-        specs[f"ipl{name}EffectRelease"] = (None, [p(Handle)])
-        specs[f"ipl{name}EffectApply"] = (
-            C.c_int,
-            [Handle, p(params), p(_AudioBuffer), p(_AudioBuffer)],
-        )
     for name, (result, args) in specs.items():
         function = getattr(lib, name)
         function.restype, function.argtypes = result, args

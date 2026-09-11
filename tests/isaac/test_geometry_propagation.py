@@ -1,75 +1,28 @@
 """Native received-PCM correctness at the GeometryAcoustics boundary."""
 
 from dataclasses import replace
-from pathlib import Path
 
 import numpy as np
 import pytest
 
 pytest.importorskip("pxr")
-from pxr import Usd, UsdGeom  # noqa: E402
+from pxr import UsdGeom  # noqa: E402
 
-from isaac_audio_sensors.core.acoustics import free_field_environment
 from isaac_audio_sensors.core.backends.analytic import AnalyticAcoustics
-from isaac_audio_sensors.core.microphone_array import create_microphone_array
-from isaac_audio_sensors.core.types import AudioSceneSnapshot, AudioTimeWindow
 from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
-from isaac_audio_sensors.isaac.acoustic_scene.propagation import (
-    GeometryAcoustics,
-    GeometryAcousticsConfig,
-)
-from tests.helpers import source
-
-LIBRARY = (
-    Path(__file__).resolve().parents[2]
-    / "build/qualification/r9/steam-audio/core/build/r9-release/src/core/libphonon.so"
-)
-
-
-def window(start=0, end=0.1, index=0):
-    return AudioTimeWindow(start_time_s=start, end_time_s=end, frame_index=index)
+from tests.isaac.geometry_helpers import LIBRARY, backend, scene, stage, window
 
 
 @pytest.fixture
 def prepared():
     if not LIBRARY.exists():
         pytest.skip("Qualified optional Steam library is unavailable.")
-    stage = Usd.Stage.CreateInMemory()
-    UsdGeom.SetStageMetersPerUnit(stage, 1)
-    UsdGeom.SetStageUpAxis(stage, "Z")
-    marker = UsdGeom.Cube.Define(stage, "/RemoteGeometry")
+    value = stage()
+    marker = UsdGeom.Cube.Define(value, "/RemoteGeometry")
     marker.AddTranslateOp().Set((1000, 1000, -1000))
-    session = AcousticSceneSession(stage)
+    session = AcousticSceneSession(value)
     yield session
     session.close()
-
-
-def scene():
-    array = create_microphone_array(
-        array_id="array",
-        prim_path="/Array",
-        layout_name="quad_cross",
-        sample_rate_hz=16000,
-    )
-    return AudioSceneSnapshot(
-        stage_id="geometry-test",
-        arrays=(array,),
-        sources=(source("tone", (2, 0, 0), audio_asset_path="generated://tone"),),
-        environment=free_field_environment(environment_id="free"),
-    )
-
-
-def backend(prepared, **kwargs):
-    return GeometryAcoustics(
-        acoustic_scene=prepared,
-        geometry_config=GeometryAcousticsConfig(
-            library_path=str(LIBRARY),
-            specular_library_path=str(
-                Path(__file__).resolve().parents[2] / "build/native/libias_specular.so"
-            ),
-            **kwargs,
-        ),
-    )
 
 
 def test_direct_native_pcm_matches_analytic_and_split_blocks(prepared):

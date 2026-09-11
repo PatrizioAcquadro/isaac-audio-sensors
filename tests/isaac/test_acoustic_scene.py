@@ -1,8 +1,6 @@
 # ruff: noqa: E402
 """Real composed-USD preparation and native scene checks."""
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 
@@ -13,18 +11,7 @@ from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
 from isaac_audio_sensors.isaac.acoustic_scene.geometry import triangulate
 from isaac_audio_sensors.isaac.acoustic_scene.session import INCLUDE, PARTITION
 from isaac_audio_sensors.isaac.acoustic_scene.steam import converted_material
-
-LIBRARY = (
-    Path(__file__).resolve().parents[2]
-    / "build/qualification/r9/steam-audio/core/build/r9-release/src/core/libphonon.so"
-)
-
-
-def stage():
-    result = Usd.Stage.CreateInMemory()
-    UsdGeom.SetStageMetersPerUnit(result, 1)
-    UsdGeom.SetStageUpAxis(result, "Z")
-    return result
+from tests.isaac.geometry_helpers import LIBRARY, stage
 
 
 def plane(s, path, x=0):

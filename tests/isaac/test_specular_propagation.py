@@ -1,19 +1,25 @@
 """Physical controls for the bounded two-sided native specular adapter."""
 
 from dataclasses import replace
-from pathlib import Path
 
 import numpy as np
 import pytest
 
 pytest.importorskip("pxr")
 pytest.importorskip("pyroomacoustics")
-from pxr import Sdf, Usd, UsdGeom  # noqa: E402
+from pxr import Sdf, UsdGeom  # noqa: E402
 
 from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
 from isaac_audio_sensors.isaac.acoustic_scene._specular import SpecularScene
-from tests.isaac.test_geometry_propagation import backend, scene, window
+from tests.isaac.geometry_helpers import (
+    LIBRARY,
+    SPECULAR_LIBRARY,
+    backend,
+    scene,
+    stage,
+    window,
+)
 
 
 def face(stage, name, points, absorption=0.2):
@@ -29,16 +35,9 @@ def face(stage, name, points, absorption=0.2):
     return mesh
 
 
-def stage():
-    value = Usd.Stage.CreateInMemory()
-    UsdGeom.SetStageMetersPerUnit(value, 1)
-    UsdGeom.SetStageUpAxis(value, "Z")
-    return value
-
-
 @pytest.fixture
 def native_scene():
-    if not Path("build/native/libias_specular.so").exists():
+    if not SPECULAR_LIBRARY.exists():
         pytest.skip("Optional native specular bridge unavailable")
     sessions = []
 
@@ -46,7 +45,7 @@ def native_scene():
         session = AcousticSceneSession(value)
         session.refresh()
         engine = SpecularScene(
-            session, "build/native/libias_specular.so", 16000, order, 343.0, 1_000_000
+            session, str(SPECULAR_LIBRARY), 16000, order, 343.0, 1_000_000
         )
         sessions.append((session, engine))
         return session, engine
@@ -157,7 +156,6 @@ def test_frequency_dependent_transmission_is_finite_and_has_expected_band_trend(
 
     from isaac_audio_sensors.isaac.acoustic_scene import GeometryAcousticsConfig
     from isaac_audio_sensors.isaac.acoustic_scene._steam_audio import Receiver
-    from tests.isaac.test_geometry_propagation import LIBRARY
 
     value = stage()
     mesh = face(
@@ -170,7 +168,7 @@ def test_frequency_dependent_transmission_is_finite_and_has_expected_band_trend(
     session.verify_provider(str(LIBRARY))
     config = GeometryAcousticsConfig(
         library_path=str(LIBRARY),
-        specular_library_path="build/native/libias_specular.so",
+        specular_library_path=str(SPECULAR_LIBRARY),
     )
     receiver = Receiver(session.provider, 16000, config, ["tone"])
     try:

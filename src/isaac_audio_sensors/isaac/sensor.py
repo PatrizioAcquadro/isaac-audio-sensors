@@ -529,10 +529,7 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
-        if hasattr(self._propagation_backend, "close"):
-            self._propagation_backend.close()
-        self._propagation_backend = None
-        self._propagation_config = None
+        self._close_propagation()
         self._occlusion_state.reset()
         if self._stage_cache is not None:
             self._stage_cache.reset_acoustic_state()
@@ -557,10 +554,7 @@ class IsaacAudioArraySensor:
         if self._stage_cache is not None:
             self._stage_cache.close()
             self._stage_cache = None
-        if hasattr(self._propagation_backend, "close"):
-            self._propagation_backend.close()
-        self._propagation_backend = None
-        self._propagation_config = None
+        self._close_propagation()
         self._occlusion_state.reset()
         if self._pose_history is not None:
             self._pose_history.reset()
@@ -1089,11 +1083,14 @@ class IsaacAudioArraySensor:
         if self._running:
             self.update(force=False)
 
-    def _reset_live_acoustic_state(self) -> None:
+    def _close_propagation(self) -> None:
         if hasattr(self._propagation_backend, "close"):
             self._propagation_backend.close()
         self._propagation_backend = None
         self._propagation_config = None
+
+    def _reset_live_acoustic_state(self) -> None:
+        self._close_propagation()
         if self._pose_history is not None:
             self._pose_history.reset()
             self._motion_entity_paths.clear()
