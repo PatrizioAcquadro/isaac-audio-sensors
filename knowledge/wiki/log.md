@@ -1546,3 +1546,21 @@ checks preserve the single R9/R10 authorities, explicit intermediate/final scope
 and the withdrawn NLOS timing interpretation. Only canonical documentation is
 tracked; probe sources, native component build, PCM and alternative-provider
 checkouts remain local and ignored. No failing model is promoted to production.
+
+
+## 2026-09-11 — update: R10 native extensions and dynamic-field blocker
+
+Record the experimental Steam selected-route interface/build tool and 44 bounded
+native timing controls. Record PRA shared-pressure/transport extensions, passing
+stationary coherence/door controls, and the converged moving-source phase failure.
+Preserve the intermediate provider and full scope; stop before new provider
+evaluation. Five JSON pairs and 52 arrays match in host/supported Isaac native
+replay; no live GPU integration or navigation qualification is claimed.
+
+## 2026-09-11 — lint: Native extension closeout
+
+Validated wiki structure/index/links, current native source references and explicit
+blocked-versus-passing claims. Host checks pass 651 unit/contract, 336 integration
+and 58 release tests. Rebuilt and replayed the Steam patch with exact-input and
+protected-output checks; decisive native evidence agrees across both interpreters.
+No package propagation, observation schemas, raw material or historical SDK changed.

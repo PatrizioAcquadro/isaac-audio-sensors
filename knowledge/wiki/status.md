@@ -1,26 +1,33 @@
 # Current Status
 
-Updated: 2026-09-10. Package version: `3.0.0`.
+Updated: 2026-09-11. Package version: `3.0.0`.
 
 ## Subphase 08.2 / R10.2 — Milestone 2 complete coverage blocked
 
-The newly requested complete acoustic coverage milestone is **not achieved**.
-Native admission checks reproduce PRA's incoherent diffuse pressure, reject the
-shared-seed correction for separated microphones, and discover that the archived
-R9.4 NLOS bridge used straight-line rather than detour delay. Its stronger
-physical path-arrival/TDOA interpretation is withdrawn; historical artifacts stay
-unchanged. A TASCAR native diffuse-component check also fails the spacing contract.
-All 47 new acoustic archives agree between ordinary and supported Isaac Python.
-These are native CPU checks, not a new GPU/integration qualification.
+Milestone 2 is **not achieved**. Existing-provider native extensions were
+implemented and tested without changing the operational intermediate provider.
+Steam now has an experimental selected-route interface: separate native route
+filtering/delay passes 44 cases (maximum 0.6252-sample timing error), geometric
+bounds, source/receiver displacement, closure/restoration, LOS exclusion and a
+two-route screen. Complete production pathing integration remains open.
 
-Completion requires a provider that retains joint spatial pressure and individual
-path timing before aggregation. No failing contribution is enabled and no new
-production model is claimed. The operational intermediate milestone below remains
-valid. Final R10 scope is unchanged; final performance qualification and 32–256
-scaling are explicitly deferred until complete coverage passes.
+PRA shared-event pressure passes co-location, unchanged refresh, controlled
+isotropic/directional coherence and bounded native door visibility. Its dynamic
+field fails: random scattering locations follow source-dependent rays. A 1 cm
+source movement gives complex-coherence error about 0.687 at 4 kHz against a fixed
+surface-element reference, unchanged from 4096 to 65536 rays. More sampling and
+per-ray RNG do not resolve the phase-model failure. No failing contribution is
+enabled and no robot-navigation usefulness is claimed.
 
-See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 complete acoustic coverage — blocked (2026-09-10)|R10 for measured failures and concrete next gates]]
-and [[implementation_phases/r9-geometry-acoustics-provider-selection#Milestone 2 native coverage decision (2026-09-10)|R9 for provider alternatives and the required architecture work]].
+Five decisive JSON pairs and 52 PCM/spectral arrays agree exactly between ordinary
+Python and supported Isaac Python. These are CPU-native checks, not live Isaac or
+CUDA qualification. Full R10 scope, the intermediate provider and historical
+evidence remain intact. Final performance/scaling is deferred. No new provider
+evaluation began; further persistent-surface native transport redesign versus a
+new provider evaluation requires the user's architecture decision.
+
+See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10 for implementation, measured limits and the remaining gates]]
+and [[implementation_phases/r9-geometry-acoustics-provider-selection#Existing-provider extension decision (2026-09-11)|R9 for the provider decision boundary]].
 
 ## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
 

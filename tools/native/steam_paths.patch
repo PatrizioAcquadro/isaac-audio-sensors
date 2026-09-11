@@ -1,0 +1,74 @@
+--- a/path_simulator.cpp
++++ b/path_simulator.cpp
+@@ -26,0 +27,15 @@
++namespace {
++// Synchronous thread-local capture: callback storage is owned by the caller.
++using RouteCallback = void (*)(int, const int*, const float*, float, float,
++                              const float*, void*);
++thread_local RouteCallback routeCallback = nullptr;
++thread_local void* routeUserData = nullptr;
++thread_local vector<vector<int>> selectedNodes;
++}
++extern "C" __attribute__((visibility("default"))) int ias_path_abi() { return 1; }
++extern "C" __attribute__((visibility("default"))) void ias_path_capture(
++    RouteCallback callback, void* userData) {
++    routeCallback = callback;
++    routeUserData = userData;
++}
++
+@@ -151,0 +167 @@
++    selectedNodes.clear();
+@@ -205,0 +222,36 @@
++    if (routeCallback) {
++        for (int i = 0; i < numPaths && i < int(selectedNodes.size()); ++i) {
++            // Endpoint-connected native route, independently validated as segments.
++            vector<Vector3f> points{source};
++            vector<int> ids{-1};
++            for (int node : selectedNodes[i]) {
++                auto p = probes[node].influence.center;
++                if ((p - points.back()).length() > 1e-6f) {
++                    points.push_back(p); ids.push_back(node);
++                }
++            }
++            points.push_back(listener); ids.push_back(-2);
++            bool valid = true;
++            for (size_t k = 1; k < points.size(); ++k)
++                if (scene.isOccluded(points[k-1], points[k])) valid = false;
++            if (!valid) continue;
++            // Native scene visibility removes redundant endpoint/probe detours.
++            for (size_t k = 0; k + 2 < points.size();) {
++                if (!scene.isOccluded(points[k], points[k+2])) {
++                    points.erase(points.begin()+k+1); ids.erase(ids.begin()+k+1);
++                    if (k) --k;
++                } else ++k;
++            }
++            if (points.size() < 3) continue; // Direct owner already renders LOS.
++            float length = 0.f;
++            for (size_t k = 1; k < points.size(); ++k)
++                length += (points[k]-points[k-1]).length();
++            float eq[Bands::kNumBands], unitWeight = 1.f;
++            calcEQForPaths(probes, starts+i, ends+i, 1, paths+i, &unitWeight,
++                           deviationModel, eq, nullptr);
++            vector<float> xyz;
++            for (auto p : points) { xyz.push_back(p.x()); xyz.push_back(p.y()); xyz.push_back(p.z()); }
++            routeCallback(int(points.size()), ids.data(), xyz.data(), length,
++                          pathWeights[i], eq, routeUserData);
++        }
++    }
+@@ -283 +335,2 @@
+-    soundPath = bakedPathData.lookupShortestPath(sourceProbeIndex, listenerProbeIndex, nullptr);
++    ProbePath selectedPath;
++    soundPath = bakedPathData.lookupShortestPath(sourceProbeIndex, listenerProbeIndex, &selectedPath);
+@@ -292,0 +346 @@
++            soundPath = SoundPath();
+@@ -298 +352 @@
+-        ProbePath probePath;
++        auto& probePath = selectedPath;
+@@ -307,0 +362,5 @@
++        if (numPaths >= 64) return;
++        vector<int> nodes{sourceProbeIndex};
++        nodes.insert(nodes.end(), selectedPath.nodes.begin(), selectedPath.nodes.end());
++        if (nodes.back() != listenerProbeIndex) nodes.push_back(listenerProbeIndex);
++        selectedNodes.push_back(nodes);
+@@ -339,0 +399 @@
++            soundPath = SoundPath();

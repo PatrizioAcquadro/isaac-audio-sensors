@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); Milestone 2 complete coverage is blocked at native admission (2026-09-10); full scope is unchanged; R10.3 remains planned.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); Milestone 2 native extensions remain blocked on dynamic diffuse-field admission (2026-09-11); full scope is unchanged; R10.3 remains planned.
 R9.4 historical risk retirement constrains the supported scope; its stronger NLOS arrival/TDOA interpretation is withdrawn by the Milestone 2 recheck below.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -511,6 +511,100 @@ the final measurements. Previous R9,
 reflection failures and coverage artifacts remain intact. Neither diffuse-field
 coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
 acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.
+
+#### Milestone 2 native extensions — dynamic-field blocker (2026-09-11)
+
+**Milestone 2 is not achieved; final scope is unchanged.** The authorized
+existing-provider extensions were implemented and executed in isolation. No new
+provider evaluation began. The intermediate production provider, installed PRA,
+qualified Steam SDK/binary, and historical evidence remain unchanged. Complete
+integration, continuous dynamic-path rendering, localization/multisource usefulness,
+and closed-loop audio navigation remain unqualified. Final performance/scaling is
+still deferred.
+
+**Steam selected routes.** The experimental native extension retains selected
+routes before SH/EQ aggregation, reconstructs their probe chains, validates source,
+internal and receiver segments with Steam queries, and removes redundant visible
+segments. Its private callback reports the complete polyline, probe identities,
+length, interpolation weight and native per-route deviation EQ; LOS is excluded.
+The native validation branch now invalidates a rejected baked route even when
+alternate search is disabled. The original library is not overwritten.
+
+The tracked `tools/native/build_pathing.py`, `steam_paths.patch` and
+`steam_paths.h` build/document this optional interface using the existing Linux
+CMake CPU/Embree build. Only the changed implementation is recompiled; C++ class
+layouts and the original objects remain unchanged. Callback storage is temporary,
+thread-local and synchronous. Empty output does not distinguish missing probes
+from no route; probe IDs are invalidated by rebaking. Native probe deviation EQ
+remains an approximation, not exact endpoint-dependent edge diffraction.
+
+Native controls cover the archived corridor, moved blocker, full closure and
+restoration, source/receiver displacements, LOS exclusion and a two-route screen.
+The screen yields two routes per microphone, with weights summing to one. Native
+EQ impulses rendered with separate route delays pass all **44** timing cases:
+maximum error **0.6252 samples** relative to each native filter's own peak plus
+physical route delay. Full polylines also satisfy independent geometric detour
+lower bounds. This fixes the demonstrated information-loss/timing mechanism in
+an executable native slice; it does not complete Geometry streaming, rebaking,
+directivity, hybrid ownership, or duplicate-route interpolation qualification.
+
+**PRA shared pressure.** The first extension preserves ray/scattering hits before
+histogram reduction and reconstructs shared signed pressure using PRA's fractional
+delay kernel. It repairs co-location but retains overlapping native ray-hit and
+scattering accumulation. The next native iteration uses shared scattering events
+with native ISM suffixes, separates pure specular ownership, and replaces averaged
+specular/diffuse directions with probabilistic branches and corresponding energy
+weights. Per-ray RNG prevents one changed ray from reseeding all following rays;
+the final two-sided implementation reuses the maintained polygon fixes and corrects
+the outgoing hemisphere. These are model-development prototypes, not enabled
+production capabilities; the wrapper qualifies scalar-band controls only.
+
+Controlled synthesis passes 20-realization isotropic and directional checks with
+maximum complex-coherence errors **0.04332** and **0.00146**, below 0.1. These
+inputs isolate the renderer and are not room simulations. Native box/general-room
+controls cover scattering 0/0.3/1 and specular suffix orders 0/1/3/5. Co-location
+and unchanged refresh are exact. Final two-sided room/door controls give nonzero
+open-door pressure and exact silence for closed/open/closed partition closure.
+Finite suffix order and statistical energy convergence remain approximations;
+passing these controls does not qualify full banded/dynamic coverage.
+
+**Decisive failure.** The signed realization is attached to ray identities whose
+hit locations move when the source moves. Consequently the model moves the random
+scattering field on an otherwise stationary wall. A single-plane control compares
+actual native transfer events with a fixed Lambertian surface-element field:
+source `(2,0,1) m`, receiver `(3,0.1,1) m`, 1 cm source displacement normal to the
+plane. Complex-coherence error is about **0.117 at 500 Hz, 0.227 at 1 kHz and
+0.687 at 4 kHz**. The 4 kHz error stays **0.68723–0.68729** from 4096 through
+65536 rays, well outside the 0.1 tolerance. Per-ray RNG and increased sampling do
+not repair it. This is a spatial/temporal phase-model failure, not a throughput
+failure or a physical-recording requirement.
+
+The independent reference holds physical surface positions fixed, updates source
+illumination and incoming travel time, and retains outgoing paths. Native samples
+supply the surface quadrature; no fitted correction is applied. This bounded
+reference is not a replacement production solver and makes no claim of general
+rough-surface wave accuracy. It exposes inconsistency in the attempted shared
+point-scattering model under source motion; stationary microphone-field success
+cannot establish dynamic robot-audition usefulness.
+
+**Stop and next decision.** The attempted native joint model is not admitted.
+A general repair needs persistent material/surface scattering state and timed
+source illumination, multibounce transport, receiver evaluation and dynamic
+visibility. Freezing only this plane, shifting a tail or fitting a gain would not
+meet R10. Further native transport redesign versus evaluating a maintained
+provider with such a representation is now an architectural decision for the user.
+No alternative is selected or evaluated by this run. The experimental Steam
+interface is retained; unsuccessful PRA model patches stay with local evidence,
+not the installed package or an enabled fallback.
+
+Evidence and exact replay instructions: `local/r10/08_2_extensions/README.md`.
+Five decisive JSON result pairs and **52 PCM/spectral arrays** match exactly
+between ordinary Python and the supported Isaac interpreter. These runs use
+CPU-native Steam/PRA, without SimulationApp or CUDA perception. They do not
+replace the blocked downstream Sim/Lab/navigation gates.
+`make check` passes 651 unit/contract, 336 integration and 58 release tests. Fresh
+archived-provider replays also reproduce both original admission failures; this
+extension work does not modify or supersede their historical artifacts.
 
 #### Milestone 2 complete acoustic coverage — blocked (2026-09-10)
 

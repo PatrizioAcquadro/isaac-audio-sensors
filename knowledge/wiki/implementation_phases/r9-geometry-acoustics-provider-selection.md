@@ -596,6 +596,35 @@ establish that missing model and its physical evidence before another integratio
 attempt can claim complete coverage. This is not a claim of universal impossibility.
 Final requirements and the coverage-before-scaling sequence remain unchanged.
 
+#### Existing-provider extension decision (2026-09-11)
+
+The authorized Steam/PRA native extensions were implemented before considering
+another provider. Steam's experimental selected-route interface removes the
+public aggregation barrier and passes bounded route-delay/visibility controls.
+It does not yet qualify complete production pathing integration. PRA's native
+joint-event renderer and transport iterations improve stationary spatial pressure
+and bounded door visibility, but fail the moving-source field control: ray hit
+locations carry the stochastic phase and move with the source. A 1 cm movement
+normal to a diffuse plane gives about 0.687 complex-coherence error at 4 kHz against
+a fixed-surface reference, converging to the same error as ray count increases.
+
+This failure is not repaired by the admitted polygon fixes, response caching,
+per-ray RNG, or more rays. A physically persistent field requires material-anchored
+scattering state, source illumination, multibounce transport and receiver sampling
+with common timing/visibility. Whether to undertake that larger native transport
+redesign or evaluate another maintained provider is now a user decision. The run
+stops before any new provider evaluation; it neither selects a replacement nor
+claims that extending PRA is universally impossible. No IAS propagation solver or
+scene-specific compensation is introduced.
+
+The existing hybrid remains the working production intermediate. R10's complete
+dynamic diffuse/NLOS domain and downstream robot-audition usefulness are not
+reduced to the passing components. Final scaling remains deferred. The failed PRA
+native patch and executable controls remain isolated local evidence; the optional
+Steam interface/build tool is retained for further native work. Exact implementation,
+results and replay are owned by
+[[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10's native-extension gate]].
+
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit
