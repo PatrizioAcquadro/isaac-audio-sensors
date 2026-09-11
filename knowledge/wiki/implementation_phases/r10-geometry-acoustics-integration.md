@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 remains blocked after native reflection requalification and the subsequent hybrid coverage gate (2026-09-10); R10.3 remains planned.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); full coverage remains open; R10.3 remains planned.
 R9.4 risk retirement is complete and constrains the supported R10 scope.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -353,7 +353,7 @@ The decision remains **NO-GO for the attempted Steam reflection mapping** and
 
 #### Intermediate coherent propagation milestone (2026-09-10)
 
-**In implementation; final 08.2 remains open.** The user explicitly authorizes
+**PASS for the agreed intermediate milestone; final 08.2 remains open.** The user explicitly authorizes
 an intermediate direct/transmission/specular milestone, with no reduction of
 final requirements. This supersedes the earlier sequencing restriction that
 required a diffuse provider before any further integration. The architectural
@@ -400,16 +400,88 @@ in-flight interaction timing for moving obstacles. Finite fractional filters
 retain their ordinary bandlimited pre-ringing; arrival qualification uses the
 same peak/TDOA convention as the native R9 controls.
 
-The first real RTX 4090 Lab gate passes two free-field environments. A subsequent
-16-environment, five-microphone indoor run gives 100% count agreement across
-320 same-PCM comparisons, direction difference p95 0.0131 degrees, maximum
-0.0154 degrees, and zero missing/extra events against the scalar reference.
-The unprofiled mean/p95 are 169.31/171.05 ms per 100 ms simulated; this workload
-is functional but slower than real time. The full matrix and remaining runtime
-checks are still being completed; these preliminary passes do not close the
-intermediate milestone.
+**Acceptance.** The final `make check` passes 651 unit/contract, 336 integration
+and 58 release tests. The supported Isaac suite passes 179 tests on RTX 4090;
+20 focused native/stream controls also pass after the response-padding fix.
+The previous door failure is rechecked through the production adapter at five
+source offsets (0, 0.1, 1, 10 and 100 mm), each with closed/open/closed/opaque states.
+Actual Isaac Sim exercises Geometry PCM through the scalar sensor, activity,
+source-stop tails and reset. Actual Isaac Lab exercises both microphone layouts,
+received-only CUDA perception, deferred reads, masks/padding and partial reset.
+The existing Kit smoke passes; Geometry operating controls remain excluded until
+08.3. Static TOML/Kit configuration rejects this provider explicitly because it
+requires the prepared-session Python API. Public import remains independent of
+USD, PRA and native-library availability.
 
-**Optional native build.** Install the existing `room` extra with PRA 0.10.1,
+The final matrix contains 1,440 environment/observation comparisons on identical
+received PCM: **100% count agreement, zero missing/extra events versus scalar**.
+The worst per-case direction p95 is **0.0612 degrees**; the global maximum is
+**2.4187 degrees**. All cases pass the 97% / 5-degree criteria. These are reference
+preservation results, not a claim of generally correct source counting. The four
+R9-derived reflector controls through the production bridge pass at 16/48 kHz,
+including a rotated array and opposite source side; maximum TDOA error is
+0.12191 samples. Historical failed Steam/PRA diffuse evidence remains unchanged.
+
+**Unprofiled performance.** i9-14900KF / RTX 4090, two independent source files,
+16 kHz, 60 Hz acquisition, 10 Hz observations, 750 ms context. Each case warms up
+for one simulated second, then measures 40 updates; 20 further observation steps
+compare scalar/CUDA without entering those timings. Every environment has an
+isolated native scene extracted from its own roots in the actual Isaac stage.
+Indoor cases use six planar surfaces, absorption 0.4, zero scattering and native
+specular order three. Timing includes acquisition, transfers and perception;
+robot physics, rendering and policy learning are excluded, matching the 07.2
+measurement boundary. No memory/time failure stopped these runs: 32–256 copies
+are explicitly deferred to final R10 scaling, not declared infeasible.
+
+| Environments / microphones | Free-field mean / p95 | Indoor mean / p95 | Free / indoor simulated-real ratio |
+| --- | --- | --- | --- |
+| 2 / 4 | 41.11 / 42.72 ms | 42.25 / 43.53 ms | 2.432 / 2.367 |
+| 2 / 5 | 43.40 / 44.31 ms | 43.88 / 44.87 ms | 2.304 / 2.279 |
+| 16 / 4 | 120.87 / 123.68 ms | 128.52 / 131.16 ms | 0.827 / 0.778 |
+| 16 / 5 | 148.57 / 151.55 ms | 159.26 / 164.79 ms | 0.673 / 0.628 |
+
+Two environments exceed real time in these audio-only runs; 16 do not. Aggregate
+throughput is **4.56–4.86 environment-seconds/s for two copies and
+10.05–13.24 for 16**, or 45.6–48.6 and 100.5–132.4 environment updates/s.
+Process CPU usage is about 112% of one core. Peak process RSS is 4.22–4.41 GiB,
+including Isaac and the smoke's other retained fixtures. CUDA peak allocated /
+reserved memory is 72/102 MiB (2×4), 175/190 MiB (2×5), 451/620 MiB (16×4),
+and 656/852 MiB (16×5). One-second warm-up costs 340–353 ms at two copies and
+1.02–1.31 s at 16. Single-environment reset costs 0.49–0.85 ms. JSON artifacts
+retain each update, p95, CPU, memory, warm-up, reset and parity measurement.
+
+**Measured optimization and decision.** The separate profile identified unnecessary
+long zero tails for Steam's frequency-independent direct gain. Native rendering
+now returns its one-tap impulse in that case, preserving the provider gain exactly.
+The 16-copy free-field means improve from 141.12 to 120.87 ms (planar) and 173.33
+to 148.57 ms (raised); indoor means improve from 139.99 to 128.52 ms and 169.78
+to 159.26 ms. A separate repeated raised indoor run measures 160.30 ms, consistent
+with the final run and below the earlier mean by more than observed variability.
+All affected physical and same-PCM controls were repeated.
+
+The final separate GPU profile attributes about 76.65 ms CPU to native PCM calls,
+27.69 ms CUDA to WPE, 37.21 ms to sparse localization and 1.55 ms to transfer/ingest
+for a 16-copy raised indoor update; nested profiler times are not additive wall
+budgets. A separate 20-update moving-plane CPU profile separates USD refresh
+(0.844 ms inclusive of 0.129 ms scene synchronization/commit), direct simulation
+(0.010 ms per receiver), specular preparation (0.125 ms), native ISM (about
+0.033 ms excluding preparation), specular rendering (about 0.476 ms excluding
+path preparation/simulation), direct filter rendering (0.0225 ms per receiver),
+remaining response delay/mix work (about 0.37 ms) and convolution (0.153 ms).
+Those component numbers cover one source/four receivers, not the indoor batch.
+
+The equivalent Analytic free-field CUDA producer measures 41.82/43.27 ms at 2×4,
+41.53/42.19 ms at 2×5, 62.15/63.08 ms at 16×4 and 86.71/87.73 ms at 16×5
+(mean/p95). **Retain Analytic and the CPU/Embree + PRA intermediate provider.**
+The latter adds qualified geometric behavior but does not replace the more
+scalable free-field producer. No acoustic GPU prototype is admitted. Future
+acceleration should target measured batched PCM/scene-update costs and prove
+end-to-end correctness, gain and Isaac interference bounds; Radeon Rays is not
+an available Linux acceleration path. Full diffuse/NLOS/pathing and final scaling
+qualification still precede any Analytic retirement decision.
+
+**Optional native build.** Install the existing `room` extra and pin
+`pyroomacoustics==0.10.1`,
 provide Eigen and nanoflann headers, then build the separate library:
 
 ```bash
@@ -424,13 +496,18 @@ explicit native fixes. It fails if source anchors do not match; it never edits
 installed packages or the qualified Steam build. Configure `library_path` for
 the qualified Steam library and `specular_library_path` for this library.
 `reflection_order` defaults to three, `max_delay_s` to one second and
-`max_image_candidates` to one million. Excessive native image expansion fails
+`max_image_candidates` to one million. Configured microphone-response delays
+share the explicit `max_delay_s` bound and receive sufficient convolution history.
+Excessive native image expansion fails
 with an explicit acoustic-proxy/order requirement rather than hanging or
 silently truncating paths. Air absorption is explicitly unavailable in this
 intermediate hybrid configuration. Arbitrary USD detail is not a throughput
 promise; use the existing explicit acoustic representation when needed.
 
-New local artifacts live under `local/r10/08_2_intermediate/`; previous R9,
+The preserved intermediate evidence index and replay commands are
+`local/r10/08_2_intermediate/README.md`; `summary.json`, `*_final.json`,
+`native_timing.json`, `native_profile_final.json`, PCM archives and logs contain
+the final measurements. Previous R9,
 reflection failures and coverage artifacts remain intact. Neither diffuse-field
 coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
 acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.

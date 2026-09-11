@@ -1506,3 +1506,25 @@ pass. Fresh isolated reproduction confirms the reported negative acoustic gates
 and passing direct transmission control. Only canonical wiki files are tracked;
 qualification adapters/evidence remain local and ignored. No new production,
 GPU, Kit or full 08.2 qualification is claimed.
+
+## 2026-09-10 — update: Intermediate hybrid Geometry implementation
+
+Record the explicit intermediate-milestone authorization without narrowing final
+R10. Add bounded native PRA corrections, continuous hybrid PCM, shared perception
+wiring and initial native/RTX 4090 evidence. Preserve earlier failed-provider
+artifacts and keep final diffuse/pathing/scaling gates open. R9 owns architecture,
+R10 implementation/acceptance, and Phase 08 sequencing.
+
+## 2026-09-10 — update: Complete the agreed Geometry intermediate milestone
+
+Record passed native, scalar, RTX 4090 Lab and Kit acceptance. Preserve the final
+2/16-environment matrix, 1,440 same-PCM comparisons, the matched Analytic baseline,
+separate native/GPU profiles and the validated one-tap optimization. Keep full
+R10 diffuse/indirect/dynamic/scaling qualification and 08.3 open; retain Analytic.
+
+## 2026-09-10 — lint: Intermediate Geometry closeout
+
+All five documentation-boundary checks pass, including wiki inventory and links.
+Current status, R9 architecture, R10 acceptance, Phase 08 sequence and affected
+Core/Isaac/Lab topics agree with the implemented intermediate domain. Historical
+provider failures remain labeled and preserved; full R10 is not marked complete.

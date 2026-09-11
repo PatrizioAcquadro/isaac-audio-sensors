@@ -2,56 +2,44 @@
 
 Updated: 2026-09-10. Package version: `3.0.0`.
 
-## Subphase 08.2 / R10.2 — Provider coverage gate blocked
+## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
 
-The attempted native direct/reflection → microphone PCM → CUDA Lab chain reached
-real RTX 4090 execution, but **08.2 is not completed**. Five repeated native
-single-reflector controls produce zero pairwise reflected lags where the
-physical microphone geometry requires differences up to 6.6754 samples at
-16 kHz. The qualified Steam build reconstructs reflection PCM from 10 ms energy
-bins and subtracts direct-path delay; the former wiki assumption of already
-correct absolute reflection timing was unsupported by the R9.4 preservation test.
+The user authorizes an intermediate coherent direct/transmission/specular
+milestone **without reducing final R10 scope**. The native closed-door and
+shared-edge failures now have bounded PRA corrections in a separate optional
+C ABI bridge; installed PRA and the qualified Steam SDK are unchanged.
+`GeometryAcoustics` produces continuous microphone PCM from the prepared USD
+scene, using Steam direct/planar transmission and positive-order PRA specular
+paths. Analytic remains available. Neither rejected diffuse renderer is enabled.
 
-The unqualified backend and consumer changes were removed from active source.
-The candidate patch and evidence remain in `local/r10/08_2_gate/`. Native direct
-checks and a two-environment free-field Lab comparison pass; the indoor Lab
-count comparison is inconsistent across runs and remains unqualified. No full
-scaling comparison, GPU prototype, pathing integration or 08.3 work was completed.
-Analytic remains the operational backend; 08.1 scene preparation is unchanged.
-[[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2]]
-owns the measurements, limits and required reflected-signal requalification.
+Native timing, direct gain, planar transmission, door, reflected NLOS, block
+continuity, reset and bounded slow-motion controls pass. `make check` passes
+651 unit/contract, 336 integration and 58 release tests; the supported Isaac
+suite passes 179 tests on RTX 4090. Actual Isaac Sim scalar, Isaac Lab and Kit
+smokes pass. The final 2/16-environment planar/raised, free-field/indoor matrix
+contains 1,440 same-PCM comparisons: 100% count agreement, zero missing/extra
+events, worst per-case direction p95 0.0612 degrees and maximum 2.4187 degrees.
 
-The follow-up restores each receiver's direct delay and still fails all 16
-native reflection cases, including higher-order simulation and a 48 kHz control.
-Pyroomacoustics passes the four equivalent single-reflector timing controls;
-this is not full-domain qualification or an installed Geometry backend.
-[[implementation_phases/r9-geometry-acoustics-provider-selection#Provider selection reopened after the R10.2 reflection gate|Provider selection is reopened]],
-with Pyroomacoustics first for bounded qualification. No delay-only production
-fix or SDK patch follows.
+Audio-only mean updates cost 41–44 ms at two environments and 121–159 ms at 16,
+per 100 ms simulated. The latter is slower than real time. Equivalent Analytic
+free-field costs about 62/87 ms at 16 planar/raised copies, so Analytic is retained.
+A measured native one-tap optimization improves Geometry throughput; no acoustic
+GPU prototype or automatic migration is claimed. Python prepared-session controls
+are available; operating Kit controls remain in 08.3.
 
-The subsequent [[implementation_phases/r9-geometry-acoustics-provider-selection#Architecture decision after the Pyroomacoustics coverage audit|three-option coverage decision]]
-selects a **hybrid direction, with no admitted definitive adapter**. PRA alone
-lacks through-wall transmission, its tested planar-USD ISM mapping leaks sound
-across a closed partition, and its ray-traced PCM fails five co-located receiver
-coherence controls. An executable local Steam-direct/PRA-reflection adapter
-passes direct transmission but retains the invalid reflections. RAC's native
-delay component also fails a slow-motion control; no alternative full provider
-is qualified. This is a measured coverage blocker, not a missing wrapper.
-
-The local adapter, PCM, CPU RIR refresh measurements at 2/16 copies and a fresh
-reproduction runner are preserved in `local/r10/08_2_architecture/`.
-[[implementation_phases/r10-geometry-acoustics-integration#Provider coverage and hybrid admission gate (2026-09-10)|R10 owns these results and their limits]].
-No production code or dependency was added. Native reflected visibility and a
-coherent diffuse field must pass before streaming, partial reset, same-PCM
-scalar/CUDA, actual Isaac and full scaling gates resume. Analytic remains active;
-neither its retirement nor GPU acceleration is justified by this audit.
+[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the implementation, measurements, installation and current limits]].
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Intermediate specular architecture (2026-09-10)|R9 owns the architecture decision]].
+Historical failed reflection/coverage evidence is preserved separately.
+Full 08.2 remains open for a coherent diffuse field, complete pathing and final
+coverage/scaling qualification; general fast motion, acoustic GPU acceleration,
+Analytic retirement and operating GUI 08.3 are not established.
 
 ## Subphase 08.1 / R10.1 — Completed scene preparation
 
 Automatic composed-USD import, source-band materials, selective geometry/pose
 updates and the shared Kit preparation panel are implemented. The optional
 private Steam Audio 4.8.1 binding creates and updates actual native assemblies;
-no Geometry Acoustics signal producer or backend is registered yet.
+the later 08.2 intermediate adds the Geometry signal producer described above.
 
 The preparation-editor follow-up adds seven documented scattering-only records
 in the same catalog (30 entries total), conservative construction-name inference,
@@ -99,7 +87,7 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 ## Current Priorities
 
 **08.1 and its preparation-editor follow-up are complete (2026-09-10).**
-08.2 remains blocked after the reflection and hybrid coverage gates.
+08.2 is implementing the explicitly bounded hybrid intermediate; full closure remains open.
 Resolve reflected visibility and coherent receiver rendering before resuming the complete-path and
 07.2 comparison. A targeted
 Linux/NVIDIA GPU prototype depends on measured bottlenecks and end-to-end gain;

@@ -13,7 +13,7 @@
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1–07.3: observed tensors, bounded scalar/CUDA perception, practical batch measurements, multievent GUI and consumer cleanup.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — completed 08.1 USD/native preparation and Kit editor; 08.2 blocked after reflection and hybrid coverage gates; operational diagnostics remain in 08.3.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — completed 08.1 USD/native preparation and Kit editor; 08.2 intermediate hybrid milestone completed; final coverage open; operational diagnostics remain in 08.3.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — useful effects, evidence-backed variation and coherent GUI controls after geometry integration; received levels, noise and weak-signal activity remain priorities.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
 - [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — classification, tracking, speech and separation remain deferred; simultaneous localization moves to 04.4.
@@ -27,8 +27,8 @@
 - [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
-- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — historical Steam qualification, reopened selection and three-option coverage decision: hybrid direction with no admitted full provider.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native preparation; reflection requalification and executable Steam/Pyroomacoustics hybrid coverage fail production admission.
+- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — historical Steam qualification, reopened selection and three-option coverage decision: bounded intermediate hybrid corrections, with no admitted full diffuse provider.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native preparation; intermediate Steam/PRA specular propagation, native controls and passed actual Sim/Lab/Kit qualification within the intermediate domain.
 
 ## Topics
 

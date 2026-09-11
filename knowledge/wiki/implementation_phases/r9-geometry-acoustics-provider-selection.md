@@ -504,7 +504,7 @@ changes. Only that component was compiled/tested, not the full RAC runtime.
 [Repository and models](https://github.com/IoSR-Surrey/RoomAcoustiCpp),
 [checked license](https://github.com/IoSR-Surrey/RoomAcoustiCpp/blob/241be79a07de4aeeb3d8f08ddfaa01b895b89712/ROOMACOUSTICPP_LICENSE).
 
-**Implementation consequence.** Keep the executable hybrid qualification adapter
+**Consequence at the coverage audit, superseded for the later intermediate milestone.** Keep the executable hybrid qualification adapter
 and failing PCM locally, but do not promote it or narrow R10 silently. Admission
 requires native reflected visibility across the allowed partition/door topology
 and a coherent diffuse receiver field. A provider correction/replacement must

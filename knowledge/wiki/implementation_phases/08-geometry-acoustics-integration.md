@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 blocked after reflection and hybrid provider coverage gates (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; full 08.2 remains open (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -37,15 +37,13 @@ CUDA support and analytic retirement are not assumed outcomes.
 
 #### Problems / Limitations
 
-The initial candidate failed the native reflection timing/coherence gate.
-See [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|R10.2 gate evidence and resumption condition]]. No production Geometry backend was retained.
-The [[implementation_phases/r10-geometry-acoustics-integration#Reflection timing recheck — NO-GO after reference correction (2026-09-10)|timing recheck]]
-also fails after per-receiver delay correction; provider requalification precedes
-any resumption of this sequence.
-The subsequent [[implementation_phases/r10-geometry-acoustics-integration#Provider coverage and hybrid admission gate (2026-09-10)|coverage audit]]
-tests Pyroomacoustics and an executable hybrid candidate. R9 selects a hybrid
-architecture direction, but the candidate fails admission and remains local;
-there is no definitive production adapter or full 08.2 completion.
+The original reflection and hybrid coverage failures remain historical evidence.
+The user subsequently authorizes an intermediate direct/transmission/specular
+milestone without reducing final R10 scope. Its bounded native corrections,
+streaming adapter, common perception and actual Isaac qualification are tracked
+in [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
+A coherent diffuse field and complete final coverage remain required before
+08.2 closure and 08.3 operating integration.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3
