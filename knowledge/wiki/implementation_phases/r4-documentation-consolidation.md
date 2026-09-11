@@ -1,75 +1,57 @@
 # Phase R4 — Documentation Consolidation
 
+Status: complete; efficiency follow-up authorized 2026-09-11.
+
 ## Objective
 
-Replace the root `docs/` collection with a canonical technical wiki that explains the maintained product by subject, keeps the root README concise, and leaves product and release chronology in `CHANGELOG.md`.
+Keep one canonical owner per subject and make the current implementation path cheap to read.
 
 ## Subphase R4.1 — Canonical Knowledge Model
 
 #### Implementation
 
-Current information from the former documentation is re-authored into canonical topic, decision, phase, and status pages after verification against code, tests, configuration, schemas, package metadata, and Git history.
-
-Each subject has one owner page and other pages link to it instead of copying the same explanation.
-
-The former combined R2-R3 record is separated into one page per top-level phase.
+Replaced root docs with plans, topics, decisions, experiments and a current status index. The 2026-09-11 follow-up compacts every plan/status/log and separates R10 acceptance, native contract and decisive evidence.
 
 #### Key Decisions
 
-The wiki contains current concepts, contracts, workflows, limitations, and phase outcomes; it does not reproduce old release narratives or machine-specific smoke reports.
-
-R4 retained the R0 restructuring specification under `knowledge/raw/docs/` as explicitly authorized raw material. On 2026-08-21 the user explicitly authorized amending that file to record the locked R6 release model. The specification receives no source page because it is the conceptual setup document for the knowledge system, and its mutable planning content is not hash-pinned by release tests.
+Plans contain outcome, remaining work and limits; decisions contain binding scope; experiments contain decisive methods/results; topics contain reusable contracts. Link instead of copying.
 
 #### Problems / Limitations
 
-The wiki is repository-hosted technical knowledge rather than an independently deployed documentation site.
-
-The removed GUI screenshots represented extension version `1.0.0` and were not current evidence for the maintained interface.
+The user explicitly authorized historical log compaction for this pass. Older full prose remains recoverable at `5cfe48d`; append-only maintenance resumes afterward. Raw material and AGENTS.md remain unchanged.
 
 ## Subphase R4.2 — Public and Extension Metadata
 
 #### Implementation
 
-The root README provides the product landing page, install and quickstart path, validation entry points, limitations, and links into the canonical wiki.
-
-The Kit extension retains a small standalone README and an extension-specific changelog because installed extension archives cannot depend on repository-relative wiki or root changelog files.
-
-The extension manifest keeps its package `readme` and `changelog` metadata but no longer advertises the local files as the complete documentation set.
+Root README is a compact landing page; installed Kit keeps standalone readme/changelog without requiring the wiki.
 
 #### Key Decisions
 
-Python, CLI, schema, and runtime contracts do not change in R4.
-
-Documentation tooling is not a package extra because the wiki is plain Markdown and no MkDocs build remains.
+No documentation tooling dependency or package runtime change.
 
 #### Problems / Limitations
 
-The standalone extension metadata is intentionally narrower than the canonical wiki.
+Historical GUI captures do not establish current interface behavior.
 
 ## Subphase R4.3 — Boundary Enforcement
 
 #### Implementation
 
-Release tests require the root `docs/` directory to remain absent, the R0 specification to remain in its authorized raw location, every wiki page to be indexed, every internal wikilink to resolve, active Markdown references to avoid removed root-doc paths, and Kit metadata paths to resolve inside the extension.
-
-Version synchronization reads current package information from executable metadata, the root README, canonical wiki status, the root changelog, and the extension-specific changelog instead of the deleted versioning document.
+Maintain index/page/link checks, removed-root-doc checks, Kit metadata and version synchronization.
 
 #### Key Decisions
 
-The documentation boundary is tested as a maintained repository contract.
+Retain accepted scope, decisive failures, evidence locations and current contract links during compaction; do not create a verbatim archive in another wiki page.
 
 #### Problems / Limitations
 
-Automated structural checks cannot replace editorial review for clarity, duplication, or unsupported claims.
+Structural tests cannot prove editorial completeness; review requirements and negative findings explicitly.
 
 ## Artifacts
 
-The R4 artifacts are the canonical wiki, compact root README, standalone Kit metadata, authorized raw R0 specification, and documentation-boundary release test.
-
-Deterministic R4 validation results are recorded in [[status|Current Status]]; clean-source archive builds and audits run after the implementation commit and are reported in the phase handoff.
+Current navigation: [[index|Wiki index]]. Original R0 remains in its authorized `knowledge/raw/docs/` location; no source ingestion or raw edit occurs.
 
 ## Files
 
-- `knowledge/wiki/`
-- `README.md`
-- `tests/release/test_documentation_boundary.py`
+`knowledge/wiki/`, `README.md`, `tests/release/test_documentation_boundary.py`.

@@ -30,7 +30,7 @@ The optional `geometry_acoustics` intermediate uses a prepared USD acoustic scen
 instead of Analytic's environment solver. Steam owns direct/planar transmission,
 PRA native image sources own specular paths, and common receiver-clock convolution
 produces the final mixture. Diffuse field and complete final pathing remain open;
-see [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10]]
+see [[experiments/geometry-acoustics-admission#Operational intermediate — admitted within bounds|the intermediate admission record]]
 for authoritative bounds and validation. It rejects precomputed `SourceOcclusion`.
 
 ## Entity Directivity
@@ -126,34 +126,14 @@ preserve essential physical cues and stay within task-specific error budgets.
 Exact late-path phase or a failed extreme dynamic control is not by itself a
 global admission criterion. Conversely, apparently better localization from an
 unphysical artifact is not fidelity evidence. The active requirements and
-materiality protocol belong to [[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10's scope decision]].
+materiality protocol belong to [[decisions/robot-audition-fidelity|R10's scope decision]].
 
 Real hardware claims require measured array geometry and response, controlled recordings, calibrated references, and a separate sim-to-real validation protocol.
 
 
 ## Native-band material preparation
 
-The shared material catalog retains source absorption frequencies through 8 kHz
-where available. `resolve_material_coefficients()` defaults to the existing six
-analytic bands; `band_centers_hz=None` exposes the source bands. Scattering has
-independent provenance: nominal defaults or documented construction curves. Geometry preparation labels inferred material
-associations, missing-family fallbacks and frequency extrapolation explicitly.
-See [[implementation_phases/r10-geometry-acoustics-integration|R10.1 material preparation]]
-for the canonical USD precedence and Steam conversion rules.
-
-
-## Scattering and preparation presets
-
-R10.1 keeps absorption, scattering and transmission provenance separate in the
-shared catalog. Seven documented scattering-only configurations can be selected
-through `ias:scattering_material_id`; their native frequency curves are retained
-and Steam uses their 1000 Hz value for its scalar scattering field. Do not assign
-seating/box ensemble curves to generic walls or geometry that already resolves
-the same scattering details. Ordinary absorption presets retain nominal 0.05
-scattering; source-backed absorption does not make that default measured.
-
-Legacy nominal presets/aliases remain explicit compatibility options. Default
-preparation associations require construction-specific names and never infer
-nominal transmission from generic substance names. Existing authored mappings
-remain unchanged. See [[implementation_phases/r10-geometry-acoustics-integration|R10]]
-for sources, native conversion and supported transmission boundaries.
+The shared material catalog preserves source bands and independent coefficient-family
+provenance. Defaults/inferred associations are not measured asset calibration.
+[[topics/geometry-acoustics#Scene and materials|Geometry Acoustics]] owns USD precedence,
+scattering presets, native frequency conversion, proxies and transmission limits.

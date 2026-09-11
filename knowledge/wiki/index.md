@@ -1,58 +1,67 @@
 # Technical Wiki
 
-[[status|Current Status]] is the canonical summary of verified capabilities, boundaries, limitations, and next work.
+Start with [[status|Current Status]]. Read other pages only for the task at hand.
+For Phase 08 implementation: [[implementation_phases/08-geometry-acoustics-integration|sequence]]
+→ [[implementation_phases/r10-geometry-acoustics-integration|work/exit gates]] →
+[[decisions/robot-audition-fidelity|approved domain and budgets]]. Native details
+and past experiments are linked from those pages, not required background for every task.
 
 ## Implementation Phases
 
-### Ordered Post-R9.1 Implementation Plans
-
-- [[implementation_phases/01-geometry-provider-qualification|01 Geometry Provider Qualification]] — completed sequence reference for R9.2 qualification, R9.3 selection, and post-02.1 R9.4 risk retirement.
-- [[implementation_phases/02-signal-and-perception-architecture|02 Signal and Perception Architecture]] — completed signal/perception separation, consumer migration and frame-v4 confidence availability.
-- [[implementation_phases/03-audio-activity-detection|03 Audio Activity Detection]] — completed Auditok contract, qualification, explicit-threshold scalar integration, and duplicate-surface cleanup.
-- [[implementation_phases/04-observed-direction-estimation|04 Observed Direction Estimation]] — completed 04.1–04.3 and bounded indoor reference; temporal research suspended with failures and limits preserved.
-- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Ground Truth and Learning Datasets]] — completed 05.1–05.3: separate truth, NumPy learning samples and corpus splits, manifest v4, and dataset consumer cleanup.
-- [[implementation_phases/06-simulated-and-real-signal-parity|06 Simulated and Real Signal Parity]] — completed shared semantics, physical acquisition, 25-take nominal comparison, maintained-role parity, and obsolete campaign cleanup; raw remains enabled.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Isaac Lab Observation Integration]] — completed 07.1–07.3: observed tensors, bounded scalar/CUDA perception, practical batch measurements, multievent GUI and consumer cleanup.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Acoustics Integration]] — completed 08.1 USD/native preparation and Kit editor; 08.2 intermediate hybrid milestone completed; approved indoor domain and eight-step AV/mobile closeout sequence; operating diagnostics remain in 08.3.
-- [[implementation_phases/09-practical-realism-and-randomization|09 Practical Realism and Randomization]] — useful effects, evidence-backed variation and coherent GUI controls after geometry integration; received levels, noise and weak-signal activity remain priorities.
-- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 End-to-End Validation and Product Closeout]] — validate behavior and finish with a consumer-proven minimal, maintainable repository surface.
-- [[implementation_phases/11-future-semantic-perception|11 Future Semantic Perception]] — classification, tracking, speech and separation remain deferred; simultaneous localization moves to 04.4.
-
-### Completed and Existing Phase Records
-
-- [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]] — semantic test ownership and maintained validation commands.
-- [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]] — generic SDK, downstream, evidence, and release-content boundaries.
-- [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]] — canonical wiki, root documentation removal, and documentation-boundary enforcement.
-- [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]] — v2 API ownership, dependency direction, and bounded semantic cleanup.
-- [[implementation_phases/r6-packaging-and-release|R6 Packaging and Release]] — published Python source/wheel distributions, trusted publication, and self-contained Kit archive.
-- [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
-- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
-- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — historical Steam qualification, reopened selection and three-option coverage decision: bounded intermediate hybrid corrections, Milestone 2 provider gates and withdrawn historical NLOS timing interpretation.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native preparation; intermediate Steam/PRA specular propagation, passed intermediate Sim/Lab/Kit qualification; approved AV/mobile domain, numerical impact budgets, reference consumers, provider stop rule and bounded runtime gates; qualification remains open.
+- [[implementation_phases/01-geometry-provider-qualification|01 Provider Qualification]] — completed R9 sequencing.
+- [[implementation_phases/02-signal-and-perception-architecture|02 Signal/Perception]] — completed observed-only separation.
+- [[implementation_phases/03-audio-activity-detection|03 Activity]] — fixed-threshold Auditok and explicit limits.
+- [[implementation_phases/04-observed-direction-estimation|04 Direction]] — nominal roles and bounded multisource; temporal gaps remain.
+- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Datasets]] — independent truth, learning inputs and splits.
+- [[implementation_phases/06-simulated-and-real-signal-parity|06 Signal Parity]] — common semantics, physical integration and comparison.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 Lab/GUI]] — observed tensors, CUDA reference preservation and consumer closeout.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — eight remaining execution steps.
+- [[implementation_phases/09-practical-realism-and-randomization|09 Realism]] — planned consumer-justified variation.
+- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 Product Closeout]] — planned complete supported-system validation.
+- [[implementation_phases/11-future-semantic-perception|11 Specialized Perception]] — deferred classification/tracking/separation.
+- [[implementation_phases/r2-fast-test-architecture|R2 Test Lanes]] — semantic validation ownership.
+- [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary]] — campaign/source/distribution separation.
+- [[implementation_phases/r4-documentation-consolidation|R4 Knowledge Organization]] — canonical ownership and efficient reading.
+- [[implementation_phases/r5-semantic-component-refactor|R5 Runtime Ownership]] — historical subsystem refactor.
+- [[implementation_phases/r6-packaging-and-release|R6 Release]] — clean-source delivery and historical publication.
+- [[implementation_phases/r7-acoustic-environment-contract|R7 Environments]] — explicit topology and fail-closed resolution.
+- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic]] — routing, continuous timing and bounded direct occlusion.
+- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
 
 ## Topics
 
-- [[topics/onr-video-production|ONR Video Production]] — maintained videos 1–3 and Video 4 occlusion readiness: bounded direct attenuation after immediate fixes, fuller geometry scope after 08.3.
+Reusable current contracts and workflows; phase pages retain only introductions/outcomes.
 
-- [[topics/getting-started|Getting Started]] — installation, CLI, examples, Isaac runtime launch, and contribution workflow.
-- [[topics/system-architecture|System Architecture]] — package layers, data flow, lazy dependencies, and downstream ownership.
-- [[topics/public-contracts-and-recording|Public Contracts and Recording]] — frames, schemas, configuration, plugins, trace IO, sessions, replay, and compatibility.
-- [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, backends, fidelity, room acoustics, motion, effects, occlusion, DOA, and interpretation limits.
-- [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — stage discovery, live sensing, extension workflows, OmniGraph, Replicator, and troubleshooting.
-- [[topics/isaac-lab-integration|Isaac Lab Integration]] — sensor configuration, observation tensors, entity/reference binding, reset/update, and GPU validation.
-- [[topics/validation-and-release|Validation and Release]] — deterministic lanes, live gates, builds, audits, publication verification, and claim boundaries.
+- [[topics/getting-started|Getting Started]] — install, CLI, examples and contributions.
+- [[topics/system-architecture|System Architecture]] — dependency and responsibility boundaries.
+- [[topics/public-contracts-and-recording|Public Contracts and Recording]] — PCM, frames, truth, schemas, datasets and splits.
+- [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, analytic propagation, effects and perception semantics.
+- [[topics/geometry-acoustics|Geometry Acoustics]] — prepared USD/materials, native ownership, build and configuration.
+- [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — live sensor, authoring, instrumentation and lifecycle.
+- [[topics/isaac-lab-integration|Isaac Lab Integration]] — current tensor/binding/clock contract.
+- [[topics/validation-and-release|Validation and Release]] — maintained commands, runtime gates and artifact audits.
+- [[topics/onr-video-production|ONR Video Production]] — delivered 1–3, remaining 4–9 and individual scene/media gates.
 
 ## Key Decisions
 
-- [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — continuous arrival rendering, maintained-library choice, lifecycle, and motion approximations.
-
-- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] — final cleanup and maintainability rule shared by all implementation plans.
-- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — current v2 promises, exclusions, and compatibility rules.
+- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope, budgets, consumer semantics and provider stop rule.
+- [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival model, libraries and motion/lifecycle approximations.
+- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Surface]] — consumer-proven implementation/cleanup principle.
+- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces and exclusions.
 
 ## Experiments
 
-- [[experiments/04-4-multisource-localization|04.4 Multisource Localization]] — bounded indoor reference and rejected temporal candidates; research suspended, 07.2 admitted without general temporal qualification.
+Read for a specific result/reference; these pages do not add requirements.
 
-## Sources
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — intermediate pass, corrected NLOS, diffuse failures and task sensitivity.
+- [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
+- [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
+- [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, precision rejection and practical batch costs.
+- [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
 
-No external raw sources have been ingested into canonical project knowledge.
+## Sources and history
+
+No raw external sources have been ingested into canonical source pages.
+[[log|Knowledge Log]] records compact milestones; detailed prior prose is recoverable
+from Git at `5cfe48d`. Raw/evidence artifacts remain unchanged.

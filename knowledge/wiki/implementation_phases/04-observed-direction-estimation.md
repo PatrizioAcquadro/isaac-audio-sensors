@@ -1,192 +1,79 @@
 # Implementation Plan 04 — Observed Direction Estimation
 
-Status: Subphases 04.1–04.3 complete. The requested 04.4 indoor-improvement intervention is confirmed and integrated for bounded, relatively stable 16 kHz planar/3D sources. Weak speech, response time, original direct-path operational regressions and broader/physical qualification remain explicit limitations. Core/Isaac/Kit, recording/dataset and actual RTX 4090 Lab consumers pass within that scope. The 2026-09-09 pre-07.2 follow-up rejects the tested acoustic front ends: useful joint temporal perception remains unresolved. The latest user decision suspends this research iteration and admits 07.2 on the maintained verified reference.
+Status: 04.1–04.3 complete; 04.4 has a maintained bounded stable-source result, while general temporal/robust multisource qualification remains open.
 
 ## Objective
 
-Estimate direction from the final multichannel mixture only when activity is present. Preserve honest ambiguity and invalidity while making dominant-source localization useful for robots and learning datasets.
-
-Plan 04 applies the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision through estimator qualification, selection, consumer migration, and removal.
+Estimate directions and observable event count from microphone mixtures alone. Keep unavailable, ambiguous, missing and extra events explicit; distinguish instantaneous DOA, tracking and separation.
 
 ## Subphase 04.1 — Mixture-Only DOA Boundary
 
 #### Implementation
 
-`DoaEstimator.estimate(samples, microphone_positions_m, sample_rate_hz)` is the exact public estimator boundary. `AudioPerceptionPipeline` accepts that protocol explicitly and passes only the final `MicrophoneSignalBlock` rows whose channels are valid, the corresponding array-local XYZ positions in the same order, and the block sample rate. The read-only sample matrix contains the combined microphone mixture after propagation, directivity, occlusion, gain, and enabled effects.
-
-Scene snapshots, source count, source identity or position, schedules, private render stems, and producer diagnostics are absent from both the protocol and pipeline invocation. Private per-source state remains confined to signal producers. The two existing registry estimators, `tdoa_least_squares` and `srp_phat`, execute through this same mixture-only boundary; neither is selected for maintained consumers in 04.1.
-
-`DoaEstimate` remains unchanged and reusable on `AudioObservation`. `None` means localization was not run, including inactive windows or fewer than two valid channels. A returned unresolved estimate preserves candidate and ambiguity evidence without inventing a selected bearing, elevation, sector, or confidence. Structurally invalid estimator returns fail explicitly.
+Defined `DoaEstimator.estimate(samples, microphone_positions_m, sample_rate_hz)` and independent `DoaEstimate` semantics.
 
 #### Key Decisions
 
-- The initial target is dominant-source localization, not source separation.
-- The estimator never receives the true number of sources.
-- Geometry ambiguity remains visible rather than being resolved by hidden priors.
-- Invalid or low-information signals do not produce fabricated directions.
+No source count, poses, IDs, schedules or private stems enter estimation.
 
 #### Problems / Limitations
 
-Mixtures, reverberation, low SNR, aliasing, clipping, and motion can destabilize estimates even with sufficient array geometry. Subphase 04.1 establishes input and result boundaries only: it does not qualify an estimator, define a low-information threshold, compare confidence, add context, or integrate DOA into a default consumer. Those operating semantics remain 04.2 work.
+Array geometry and signal quality constrain observability; a contract does not qualify an algorithm.
 
 ## Subphase 04.2 — Estimator Qualification and Operating Semantics
 
 #### Implementation
 
-`PyroomacousticsSrpEstimator` is the primary general-purpose planar estimator for arrays with at least three non-collinear microphones. It remains a public, lazy optional plugin under registry ID `pyroomacoustics_srp`, keeps the 04.1 signature unchanged, and performs a stateless Hann-windowed STFT over only the supplied mixture block. Its qualified settings are a causal 250 ms block, 512-point FFT, 256-sample hop, observed-energy bin selection within 300–6000 Hz, a 2-degree azimuth grid, and estimator-local minimum reliability `0.06`. PyRoom remains constrained to `>=0.10.1,<0.11`; importing Core or the plugin surface does not import it.
-
-The corrected `ias.doa.phase_04_2_qualification.v2` evidence qualifies roles independently rather than ranking estimators. PyRoom alone owns the primary planar, robustness, planar-compute, and informational 3D evaluations. `tdoa_least_squares` is qualified separately for the physically distinct two-microphone role. Internal `srp_phat` and NormMUSIC are absent from all qualification gates; at 04.2 closeout, internal SRP remained only pending the 04.3 cleanup. Exact `pass`, `fail`, and `blocked` states distinguish observed gate violations from absent dependencies or insufficient evidence. The temporary runner was removed after closeout; the ignored local reports remain historical evidence without a maintained generator.
-
-The real evaluation replays each of the 35 hash-verified ReSpeaker takes from its start as sequential, non-overlapping 250 ms blocks through `AuditokActivityDetector -> AudioPerceptionPipeline -> PyRoom SRP`. Active takes are scored only inside their canonically hash-verified authorized reference interval, while complete official silence takes are scored. Eleven calibration takes select the highest eligible 0.5 dB Auditok grid point and the lowest eligible 0.01 PyRoom reliability grid point; the resulting values are `-40.5 dBFS` and `0.06`. Twenty-four other takes provide take-level validation within the same campaign. This partition tests separate recordings but is not leakage-group-independent, so it demonstrates within-campaign repeatability rather than generalization to a different session, environment, or array. The report records this scope plus per-take activity and resolved coverage, abstention, bearing median/p95/max, and per-take compute latency in the non-semantic performance section. No source audio or report is written into `evidence/`.
-
-Primary planar PyRoom passes: all 128 independent synthetic evaluation cases across both 10 and 20 dB SNR, all four bands, eight bearings, and three- and four-microphone geometries have 100% resolved coverage with 1-degree p95; every frequency-band p95 is at most 1.45 degrees. Every nominal validation take has 100% resolved coverage with worst-take p95 10 degrees, validation silence produces zero selected bearings, and replay is deterministic. The separate two-microphone role passes exact zero/intermediate/endpoint semantics, 95.83% synthetic candidate containment, and 7.48-degree candidate-error p95. Energetic identical channels now proceed through GCC-PHAT, so zero TDOA exposes the physical `(0, 180)` candidate pair without a selected bearing, sector, or confidence; silence remains `low_information`. These generic semantics are usable by any two-microphone consumer, while hardware-specific performance requires that consumer's own evidence.
-
-Robustness fails only its own role. In the synthetic degraded conditions, PyRoom is accurate when it answers—resolved-error p95 remains below 9 degrees—but it answers on only 62.5–68.75% of cases, below the required 90% coverage. Lowering reliability improves some synthetic coverage but reintroduces false directions on silence. In the real takes, ordinary added noise passes; left occlusion reduces coverage to 80%, low-level left input reduces it to 85%, and front occlusion produces two confident front/back flips near 180 degrees that the reliability threshold cannot remove. This means the nominal planar estimator remains qualified, but degraded-condition output must not yet be treated as robust. Planar composed compute passes 200 measured calls after 20 warmups: both report runs remain below 5.31 ms p95 and 5.34 ms maximum, separately from the 250 ms observation interval. End-to-end rolling 20 Hz integration was deferred to 04.3 at this closeout. Optional 3D remains available for downstream evaluation but blocked as a product claim because only 12 synthetic diagnostics exist and no representative real or realtime 3D evidence is present.
-
-`bearing_confidence` remains explicitly estimator-local reliability, not a probability or cross-estimator comparable score. Below-threshold, insufficient-context, unsupported-geometry, and unobservable-azimuth outcomes remain explicit unresolved estimates when the input is structurally valid. Malformed arrays and non-finite input still fail. The Phase 04.1 interface, `DoaEstimate`, frame v3, registry IDs, mixture-only inputs, causal behavior, ambiguity fields, configuration, and consumer defaults remain unchanged.
+Qualified PyRoom SRP for nominal planar arrays and least-squares for two-mic ambiguity independently. SRP: 250 ms causal context, 512 FFT/256 hop, 300–6000 Hz, 2-degree grid, reliability 0.06. Nominal synthetic p95 1 degree; worst physical take p95 10 degrees.
 
 #### Key Decisions
 
-- PyRoom SRP passes the primary planar role independently; consumer selection and integration remain 04.3 work.
-- Least-squares passes only the separate two-microphone ambiguity role; it is not a general planar competitor.
-- The estimator is stateless. A later consumer must supply the selected causal 250 ms window without future look-ahead.
-- Internal SRP had no qualification role and remained only for 04.3 removal.
-- NormMUSIC is neither evaluated nor added.
-- A robustness failure and optional 3D blocker do not invalidate the passed primary planar or two-microphone roles.
-- Geometry and DOA providers remain independently replaceable.
+Reliability is estimator-local, not calibrated probability. Stereo candidates are alternatives, not separate sources.
 
 #### Problems / Limitations
 
-The selected 250 ms observation context can smear fast source or robot motion even though measured composed compute remains below 6 ms. Robustness is not qualified, specifically under low SNR, occlusion, and low-level coverage. Real placement has a ±5-degree tolerance, microphone centers are nominal rather than measured, and validation remains within one campaign without leakage-group independence, so the real figures do not establish sub-degree physical accuracy or cross-environment generalization. Representative real two-microphone hardware performance and real/realtime 3D behavior remain unqualified; downstream consumers can evaluate these generic capabilities on their own arrays. The ignored local reports are reproducible evidence, not distributed benchmark fixtures.
+Robustness failed: degraded synthetic coverage 62.5–68.75% vs 90% gate; real occlusion yielded near-180-degree flips. Physical evidence was one campaign (11 calibration/24 validation takes), not session-independent accuracy. Optional 3D was not qualified at this stage.
 
 ## Subphase 04.3 — Selection, Integration, and Cleanup
 
 #### Implementation
 
-`MaintainedDoaEstimator` now performs the standard geometry routing without changing `DoaEstimator.estimate(...)`: exactly two microphones select `tdoa_least_squares`; at least three horizontal, non-collinear XY microphones select `pyroomacoustics_srp`; rank-3 arrays return the unselected `optional_3d_unselected` capability result; and other unsupported geometries abstain. There is no fallback between estimators. Planar selection resolves PyRoom lazily and fails with `OptionalDependencyUnavailable` plus the `isaac-audio-sensors[room]` installation action when absent, while the two-microphone role remains Core-only.
-
-The maintained consumer owns an exact trailing 250 ms causal window. Every valid mixture advances it, including inactive Auditok ticks, but DOA runs only on an active decision. Active ticks before the window is complete return `insufficient_context`. A layout, valid-channel set, sample-rate, producer-stream identity, time gap, or explicit lifecycle reset clears all DOA state. The first inactive decision clears stable and pending temporal bearings without discarding accumulated audio context.
-
-Resolved bearings use one fail-closed temporal rule. A circular jump of at least 150 degrees becomes unresolved `temporal_instability`, never reuses the old bearing, and records a pending lobe. The next active tick confirms that lobe only within 30 degrees; otherwise the pending result is discarded and output remains unresolved. Diagnostics preserve selected role and estimator, estimator-local reliability, abstention, and temporal stability. One canonical `perception.doa_context` records causal ownership, exact duration, sample count, completeness, and reset reason.
-
-Standard Core, CLI, Isaac Sim, Isaac Lab reference, and Kit entry points expose `doa_enabled=False`; the CLI spelling is `--enable-doa`. A caller-owned `AudioPerceptionPipeline` cannot be combined with standard activation. Lab entity binding rejects DOA because it has no waveform, while reference binding initially executed it without projecting tensors; the later 07.1 implementation adds that projection. Kit binding `ias.omni_extension_binding.v7` requires exact `direction_estimation: {"enabled": bool}` and has no v6 parser. Core TOML, frame v3, `DoaEstimate`, and the qualified PyRoom `0.06` threshold remain unchanged.
-
-The internal `srp_phat` module, adapter/export, registry declaration, stale constant, and dedicated tests are removed. PyRoom's estimator diagnostics retain their accurate internal SRP-PHAT terminology.
+Integrated lazy, default-off standard DOA and 250 ms causal context; removed internal SRP. Stereo/retained single-event paths use explicit instability/confirmation semantics.
 
 #### Key Decisions
 
-- Keep one implementation per supported DOA role and never fall back silently.
-- PyRoom owns general planar DOA; least-squares owns the generic two-microphone ambiguity role.
-- Nominal planar qualification does not imply robustness under occlusion, low SNR, or low-level input.
-- Optional 3D remains available without becoming a default or a qualified product capability.
-- `DoaEstimate` remains independent of the selected algorithm.
-- Standard activation is explicit and default-off; injected pipelines remain fully caller-owned.
-- Temporal state is consumer policy, not a change to the estimator protocol or scientific qualification.
+No silent estimator fallback. Current 16 kHz multisource routing is the later 04.4 extension.
 
 #### Problems / Limitations
 
-The 250 ms context can smear fast motion. The confirmation rule blocks abrupt reversals but does not turn the failed 04.2 robustness role into a qualified capability. Occlusion, low SNR, low-level input, particular two-microphone hardware, and rank-3 operation still require separate evidence. Observed-result projection into Isaac Lab tensors was subsequently implemented in 07.1.
+Short compute time does not remove context-induced motion lag; nominal qualification is not occlusion robustness.
 
 ## Subphase 04.4 — Multi-Source Localization Qualification
 
 #### Implementation
 
-Qualification and practical scalar-reference integration were implemented after 07.1, satisfying the original bounded-reference prerequisite for [[implementation_phases/07-isaac-lab-observation-integration|07.2 scalable/stateful Lab integration]]. The later temporal follow-up below adds a renewed prerequisite. This activates the localization portion formerly deferred to [[implementation_phases/11-future-semantic-perception|11.3]]. The first qualified milestone must detect and localize two simultaneous sources while also handling zero and one. Two is a validation milestone, not a permanent architecture limit. Tracking and separated audio remain distinct later capabilities.
-
-The isolated comparison, frozen gates and independent evaluation are implemented. The initial shortlist covers PyRoom SRP, MUSIC with inferred count, and ODAS SSL with potential rejection; development added normalized MUSIC, covariance pursuit and frequency-local model order to address measured failures. The [[experiments/04-4-multisource-localization|04.4 experiment]] owns the review, protocol, corrections, results and evidence locations.
-
-**Current outcome: GO for the bounded indoor stable-source capability.** Published DP-RTF and weighted-SRP histogram adaptations failed screening; WPE followed by published nonnegative group-sparse covariance fitting provides the confirmed improvement. A first independent confirmation failed tetrahedral precision; one revised evidence threshold was fixed before two entirely fresh blocks. All 24 joint geometry/condition quality groups pass the second confirmation. The [[experiments/04-4-multisource-localization|experiment]] owns the protocols, per-content results, weak-source misses, first failure and measured quality/latency tradeoff.
-
-The [PyRoom DOA API](https://pyroomacoustics.readthedocs.io/en/stable/pyroomacoustics.doa.doa.html) takes `num_src`; setting it to two supplies a count rather than demonstrating count estimation. A candidate must infer observable event count and reject spurious peaks from the final mixture, valid-channel geometry, and sample rate only. Scene source count, schedules, IDs, source positions, and private stems remain forbidden inputs. Native or model dependencies stay isolated during evaluation; retain only a selected, justified implementation.
-
-`EventLocalizer.localize(samples, microphone_positions_m, sample_rate_hz)` returns a sequence of `DoaEstimate` values plus diagnostics. `AudioPerceptionPipeline(event_localizer=...)` is mutually exclusive with single-estimate injection and reuses `AudioObservation` and the existing frame sequence without serialized schema changes. At 16 kHz, standard `doa_enabled=True` routes horizontal planar and rank-3 arrays to the lazy maintained WPE/group-sparse covariance localizer. Stereo retains its one-event ambiguity role; other planar sample rates retain the existing single-estimate selector, and other rank-3 sample rates are unavailable. No resampling or unqualified rate expansion is implicit.
-
-The multisource pipeline retains the trailing causal 750 ms, including inactive ticks, and publishes the current event set on active updates. New/reset streams need 750 ms warm-up; onset after filled background has a separately measured response. Stereo and other planar rates keep 250 ms. Calls refit only the supplied past window, without incremental double ingestion. Multiple-event updates have no selected-bearing confirmation state, tracks, truth associations or persistent identities. Sorting uses normalized bearing, elevation and ambiguity candidates; IDs are deterministic and local to the frame. Stereo and the retained single-event path preserve their previous temporal policy. Channel/layout, stream/clock/rate, discontinuity and time-contiguity resets clear context. `perception.localization` distinguishes events, no events and unavailable localization; warm-up does not manufacture an event. Auditok activity remains global, individual `detection_score` stays absent, and the localizer's fitted strengths remain diagnostic statistics. The later frame-v4 correction represents unavailable `bearing_confidence` as `None`; fitted strengths remain diagnostics, not confidence probabilities.
-
-Core and Isaac process the same real mixtures; recording/replay and learning datasets preserve distinct events. Kit keeps every event in history/overlays and avoids choosing the first as a single-bearing summary when several exist. Core truncation is diagnostic; Lab retains independent observation/DOA/elevation/ambiguity masks, padding and capacity-loss counts. The live RTX 4090 smoke verifies actual planar and 3D scalar/reference parity, simultaneous events, zero/one-slot truncation and partial reset. CPU WPE/group-sparse covariance remains the scalar computation; this is not CUDA-native scalable localization.
-
-The evaluator owns truth and one-to-one matching. Report false detections, missed sources, cardinality errors, matched circular angular error, abstention, and compute/end-to-end latency separately. Vary angular separation, relative received levels, SNR, content and spectral overlap, and reverberation; include silence, single-source controls, simultaneous pairs, and weak/unresolvable cases. Calibration and evaluation must use separate assets/cases; set justified acceptance thresholds and the intended operating domain before final evaluation, then report failures and limits without threshold adjustment on evaluation data.
-
-Simulation and physical results are separate claims. Existing single-source physical evidence does not qualify simultaneous localization. Integrate only a candidate that meets its declared operating criteria; otherwise record NO-GO or a concrete evidence blocker. Validate the selected common perceiver before claiming multisource Lab behavior, regardless of allocated tensor capacity.
-
-The subsequent motion comparison rejects adaptive/dual-window replacements: isolated-source improvements do not preserve useful joint behavior on moving indoor pairs. The maintained localizer remains unchanged; the [[experiments/04-4-multisource-localization|motion closeout]] owns the new numerical evaluator, failures and next boundary.
-
-The subsequent joint-motion investigation tested optional streaming injection and receiver orientation without changing the default 750 ms localizer. Subphase 07.3 removes that unshipped interface because only rejected candidates consumed it. [[experiments/04-4-multisource-localization|The experiment record]] preserves outcomes and counterexamples; no motion qualification follows from the interface tests.
-
-NARA-WPE 0.0.11 is an optional `room` dependency; the Kit archive includes the used numerical path and Click with licenses. The maintained code is evaluated through its public mixture-only interface; retired candidate implementations remain historical evidence outside the package. No ensemble, known-count input, two-event ceiling or condition-specific selector is introduced.
+After 07.1, WPE plus group-sparse covariance fitting passed 24 stable-source geometry/condition groups on two fresh confirmation blocks. `EventLocalizer` produces multiple frame-local events from 750 ms past PCM at 16 kHz for planar/rank-3 arrays. Stereo and other planar rates retain their single-event roles.
 
 #### Key Decisions
 
-- Candidate selection starts 04.4 and precedes the experimental comparison. No mandatory PyRoom-first preference applies.
-- Real simultaneous localization is the objective; more slots or a supplied source count are insufficient.
-- Event count is inferred from observed mixtures; evaluator truth never configures the perceiver.
-- Two candidate bearings of one ambiguous event are not two localized sources.
-- Tracking and beamforming/separation are evaluated separately when a task requires them.
-- 07.1 adds no speculative multisource plugin, interface, model, or dependency.
+Unknown count must be inferred; no two-source cap, tracking IDs, ensemble or scene-specific selector. Keep physical and simulated claims separate.
 
 #### Problems / Limitations
 
-Remaining acoustic limits: the original combined 45-degree separation / 6 dB imbalance / 10 dB SNR / 0.3 s target RT60 domain still fails; those plausible conditions have not been declared unrealistic. Close, coherent, out-of-plane planar and arbitrary reverberant mixtures are not qualified. Direct-path case coverage does not prove a complete continuous operating envelope, arbitrary layouts or physical performance. Planar elevation is not observable in this role. Two-source reliability is probabilistic; larger output capacity is not a three-source qualification.
-
-The user-approved stable-source tradeoff does not pass the original 350/500 ms response reference: additions, removals and direction changes can take around 1–1.5 s, and one tetrahedral weak-speech removal is unresolved within a 1.5 s diagnostic phase. Compute p95 is about 21/29/68/52 ms for triangle/square/raised/tetrahedral, so 100 ms updates are the measured starting point. Weak-speech clean pairs remain only 16–20/24 at target RT60 0.3 s / 6 dB; pooled qualification must not imply per-family robustness. Original nominal direct-path gates pass, but the operational pair criterion regresses for planar arrays at the original 10 dB imbalance/5 dB SNR controls. The experiment records these unchanged gates and harder cumulative controls. 07.2 remained separate at that closeout; its subsequent implementation is recorded in [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]]. No physical or general indoor claim follows.
+Weak speech, misses/extras and ~1–1.5 s response persist. The original combined 45-degree separation/6 dB imbalance/10 dB SNR/0.3 s RT60 domain is not generally qualified; planar elevation remains unobservable. Detailed accepted/failed candidates and motion results belong to the experiment record.
 
 ## Pre-07.2 Follow-up — Joint Count and Direction over Time
 
-Status: investigated on 2026-09-09; **NO-GO for a temporal replacement; research iteration suspended by the user.** Persistent OnlineWPE, normalized spatial evidence, their combination and matched-history controls fail the ordinary moving-speech screen and can regress useful static controls. No candidate is integrated. The [[experiments/04-4-multisource-localization#Pre-07.2 Acoustic Front-End Evaluation|front-end evaluation]] retains the domain, paired results, counterexamples and unmet confirmation gate. The user now admits 07.2 on the maintained reference within its verified domain; this changes sequencing, not perceptual qualification.
-
-The unresolved research objective is to make perceived audible-event count and directions useful together as sources begin, stop, move, overlap or become partially occluded, and as the receiver moves. Reduce invented or duplicated events, missed audible sources, unstable directions and excessive recovery delay while preserving useful stationary/indoor behavior. The objective is practical, reusable robot audition for the repository's long-term simulation and learning roles, rather than a smoother presentation of the same unreliable event stream.
-
-The occlusion audit also found extra directions in some unoccluded single-source controls and new extras after partial channel attenuation in an otherwise successful angular control. Separate these baseline weaknesses from occlusion-induced degradation. Joint temporal behavior must not be inferred from a static case, correct waveform propagation, or the visual continuity of an arrow.
-
-Prefer established, maintained approaches that meet the objective without prescribing an algorithm or library in advance. Perception continues to use received audio only; source count, schedules, identities and geometry cannot supply the answers. Temporal reasoning does not authorize semantic recognition, separated audio, or source identities in policy inputs. Keep unavailable estimates and the remaining operating limits explicit.
-
-The latest user decision removes the general temporal block on repository progression. Keep the current localizer and all limits; 07.2 integrates available perception, followed by 07.3 GUI/consumer consolidation and 08–09 geometry/realism. These phases do not automatically solve temporal perception. Revisit research when a concrete robot behavior, such as reliable dynamic multisource listening, requires it. Capability-specific qualification remains necessary, including Phase 10 final validation.
+Motion/front-end candidates failed broad joint quality and were not integrated.
+The user suspended general temporal research and admitted 07.2 on the maintained
+bounded reference. 07.3 retired unshipped candidate interfaces while preserving
+failures. Continuous acoustic timing is corrected separately; it does not qualify
+fast moving-source DOA. Reopen perception research only for a concrete authorized task.
 
 ## Artifacts
 
-Subphase 04.1 produced the exact mixture-only estimator boundary. Subphase 04.2 adds lazy PyRoom SRP plus estimator-local reliability and abstention semantics. Its ignored v2 JSON reports under `build/qualification/doa/` remain local historical evidence; the retained v1 `phase-04.2-final-a.json` and `phase-04.2-final-b.json` reports are superseded and their comparative conclusions are not current qualification authority. The completed qualification runner is not maintained.
-
-Subphase 04.3 produced ignored `phase-04.3-final-a.json` / `phase-04.3-final-b.json` reports with schema `ias.doa.phase_04_3_rolling_qualification.v1`. Each contains two independent 20 Hz runs with 20 warm-up and 200 measured ticks per run. Semantics are identical within and across both reports; context remains exact and causal. Across the four measured runs, compute p95 is 5.22–5.68 ms and maximum is 5.30–6.10 ms, passing the strict `<50 ms` p95 and `<250 ms` maximum gates. The reports remain local historical evidence without a maintained generator.
-
-04.4 retains the maintained SDK method, direct regression tests and historical simulation reports described in the [[experiments/04-4-multisource-localization|qualification experiment]]. It adds the common event-localizer contract and changes opt-in 16 kHz perception, without serialized schema changes.
+[[experiments/04-4-multisource-localization|04.4 evidence]] owns protocols, numerical gates, rejected DP-RTF/weighted-SRP/ODAS/OnlineWPE and temporal controls. The maintained localizer passed actual RTX scalar/reference projection; CUDA adaptation belongs to Phase 07. Original 04.2 details remain in this path at `5cfe48d`.
 
 ## Files
 
-- `tests/integration/test_sparse_localization.py`
-
-- `src/isaac_audio_sensors/core/plugins/pyroomacoustics.py`
-- `src/isaac_audio_sensors/core/plugins/standard_doa.py`
-- `src/isaac_audio_sensors/core/perception.py`
-- `src/isaac_audio_sensors/core/plugins/adapters.py`
-- `tests/unit/test_doa_estimators.py`
-- `tests/unit/test_standard_doa.py`
-
-## Version Notes
-
-- 2026-09-04: Completed the mixture-only DOA boundary without selecting an estimator, changing serialized contracts, or integrating DOA into maintained consumers.
-- 2026-09-04: Qualified PyRoom SRP at a causal 250 ms observation context and estimator-local reliability threshold `0.034`; no maintained consumer or default estimator changed.
-- 2026-09-04: Superseded the v1 comparative conclusion with role-based v2 evidence, recalibrated PyRoom reliability to `0.06`, qualified its primary planar and compute roles, qualified least-squares two-microphone ambiguity, isolated the robustness failure, and kept optional 3D blocked.
-- 2026-09-04: Removed the synthetic split/SNR confounding by gating the complete independent primary matrix, relabeled the real partition as within-campaign take-level validation, and made two-microphone hardware and optional 3D limitations consumer-generic.
-- 2026-09-04: Integrated explicit standard DOA selection, exact rolling context, temporal reversal abstention, default-off Core/Isaac/Lab/Kit consumers, Kit binding v7, internal SRP removal, and the passing rolling 20 Hz gate.
-- 2026-09-04: Removed the completed qualification runners and their test-only coverage, retained ignored reports as local historical evidence, and reduced runtime diagnostics to one causal context record plus maintained selection, reliability, abstention, and temporal state.
-
-- 2026-09-08: Planned 04.4 unknown-count simultaneous localization before 07.2, advancing localization from 11.3 while keeping tracking and separation deferred.
-
-- 2026-09-08: Made practical-realism candidate selection the first 04.4 activity; PyRoom and ODAS remain initial options without a prescribed evaluation order.
-
-- 2026-09-08: Implemented candidate comparison and independent planar/3D qualification; fixed native FFTW lifecycle and evaluated frequency-local count correction. Both roles remain NO-GO, with production integration and physical qualification pending.
-
-- 2026-09-08: Continued through regularized covariance, AIC, spectral weighting and independent content partitions; corrected nominal transition propagation. Latest per-run gates pass, but known-case regression retains combined NO-GO and prevents premature consumer integration.
-
-- 2026-09-08: Completed the practical 04.4 scalar-reference milestone, retaining the original broad-domain NO-GO while enabling 07.2 after common consumer and actual GPU projection validation.
-- 2026-09-08: Diagnosed room-only and progressively combined acoustic failures with paired controls; rejected the tested loading, selection and short-context dereverberation corrections without changing the maintained reference or qualification gates.
-
-- 2026-09-08: Confirmed and integrated bounded indoor WPE/group-sparse localization; documented weak-speech errors, slower response and original planar operational regressions. 07.2 remains outside the intervention.
-
-- 2026-09-08: Retired candidate-selection executors and phase-only tests; retained WPE/group-sparse runtime tests and historical result/settings records outside build outputs. Removed unused pairwise steering preparation without changing numerical results.
-
-- 2026-09-09: Retained the existing localizer after motion/indoor candidates failed joint utility; added a reusable numerical evaluator and documented the unresolved moving-pair boundary.
-
-- 2026-09-09: Added optional causal streaming event-localizer injection without changing standard selection or serialized schemas.
-
-- 2026-09-09: Reopened useful joint count/direction over time before 07.2 following the occlusion/GUI audit; preserved the bounded reference and previous candidate failures without claiming new implementation.
+`src/isaac_audio_sensors/core/plugins/`, `core/perception.py`, `lab/torch_perception.py`; the experiment record owns replay locations.

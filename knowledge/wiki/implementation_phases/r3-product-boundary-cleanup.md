@@ -1,57 +1,43 @@
 # Phase R3 — Product Boundary Cleanup
 
+Status: complete.
+
 ## Objective
 
-Restrict the active repository and every distributed artifact to reusable robot-audition SDK capabilities while moving task policy, campaigns, downstream adapters, and scientific evidence to their owning projects or ignored evidence workspaces.
+Keep the reusable SDK separate from robot policies, campaign orchestration and experiment evidence.
 
 ## Subphase R3.1 — Active Source Boundary
 
 #### Implementation
 
-Phase-coupled acquisition, acceptance, orchestration, configuration, schema, test, and output surfaces were removed after consumer and evidence gates were satisfied.
-
-Generic frame, calibration, manifest, plugin, recording, replay, acoustic, Isaac Sim, Isaac Lab, Kit, CLI, schema, example, and release capabilities remain maintained.
-
-The built-in stage rig profiles are generic `quad_cross_120mm` and `stereo_y_100mm`; robot-specific rig definitions remain downstream configuration.
-
-The live Kit smoke creates a portable in-memory scene and has no external robot or showcase fixture dependency.
+Removed campaign-specific interfaces after consumer/evidence review; retained generic sensors, DSP, recording, datasets, plugins and consumers. Kit smoke now owns a portable scene.
 
 #### Key Decisions
 
-Removed project-specific interfaces have no compatibility shims because they were not part of the reusable product contract.
-
-Existing versioned sensor, dataset, calibration, and recording contracts remain supported independently of removed campaign workflows.
+Robot rigs/adapters and acceptance campaigns remain downstream; no compatibility shims for retired project surfaces.
 
 #### Problems / Limitations
 
-Downstream projects must own their adapters, task policies, acceptance criteria, and replay fixtures.
-
-Ignored publication evidence is protected local state and is not a package input or release payload.
+Ignored evidence is protected local state, not a package input.
 
 ## Subphase R3.2 — Distribution Boundary
 
 #### Implementation
 
-One recursive content policy audits first-party wheel and Kit content for forbidden paths, project identifiers, phase content, hard-coded test paths, and absolute workstation paths. The Kit dependency audit separately owns its bundled third-party tree.
-
-Schemas ship from `src/isaac_audio_sensors/schemas/`; no runtime or build step reads public contracts from documentation.
+One recursive first-party content policy audits wheel/Kit; third-party bundle audit is separate. Schemas ship from package source, never documentation.
 
 #### Key Decisions
 
-Release archives may contain concise history only in a file named `CHANGELOG.md`.
-
-Tests, tools, local datasets, outputs, evidence, acquisition code, and task-specific implementation do not ship.
+Tests/tools/evidence/phase content do not ship; release chronology only in `CHANGELOG.md`.
 
 #### Problems / Limitations
 
-Archive cleanliness does not establish acoustic fidelity, physical validity, or downstream task correctness.
+Clean archives do not establish acoustic or task validity.
 
 ## Artifacts
 
-The release content policy, archive auditors, generic rig profiles, portable Kit smoke, and ignored evidence manifest are the durable R3 artifacts.
+[[decisions/product-boundary-and-compatibility|Product boundary]] and [[topics/validation-and-release|release policy]] own current rules.
 
 ## Files
 
-- `tools/release/content_policy.py`
-- `tools/release/`
-- `src/isaac_audio_sensors/isaac/microphone_rig_profiles.py`
+`tools/release/content_policy.py`, `tools/release/`, `src/isaac_audio_sensors/isaac/microphone_rig_profiles.py`.

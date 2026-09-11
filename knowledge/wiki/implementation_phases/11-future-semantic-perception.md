@@ -1,80 +1,57 @@
 # Implementation Plan 11 — Future Semantic Perception
 
-Status: Classification, tracking, speech-specific processing, beamforming, and separation remain deferred. Bounded simultaneous localization is maintained through the 04.4 reference and 07.2/07.3; its general temporal limits remain explicit.
+Status: deferred; bounded simultaneous localization is already maintained by 04.4/07.
 
 ## Objective
 
-Extend the observed pipeline with classification, tracking, speech-focused detection, and optional multi-source processing only when concrete application requirements justify their contracts and runtime cost.
-
-Plan 11 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision. Deferred capabilities create no placeholder fields, dependencies, modules, configuration, registry entries, or test-only production hooks before a concrete application authorizes them.
-
-R10's priority AV attention/search profile qualifies the microphone signal and
-its usefulness to an explicit simulated consumer. It does not authorize sound
-classification, estimator-owned identity tracking, a learned visual detector or
-semantic target selection here. SquadBot graph/linking and visual tracking remain
-downstream; repeated DOA or camera following is not a persistent identity claim.
-The complementary mobile profile also does not require policy training or a new
-semantic planner. Revisit these capabilities only for a separately authorized
-application need under the established contracts.
+Add specialized perception only for a separately authorized application. No placeholder fields, dependencies or hooks. R10 reference AV confirmation does not authorize a learned recognizer or semantic graph.
 
 ## Subphase 11.1 — Sound Classification
 
 #### Implementation
 
-Qualify a classifier only after the generic activity dataset provides non-leaking inputs and labels. Add class output, score semantics, taxonomy, and model provenance to observations through an explicit schema change rather than reserving unused fields in advance.
+Qualify labels, model/taxonomy, score semantics and leakage-controlled data before an explicit observation-schema extension.
 
 #### Key Decisions
 
-- Authored source class is supervision, not predicted class.
-- Classifier vocabulary belongs to a declared model or downstream application contract.
-- Generic Core does not hard-code a robot-specific ontology.
+Authored class is supervision, not prediction; no robot-specific Core ontology.
 
 #### Problems / Limitations
 
-Simulated source assets can make classification unrealistically easy. Asset, recording, and scene split leakage require specific control.
+Asset/recording/scene leakage can make synthetic classification artificially easy.
 
 ## Subphase 11.2 — Temporal Tracking
 
 #### Implementation
 
-Introduce track identity and motion continuity only after observations are stable and latency is characterized. Tracking consumes observed activity and direction over time; it does not inherit simulation source identifiers.
+Introduce estimator-owned identity only after observed quality/latency are characterized; define reset and discontinuity behavior.
 
 #### Key Decisions
 
-- `track_id` is estimator-owned and distinct from truth `source_id`.
-- Track-to-truth association remains evaluation output.
-- Resets and discontinuities terminate or explicitly reinitialize tracks.
+Track IDs never inherit truth source IDs; association is evaluation output.
 
 #### Problems / Limitations
 
-Crossing sources, silence, reverberation, and robot motion can create track switches. Tracking quality must remain separate from instantaneous DOA quality.
+Crossings, silence, reverberation and robot motion require separate switch/continuity evidence.
 
 ## Subphase 11.3 — Specialized and Multi-Source Plugins
 
 #### Implementation
 
-The simultaneous-localization evaluation, including unknown source count, multi-peak processing, and ODAS as an optional candidate, is now owned by [[implementation_phases/04-observed-direction-estimation|Subphase 04.4]]. Its first target is zero/one/two-source detection and localization before 07.2, not tracking or separated audio.
-
-Evaluate speech VAD, beamforming, and source separation separately when a concrete task requires them. Preserve the final-mixture input boundary and do not make specialized native runtimes mandatory for generic activity and dominant-direction sensing.
-
-For every capability eventually authorized, select the smallest supported implementation and remove rejected experiments, unused models or plugins, placeholders, and their supporting surfaces. Do not retain semantic or multi-source code only for tests or possible future use.
+Speech VAD, beamforming and separation need distinct task evidence. Simultaneous localization/count inference belongs to [[implementation_phases/04-observed-direction-estimation|04.4]].
 
 #### Key Decisions
 
-- Speech-focused detection does not replace generic acoustic activity.
-- ODAS localization evaluation belongs to 04.4. Its tracking and separation roles remain optional future work, not mandatory Core dependencies.
-- Multi-source output is added only with honest observability, association, and evaluation semantics.
-- Active ultrasound remains a separate product capability.
-- Each retained future component requires a concrete application and measured value.
+Use final mixtures and isolate specialized optional dependencies.
 
 #### Problems / Limitations
 
-Semantic and multi-source models add data, native dependencies, compute, and maintenance. They require separate value evidence; temporary research candidates remain bounded to evaluation and leave production after selection.
+More event slots or repeated DOA do not establish separation/tracking. No policy training or semantic planner is implied.
 
 ## Artifacts
 
-No artifacts or production placeholders are required until a future application activates one of these capabilities. An activated capability must leave one selected implementation and its evidence, not permanent candidate clutter.
+No deferred runtime surface exists solely to prepare these capabilities.
 
 ## Files
 
-Implementation files and model dependencies are intentionally undefined until the corresponding capability is authorized.
+Select files only after a concrete capability is authorized.

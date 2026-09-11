@@ -1,80 +1,56 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; Milestone 2 qualification pending for priority AV attention/search and complementary mobile audition (2026-09-11); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 and the 08.2 intermediate complete; Milestone 2 and 08.3 open.
 
 ## Objective
 
-Record the execution order of the R10 geometry-integration work. This page is a sequence reference only; [[implementation_phases/r10-geometry-acoustics-integration|R10]] is the sole authority for requirements, decisions, limitations, artifacts, acceptance semantics, and application of the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision.
-
-Qualification follows [[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10's confirmed profiles]]: AV attention/search first,
-then complementary mobile audition. R10 owns physical invariants, approximation
-budgets and stress-test boundaries.
+Sequence reference for [[implementation_phases/r10-geometry-acoustics-integration|R10]]. Read [[decisions/robot-audition-fidelity|the approved domain/budgets]] first; both profiles remain required.
 
 ## Subphase 08.1 — Implement R10.1
 
 #### Implementation
 
-Completed [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.1 — USD Acoustic Scene|R10.1 USD Acoustic Scene]], including automatic import and the shared Python/Kit preparation panel. Operational backend controls and propagation diagnostics remain in 08.3.
+Completed prepared USD/native scene and shared authoring panel.
 
 #### Key Decisions
 
-- This plan defines only that R10.1 precedes R10.2; R10.1 remains authoritative for its execution.
+Preserve it during propagation integration.
 
 #### Problems / Limitations
 
-This reference adds no requirements beyond R10.1.
+Preparation is not signal qualification.
 
 ## Subphase 08.2 — Implement R10.2
 
 #### Implementation
 
-Implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2]] under the
-[[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|approved domain, budgets, reference consumers and exclusions]].
-Both profiles use the same producer: qualify AV attention/search first, then mobile
-audition. Retain Analytic and the working intermediate configuration. Milestone 2
-ends with integrated acoustic/lifecycle evidence and both task profiles; final
-bounded runtime measurement follows. Real-time execution, acoustic GPU porting,
-32–256 scaling and Analytic retirement are not Phase 08 completion requirements.
+Complete native NLOS/diffuse extensions, combined streaming and AV then mobile task gates.
 
 #### Key Decisions
 
-- This plan defines only that R10.2 follows R10.1 and precedes R10.3; R10.2 remains authoritative for its execution.
+Keep the working intermediate and Analytic; apply the approved provider stop rule.
 
 #### Problems / Limitations
 
-The original reflection and hybrid coverage failures remain historical evidence.
-The user subsequently authorizes an intermediate direct/transmission/specular
-milestone without reducing final R10 scope. Its bounded native corrections,
-streaming adapter, common perception and actual Isaac qualification are tracked
-in [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
-The latest [[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 scope revision]] explicitly supersedes the former absolute dynamic-coverage gate.
-Bounded geometry updates and statistical reverberation are eligible for task-domain
-qualification; neither physical imperfection alone nor passing tensor/PCM checks
-establishes admission. Corrected NLOS integration, representative diffuse-motion
-impact and practical-use/lifecycle checks remain open. Declared-domain coverage
-precedes final bounded runtime measurements; the larger scaling campaign is deferred.
-This reference adds no requirements beyond R10.2.
+Experimental capabilities are not enabled by a scope decision.
 
 ## Subphase 08.3 — Implement R10.3
 
 #### Implementation
 
-After R10.2 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.3 — Operating Integration and Cleanup|R10.3 Operating Integration and Cleanup]].
+Complete operating workflow, diagnostics, consolidation and bounded runtime/packaging closeout.
 
 #### Key Decisions
 
-- This plan defines only that R10.3 follows R10.2; R10.3 remains authoritative for its execution.
+Slower-than-real-time simulation is permitted; no large-batch or acoustic GPU-port requirement.
 
 #### Problems / Limitations
 
-This reference adds no requirements beyond R10.3.
-
-R10.3 also owns provider-specific occlusion/path diagnostics and the integrated signal/instrument behavior needed for the fuller geometry version of [[topics/onr-video-production|ONR Video 4]]. Its simpler direct-attenuation scope may be feasible after the pre-07.2 corrections; neither version is qualified by its position in the phase sequence alone.
+ONR deliveries retain separate scenario/media gates.
 
 ## Phase 08 closeout status
 
-Phase 08 remains open. The user has approved the scope and budgets; this is not
-implementation or admission evidence. R10's [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|closeout table]] owns requirements and status.
+Both profiles and all applicable gates must pass. Scope approval is not implementation.
 
 ### Remaining execution order
 
@@ -107,8 +83,8 @@ plan update neither produces media nor approves an untested scene.
 
 ## Artifacts
 
-This reference produces no independent artifacts. R10 owns all geometry-integration artifacts.
+R10 and its linked experiment record own evidence; this page owns sequence only.
 
 ## Files
 
-- `knowledge/wiki/implementation_phases/r10-geometry-acoustics-integration.md`
+`knowledge/wiki/implementation_phases/r10-geometry-acoustics-integration.md`.

@@ -2,400 +2,58 @@
 
 Updated: 2026-09-11. Package version: `3.0.0`.
 
-## Phase 08 / R10 — Current geometry integration
-
-**08.1 scene preparation and the 08.2 intermediate hybrid are implemented;
-Milestone 2 and 08.3 remain open.** The active qualification domain is indoor
-robot audition: priority AV attention/search, then complementary mobile audition.
-[[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the profiles, permitted approximations and task-error budgets]].
-
-The maintained `GeometryAcoustics` producer combines Steam direct/planar
-transmission with native PRA specular reflections and feeds the common scalar
-or CUDA perception pipeline. It uses a prepared USD session and explicit native
-libraries. Analytic remains available. Experimental selected-route NLOS and
-joint diffuse rendering are not enabled in the production configuration.
-
-- **Scene preparation:** composed USD import, source-band materials, selective
-  geometry/pose updates and Kit authoring with mixed values, proxy relationships
-  and Undo/Redo are implemented. Unsupported geometry and transmission remain
-  explicit. [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.1 — USD Acoustic Scene|R10.1 owns supported inputs and preparation evidence]].
-- **Intermediate propagation:** native timing, gain, planar transmission,
-  reflected NLOS, block continuity, reset and bounded slow motion have passing
-  controls, including actual Isaac Sim/Lab/Kit. The 1,440 same-PCM comparisons
-  establish scalar/CUDA agreement within that domain, not general motion or
-  physical transfer. Sixteen Geometry environments were slower than real time;
-  no acoustic GPU acceleration or Analytic retirement is claimed.
-  [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the acceptance matrix, installation and measured limits]].
-- **Experimental findings:** corrected NLOS delays improve the corridor control;
-  temporal route discovery remains incomplete. PRA diffuse motion can bias
-  weak-direct observations. These findings require representative task assessment;
-  the two-gate and later-scatter controls are stress limits, not automatic orders
-  for a larger solver or provider replacement. Failed evidence remains in R10.
-  [[implementation_phases/r9-geometry-acoustics-provider-selection#Robot-audition scope revision (2026-09-11)|R9 owns the provider decision and suspended replacement evaluation]].
-
-The user has approved [[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|the ordinary-indoor domain, numerical approximation budgets and consumer semantics]].
-Next: instantiate the trial matrix and valid references, integrate corrected NLOS,
-qualify the minimal PRA joint field, combine the streams, and demonstrate Profile 1
-then Profile 2. Finish 08.3 and affected runtime/packaging checks afterward.
-[[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|Phase 08 lists the eight remaining steps and their completion evidence]].
-
-Retain Analytic. One/few-environment runtime measurement remains required after
-Milestone 2, but slower-than-real-time simulation is allowed. Large-batch scaling,
-acoustic GPU porting, new perception algorithms, policy training and physical
-campaigns are deferred. Approval changes the scope, not the current producer's
-capabilities or qualification status.
-
-ONR deliveries 1–3 remain approved. Revisions 4–9 require individual scenario
-and media gates; they are not all blocked on Phase 08.
-[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|The ONR readiness matrix owns those dependencies]].
-
-The [[implementation_phases/r10-geometry-acoustics-integration#Maintenance cleanup (2026-09-11)|local geometry cleanup]] preserves these contracts and passes host, optional,
-native and actual RTX 4090 Sim/Lab/Kit regression checks. It adds no acoustic
-qualification.
-
-## Product Boundary
-
-`isaac-audio-sensors` is a reusable robot-audition SDK that owns pure audio contracts and backends, calibration, generic recording/replay, optional Isaac Sim and Isaac Lab integration, the Kit extension, examples, and release tooling.
-
-Robot-specific assets and mounts, downstream adapters and policies, task orchestration, measurement campaigns, holdouts, acceptance criteria, and experiment evidence remain outside the distributed product.
-
-## Current Priorities
-
-**08.1 and the 08.2 intermediate are complete within their recorded boundaries.**
-Milestone 2 now follows the approved task-domain matrix above; corrected NLOS,
-joint diffuse admission and both task profiles remain open. Complete 08.3
-operating diagnostics and bounded runtime measurement afterward. Automatic room
-recognition, deformables, subdivision, point instancers and thick/sequential-
-construction transmission remain deferred.
-
-**07.3 is complete (2026-09-10).** The observed GUI now shows simultaneous events and unresolved alternatives, with explicit activity, context, localization availability and truncation. New GUI arrays default to 16 kHz; current frames and bounded history have separate lifecycle semantics. The local-commit cleanup removes abandoned streaming experiments and redundant campaign surfaces while preserving the scalar/CUDA roles and decisive negative results. Host, actual GPU/runtime, visual Kit and distribution gates pass; see [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]] for evidence and limits.
-
-Current user decision (2026-09-10): **07.2 is complete within its agreed baseline scope.** 4096 environments were exploratory, not a mandatory realtime target. Actual RTX 4090 measurements now cover 2–256 active copies at 60 Hz acquisition / 10 Hz observations: 16 copies are a useful interactive starting point; 128 are a practical initial collection batch. The latter costs about 250 ms planar or 472 ms raised per update, before robot physics or policy learning. See Phase 07 for variability, memory, waiting-time estimates and known false events. The closeout corrects CUDA bearing normalization/order against Core. Moderate indoor reverberation remains a product objective; WPE, context, cadence and the localizer are preserved, with component comparisons deferred. General temporal reliability remains unqualified and the earlier research iteration remains suspended.
-
-- [[implementation_phases/07-isaac-lab-observation-integration|07.2 integration]]: closed with measured practical limits, preserving observed delays, uncertainty, missing/extra events and separation from source truth. 07.3 consumer/GUI consolidation is also complete. Any later WPE, precision, context, cadence or tracking comparison needs its own measured scope; none is introduced by this closeout.
-- [[implementation_phases/04-observed-direction-estimation#Pre-07.2 Follow-up — Joint Count and Direction over Time|Temporal perception]]: unresolved, with this improvement iteration suspended. Reconsider research when a concrete robot behavior requires capabilities such as reliable dynamic multisource listening; it no longer generally blocks repository advancement.
-- [[implementation_phases/02-signal-and-perception-architecture|Confidence availability]]: corrected with frame-v4 null/zero semantics across observations, replay, GUI and learning/Lab projection; prior frame versions are rejected.
-- [[implementation_phases/r8-analytic-acoustics-backend#Pre-07.2 Follow-up — Live Occlusion Correctness|Live occlusion correctness]]: corrected for validated solid primitives/meshes; unavailable requested occlusion stops capture. Geometric diagnostics remain separate from observed reliability.
-
-Proceed with [[implementation_phases/08-geometry-acoustics-integration|08 geometry acoustics]] and [[implementation_phases/09-practical-realism-and-randomization|09 evidence-backed realism]]. Geometry and realism do not automatically solve perceptual failures. Qualification remains required for each claimed capability and for [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10 final validation]]; reliable dynamic multisource behavior cannot be claimed from this sequencing permission. [[topics/onr-video-production#Video 4 Readiness and Scope|ONR Video 4]] retains its separate scene-specific feasibility boundary.
-
-The combined corrections pass 1,041 host unit/contract/integration/release tests and 123 supported-runtime tests, including actual RTX 4090 confidence masks. All three live Isaac Sim, Kit and Isaac Lab smoke checks pass. Clean-source sdist and wheel-from-sdist inventory/schema audits pass; this is not a release or push. These checks qualify contracts and bounded runtime behavior, not perceptual accuracy or physical/material realism.
-
-The local audit at `babda6f` exercised actual PhysX/Kit on the RTX 4090, 320 audio windows and CUDA observation projection. Direct attenuation, source summation and static band-filter continuity pass the bounded controls. At that baseline, solid colliders could fail capture, unavailable confidence was projected as valid zero, and the GUI hid simultaneous-event bearings and unselected ambiguity candidates. Controlled unavailable-raycaster output could still appear ACTIVE. These capture/confidence defects and the observed GUI defects are corrected; Phase 07 records the subsequent visual checks. Partial attenuation and some clear single-source controls expose perceptual errors. The evidence in `local/occlusion_audit/` is a bounded synthetic assessment, not physical/material qualification, realtime performance proof, or a full visual/manual GUI review. The named phase pages own the corrections; the temporal defects remain unresolved after the confidence/occlusion corrections.
-
-## Verified Capabilities
-
-The pre-07.2 propagation correction now retains absolute emission history and in-flight tails across captures. Moving direct/specular paths use retarded emission time, yielding one coherent travel delay, Doppler, and geometric level; Isaac persists the backend and Lab reference environments isolate/reset their state. See [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] for the maintained-library decision and physical approximations.
-
-Validation for this correction passes 638 unit/contract, 332 integration, and 58 release tests, including 36 dedicated continuity/physics cases and moving producer/recording/replay parity. Optional audio and version/lint checks pass. The supported Isaac runtime passes 152 tests including the arrival-physics checks; live Isaac Sim and Lab checks pass on RTX 4090, including scalar parity and partial resets. Lab's 0.251 ms/step measurement covers 4,096 empty entity environments only; scalar WPE/group-sparse computation still runs on CPU and projects tensors to CUDA. The live runtime checks do not qualify rapid-motion DOA or physical acoustics.
-
-The orientation extension evaluates rotating microphone offsets at reception and source directivity at retarded emission, using shortest-arc interpolation and explicit endpoint angular extrapolation. Constant-velocity arrivals use the equivalent quadratic solution; non-affine histories retain the iterative solver. Rotation, block continuity, tails and near-sonic arrival checks pass.
-
-Fast indoor multisource perception remains **unresolved: NO-GO for replacing the localizer**. The earlier joint-count/direction investigation compared causal spatial memory, recursive DP-RTF and complete ODAS SSL/SST through the shared pipeline. The strongest temporal control improves one square-array moving case from 33.3% to 76.7% joint success after common warm-up, but reaches only 17.2–42.3% on the other three geometries. A bounded 65.6 s real LOCATA comparison also remains inadequate. The original 750 ms WPE/group-sparse algorithm and corrected propagation are preserved; original moving-pair results reproduce exactly. The experimental streaming interface and campaign evaluators were retired during 07.3; their findings remain in the experiment record, with stationary received-PCM parity retained as an active regression. Independent confirmations were not consumed after nominal screening failed. See [[experiments/04-4-multisource-localization|the joint-motion and acoustic-front-end investigations]]. That investigation included no 07.2, video, demonstration scenes or ONR production.
-
-The renewed **acoustic-front-end evaluation also fails admission**. Persistent OnlineWPE, normalized/weighted spatial evidence, their combinations and matched-history controls do not produce useful joint sets across the four nominal moving-speech cases. Isolated partial-occlusion improvements coexist with substantial static non-speech losses. The maintained localizer and corrected propagation remain unchanged; no scene-selected modes or failed candidates enter the product. Two fresh confirmation blocks, broader intermediate/hard conditions and an end-to-end reaction-time qualification were not run after nominal failure. This is evidence against these candidates, not a universal feasibility limit. The temporal objective remains open. The subsequent user decision suspends this iteration and admits 07.2 on the maintained bounded reference, without qualifying any rejected candidate. See [[experiments/04-4-multisource-localization#Pre-07.2 Acoustic Front-End Evaluation|paired results and explicit limits]].
-
-**Historical sequencing decisions (2026-09-09).** An initial pause permitted bounded 07.2 progression; a later reopening made joint temporal improvement a prerequisite. After the acoustic-front-end candidates failed, the user explicitly removed that general block again under Current Priorities above. The candidate NO-GO remains unchanged. Video 3's separately bounded production outcome does not establish general moving-source perception.
-
-Video 03 is complete in `evidence/onr_video3/`: a 23-second outdoor vehicle pass, including the requested two-second silent opening and close view of the first observed turn. The user approved the robot-centered pass and motion-effects subtitle, then clarified that Video 3's RMS panel should appear whenever the detection indicator is active. On the actual RTX 4090 rig, the first direction is at 2.50 s and camera acquisition at 4.10 s; no earlier joint motion or silent-introduction detections occur. The bounded 10–19 s spatial gate has complete direction availability, p95 errors below 4.23 degrees and complete camera membership. All 460 windows replay sample-identically. Doppler, delay, level, causal instruments and soundtrack parity pass. Both resolutions fully decode to 690 frames with synchronized 23-second tracks; full 1080p browser playback passes. The presentation revision preserves the recorded audio, robot behavior and 23-second timing. See [[topics/onr-video-production|ONR Video Production]] for fixed-threshold calibration, limits, assets and evidence.
-
-The recent-work cleanup retains the WPE/group-sparse runtime and single-event routes while retiring the completed candidate campaign. Sixteen fixed-input comparisons preserve events and diagnostics exactly. Local evidence production is consolidated under ignored `local/onr/`, outside `make clean`; see [[topics/onr-video-production|ONR Video Production]] for the maintained catalog, final videos and validation scope. Public contracts and schemas are unchanged.
-
-- Subphase 07.1 implements observed-only Lab tensor projection with configurable observation/candidate capacity, finite zero padding, independent validity/DOA/ambiguity masks, and explicit truncation counts. Reference binding now exposes scalar activity and optional DOA, with independent environment state and sample-clock-aligned windows. The example applies only masked fixed angle scaling. The old six-tensor contract is removed without aliases; entity sensing was empty at that historical 07.1 closeout and is now implemented by 07.2. The RTX 4090 live gate passes scalar/reference parity, detector/DOA warm-up, resolved directions, silence, and partial reset; 4096 empty entity environments average 0.212 ms/step, not a perception-throughput claim. See [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]].
-
-- Phase 06 is complete. The downstream raw producer and nominal analytic producer share perception and recording; exact controlled equivalence covers mono/8 kHz, stereo/16 kHz, and planar four-microphone arrays at 16/48 kHz, including clipping, faults, and resets. The 25-take physical comparison passes sample/replay checks with no capture fault or digital clipping, while documenting level/noise and weak-signal activity differences. New source-take processing p95 is 5.71–5.90 ms against 50 ms, with no overruns. Current host gates pass 614 unit/contract, 282 integration, 58 release, optional audio, and 410 downstream tests. APIs/schemas are unchanged by 06.3; the S4.5-only executable path is retired and raw evidence is preserved. See [[implementation_phases/06-simulated-and-real-signal-parity|Phase 06]] for measurements and limits.
-
-- Subphase 06.1 provides explicit local signal geometry, sample-clock domain, discontinuity, and tri-state channel clipping. One shared pipeline validates binding and resets both activity and DOA on stream faults or changes. Acquisition evidence remains producer-owned; common diagnostics survive recording without schema changes. Validation passes 612 unit/contract, 278 integration, 58 release, and 99 supported-runtime Isaac tests; all three live Isaac Sim/Lab/Kit smokes pass on RTX 4090 using isolated Auditok 0.5.2. Physical capture and transfer remain outside this subphase.
-
-- Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
-
-- Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v4, dataset-manifest is v4, frame-record is v2, and calibration-profile remains v1.
-- The `analytic_acoustics` propagation backend, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
-- Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
-- One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
-- Public snapshot-authoritative propagation through `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`, with exact-window, ordered, immutable `float32` microphone mixtures and no source, perception, persistence, or serialized-schema fields.
-- `AnalyticAcoustics.propagate()` supports silent, mono, and multi-source windows, includes final gain/directivity/occlusion/effects, marks simulated channels valid, and never runs DOA, assembles frames, or writes waveforms. `core.simulation.simulate_frame()` calls propagation once, resolves the exact snapshot array, runs an explicit perception pipeline, optionally gives the same block to a waveform sink, and returns both frame and block.
-- Public `ActivityDecision`, `ObservationOrigin`, `AudioObservation`, and `AudioPerceptionPipeline` own observed-only perception. The `ActivityDetector` plugin contract owns stable identity, typed decisions, streaming state, and explicit reset; its optional activity probability is bounded to `[0, 1]`. The injected detector sees only valid channels in array order; inactive or fully invalid blocks emit no signal observation; optional DOA requires at least two valid channels; external observations remain typed and ordered after the signal result; and `max_observations` caps only the final deterministic sequence.
-- Subphases 04.1–04.3 introduced the retained mixture-only `DoaEstimator` contract and single-event selector: two microphones route only to `tdoa_least_squares`, horizontal rank-2 XY arrays route only to lazy `pyroomacoustics_srp`, and rank-3 arrays were then injection-only. 04.4 now adds bounded indoor 16 kHz multievent planar/3D WPE/group-sparse localization with 750 ms past context. The retained single-event consumer keeps 250 ms plus fail-closed 150-degree jump / 30-degree confirmation handling. Internal SRP and the completed qualification harness are removed, while ignored reports remain local historical evidence; no estimator fallback exists.
-- Public `AuditokActivityDetector` provides the one qualified generic detector path with an explicit fixed dBFS threshold, bounded causal context, current-block token overlap, `any`-channel energy, deterministic reset, and no claimed activity probability. Initial calibration is not a streaming mode because the Boolean decision contract has no “not ready” state; consumers may estimate a threshold before constructing the detector, but the candidate calibration parameters remain experimental.
-- Maintained scalar Core, CLI, Isaac Sim, Kit, and Isaac Lab reference entry points resolve Auditok only with an explicit runtime threshold and expose DOA as `doa_enabled=False` / `--enable-doa`. At 16 kHz, active planar/rank-3 output is a variable sequence of observed-only `signal_derived` events; warm-up returns no event with unavailable localization diagnostics. Stereo and other planar rates retain one-event behavior. Custom pipelines remain caller-owned and cannot be combined with standard DOA activation. `AudioSensorConfig`, TOML, frame schema v3, `simulate_frame()`, `DoaEstimate`, remain unchanged; direct `AudioPerceptionPipeline` composition adds mutually exclusive event-localizer injection.
-- Frame-v3 capture semantics retain the three-field `AudioTimeWindow`, array-authoritative sample rate, derived-only frame timestamp, array pose, channel validity, aggregate RMS, provenance, diagnostics, and recording-owned waveform references. `producer_id`, `observations`, and `max_observations` replace the backend/detection fields without a v2 parser.
-- R9.1.2 physically honest DOA semantics: two-microphone least-squares exposes every compatible azimuth with no selected estimate or confidence except at a physical endpoint; unique least-squares and all SRP-PHAT require at least three microphones with rank-2 XY geometry. Core, plugins, Isaac, Lab, and Kit carry no contextual ambiguity policy; four non-collinear microphones are the practical recommendation.
-- R7 `AcousticSurfaceSpec` and `AcousticEnvironmentSpec` with fail-closed builders for `free_field`, `half_space`, `shoebox`, `polygon_prism`, and `surface_set`, complete world/environment quaternion transforms, and mandatory `AudioSceneSnapshot.environment` ownership.
-- One required `[environment]` TOML model, with an `environment.surfaces` array of tables for surface sets and solver-only `[audio.analytic_acoustics]`; legacy `RoomAcousticsSpec`, `AudioSceneSnapshot.room`, `[room]`, `[audio.room_acoustics]`, missing environments, clamping, and old diagnostic names have no compatibility path.
-- Public `AnalyticAcoustics` routing selected only from `scene.environment.kind`: Core direct propagation for `free_field`, Core floor image source for `half_space`, PyRoom `ShoeBox` for `shoebox`, and PyRoom polygon extrusion for `polygon_prism`, with concise solver/provider/topology diagnostics copied from signal blocks into perception frames.
-- Core and PyRoom routes separate direct and indirect pair stems internally, apply broadband or banded `SourceOcclusion` exactly once as `a * D + R`, and keep the public output as one combined multichannel waveform. The unoccluded path reuses the original full premix byte-for-byte.
-- Minimal `SourceOcclusion` records contain only array/source identity, exact blocked and broadband-attenuation maps, and optional aligned spectral rows. Model, geometry, and material fields were removed without aliases; occlusion affects the observed waveform/RMS and is not copied into observations as oracle truth.
-- Isaac raycast occlusion accumulates one authored curve per optional `ias:acoustic_partition_id` or implicit prim-path partition, adds distinct sequential partitions without a fixed loss clamp, reports unknown-material fallback applications under frame `acoustics_state`, and fails closed on conflicts or hit limits. Existing `debug_draw` can emit transient ray/hit `DebugPrimitive` records without adding geometry to stable frames or datasets.
-- Core analytic routes require no `room` extra; closed-room routes import PyRoom lazily, preserve per-surface materials and local containment, configure and verify custom sound speed, and fail actionably when the dependency or requested capability is absent. `surface_set` remains unsupported.
-- `analytic_acoustics` is the only registered propagation backend. The four legacy identifiers, classes, modules, capability records, configuration paths, and runtime validation branches were removed without aliases. Recorded producer identifiers remain provenance only and cannot select a runtime backend; current frame replay requires v3.
-- Atomic generic recording, verified sharded sessions, codecs, validation, statistics, deterministic splits, and read-only replay. Waveform sinks and dataset sessions consume exact immutable signal blocks; continuous WAV close adds no private render tail, while dataset hop/overlap carry remains recorder-owned.
-- Generic `quad_cross_120mm` and `stereo_y_100mm` stage rig profiles; robot-specific profiles remain downstream configuration.
-- Lazy Isaac Sim stage discovery, pose and cache handling, sensor lifecycle, visualization, OmniGraph, Replicator, and Kit workflows. Each live sensor owns persistent perception state and its latest signal block; guided recording consumes that block directly and is independent from optional WAV export.
-- Isaac `manual`, `anchor`, and `auto` environment resolution kept separate from the Core contract, with 1 mm default full-array containment, marked shoebox/floor discovery, deterministic priority/volume selection, explicit ambiguity, and cache refresh after relevant array or USD changes.
-- Kit `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes with fail-closed validation/start, explicit free-field safe presets, no implicit shoebox, and exact `ias.omni_extension_binding.v7` import/export with required Auditok threshold and `direction_estimation.enabled` state. Binding v6 has no parser, and no estimator ID or ambiguity-policy state is serialized.
-- Current NVIDIA `OmniSound` and `OmniListener` authoring with schema-native timing, gain, finite/infinite loop, spatial, and listener-orientation semantics; non-spatial sources are excluded with diagnostics even during strict scans unless explicitly selected, and deprecated `Sound` and `Listener` remain read-compatible.
-- Separate Kit scene audition and qualitative device-mix capture from a compatible direct array-child listener, creating a session-layer child when needed, with verified WAV metadata, lifecycle cleanup, manual-listener override preservation, and no path into microphone-array frames, datasets, or Isaac Lab observations.
-- Lazy Isaac Lab imports, direct current `SensorBase` inheritance after `AppLauncher`, fixed-shape tensor observations, partial reset, and fail-closed device validation. The scalar reference path requires an explicit threshold and owns one independent resettable Auditok pipeline per environment, with standard DOA available by opt-in; the CUDA entity path requires explicit file audio and a threshold, produces free-field mixtures and supports the maintained 16 kHz DOA method with independent 750 ms context. Both paths project actual observations through the finite masked 07.1 contract. Active scaling and its unmet realtime throughput are recorded in Phase 07.
-- Python source and universal wheel distributions with Auditok as an audited Core dependency, plus a self-contained Kit Community Registry archive with six locked Auditok, room, and FLAC distributions while NumPy remains Kit-owned.
-- Enforced R5.0 semantic imports, metadata-only package root, subsystem-owned public APIs, and fresh-process optional-runtime isolation.
-- R5.1 core root limited to curated fundamental models, simulator-independent config, quaternion-authoritative array pose, one propagation protocol, and generator-authoritative schemas; 03.1 adds the public activity-decision model without widening runtime dependencies.
-- R5.2 single-path backend resolution and declaration-derived inventory, separated effects parsing/validation, and modular room-acoustics orchestration with unchanged valid-input numerical results.
-- R5.3 minimal recording API, strict canonical manifests, one streaming session authority, composed recorder internals, structured corruption findings, and consolidated black-box coverage with compatible v1 artifacts.
-- R5.4 live-only Isaac sensor, Kit-owned profiles/validation/output workflow, shared lazy lifecycle helpers, domain-owned room/occlusion state, and exact import-safe Isaac exports.
-- R5.5 established the five-name Lab API, entity and pure-snapshot bindings, Warp-mask lifecycle, and removal of stage/fallback/metadata compatibility paths. Subphase 07.1 replaces its six-tensor data contract with the observed-only projection.
-- R5.6 composed Kit services, thin controller/view/entrypoint boundaries, stateful-only validation controller, complete best-effort shutdown, and focused service tests.
-- R5.7 lazy CLI leaf handlers, subsystem-owned config simulation, frozen v2 command inventory, one trace-export path, consistent exit codes, and consolidated command tests.
-- R5.8 exact curated v2 entrypoint inventory, minimal Kit/schema roots, one maintained root example set, installed-package execution coverage, and no duplicate example documentation.
-- Post-release targeted core source organization with effect-domain configuration modules behind unchanged facades, an explicit room-acoustics frame pipeline, and canonical motion/Doppler, acoustics/occlusion/room, and DOA/least-squares ownership without changing supported APIs or runtime behavior.
-- R6.1 concise root guidance and release history, temporary validation output under `build/validation/`, and a safe generated-workspace cleanup target.
-- R6.2 explicit wheel-only package data, one universal Python build, minimal installed-artifact audit, and no sdist or compatibility build aliases.
-- R6.3 minimal self-contained Kit archive, standard Linux/CPython/Kit target metadata, temporary-only staging, direct package layout, and Extension Manager lifecycle verification.
-- R6.4 removal of the dependency-pack API and tooling, three-state capability provenance, and locked room/FLAC dependencies inside the single Kit zip without a second NumPy.
-- R6.5 three-command maintainer workflow with one release preflight, deterministic host check, flat release outbox, and no duplicate CI wheelhouse command.
-- R6.6 one exact two-artifact audit derived from source and locked wheels, including isolated offline wheel installation and packaged dependency provenance.
-- R6.7 complete host, RTX 4090, packaged Kit, artifact, and downstream-consumer closeout without publication.
-- R6.8 exact source distribution, Python 3.10–3.12 CI, and verified tokenless TestPyPI/PyPI publication with isolated OIDC permissions.
-- R9 selects Steam Audio `4.8.1` as the primary provider for future passive Geometry Acoustics integration. R9.4 admits provider-native baked pathing, dynamic validation and alternate paths, one independently rendered omnidirectional signal per microphone, private continuous arrival scheduling, bounded path callbacks, and measured one/four-environment operating cost. The closed/paired transmission proxy fails and is excluded from R10. NVIDIA RTX Acoustic `3.0.0` remains rejected for the passive-microphone role and has no maintained candidate tooling. No geometry backend is registered yet.
-
-## Documentation State
-
-The canonical documentation is this wiki; the root README is the concise public landing page and the root `CHANGELOG.md` owns product and release chronology.
-
-The root `docs/` directory is not part of the maintained repository boundary; the applied R0 specification is retained only as authorized raw material under `knowledge/raw/docs/`.
-
-Essential contribution and security guidance now lives directly in the root README. Separate citation, conduct, contribution, and security policy files are no longer maintained; paper citation metadata remains deferred until a paper exists.
-
-The GitHub repository is the public source tree. Python releases contain one audited source distribution and one universal wheel built from it.
-
-The Kit extension keeps a narrow standalone README and extension-specific changelog because an installed archive cannot depend on repository-relative documentation.
-
-## Validation
-
-The R3 runtime baseline passed 116 Isaac tests on the RTX 4090 and the complete generic live Kit workflow.
-
-The R4 deterministic gate passed 414 host tests in 9.58 seconds, 366 integration tests in 10.36 seconds, and 40 release tests in 0.36 seconds, including six documentation-boundary tests.
-
-The R5.0 host gate passes 417 unit/contract tests, 343 integration tests, and 40 release tests after removing redundant test-only coverage.
-
-The R5.1 gate passes 416 unit/contract tests, 343 integration tests, 40 release tests, and 115 Isaac tests on the RTX 4090. The known SquadBot audio contract, replay, live-bridge, and adapter selection passes 34 downstream tests without consumer changes.
-
-The R5.2 gate passes 409 unit/contract tests in 6.26 seconds, 342 integration tests in 8.24 seconds, 40 release tests, and 112 Isaac tests on the RTX 4090. Geometry, TDOA, fake-room GCC, and fake-room SRP frames remain byte-identical to the pre-refactor baselines; the maintained real-room example renders with pyroomacoustics 0.10.1. The same 34 SquadBot tests pass without consumer changes.
-
-The R5.3 gate passes 413 unit/contract tests, 223 host integration tests, 40 release tests, and 112 Isaac tests on the RTX 4090. The optional FLAC lane passes 5 tests with SoundFile in the Isaac Lab interpreter; the host-only environment skips that one optional roundtrip. The same 34 SquadBot tests pass without consumer changes, and wheel/source plus Kit archives pass their audits.
-
-The R5.4 gate passes 406 unit/contract tests, 227 host integration tests, 40 release tests, and 113 Isaac tests on the RTX 4090. The host lane has one expected SoundFile skip; live Isaac Sim and Kit smokes pass on the same GPU. The same 34 SquadBot contract, adapter, replay, live-bridge, and ontology tests pass without consumer changes.
-
-The R5.5 gate passes 405 unit/contract tests, 222 integration tests with one expected host SoundFile skip, 40 release tests, and 118 Isaac tests on the RTX 4090. The live Lab smoke passes entity/reference parity for both maintained entity backends, partial reset, CUDA shape/dtype/device checks, and 50 steps over 4096 environments at 1.879 ms/step mean against the 20 ms budget. The same 34 functional SquadBot consumer tests pass without consumer changes; its checkout-provenance assertion is rerun only from the final clean repository state.
-
-The R5.6 gate passes 405 unit/contract tests, 229 integration tests with two expected host SoundFile skips, 40 release tests, and 88 Isaac-only tests on the RTX 4090 after pure Kit tests moved to integration. The 15 SoundFile tests pass in the Isaac Lab runtime, the single live Kit workflow passes on the same GPU, and the same 34 SquadBot consumer tests pass. Wheel/source and Kit archives pass their audits.
-
-The R5.7 gate passes 406 unit/contract tests, 229 integration tests with two expected host SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The 15 SoundFile tests pass in the Isaac Lab runtime, the live Kit workflow passes on the same GPU, and the same 34 SquadBot consumer tests pass without consumer changes. Wheel/source and Kit archives pass their audits.
-
-The R5.8 gate passes 418 unit/contract tests, 229 integration tests with two expected host SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The 15 SoundFile tests and the retained room-acoustics example pass in the Isaac Lab runtime. Live Isaac Sim, Isaac Lab, and Kit smokes pass on the same GPU; the Lab smoke validates 4096 environments at 1.846 ms/step mean against the 20 ms budget. The same 34 SquadBot consumer tests pass with one expected skip and no consumer changes. Wheel/source and Kit archives pass their audits.
-
-The R6.1 host gate passes 418 unit/contract tests, 229 integration tests with the same two expected SoundFile skips, 40 release tests, 11 focused Kit-path tests, version synchronization, and Ruff. Clean-source wheel/source and Kit builds pass their audits from commit `c96a152`.
-
-The subsequent live-blocker reconciliation passes 418 unit/contract tests, 231 integration tests with the same two expected SoundFile skips, 40 release tests, and 88 Isaac tests on the RTX 4090. The Isaac Sim smoke passes three frames for geometry, TDOA, and room acoustics. The Kit smoke passes all 37 workflow steps, UI inventory, editable and invalid-input models, config roundtrip, instruments, audio output, and both screenshots. All generated evidence remains under `build/validation/`.
-
-The R6.2 gate passes 418 unit/contract tests, 231 integration tests with the same two expected SoundFile skips, and 43 release tests. Version synchronization and Ruff pass. The real `py3-none-any` wheel contains only the maintained Python package, three JSON Schema files, metadata, and required licenses; a fresh no-dependency installation passes package import, CLI version, schema-resource parsing, and `room` extra metadata checks.
-
-The R6.3 gate passes 418 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, and 36 release tests after removing the retired installer and duplicate Kit checks. Version synchronization, Ruff, archive audit, and whitespace checks pass. The checkout and isolated packaged extension each pass all 37 live workflow steps on the RTX 4090 with Kit 110.1.2, including Extension Manager enable/disable and clean shutdown; the packaged run imports the core package only from the extracted archive.
-
-The R6.4 gate passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 39 release tests, and 88 Isaac tests on the RTX 4090. The Python wheel contains no `_bundled` tree or removed pack module. The Kit zip contains the five locked dependency distributions and licenses, with NumPy and `typing_extensions` still supplied by Kit. The isolated extension passes bundled capability, room waveform, FLAC export/read/replay, enable/disable, and shutdown gates. The same 34 SquadBot consumer tests pass without consumer changes.
-
-The R6.5 deterministic gate passes 412 unit/contract tests, 230 integration tests with two expected SoundFile skips, and 38 release tests. Version synchronization, Ruff, whitespace, wheelhouse hashes, clean-source provenance, the installed wheel audit, and the Kit audit pass. `dist/` contains only the current universal wheel and Community Registry ZIP.
-
-The R6.6–R6.7 gate passes 412 unit/contract tests, 230 integration tests with two expected host SoundFile skips, 37 release tests, and 88 Isaac tests on the RTX 4090. Live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics. Live Isaac Lab passes parity, partial reset, and 50 steps over 4096 environments at 1.934 ms/step mean against the 20 ms budget. The Isaac Lab interpreter passes room and FLAC execution with the locked versions. The isolated final ZIP passes Extension Manager enable/disable, exact package and dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, and shutdown. The same 34 SquadBot consumer tests pass without consumer changes. `dist/` contains only the exact synchronized wheel and Kit ZIP.
-
-The final R6.8 freeze at commit `583d66e` passes 412 unit/contract tests, 230 integration tests with the same two expected SoundFile skips, 45 release tests, and `twine check`. The clean-source build leaves exactly the audited sdist, universal wheel, and Kit ZIP; isolated wheel installation and sdist build/installation pass. The RTX 4090 passes 88 Isaac tests, all three live Isaac Sim backends, room/FLAC with pyroomacoustics 0.10.1, SciPy 1.18.0, and SoundFile 0.14.0, and the 4096-environment Lab smoke at 2.4035 ms/step mean against the 20 ms budget. The final extracted ZIP passes all 37 workflow steps with packaged first-party and bundled dependency origins, Kit-owned NumPy and `typing_extensions`, room waveform, FLAC, Extension Manager enable/disable, and shutdown. The unchanged SquadBot consumer subset passes 34 tests.
-
-The TestPyPI rehearsal and production workflow passed from the same commit. GitHub release `v2.0.0` is immutable, its tag targets `583d66e`, and its only asset is the validated Linux Kit ZIP with SHA-256 `cfaeea69ac79a711fc608329dad2a947cc66c4ff1c6a1f958fca4617c1c5ff8a`. PyPI exposes exactly the universal wheel and sdist with provenance attestations; clean Python 3.10, 3.11, 3.12, and `room`/FLAC installations passed. The public repository has the `omniverse-kit-extension` topic. NVIDIA Community Registry discovery and installation remain pending the periodic crawler.
-
-The post-release NVIDIA audio-schema migration at commit `152569f` passes 412 unit/contract tests, 239 integration tests with two expected host SoundFile skips, 45 release tests, and 97 Isaac tests on the RTX 4090. Live Isaac Sim passes geometry, TDOA, and room-acoustics backends while validating `OmniAudioSchema.OmniSound`, `OmniAudioSchema.OmniListener`, current native attributes, robot-mounted listener orientation, and no authored `filePath` for `generated://`. The live Kit workflow passes with deprecated `Sound` seeds migrated to `OmniSound` and the same generated-asset boundary.
-
-The post-release native Kit Audio integration passes 426 unit/contract tests, 251 integration tests with two expected host SoundFile skips, 45 release tests, and 103 Isaac tests. Strict discovery now omits implicit non-spatial sources with diagnostics while retaining explicit-selection failure, and listener reuse requires a static identity direct array child with array orientation. On the RTX 4090, live Isaac Sim passes three frames each for geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 1.908 ms/step mean against the 20 ms budget. The live Kit gate on Kit build 110.1.2 creates the temporary listener below the four-microphone array in the session layer, captures a readable non-silent 2-channel 48 kHz device-mix WAV, restores the previous active listener, removes the temporary prim, destroys the streamer, and confirms that the sensor remains four-channel.
-
-The release-tooling simplification gate passes 426 unit/contract tests, 249 integration tests with two expected host SoundFile skips, and 58 release tests. Version synchronization, Ruff, whitespace, preflight ordering and failure paths, exact wheelhouse validation, and lock-derived bundled metadata requirements pass without changing product APIs, schemas, runtime behavior, or artifact formats.
-
-The post-release core source-organization gate passes 465 unit/contract tests, 166 integration tests, 57 release tests, and 70 Isaac tests on the RTX 4090. Geometry, synthetic TDOA, fake-room GCC/SRP frames, and room mixtures remain hash-identical to the pre-refactor checkout. The maintained real-room example passes with pyroomacoustics 0.10.1, the unchanged SquadBot consumer subset passes 34 tests, and no-dependency temporary installs from both the wheel and sdist expose the unchanged public APIs plus the new canonical internal module paths.
-
-The v3 directivity-and-gain consistency gate passes 502 unit/contract tests, 172 integration tests, 57 release tests, and 101 Isaac tests. Configuration validation and the optional audio smoke pass with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. On the RTX 4090, the maintained Isaac Sim, Isaac Lab, and Kit smokes pass; the Lab entity/reference parity, partial-reset, and 4096-environment performance gate completes at 2.374 ms/step mean against the 20 ms budget. A temporary `3.0.0` sdist and universal wheel build succeeds, and a fresh wheel environment imports the canonical Core enum, confirms the removed directivity module is absent, and executes the maintained configuration. No artifact was published.
-
-The snapshot-authoritative backend-contract gate passes 503 unit/contract tests, 180 integration tests, 57 release tests, and 103 Isaac tests. Exact signatures, snapshot-only multi-array selection, missing-ID failure, Core/Isaac/Lab consumers, the CLI quickstart, and optional audio pass while package `3.0.0` and the serialized v1 schemas remain unchanged. On the RTX 4090, live Isaac Sim passes geometry, TDOA, and room acoustics; live Isaac Lab passes entity/reference parity, partial reset, and 50 steps over 4096 environments at 2.322 ms/step mean against the 20 ms budget; and Kit passes all 38 workflow steps. The scope remained repository-local: no downstream checkout was modified or validated.
-
-R7/R8 are complete. The current surface has one mandatory five-topology environment contract, fail-closed Isaac `manual`/`anchor`/`auto` resolution, one `analytic_acoustics` runtime, direct-only `a * D + R` occlusion, partition-based uncapped transmission, Kit binding v5, and a CUDA-native free-field Lab path. Legacy runtime backends, room configuration, sensor-side ambiguity policy, temporary occlusion provenance, and compatibility parsers are absent; historical backend identifiers remain replay data only.
-
-The final R7/R8 cleanup gate passes 460 unit/contract tests, 197 Core-only integration tests with two expected optional-audio skips, and 57 release tests on both Python 3.10 and 3.12. The maintained CLI quickstart runs through `free_field` without PyRoom; the optional lane passes 12 codec/panel tests plus real shoebox and polygon-prism execution with pyroomacoustics 0.10.1, SciPy 1.18.1, and SoundFile 0.14.0. The RTX 4090 passes 100 Isaac-runtime tests, live Isaac Sim, 4096-environment Lab parity/reset/performance at 2.336 ms/step, and all 38 Kit workflow steps. The unchanged SquadBot checkout passes 373 tests with 10 expected skips, the complete clean-source release audit passes, and all three v1 schemas regenerate byte-identically. Package `3.0.0` remains unreleased; nothing was tagged or published.
-
-The R9.1 gate passes 23 focused qualification-contract tests, 483
-unit/contract tests, 199 integration tests, and 57 release tests. Version
-synchronization, Ruff, internal wikilinks, documentation boundaries, and
-whitespace pass. No provider probe, Isaac runtime change, GPU execution,
-package API, dependency, schema, or version change is part of R9.1.
-
-The R9.1.1 gate passes 494 unit/contract tests, 206 integration tests, 57
-release tests, and 101 tests in the supported Isaac runtime. Configuration,
-frame-v2 schema parity, recorded fixtures, and real optional audio pass. The
-RTX 4090 passes the Isaac Sim, Isaac Lab, and Kit live smokes; Lab preserves
-entity/reference parity and partial reset across 4096 environments at 2.041
-ms/step mean against the 20 ms budget. A content-equivalent clean-source build
-passes the exact sdist, wheel, and Kit ZIP audit. No downstream checkout was
-changed or validated, and nothing was pushed, tagged, or published.
-
-The R9.1.2 gate passes 504 unit/contract tests, 207 integration tests, 57
-release tests, and 101 tests in the supported Isaac runtime. Configuration,
-optional PyRoom/codec execution, exact frame-v2 schema regeneration, Kit v5
-round-trip and old-key rejection, and the unchanged serialized frame shape
-pass. The RTX 4090 passes the Isaac Sim, Isaac Lab, and Kit live smokes; Lab
-preserves entity/reference parity and partial reset across 4096 environments
-at 2.164 ms/step mean against the 20 ms budget. The migrated SquadBot checkout
-passes 386 tests plus both active demos against the sibling SDK, while its
-historical Phase 6A handoff retains SHA-256
-`f97ae9e0d5ad06a613c3840e6201ea9ac5469b899d9e3e305bec76a8b09a0dd5`.
-
-R9 selected Steam Audio `4.8.1` for future passive geometry propagation. R9.4
-admitted bounded baked pathing, arrival scheduling, diagnostics, and measured
-small-environment cost, while rejecting the non-additive closed-assembly
-transmission proxy. RTX Acoustic remains rejected for passive microphone PCM.
-The evidence stays local and ignored under `build/validation/r9/`; the completed
-qualification harness and its tests are no longer maintained.
-
-Plans 02 and 03 establish one immutable microphone-signal boundary, frame v3
-observations, shared propagation-to-perception orchestration, direct recording,
-lifecycle-owned reset, and one fixed-threshold Auditok detector for maintained
-scalar consumers. At the 03.3 closeout, Isaac Lab reference mode owned one detector per environment
-and kept six zero-filled tensors. Subphase 07.1 now projects the actual observations.
-SquadBot consumes the strict frame-v3 boundary through its project-owned adapter.
-
-The latest cleanup host gate passes 536 unit/contract tests, 221 integration
-tests, 58 release tests, version synchronization, Ruff, and whitespace. Config,
-fixture, and optional-audio execution pass. The preceding 03.3 closeout passed
-96 supported-runtime tests plus live Isaac Sim, Isaac Lab, and Kit on the RTX
-4090, and 70 focused SquadBot tests without downstream changes. Final cleanup
-runtime, schema, artifact, and downstream gates are recorded in the wiki log.
-
-The Subphase 04.1 host gate passes 543 unit/contract tests, 221 integration
-tests, 58 release tests, version synchronization, Ruff, and whitespace. Its 59
-focused DOA, perception, plugin, and orchestration tests pass. No schema,
-configuration, package-version, GPU runtime, or downstream behavior changed.
-
-The corrected Subphase 04.2 host gate passes 579 unit/contract tests, 221
-integration tests, 58 release tests, optional audio, version synchronization,
-Ruff, and whitespace. Two complete v2 qualifications over 35 hash-verified real
-takes have identical semantic SHA-256
-`31532988b2571e7fdd24c302f894317ee64af2f28fb464124f7ef9e3719d83c9`;
-timing stays separate. The calibration-only rules select `-40.5 dBFS` for
-Auditok and `0.06` for PyRoom reliability. Primary planar PyRoom passes with
-100% coverage and 1-degree p95 across the complete 128-case independent
-synthetic primary matrix, at most 1.45-degree frequency-band p95, 100% nominal
-validation-take coverage with 10-degree worst-take p95, and zero validation
-silence bearings. Real validation is take-level within the same campaign, not
-leakage-group-independent. Two-microphone least-squares passes exact generic
-ambiguity semantics, 95.83% candidate containment, and 7.48-degree
-candidate-error p95; particular hardware still requires consumer-owned
-validation. Composed planar compute passes below 5.31 ms p95 across both runs.
-Robustness fails independently because degraded synthetic coverage is too low
-and real occlusion includes confident front/back errors; optional 3D remains
-available but blocked as a product claim. The v1 comparative reports remain
-unchanged but are superseded historical evidence.
-
-The Subphase 04.3 gate passes 579 unit/contract tests, 226 integration tests,
-58 release tests, optional audio, version synchronization, Ruff, whitespace,
-and 99 supported-runtime Isaac tests. Two final qualification reports each run
-two independent rolling 20 Hz streams with 20 warm-up and 200 measured ticks;
-all four streams have identical semantics, exact causal context, 5.26–5.27 ms
-compute p95, and at most 5.36 ms maximum. Live Isaac Sim, Isaac Lab, and Kit
-smokes pass on the RTX 4090; Lab retains zero-tensor parity and partial reset
-across 4096 environments at 0.124 ms/step against the 20 ms budget. The source
-Isaac interpreter did not have its required Auditok package installed, so these
-runtime gates used the existing exact Auditok 0.5.2 package from an isolated
-temporary path without replacing Kit NumPy or changing the runtime.
-
-Final local cleanup removes the completed 04.2/04.3 qualification runners and
-their test-only coverage. The ignored reports under `build/qualification/doa/`
-remain historical local evidence without a maintained generator. Runtime DOA
-diagnostics retain one deterministic causal context record and the maintained
-selection, reliability, abstention, and temporal-stability state. The cleanup
-host gate passes 562 unit/contract tests, 226 integration tests, 58 release
-tests, optional audio, version synchronization, Ruff, and whitespace.
-
-R4 changes documentation, packaging metadata, version checks, and release-boundary tests without changing Python, CLI, schema, or runtime behavior; its clean-source artifact builds were verified after the implementation commit and reported in the phase handoff.
-
-See [[implementation_phases/r2-fast-test-architecture|R2 Fast Test Architecture]], [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary Cleanup]], [[implementation_phases/r4-documentation-consolidation|R4 Documentation Consolidation]], and [[implementation_phases/r5-semantic-component-refactor|R5 Semantic Component Refactor]].
-
-The Subphase 05.1 host gate passes 572 unit/contract tests, 242 integration
-tests, and 58 release tests. Optional audio passes with PyRoom 0.10.1 and
-SoundFile 0.14.0; all three shipped schemas regenerate byte-identically.
-The migrated fixture validates with three episodes, two shards, seven frames,
-and unchanged audio bytes. No new Isaac/GPU or downstream validation claim
-is made for this dataset-only subphase.
-
-## Subphase 05.2 — Learning Sample Boundary
-
-Completed explicit NumPy policy inputs, optional supervision, single-frame
-collation/masks, and corpus splits with transitive session/scene/trajectory/asset
-isolation. Manifest v3 and recorder state v2 preserve acquisition identities
-through recovery and FLAC export; frame-record v2 and observed frame v3 remain
-unchanged. The maintained generated-signal example produces a `(3, 2, 4800)`
-batch with supervision separate from policy inputs. The host gate passes 580
-unit/contract, 274 integration, and 58 release tests. Split guarantees depend on
-correct declared identities; temporal sequences and Phase 07 remain out of scope.
-
-## Subphase 05.3 — Dataset Migration and Cleanup
-
-Manifest v4 and active consumers remove unused episode pose, label, and visual-sync
-metadata and their supporting statistics. Earlier manifests are rejected without
-compatibility readers. Loader and validation share the canonical record parser; replay relies on the
-loader for timestamp, reset, and frame-count validation. The final host gate passes
-581 unit/contract, 277 integration, and 58 release tests. Optional audio, schema
-regeneration, fixture validation, and the learning example pass. All seven
-non-manifest fixture files remain byte-identical to 8d7a71e. No new GPU or live
-Isaac qualification is claimed.
-
-## Maintained Commands
-
-- `make clean` — remove only regenerable local build, validation, cache, and Python metadata files.
-- `make check` — run the complete deterministic host gate.
-- `make release WHEELHOUSE=<path>` — rebuild and audit the sdist, wheel, and Kit ZIP from one clean commit.
-
-Focused test, lint, Isaac, live-smoke, schema, and diagnostic targets remain available for subsystem work.
-
-## Limits
-
-- Automatic dataset truth production supports `AnalyticAcoustics` only. Geometry describes the snapshot and acoustic evidence inherits window-local propagation limits. Received RMS precedes nonlinear mixture effects; residual RMS includes noise, electronics, and float32 conversion. Audibility decisions and observation/truth matching remain task-dependent and evaluator-owned. No learning sample, batching, or automatic Kit/Lab truth capture is introduced in 05.1.
-
-- Isaac tests require a compatible user-managed runtime and visible GPU; required GPU checks do not use CPU fallback.
-- Standard Python closed-room acoustics requires the optional `room` extra; Kit includes the locked dependencies in its archive. Core free-field and half-space routes do not require it. PyRoom shoebox and polygon-prism simulation remains approximate.
-- `analytic_acoustics` does not accept `surface_set`. Isaac Lab reference mode projects scalar observed activity and optional DOA. Entity mode now produces 16 kHz free-field CUDA waveforms and mixture-derived observations; indoor CUDA propagation, general moving-geometry fidelity and evidence-derived realism distributions remain unqualified. Bounded scalar multisource sensing at 16 kHz is qualified by 04.4; arbitrary reverberant mixtures are not. Policy tensors contain no waveform, mixture RMS, SPL, or calibration values.
-- Auditok's fixed threshold requires application-specific tuning. No calibration mode is maintained; low SNR, changing noise floors, and impulses shorter than the temporal profile remain operating limits.
-- PyRoom SRP is selected only by explicit standard DOA opt-in for the qualified primary planar role on `pyroomacoustics>=0.10.1,<0.11`; absence fails actionably with the `room` extra and never falls back. Its 250 ms causal observation can smear motion, robustness is not qualified, and real evidence has ±5-degree placement tolerance, nominal microphone centers, and only within-campaign take-level validation. Reliability remains estimator-local. At 16 kHz, standard opt-in now selects bounded planar/3D indoor WPE/group-sparse localization with 750 ms memory; weak speech, roughly 1–1.5 s changes and original planar operational regressions remain limits; 3D at other rates and physical multisource performance remain unqualified. Generic two-microphone ambiguity is qualified, but particular-hardware performance remains consumer-owned.
-- Raycast partition transmission remains direct-path-only; it does not model diffraction, structural wall physics, or establish measured material behavior.
-- Simulation correctness does not establish hardware calibration, physical acoustic fidelity, downstream policy quality, or sim-to-real validity.
-- Phase 06 physical evidence uses nominal geometry and ±5° placement uncertainty on one bench. Ambient levels do not isolate microphone self-noise; analog saturation, measured clock drift, calibrated SPL, and absolute physical latency remain unknown. Common reference alignment and host timing do not remove these limits. No gain correction is admitted.
-- Kit mix capture is device- and speaker-layout-dependent qualitative output, not simultaneous microphone-array channels; concurrent third-party Kit capture streamers are unsupported.
-- Retained scientific evidence is local, ignored, protected, and excluded from distributions.
-- Steam Audio has a verified R10.1 USD/native scene integration; the microphone-signal producer remains unimplemented. Baked pathing, its per-microphone omnidirectional mapping, dynamic validation/alternate paths, private arrival scheduling, bounded diagnostics, and small-environment cost are qualified only for the measured R9.4 scenario family. General diffraction accuracy and mass-parallel scaling remain unproven. The closed/paired transmission proxy is rejected; R10 must not enable it, claim predictable sequential assemblies, or add post-hoc attenuation compensation. The common microphone-signal API exists, and a downstream physical-capture producer uses it; no public Geometry Acoustics producer exists yet.
-
-## Next Work
-
-R9.1 through R9.4, Plan 02, and Plan 03 are complete. The public fixed-threshold
-Auditok detector is the single registered, packaged, and integrated generic
-detector for maintained scalar consumers. Its threshold remains explicit and
-application-owned; no calibration mode is maintained.
-R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
-diagnostic behavior; the failed assembly proxy remains excluded.
-
-Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) has a working intermediate hybrid; the revised R10 robot-audition task domain still needs qualification; [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
-
-All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
-
-The plan structure is intentionally compact: Plan 01 records two completed R9
-subphases plus the bounded post-selection R9.4 follow-up. Phase 04 adds
-the completed bounded 04.4 reference and the unresolved, suspended temporal research iteration; the other plans retain
-their coherent ownership with the corrections and GUI/realism work listed above. Cleanup is
-part of the final functional outcome rather than a separate administrative
-phase; implementation agents may still use smaller internal tasks and atomic
-commits.
-
-Uncompleted subphases remain plans rather than implemented behavior. Current executable truth remains the verified capability and limit sections above. Publication of `3.0.0` remains a separate future action, and the published `2.0.0` Community Registry crawler closeout remains separate historical release work.
+## Current work
+
+**Phase 08: scene preparation and intermediate Geometry PCM are complete;
+Milestone 2 and operating integration remain open.**
+
+- Approved scope: [[decisions/robot-audition-fidelity|ordinary-indoor robot audition, numerical impact budgets and stop rule]], AV attention/search first, then mobile.
+- Production Geometry: Steam direct/planar transmission + corrected native PRA
+  specular reflections. Experimental selected-route NLOS and shared diffuse
+  pressure are not enabled. Analytic remains maintained.
+- Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
+  concrete test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
+  operating workflow → actual runtime/packaging and bounded cost closeout.
+- Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
+  timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]
+  distinguishes failures, fixes and stress limits. No replacement evaluation starts
+  without the approved decision point.
+
+## Maintained capabilities and boundaries
+
+| Area | Verified state | Important limit / owner |
+| --- | --- | --- |
+| Signals and perception | Common immutable PCM, observed-only frames, explicit activity/DOA/ambiguity/confidence availability | No truth in perception; [[topics/public-contracts-and-recording|contracts]] |
+| Analytic propagation | Continuous delay/motion/tails, supported Core/PRA topologies, bounded PhysX direct occlusion | No arbitrary geometry or shared diffuse qualification; [[implementation_phases/r8-analytic-acoustics-backend|R8]] |
+| Localization | Stereo ambiguity, nominal planar role, bounded stable-source WPE/group-sparse multisource | Weak/fast/reverberant mixtures and temporal response remain limited; [[experiments/04-4-multisource-localization|04.4 evidence]] |
+| Lab and Kit | 07.1–07.3 complete: observed tensors, independent clocks/resets, CUDA perception and multievent instruments | Free-field CUDA propagation; parity is not perception accuracy; [[experiments/lab-perception-runtime|measured costs]] |
+| Recording and physical parity | Aligned samples/observations/truth, learning samples, replay/splits; 25-take real/sim comparison | Raw retained; no gain calibration or general transfer; [[experiments/physical-signal-comparison|physical evidence]] |
+| Geometry scene | USD/native import, source-band materials, proxies, selective updates and authoring Undo/Redo | Preparation is not acoustic qualification; [[topics/geometry-acoustics|technical contract]] |
+| Distribution | Clean-source sdist/wheel/Kit and optional/native dependency gates maintained | Build validation is not publication; [[topics/validation-and-release|release workflow]] |
+
+Recent geometry maintenance through `523695c` passed host, optional/native and
+actual RTX Sim/Lab/Kit plus packaged offline Kit checks. It preserves the
+intermediate; the approved R10 domain has no new admission evidence from the
+scope/knowledge edits. Tests/code are authoritative; historical totals are not a
+claim that checks were rerun on a documentation-only commit.
+
+## Next phases and delivery
+
+[[implementation_phases/09-practical-realism-and-randomization|09]] owns useful
+variation/distributions; [[implementation_phases/10-end-to-end-validation-and-product-closeout|10]]
+owns product-wide closeout. [[implementation_phases/11-future-semantic-perception|11]]
+classification/tracking/separation remain deferred. No new physical campaign,
+policy training, acoustic GPU port or large-batch Geometry requirement is implied.
+Slower-than-real-time Geometry is acceptable within the approved clock/domain limits.
+
+ONR revised videos **1–3 are delivered**. Revisions **4–9** need their individual
+scene/media gates; several can use current capabilities and do not require full
+Phase 08. [[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|ONR readiness]]
+owns exact dependencies and saved reports. No new media is produced by this update.
+
+## Product boundary
+
+Reusable SDK: Core, recording, CLI, Isaac/Kit/Lab, schemas, examples and packaging.
+Robot adapters, policies, acquisition campaigns and experiment orchestration stay
+downstream/ignored. [[index|Index]] is the reading map; [[log|log]] contains only
+milestone-level knowledge history. Detailed chronology remains in Git/evidence.
