@@ -119,6 +119,14 @@ The corrected Subphase 04.2 qualification is role-based. `pyroomacoustics_srp` p
 
 Deterministic correctness, GPU execution, plausible waveforms, and agreement between backends do not prove physical fidelity.
 
+R10 targets robot-audition fidelity in a declared operating domain. Approximate
+geometry updates and statistical reverberation are acceptable only when they
+preserve essential physical cues and stay within task-specific error budgets.
+Exact late-path phase or a failed extreme dynamic control is not by itself a
+global admission criterion. Conversely, apparently better localization from an
+unphysical artifact is not fidelity evidence. The active requirements and
+materiality protocol belong to [[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10's scope decision]].
+
 Real hardware claims require measured array geometry and response, controlled recordings, calibrated references, and a separate sim-to-real validation protocol.
 
 

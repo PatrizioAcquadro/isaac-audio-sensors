@@ -2,59 +2,46 @@
 
 Updated: 2026-09-11. Package version: `3.0.0`.
 
-## Subphase 08.2 / R10.2 — Milestone 2 complete coverage blocked
+## Subphase 08.2 / R10.2 — Robot-audition fidelity qualification pending
 
-Milestone 2 is **not achieved**. Existing-provider native extensions were
-implemented and tested without changing the operational intermediate provider.
-Steam now has an experimental selected-route interface: separate native route
-filtering/delay passes 44 cases (maximum 0.6252-sample timing error), geometric
-bounds, source/receiver displacement, closure/restoration, LOS exclusion and a
-two-route screen. Complete production pathing integration remains open.
+The user revises R10's scope to **robot-audition fidelity in a declared indoor
+task domain**, superseding the earlier absolute dynamic-acoustic completeness
+gate. Milestone 2 is not complete; it is not globally blocked solely by the
+two-gate boundary case or exact late-scattering phase failure. The operational
+intermediate provider and Analytic remain qualified within their existing limits;
+experimental contributions are not automatically enabled by this scope change.
+[[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the revised requirements, permitted approximations and materiality protocol]].
 
-PRA shared-event pressure passes co-location, unchanged refresh, controlled
-isotropic/directional coherence and bounded native door visibility. Its dynamic
-field fails: random scattering locations follow source-dependent rays. A 1 cm
-source movement gives complex-coherence error about 0.687 at 4 kHz against a fixed
-surface-element reference, unchanged from 4096 to 65536 rays. More sampling and
-per-ray RNG do not resolve the phase-model failure. No failing contribution is
-enabled and no robot-navigation usefulness is claimed.
+Corrected Steam route delays improve corridor arrival-direction error from about
+58 degrees to 0.037 degrees. Selected-flight retarded timing and native historical
+visibility controls pass. The two-gate case still demonstrates a missing route,
+but ordinary-task frequency and impact are unmeasured: retain it as a stress
+limit while qualifying bounded scene updates and production NLOS integration.
 
-Five decisive JSON pairs and 52 PCM/spectral arrays agree exactly between ordinary
-Python and supported Isaac Python. These are CPU-native checks, not live Isaac or
-CUDA qualification. Full R10 scope, the intermediate provider and historical
-evidence remain intact. Final performance/scaling is deferred. No new provider
-evaluation began; further persistent-surface native transport redesign versus a
-new provider evaluation requires the user's architecture decision.
+The PRA moving-field defect remains relevant: a controlled weak-direct case at
+0.5 m/s adds 34–43 percentage points of unmatched directions; strong-direct cases
+change little and competing-source effects are mixed. First-scatter anchoring
+passes a plane reference but fails later-scatter phase persistence under mirror
+motion. These results require representative room/DRR/motion task assessment;
+they neither qualify the diffuse candidate nor establish that replacing PRA or
+building a larger transport model is necessary for the revised domain.
 
-The authorized targeted follow-up demonstrates NLOS observation value: corrected
-corridor arrival-direction error is 0.03685 degrees versus 57.99938 degrees with
-Euclidean-delay scheduling. A finite-plane study finds selective diffuse-motion
-bias: with weak direct sound at 0.5 m/s, the defective field adds 34–43 percentage
-points of unmatched directions, persisting under ray/time-step refinement. Strong
-direct cases change little; competing-source results are mixed. This is controlled
-observation evidence, not general-room or navigation qualification.
+Next, declare representative operating conditions and numerical task-error
+budgets before trials; qualify corrected NLOS, joint diffuse statistics and
+observed-only localization/multisource/navigation behavior with paired uncertainty
+and independent physical-cue controls. Preserve AV timing, Sim/Lab/Kit lifecycle,
+partial reset and environment isolation. Separate simulation utility from real
+transfer. The prior recommendation to evaluate a whole-reflection replacement is
+suspended until a material in-domain gap justifies that decision; no evaluation
+has begun. Final scaling and policy training remain outside this milestone.
 
-The 888 simulated PCM streams use RTX 4090 perception. Scalar/CUDA checks cover
-960 frames with 100% count/activity agreement and at most 3.798 degrees difference.
-Actual Isaac Sim intermediate Geometry smoke and 1047 host tests pass. The new
-per-route native renderer and emission-clock helper remain outside the installed
-package. The later dynamic follow-up corrects selected-flight interception and
-retarded endpoint motion, but a two-gate control proves instantaneous native
-route selection can miss a physically valid flight. Complete NLOS still needs
-native time-dependent graph search and Geometry integration.
-
-A minimal PRA first-scatter surface anchor passes the controlled plane reference,
-but moving a subsequent mirror reproduces the defect at the next diffuse bounce:
-complex coherence error stays about 0.300 at 1 kHz under ray-count refinement.
-This does not establish a small general PRA fix. A larger persistent transport
-model versus evaluating a whole-reflection replacement remains the decision;
-no replacement evaluation began. The working Geometry configuration and full
-R10 requirements are unchanged.
-[[implementation_phases/r10-geometry-acoustics-integration#Dynamic NLOS and minimum PRA extension follow-up (2026-09-11)|R10 owns the new implementation, positive controls and concrete admission failures]].
-[[implementation_phases/r10-geometry-acoustics-integration#Targeted NLOS and observation-sensitivity follow-up (2026-09-11)|R10 owns the targeted usefulness investigation]].
-
-See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10 for implementation, measured limits and the remaining gates]]
-and [[implementation_phases/r9-geometry-acoustics-provider-selection#Existing-provider extension decision (2026-09-11)|R9 for the provider decision boundary]].
+Historical validation remains valid within its tested scope: 888 streams used
+RTX 4090 perception; 960 scalar/CUDA frames had 100% count/activity agreement and
+at most 3.798 degrees direction difference. The latest native follow-up passed
+8 focused tests, 1051 host tests and actual Isaac Sim intermediate Geometry/
+Analytic preservation smoke. This scope revision changes documentation only and
+claims no new acoustic, task, CUDA or sim-to-real qualification. Failed evidence
+is preserved in R10's dated sections.
 
 ## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
 
@@ -467,7 +454,7 @@ application-owned; no calibration mode is maintained.
 R10 remains later work and is constrained to R9.4-admitted pathing, timing, and
 diagnostic behavior; the failed assembly proxy remains excluded.
 
-Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) is blocked at its initial native reflection gate; [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
+Subphases 04.1–04.3, Plans [[implementation_phases/05-ground-truth-and-learning-datasets|05]] and [[implementation_phases/06-simulated-and-real-signal-parity|06]], and [[implementation_phases/07-isaac-lab-observation-integration|07.1 Lab tensor projection]] are complete. The requested [[implementation_phases/04-observed-direction-estimation|04.4 indoor-improvement intervention]] is now confirmed and integrated: one WPE/group-sparse covariance path passes all 24 joint indoor geometry/condition quality gates on two fresh blocks, plus common consumers and actual RTX 4090 Lab projection. **This is bounded simulated stable-source usefulness, not complete 04.4 or physical/general indoor qualification. 07.2 is closed within its baseline scope, including causal reference clocks, active CUDA perception and practical batch measurements; Phase 07 records its retained limits.** Stereo and other planar rates retain their previous single-event role. Weak speech remains imperfect, changes can take 1–1.5 s, 3D compute exceeds 50 ms, and original planar direct-path operational pair criteria regress. The [[experiments/04-4-multisource-localization|experiment]] owns exact before/after results and limitations. No tracking, separation, known-count input or two-source cap was added. Broader and physical validation remain separate next steps. The completed bounded 07.2 implementation and 07.3 consumer consolidation preserve these limitations without extending perceptual qualification. The Geometry Acoustics signal producer (08.2) has a working intermediate hybrid; the revised R10 robot-audition task domain still needs qualification; [[implementation_phases/09-practical-realism-and-randomization|Plan 09]] remains planned; scene preparation (08.1) is complete; historical gain corrections remain rejected/inconclusive.
 
 All Plans 01–11 follow [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]]. Each ends by checking its consumers and removing or simplifying unnecessary, duplicate, and test-only production surfaces. [[implementation_phases/10-end-to-end-validation-and-product-closeout|Plan 10]] performs the final repository-wide check; [[implementation_phases/11-future-semantic-perception|Plan 11]] keeps unapproved future capabilities out of production.
 

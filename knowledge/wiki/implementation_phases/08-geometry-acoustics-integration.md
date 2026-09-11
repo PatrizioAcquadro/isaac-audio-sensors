@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; Milestone 2 native extensions blocked on dynamic diffuse pressure; full scope unchanged (2026-09-11); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; Milestone 2 qualification pending under the revised robot-audition fidelity scope (2026-09-11); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -26,7 +26,7 @@ This reference adds no requirements beyond R10.1.
 
 After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]]. Begin with its
 [[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (resume after blocker)|early complete-path and scaling decision gate]]:
-after complete acoustic coverage passes, compare against the 07.2 practical baseline, locate bottlenecks, investigate
+after the declared robot-task acoustic domain passes, compare against the 07.2 practical baseline, locate bottlenecks, investigate
 Linux/NVIDIA acceleration and prototype GPU work only when justified. Decide
 whether to retain both backends after matched functional/performance checks;
 CUDA support and analytic retirement are not assumed outcomes.
@@ -42,11 +42,12 @@ The user subsequently authorizes an intermediate direct/transmission/specular
 milestone without reducing final R10 scope. Its bounded native corrections,
 streaming adapter, common perception and actual Isaac qualification are tracked
 in [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
-The subsequent [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|Milestone 2 admission gate]] now has a bounded native NLOS timing extension but remains blocked on physically
-consistent dynamic diffuse pressure and complete integration. Complete coverage must pass before final performance
-qualification/scaling; the 32–256 matrix has not started.
-A coherent diffuse field and complete final coverage remain required before
-08.2 closure and 08.3 operating integration.
+The latest [[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 scope revision]] explicitly supersedes the former absolute dynamic-coverage gate.
+Bounded geometry updates and statistical reverberation are eligible for task-domain
+qualification; neither physical imperfection alone nor passing tensor/PCM checks
+establishes admission. Corrected NLOS integration, representative diffuse-motion
+impact and practical-use/lifecycle checks remain open. Declared-domain coverage
+must pass before final scaling; the 32–256 matrix has not started.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3

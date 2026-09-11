@@ -1603,3 +1603,22 @@ All 35 wiki pages resolve and remain indexed; whitespace checks pass. Eight
 focused unit/native checks, 1051 host tests and actual Isaac Sim intermediate
 Geometry/Analytic preservation smoke pass. Experimental complete-dynamics
 admission remains blocked by the recorded negative controls.
+
+
+## 2026-09-11 — update: R10 robot-audition fidelity scope
+
+The user explicitly revises the former full dynamic-acoustic completeness gate.
+R10 now owns a declared task-domain fidelity contract, essential physical and
+streaming invariants, permitted approximations and paired materiality evaluation.
+The two-gate failure remains a stress limit; the measured PRA weak-direct bias
+remains evidence requiring representative task assessment. R9 suspends automatic
+replacement/redesign escalation. Status, Plan 08, index and acoustic-modeling
+interpretation are synchronized. No runtime behavior or qualification changed;
+historical failures and raw sources remain intact.
+
+## 2026-09-11 — lint: Robot-audition scope consistency
+
+All 35 wiki pages remain indexed with resolving links; the new scope anchor,
+append-only log, documentation-only changes, version synchronization and whitespace
+checks pass. No acoustic tests were rerun or new runtime qualification claimed
+for this documentation-only revision.

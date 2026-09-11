@@ -12,7 +12,10 @@ The subsequent coverage audit selects a hybrid architecture direction, but the
 executed Steam/Pyroomacoustics candidate fails admission; no replacement signal
 provider is qualified for full R10. The intermediate specular provider is admitted
 separately; Milestone 2 also withdraws the historical NLOS path-arrival/TDOA
-interpretation and remains blocked on joint diffuse/path pressure.
+interpretation. The latest user scope revision replaces the absolute dynamic
+coverage gate with declared robot-task fidelity qualification; the revised domain
+is not yet admitted. The earlier recommendation for a replacement evaluation is
+suspended pending measured in-domain materiality. See the scope revision below.
 
 The R9.2 through R9.4 execution order is referenced by
 [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
@@ -662,6 +665,31 @@ proof that another provider meets the contract, or authorization to add a third
 permanent reflection contribution. No new provider evaluation began. Native
 Steam direct/pathing and Analytic remain separate maintained capabilities.
 [[implementation_phases/r10-geometry-acoustics-integration#Dynamic NLOS and minimum PRA extension follow-up (2026-09-11)|R10 owns the implementation, evidence and remaining gates]].
+
+#### Robot-audition scope revision (2026-09-11)
+
+The latest user direction changes the decision criterion from absolute dynamic
+acoustic coverage to material observation/task impact in a declared indoor robot
+domain. This supersedes the earlier automatic escalation from the two-gate or
+later-scatter phase failures to a larger native redesign or replacement study.
+The evidence remains valid; those controls alone no longer decide architecture.
+
+Retain corrected native NLOS timing and qualify bounded dynamic updates. Evaluate
+PRA spatial/temporal statistics and representative weak-direct room/task behavior
+before deciding whether a more persistent field model is necessary. The measured
+large weak-direct observation bias cannot be waived for a claimed supported
+condition, but a single-plane phase failure does not prove universal task failure.
+Keep the working intermediate and Analytic; admit no experimental contribution
+merely because the scope changed.
+
+The previous recommendation to evaluate a whole-reflection replacement is
+suspended pending this materiality assessment. If an important in-domain gap
+cannot be closed with maintainable existing-provider extensions, bring that
+measured failure and the expected benefit/cost to the user before evaluating a
+replacement. The alternative remains a whole-subsystem comparison, not an
+additional permanent reflection layer. No new provider evaluation is authorized
+or performed by this scope revision.
+[[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the active domain, requirements and qualification protocol]].
 
 ## Artifacts
 

@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); Milestone 2 native extensions remain blocked on dynamic diffuse-field admission (2026-09-11); full scope is unchanged; R10.3 remains planned.
+Status: R10.1 / 08.1 and the intermediate coherent hybrid milestone are completed within their documented boundaries. The user revises Milestone 2 to robot-audition fidelity (2026-09-11): bounded task qualification and integration remain pending; absolute dynamic-acoustic completeness is no longer the admission gate. R10.3 remains planned.
 R9.4 historical risk retirement constrains the supported scope; its stronger NLOS arrival/TDOA interpretation is withdrawn by the Milestone 2 recheck below.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -8,11 +8,148 @@ This page is the sole authority for the geometry integration.
 
 ## Objective
 
-Integrate the provider architecture selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as one high-fidelity simulated signal producer for one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture. The authorized hybrid direction permits complementary native engines behind this boundary; each contribution still requires qualification.
+Integrate the provider architecture selected by [[implementation_phases/r9-geometry-acoustics-provider-selection|R9]] as one simulated signal producer sufficiently faithful for robot audition in a declared indoor domain, initially one or a few passive-audio Isaac environments. Its final microphone signals enter the same backend-independent observed-perception path used by analytic simulation and physical capture. The authorized hybrid direction permits complementary native engines behind this boundary; each contribution still requires qualification.
 
 Geometry integration improves received-signal modeling; it does not automatically resolve the maintained localizer's count/direction failures. Follow the bounded 07.2 and 07.3 progression in [[status|Current Status]], preserve the shared audio-only perception boundary, and qualify perceptual claims separately under [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]]. General temporal reliability remains unqualified while its research iteration is suspended.
 
 R10 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: the selected integration must replace temporary, unselected, duplicate, and legacy geometry paths rather than adding another permanent layer beside them.
+
+## Active scope — Robot-audition fidelity (2026-09-11)
+
+**This latest user decision explicitly revises the earlier requirement to preserve
+complete dynamic-acoustic coverage.** It supersedes older “full scope unchanged”,
+universal dynamic-field admission and mandatory time-dependent path-search
+statements on this page. Those dated results remain historical evidence, including
+failed controls; they are not erased or retroactively marked passed.
+
+R10 delivers a useful Isaac Audio Sensor for localization, multisource and
+audio-visual perception, and policy-learning research. It does not aim to publish
+a new acoustic engine or reproduce every moving-boundary wave interaction.
+An approximation is admissible when its error is bounded and does not materially
+misrepresent observations or task decisions within the declared operating domain.
+An unknown effect remains unqualified for that domain; it does not automatically
+block all supported uses or force a provider replacement.
+
+### Required behavior and permitted approximations
+
+| Area | Required for the supported robot-task domain | Not an unconditional R10 requirement |
+| --- | --- | --- |
+| Direct and dominant indirect arrivals | Meaningful path delays, inter-microphone TDOA, arrival directions, level/visibility trends; no duplicate LOS or contribution energy | Exact diffraction or every physically possible path through asynchronously changing openings |
+| Source and receiver motion | Continuous PCM and timing, useful spatial cues during translation/rotation, source-stop tails and bounded update artifacts | Exact moving-boundary propagation or phase evolution at every late multibounce interaction |
+| Doors and obstacles | Correct sustained open/closed behavior and alternate-route effects; measured transition latency/artifacts under representative trajectories | Full space-time native graph search solely to pass the millisecond two-gate boundary control |
+| Reverberation and diffuse sound | Plausible banded energy/decay, meaningful joint microphone statistics and motion behavior in task-relevant bands/DRR conditions | Matching the exact stochastic phase of an arbitrary room; isotropic covariance in non-isotropic rooms |
+| Integration | Common PCM clock, audiovisual timing, no truth in perception/policy, reset/partial-reset/isolation, unchanged public schemas and working consumers | Replacing Analytic or creating a repository-owned multibounce engine to obtain completeness |
+
+Quasi-static geometry updates, bounded reflection order and statistical late
+reverberation are candidate approximations, not automatic passes. Interpolation
+may suppress update artifacts but cannot substitute for arrival/TDOA correctness.
+Keep native timing tests (including one-sample agreement with an exported route)
+as implementation checks; a simplified native route need not equal an exact
+wave-diffraction solution. Physically justified energy accounting, visibility,
+co-location and shared-channel consistency remain required checks. Do not fix
+independent microphone noise afterward or fit gains to obtain a desired score.
+A shared statistical field need not preserve exact late-path phase if the relevant
+spatial/temporal statistics and task behavior survive the approximation.
+
+For illustration, at the configured 343 m/s, a 10 m path takes 29.15 ms. A source
+moving at 0.5 m/s moves 14.6 mm during that time. That path change would correspond
+to about 15 degrees of phase at 1 kHz and 61 degrees at 4 kHz; actual path-length
+change depends on geometry. Reverberant travel can last much longer than the
+single room crossing. Slow geometry therefore motivates testing quasi-static
+updates, but does not prove that microphone phase or diffuse-motion errors are
+irrelevant. Compare retained reverberation duration, update interval, motion,
+wavelength and observation time scale within the task profile.
+
+### Qualification by material task impact
+
+Before the next implementation comparison, record a compact operating profile:
+room/corridor sizes around the intended approximately 10 m indoor use, source and
+array translation/rotation, actual door trajectories, microphone spacings and
+frequency band, reverberation duration and direct-to-reverberant ratio (DRR).
+Include stationary and moving receivers/sources, single and simultaneous sources,
+LOS, sustained NLOS and weak-direct/reverberant cases. Start from the maintained
+four/five-microphone consumers and measured 0.1/0.5 m/s source cases; these are
+initial test points, not proven speed limits or universal product restrictions.
+Separate representative cases from deliberately extreme boundary tests and keep
+both visible. Do not choose only strong-direct cases because they already pass.
+
+For each task, fix numerical materiality budgets **before** examining candidate
+results, using the task's spatial/angular resolution, control tolerance,
+observation hop and acceptable success-rate change. Record the budgets with the
+trial configuration. There is no universal coherence, phase or DOA threshold
+that by itself certifies robot-audition fidelity. Existing 0.1 controlled-field
+coherence and one-sample route checks retain their specific meanings; neither
+alone closes or globally blocks R10. No numerical task budget has yet been
+qualified by this scope-revision task.
+
+Use paired sources/trajectories and independent stochastic realizations; refine
+geometry-update intervals and acoustic sampling, and include independent analytic
+or controlled native references where available. A reference must be valid for
+the property being tested: free field, a single plane or another provider is not
+an absolute room oracle. Preserve realistic reverberant difficulty. Compare
+intermediate, corrected-NLOS, diffuse and combined configurations as available,
+without supplying paths, source identity or hidden bearing to the consumer.
+
+Measure DOA/TDOA error, unmatched/extra observations, ambiguity, latency and
+spurious motion/visibility transients. Score NLOS arrival direction separately
+from the hidden source bearing. Check task benefit with the already selected
+scripted, untrained closed-loop homing/navigation consumer, then competing-source
+trials: success, collision/timeout rate and route efficiency against paired
+audio-disabled trials. Geometric collision avoidance is permitted; acoustic
+truth and target identity are scoring-only inputs. Check audiovisual timestamps
+and the existing Lab consumer boundary without adding a new AV model or policy
+training campaign. Use the existing localizer plus an independent delay/spatial
+cue check so an artifact that helps one estimator cannot establish fidelity.
+
+Report paired confidence intervals at independent-trial level, including
+misses and censored latency, rather than treating adjacent frames as independent.
+For a negligible-impact claim the interval must fit inside the declared error
+budget; failure to find statistical significance is not equivalence. Avoid
+averaging away weak-direct or occluded strata. Material changes in either
+direction require explanation: artificially easier perception can bias learning
+as well as degraded perception. Simulation tests establish bounded simulated
+utility and sensitivity, not real-world transfer; transfer remains a separate
+validation claim with no new physical recordings required for this milestone.
+
+### Effect on the existing findings and next work
+
+- **Corrected Steam timing remains valuable:** the corridor control changes mean
+  arrival-direction error from about 58 degrees to 0.037 degrees. Preserve and
+  integrate that correction with bounded geometry updates and lifecycle checks.
+- **The two-gate failure becomes a documented stress limit:** its occurrence and
+  task impact under ordinary door motion are unmeasured. It no longer forces full
+  temporal graph search before practical NLOS qualification. Promote that work
+  only if representative in-domain trials expose a material unbounded gap.
+- **The PRA weak-direct finding remains material evidence:** at 0.5 m/s the plane
+  control adds 34–43 percentage points of unmatched directions, while strong
+  direct cases change little. These are controlled sensitivity results, not a
+  universal room failure or a newly admitted diffuse renderer. Representative
+  weak-direct room/motion trials remain required; renaming the scope cannot waive
+  an observed large bias in a condition claimed as supported.
+- **Later-scatter phase failure is diagnostic, not an automatic redesign order:**
+  qualify the statistical approximation by energy, spatial/temporal cues and task
+  impact before deciding whether exact surface persistence is necessary.
+
+The next implementation path is corrected NLOS plus bounded task-domain diffuse
+qualification using the existing providers. Keep production defaults unchanged
+until those contributions pass their declared gates. A specific condition may
+remain explicitly unsupported without invalidating other qualified conditions;
+Milestone 2 closes only when the declared representative domain, integrated
+stream/lifecycle and practical-use gates pass. It is not complete today.
+
+A larger PRA fork or a whole-reflection provider comparison is justified only by
+a material in-domain gap that simpler native/statistical extensions cannot
+close. The prior recommendation to begin that comparison is suspended pending
+this task-impact assessment. Do not begin a replacement evaluation without the
+user decision already required by the session. No additional permanent provider
+is implied. Final performance/scaling qualification remains deferred; no policy
+training, physical campaign or alternate engine is added to this scope revision.
+
+Task-oriented evaluation has precedent: [SoundSpaces 2.0](https://arxiv.org/abs/2206.08312)
+combines acoustic measurements with embodied-navigation and far-field speech
+recognition evaluations. Its reported sim-to-real result for speech recognition
+is not evidence of transfer for this SDK. This is methodological context, not a
+new provider evaluation or endorsement.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -1002,6 +1139,10 @@ qualification is claimed for this local-only candidate; documentation checks are
 separate from the previously recorded production baseline gates.
 
 #### Early complete-path and scaling decision gate (resume after blocker)
+
+Apply the active robot-audition fidelity scope above: “complete” means the
+declared task-domain coverage, not absolute dynamic-acoustic completeness.
+Final scaling remains after Milestone 2 qualification.
 
 Start 08.2 with a minimal production slice: prepared USD scene, source PCM,
 qualified CPU/Embree propagation, physical microphone PCM, and the unchanged
