@@ -117,6 +117,11 @@ def validate_audio_config(raw: dict[str, Any]) -> AudioSensorConfig:
             raise ConfigValidationError(
                 f"audio.default_backend must be one of {list(backend_ids)}."
             )
+        if default_backend == "geometry_acoustics":
+            raise ConfigValidationError(
+                "geometry_acoustics requires an explicit prepared USD session and "
+                "provider configuration through the Python Isaac/Lab API."
+            )
         runtime_profile = str(audio.get("runtime_profile", DEFAULT_RUNTIME_PROFILE))
         if runtime_profile not in RUNTIME_PROFILES:
             raise ConfigValidationError(

@@ -44,24 +44,7 @@ class EntityAudioBackend:
             self.assets.append(
                 torch.tensor(samples, dtype=torch.float32, device=self.device)
             )
-        self.perception = TorchPerception(
-            num_envs=binding.num_envs,
-            positions=binding.static.mic_offsets_local.cpu().numpy(),
-            threshold_dbfs=cfg.energy_threshold_dbfs,
-            doa_enabled=cfg.doa_enabled,
-            max_observations=cfg.max_observations,
-            max_doa_candidates=cfg.max_doa_candidates,
-            device=self.device,
-            window_samples=max(1, round((cfg.update_period or 0.1) * self.rate)),
-        )
-        self.ids = torch.arange(binding.num_envs, device=self.device)
-        self.cursor = torch.zeros(
-            binding.num_envs, dtype=torch.int64, device=self.device
-        )
-        self.discontinuity_count = torch.zeros_like(self.cursor)
-        self.time = torch.zeros(
-            binding.num_envs, dtype=torch.float64, device=self.device
-        )
+        initialize_perception(self, binding, cfg)
         self.distance, self.gain = self._geometry(self.ids)
 
     def _geometry(self, ids):
@@ -186,3 +169,25 @@ class EntityAudioBackend:
 
     def observations(self, ids):
         return self.perception.observations(ids)
+
+
+def initialize_perception(backend, binding, cfg):
+    """Share the mixture-only CUDA pipeline and clocks across PCM producers."""
+    backend.perception = TorchPerception(
+        num_envs=binding.num_envs,
+        positions=binding.static.mic_offsets_local.cpu().numpy(),
+        threshold_dbfs=cfg.energy_threshold_dbfs,
+        doa_enabled=cfg.doa_enabled,
+        max_observations=cfg.max_observations,
+        max_doa_candidates=cfg.max_doa_candidates,
+        device=backend.device,
+        window_samples=max(1, round((cfg.update_period or 0.1) * backend.rate)),
+    )
+    backend.ids = torch.arange(binding.num_envs, device=backend.device)
+    backend.cursor = torch.zeros(
+        binding.num_envs, dtype=torch.int64, device=backend.device
+    )
+    backend.discontinuity_count = torch.zeros_like(backend.cursor)
+    backend.time = torch.zeros(
+        binding.num_envs, dtype=torch.float64, device=backend.device
+    )

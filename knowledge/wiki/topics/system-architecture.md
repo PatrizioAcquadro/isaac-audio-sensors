@@ -12,11 +12,20 @@ The design keeps simulator-independent contracts below optional simulator adapte
 
 All propagation backends implement `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. `AudioSceneSnapshot` owns the complete canonical state of every microphone array and its mandatory `environment`; `array_id` only selects which array observes that scene. Each backend resolves it through `scene.array_by_id(array_id)` and fails if it is absent. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation.
 
-`AnalyticAcoustics` is the only registered runtime propagation backend. It routes from the environment kind to Core direct or half-space propagation, or to lazy PyRoom shoebox or polygon-prism construction. Direct and indirect pair stems remain internal, `SourceOcclusion` applies only to the direct stem, and the public signal block is the recombined multichannel result. Analytic internals own scheduling, rendering, effects, and concise signal diagnostics, but not observed perception, frame assembly, or persistence. Removed geometry, synthetic-TDOA, and room backend behavior survives only as internal logic or historical v1 replay data, never as runtime aliases.
+`AnalyticAcoustics` remains the default runtime propagation backend. It routes from the environment kind to Core direct or half-space propagation, or to lazy PyRoom shoebox or polygon-prism construction. Direct and indirect pair stems remain internal, `SourceOcclusion` applies only to the direct stem, and the public signal block is the recombined multichannel result. Analytic internals own scheduling, rendering, effects, and concise signal diagnostics, but not observed perception, frame assembly, or persistence. Removed geometry, synthetic-TDOA, and room backend behavior survives only as internal logic or historical v1 replay data, never as runtime aliases.
+
+The registry also lazily constructs optional `geometry_acoustics` from an explicit
+prepared USD session and provider configuration. Its intermediate hybrid owns
+native direct/transmission and specular reflection PCM; source state remains
+upstream of common perception. Lab selects the producer through the Core registry,
+without importing the Isaac subsystem at module load. The same CUDA perception,
+context and projection are reused. See
+[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10]]
+for the bounded domain and unresolved final coverage.
 
 Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; activity-detector plugins own streaming activity and event state; DOA owns the numerical least-squares solver, GCC-PHAT, PyRoom SRP-PHAT adaptation, physical ambiguity, and sector mapping. The DOA plugin boundary receives only valid rows of the final mixture, matching array-local geometry, and sample rate; it receives no scene or source-conditioned state. Standard consumers route exactly two microphones to least-squares and horizontal rank-2 XY arrays to PyRoom, with explicit default-off activation and no fallback. Rank-3 use remains caller-injected. Internal SRP is removed. `ActivityDecision` fixes an optional `[0, 1]` acoustic-activity probability while detector-specific energy values remain diagnostics. `AuditokActivityDetector` is the qualified generic implementation and the maintained consumer separately owns the trailing DOA context and temporal abstention state. Fundamental data contracts remain centralized in `core.types`.
 
-This layer imports no other package subsystem. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
+Core contracts and DSP import no simulator subsystem; the explicitly selected Geometry factory lazily resolves its optional Isaac adapter. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
 
 ## Recording Layer
 

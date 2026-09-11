@@ -21,6 +21,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
 
     class_type: type[AudioArraySensor] = AudioArraySensor
     backend: str = "analytic_acoustics"
+    geometry_config: object | None = None
     max_observations: int = 1
     max_doa_candidates: int = 2
     energy_threshold_dbfs: float | None = None

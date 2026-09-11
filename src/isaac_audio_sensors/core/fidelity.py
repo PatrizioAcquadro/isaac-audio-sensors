@@ -65,41 +65,41 @@ ACOUSTIC_FIDELITY_LADDER = (
         ),
         optional_dependencies=("room", "pyroomacoustics", "scipy", "soundfile"),
         frame_contract=(
-            "emits AudioSensorFrame v2 records when optional dependencies are "
-            "installed"
+            "emits AudioSensorFrame v2 records when optional dependencies are installed"
         ),
         runtime_selectable_v1=True,
     ),
     AcousticFidelityMetadata(
         level=AcousticFidelityLevel.L3,
         public_name="advanced_realism",
-        lifecycle_status="provisional_v1",
-        backend_ids=(),
+        lifecycle_status="intermediate_optional",
+        backend_ids=("geometry_acoustics",),
         backend_family="advanced_realism",
         models=(
-            "opt-in Isaac-layer raycast occlusion attenuation "
-            "(first shipped L3 capability)",
-            "future richer wave and RIR diagnostics",
-            "future material, directivity, noise, and estimator realism",
+            "prepared USD geometry and per-surface acoustic materials",
+            "Steam direct-path occlusion and qualified planar transmission",
+            "native PRA specular reflections with reflected-path blocking",
+            "per-path source and microphone directivity",
+            "continuous microphone PCM and bounded quasi-static scene updates",
         ),
         does_not_model=(
-            "a complete v1 runtime backend",
-            "diffraction, edge bending, reflected-path occlusion, or a complete "
-            "wave solver",
-            "reflected-path angular directivity (per_pair_direct_path uses the "
-            "direct-path angle for the full convolved pair stem)",
-            "diffuse-field noise coherence",
-            "measured material transmission (measured materials cover absorption "
-            "only; transmission presets are nominal)",
+            "a qualified coherent diffuse field",
+            "complete diffraction or a complete wave solver",
+            "general fast-motion or moving-obstacle interaction timing",
+            "distinct sequential-assembly transmission",
             "calibrated sim-real acoustic behavior",
             "production perception or speech recognition",
         ),
-        optional_dependencies=("future advanced-acoustics extras",),
-        frame_contract=(
-            "future implementations must emit AudioSensorFrame v2-compatible "
-            "records until a new schema version is introduced"
+        optional_dependencies=(
+            "pyroomacoustics==0.10.1",
+            "scipy",
+            "soundfile",
+            "qualified Steam and specular native libraries",
         ),
-        runtime_selectable_v1=False,
+        frame_contract=(
+            "MicrophoneSignalBlock through common AudioSensorFrame v4 perception"
+        ),
+        runtime_selectable_v1=True,
     ),
     AcousticFidelityMetadata(
         level=AcousticFidelityLevel.L4,

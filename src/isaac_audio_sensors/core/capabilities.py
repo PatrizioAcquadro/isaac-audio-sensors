@@ -61,9 +61,7 @@ class CapabilityReport:
     def to_dict(self) -> dict[str, object]:
         return {
             "fidelity_levels": [item.to_dict() for item in self.fidelity_levels],
-            "optional_features": [
-                item.to_dict() for item in self.optional_features
-            ],
+            "optional_features": [item.to_dict() for item in self.optional_features],
         }
 
 
@@ -141,8 +139,8 @@ def _base_level(level: str, public_name: str) -> CapabilityStatus:
 def _unavailable_future_level(level: str, public_name: str) -> CapabilityStatus:
     if level == "L3":
         message = (
-            f"Complete {public_name} is unavailable; material-aware "
-            "ray/transmission occlusion remains bundled."
+            f"Complete {public_name} remains unqualified; the intermediate "
+            "geometry_acoustics provider requires explicit native scene configuration."
         )
     else:
         message = f"{public_name} is not a released runtime capability in Stage 1."
@@ -160,9 +158,7 @@ def _unavailable_future_level(level: str, public_name: str) -> CapabilityStatus:
 def discover_capabilities() -> CapabilityReport:
     """Discover bundled, external, and absent capabilities."""
 
-    backend_declarations = get_default_registry().declarations(
-        "propagation_backend"
-    )
+    backend_declarations = get_default_registry().declarations("propagation_backend")
     optional_backends = tuple(
         _probe_optional(
             capability_id=declaration.plugin_id,
@@ -206,6 +202,18 @@ def discover_capabilities() -> CapabilityReport:
         fidelity_levels=tuple(fidelity_levels),
         optional_features=(
             *optional_backends,
+            CapabilityStatus(
+                capability_id="geometry_acoustics",
+                kind="backend",
+                fidelity_level="L3",
+                status="configuration_required",
+                origin="external",
+                missing_dependencies=(),
+                actionable_message=(
+                    "Use the prepared-session Python API with qualified "
+                    "Steam and specular libraries; full R10 remains open."
+                ),
+            ),
             analytic_closed_rooms,
             waveform_wav,
             waveform_flac,

@@ -209,6 +209,12 @@ class Receiver:
     def impulse(self, source_id):
         self.lib.iplDirectEffectReset(self.sources[source_id]["direct"])
         zeros = np.zeros(self.cfg.frame_samples, np.float32)
+        params = self.sources[source_id]["output"].direct
+        if not self.cfg.air_absorption and len(set(params.transmission)) == 1:
+            # Native frequency-independent direct rendering is a memoryless gain.
+            emission = zeros.copy()
+            emission[0] = 1.0
+            return self.render(source_id, emission)[:1].copy()
         self.render(source_id, zeros)
         self.render(source_id, zeros)
         emission = zeros.copy()

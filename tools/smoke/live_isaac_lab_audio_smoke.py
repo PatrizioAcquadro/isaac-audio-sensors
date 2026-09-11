@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--perf-steps", type=int, default=5)
     parser.add_argument("--perf-substeps", type=int, default=1)
     parser.add_argument("--perf-reference-check", action="store_true")
+    parser.add_argument("--perf-reference-steps", type=int, default=1)
     parser.add_argument("--perf-budget-ms", type=float, default=None)
     parser.add_argument(
         "--out",
@@ -32,6 +33,9 @@ def main() -> int:
         choices=("quad_front", "triangle", "square", "raised", "tetra"),
         default="quad_front",
     )
+    parser.add_argument("--geometry-library", type=Path)
+    parser.add_argument("--geometry-indoor", action="store_true")
+    parser.add_argument("--specular-library", type=Path)
     args = parser.parse_args()
     if args.perf_envs < 2 or args.perf_steps < 1 or args.perf_substeps < 1:
         parser.error(
@@ -45,6 +49,7 @@ def main() -> int:
     launcher = AppLauncher(headless=True)
     simulation_app = launcher.app
     simulation_context = None
+    acoustic_sessions = []
     gate_exit_code = 0
     try:
         evidence["phase"] = "runtime_imports"
@@ -175,10 +180,27 @@ def main() -> int:
                 args.perf_layout
             )
             perf_microphones = source_scenes[layout_index].arrays[0].microphones
+        geometry_config = None
+        if args.geometry_library:
+            from isaac_audio_sensors.isaac.acoustic_scene import GeometryAcousticsConfig
+
+            geometry_config = GeometryAcousticsConfig(
+                library_path=str(args.geometry_library),
+                specular_library_path=str(args.specular_library)
+                if args.specular_library
+                else "",
+                reflection_order=3 if args.geometry_indoor else 0,
+            )
+            acoustic_sessions = _geometry_sessions(
+                args.perf_envs, indoor=args.geometry_indoor
+            )
         perf_sensor = AudioArraySensor(
             AudioArraySensorCfg(
                 prim_path="/World/perf/env_.*/AudioSensor",
-                backend="analytic_acoustics",
+                backend="geometry_acoustics"
+                if geometry_config
+                else "analytic_acoustics",
+                geometry_config=geometry_config,
                 max_observations=3,
                 energy_threshold_dbfs=-60.0,
                 doa_enabled=True,
@@ -193,6 +215,7 @@ def main() -> int:
                 source_entities=tuple(perf_sources),
                 microphones=perf_microphones,
             ),
+            acoustic_scenes=acoustic_sessions if geometry_config else None,
         )
 
         multisource_scenes = source_scenes
@@ -388,8 +411,11 @@ def main() -> int:
                 "Reset multisource environment did not recover its events."
             )
 
+        warmup_started = time.perf_counter()
         for _ in range(10):
             _advance_audio(perf_sensor, args.perf_substeps)
+        torch.cuda.synchronize()
+        warmup_ms = (time.perf_counter() - warmup_started) * 1000
         before = perf_sensor._audio_last_update.clone()
         for _ in range(6):
             perf_sensor.update(1 / 60)
@@ -405,12 +431,17 @@ def main() -> int:
         _write_evidence(args.out, evidence)
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
+        import resource
+
+        cpu_started = time.process_time()
         step_ms = []
         for _ in range(args.perf_steps):
             started = time.perf_counter()
             _advance_audio(perf_sensor, args.perf_substeps)
             torch.cuda.synchronize()
             step_ms.append((time.perf_counter() - started) * 1000)
+        cpu_seconds = time.process_time() - cpu_started
+        rss_peak_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
         mean_ms = statistics.mean(step_ms)
         _assert_contract(perf_sensor.data, num_envs=args.perf_envs, max_observations=3)
         if not perf_sensor.data.observation_mask.any():
@@ -444,9 +475,42 @@ def main() -> int:
         quality = _entity_quality(torch, perf_sensor, perf_scene, args.perf_sources)
         # Snapshot memory before the optional, untimed scalar verification.
         peak_allocated_mib = torch.cuda.max_memory_allocated() / 2**20
-        reference_quality = (
-            _entity_reference_parity(perf_sensor) if args.perf_reference_check else None
-        )
+        if geometry_config:
+            np.savez_compressed(
+                args.out.with_suffix(".pcm.npz"),
+                samples=perf_sensor._entity_backend.perception.history[:, :, -12000:]
+                .cpu()
+                .numpy(),
+                positions=perf_sensor._entity_binding.static.mic_offsets_local.cpu().numpy(),
+            )
+        reference_quality = None
+        if args.perf_reference_check:
+            checks = []
+            for step in range(max(1, args.perf_reference_steps)):
+                if step:
+                    _advance_audio(perf_sensor, args.perf_substeps)
+                checks.append(_entity_reference_parity(perf_sensor))
+            differences = [
+                x for c in checks for x in c.pop("direction_differences_deg")
+            ]
+            reference_quality = dict(
+                observations_compared=len(checks) * args.perf_envs,
+                count_agreement=sum(c["count_matches"] for c in checks)
+                / (len(checks) * args.perf_envs),
+                missing_events=sum(c["missing_events"] for c in checks),
+                extra_events=sum(c["extra_events"] for c in checks),
+                max_retained_direction_difference_deg=max(differences, default=0.0),
+                retained_direction_difference_p95_deg=float(
+                    np.percentile(differences, 95)
+                )
+                if differences
+                else 0.0,
+                checks=checks,
+            )
+            reference_quality["passed"] = (
+                reference_quality["count_agreement"] >= 0.97
+                and reference_quality["retained_direction_difference_p95_deg"] <= 5.0
+            )
         evidence = {
             "status": "measured",
             "phase": "quality_and_reset",
@@ -460,7 +524,12 @@ def main() -> int:
             ),
             "reference_activity_and_doa": True,
             "reference_warmup_and_silence": True,
-            "performance_role": "active_cuda_free_field_waveforms_and_perception",
+            "performance_role": (
+                "native_geometry_and_cuda_perception"
+                if geometry_config
+                else "active_cuda_free_field_waveforms_and_perception"
+            ),
+            "geometry_indoor": args.geometry_indoor,
             "partial_reset": False,
             "perf_envs": args.perf_envs,
             "perf_sources": args.perf_sources,
@@ -469,6 +538,10 @@ def main() -> int:
             "perf_substeps": args.perf_substeps,
             "simulated_acquisition_hz": 10 * args.perf_substeps,
             "mean_ms_per_step": mean_ms,
+            "warmup_ms": warmup_ms,
+            "process_cpu_percent": cpu_seconds / (sum(step_ms) / 1000) * 100,
+            "process_peak_rss_mib": rss_peak_mib,
+            "reserved_vram_mib": torch.cuda.memory_reserved() / 2**20,
             "p95_ms_per_step": sorted(step_ms)[math.ceil(0.95 * len(step_ms)) - 1],
             "step_ms": step_ms,
             "profile_stages": stages,
@@ -533,6 +606,10 @@ def main() -> int:
             raise RuntimeError("Isaac Lab exited before completing the gate.") from exc
         raise
     finally:
+        if "perf_sensor" in locals() and hasattr(perf_sensor._entity_backend, "close"):
+            perf_sensor._entity_backend.close()
+        for session in acoustic_sessions:
+            session.close()
         if simulation_context is not None:
             with suppress(Exception):
                 simulation_context.stop()
@@ -559,6 +636,7 @@ def _entity_reference_parity(sensor):
     data = sensor.data
     localizer = MaintainedEventLocalizer()
     counts, matches, errors = [], [], []
+    missing = extra = 0
     for row, values in enumerate(samples):
         events, _ = localizer.localize(values, positions, 16000)
         events = sorted(
@@ -572,6 +650,8 @@ def _entity_reference_parity(sensor):
         valid = data.observation_mask[row]
         observed_count = int(valid.sum() + data.observations_truncated[row])
         matches.append(observed_count == len(events))
+        missing += max(0, len(events) - observed_count)
+        extra += max(0, observed_count - len(events))
         expected = events[: data.observation_mask.shape[1]]
         if len(expected) != int(valid.sum()):
             continue
@@ -597,6 +677,9 @@ def _entity_reference_parity(sensor):
     count_agreement = sum(matches) / len(samples)
     return {
         "environments": len(samples),
+        "missing_events": missing,
+        "extra_events": extra,
+        "direction_differences_deg": errors,
         "count_matches": sum(matches),
         "count_agreement": count_agreement,
         "scalar_count_distribution": np.bincount(counts).tolist(),
@@ -636,6 +719,44 @@ def _entity_quality(torch, sensor, scene, sources):
         if finite.numel()
         else None,
     }
+
+
+def _geometry_sessions(count, *, indoor):
+    import omni.usd
+    from pxr import Sdf, UsdGeom
+
+    from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
+
+    stage = omni.usd.get_context().get_stage()
+    sessions = []
+    for env in range(count):
+        root = f"/World/perf/env_{env}/Room"
+        if indoor:
+            surfaces = [
+                [(-5, -5, -2), (-5, 5, -2), (5, 5, -2), (5, -5, -2)],
+                [(-5, -5, 4), (5, -5, 4), (5, 5, 4), (-5, 5, 4)],
+                [(-5, -5, -2), (-5, -5, 4), (-5, 5, 4), (-5, 5, -2)],
+                [(5, -5, -2), (5, 5, -2), (5, 5, 4), (5, -5, 4)],
+                [(-5, -5, -2), (5, -5, -2), (5, -5, 4), (-5, -5, 4)],
+                [(-5, 5, -2), (-5, 5, 4), (5, 5, 4), (5, 5, -2)],
+            ]
+            for i, points in enumerate(surfaces):
+                mesh = UsdGeom.Mesh.Define(stage, f"{root}/Wall{i}")
+                mesh.GetSubdivisionSchemeAttr().Set("none")
+                mesh.GetPointsAttr().Set(points)
+                mesh.GetFaceVertexCountsAttr().Set([4])
+                mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+                mesh.GetPrim().CreateAttribute(
+                    "ias:absorption", Sdf.ValueTypeNames.Double
+                ).Set(0.4)
+                mesh.GetPrim().CreateAttribute(
+                    "ias:scattering", Sdf.ValueTypeNames.Double
+                ).Set(0.0)
+        else:
+            marker = UsdGeom.Cube.Define(stage, f"{root}/Remote")
+            marker.AddTranslateOp().Set((1000, 1000, -1000))
+        sessions.append(AcousticSceneSession(stage, roots=(root,)))
+    return sessions
 
 
 def _write_evidence(path: Path, evidence: dict[str, object]) -> None:

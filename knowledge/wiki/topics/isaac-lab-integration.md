@@ -42,9 +42,19 @@ The old `event_presence`, `confidence`, `sector_onehot`, and per-event `per_mic_
 
 `bind_entities(scene, cfg)` resolves official `root_state_w` or `body_state_w` tensors through `scene[name]`. The binding supplies a CUDA free-field PCM producer; a separate mixture-only percipient supplies the unchanged observation tensors. Source state never becomes policy observations directly.
 
-`EntityBindingCfg` retains explicit `AcousticEnvironmentSpec`, array mount, microphone layout or `MicrophoneSpec` tuple, origins and quaternion order. It adds `sample_rate_hz=16000`; other entity rates fail explicitly. `SourceEntityCfg` adds `audio_asset_path` and `loop_count` (zero, a positive repeat count, or `-1` for indefinite repetition). Runtime acquisition requires an explicit audio file per source, using Core's checkout-relative asset loader, mono conversion and resampling. Assets load once and remain on the device; generated URI sources remain a scalar-reference role. The existing source start/duration/gain/directivity and microphone gains/directivity apply in propagation.
+`EntityBindingCfg` retains explicit `AcousticEnvironmentSpec`, array mount, microphone layout or `MicrophoneSpec` tuple, origins and quaternion order. It adds `sample_rate_hz=16000`; other entity rates fail explicitly. `SourceEntityCfg` adds `audio_asset_path` and `loop_count` (zero, a positive repeat count, or `-1` for indefinite repetition). Analytic entity acquisition requires an explicit audio file per source, using Core's checkout-relative asset loader, mono conversion and resampling. Analytic assets load once and remain on the device. Geometry reuses the Core file/generated-content scheduler and a bounded host decode cache. The existing source start/duration/gain/directivity and microphone gains/directivity apply in propagation.
 
-Inputs must be rank-correct float32 tensors on the simulation CUDA device. World positions receive no origin offset; environment-frame positions receive one explicit offset. WXYZ states convert to package XYZW before relative-pose composition. Entity mode accepts only analytic `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. Invalid topology, options, device, shape, dtype, directivity, gain, or orientation fail explicitly.
+Inputs must be rank-correct float32 tensors on the simulation CUDA device. World positions receive no origin offset; environment-frame positions receive one explicit offset. WXYZ states convert to package XYZW before relative-pose composition. Analytic entity mode accepts `free_field`, order zero, disabled air absorption/ray tracing, and identity effects. Invalid topology, options, device, shape, dtype, directivity, gain, or orientation fail explicitly.
+
+Optional Geometry entity mode uses `backend="geometry_acoustics"`, explicit
+`geometry_config`, and `bind_entities(..., acoustic_scenes=sessions)`. Each
+environment must own an independent prepared session; overlapping geometry in
+the same stage is rejected. Geometry produces per-environment CPU PCM and
+transfers only the received mixture into the same CUDA perception. Counts govern
+padding; per-environment reset and producer discontinuities reset the matching
+perceptual context. Current entity effects remain disabled. This is the
+[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|08.2 intermediate domain]],
+not completion of general geometric acoustic coverage.
 
 Every `update(dt)` acquires elapsed microphone PCM, including when observation reads are deferred. Static fractional delays, signed polar gains, distance attenuation, emission schedules and file loops agree with Core. For moving geometry, receiver-time distances and gains interpolate between observed physics poses; this is a quasi-static approximation, not Core's retarded-source trajectory solver. A physics interval longer than 100 ms lacks the required pose history: it clears acoustic context, advances the acquisition cursor without fabricating the missing audio, and exposes a discontinuity. Subsequent contiguous updates warm up again. Physics intervals at or below 100 ms and observation cadence are separate settings.
 
@@ -52,7 +62,7 @@ CUDA perception accepts only mixtures and microphone geometry. Its bounded PCM h
 
 The localizer adapts NARA-WPE primitives and the maintained group-sparse equations with Torch. WPE retains float64 after float32 produced extra events in correlated raised-array mixtures; spatial transforms retain reference precision, fitting remains float32, and geometry-only grids/dictionaries are shared. Power floors and convergence are environment-local. Reference neighborhood boundaries and event order are preserved. Processing chunks of up to 128 environments bound working memory without a source-count cap. No private stems, poses, schedules, identifiers, or expected count enter perception. Score/confidence remain unavailable when the reference provides none. Stereo and other scalar sample rates retain their existing reference roles; CUDA localization requires non-collinear XY-planar or rank-3 geometry, with qualification limited to the maintained four geometries.
 
-An internal `ingest` / `observations` / `reset` boundary separates producer, context, localizer and projection. Replacing the localizer does not require a policy tensor redesign. The scalar reference remains the correctness path; neither online room simulation nor geometry-derived realism distributions are introduced here.
+An internal `ingest` / `observations` / `reset` boundary separates producer, context, localizer and projection. Replacing the localizer does not require a policy tensor redesign. The scalar reference remains the correctness path. The shared perception component owns neither room simulation nor geometry-derived realism distributions.
 
 ## Reference Binding
 

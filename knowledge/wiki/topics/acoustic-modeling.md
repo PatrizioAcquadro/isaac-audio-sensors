@@ -20,19 +20,26 @@ L0 direct geometry is stable deterministic behavior internal to `analytic_acoust
 
 L1 analytic TDOA is stable deterministic behavior internal to `analytic_acoustics`: it computes direct-path per-microphone delay, analytical amplitude diagnostics, first-order entity directivity, optional air absorption, self-noise floors, seeded stress controls, and ambiguity metadata without reverberation.
 
-L2 `analytic_acoustics` is the only runtime propagation backend. Its free-field and half-space solvers are deterministic Core capabilities; its shoebox and polygon-prism solvers use optional PyRoom. TDOA least-squares and SRP-PHAT are estimator choices rather than separate propagation backends.
+L2 `analytic_acoustics` remains the default propagation backend. Its free-field and half-space solvers are deterministic Core capabilities; its shoebox and polygon-prism solvers use optional PyRoom. TDOA least-squares and SRP-PHAT are estimator choices rather than separate propagation backends.
 
-L3 is provisional advanced realism: the shipped capability is opt-in Isaac raycast occlusion and material-aware transmission, not a complete advanced-acoustics backend.
+L3 includes the optional intermediate `geometry_acoustics` backend. Its complete advanced-realism domain remains unqualified; capability discovery requires explicit native scene configuration rather than assuming availability.
 
 L4 is experimental calibration tooling direction and does not claim automatic hardware calibration or sim-to-real transfer.
+
+The optional `geometry_acoustics` intermediate uses a prepared USD acoustic scene
+instead of Analytic's environment solver. Steam owns direct/planar transmission,
+PRA native image sources own specular paths, and common receiver-clock convolution
+produces the final mixture. Diffuse field and complete final pathing remain open;
+see [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10]]
+for authoritative bounds and validation. It rejects precomputed `SourceOcclusion`.
 
 ## Entity Directivity
 
 `AudioSourceSpec.directivity` is the sole source authority and `MicrophoneSpec.directivity` is the sole microphone authority. Both store the public `DirectivityPattern` enum. The exact supported families are `omni`, `cardioid`, `supercardioid`, and `figure_eight`; their first-order coefficients are respectively `1.0`, `0.5`, `0.37`, and `0.0` from one canonical Core table.
 
-Every backend and both Isaac Lab binding modes use `per_pair_direct_path`: source and microphone factors are evaluated from their resolved orientations and multiplied for each direct source/microphone pair. Unknown values and non-omni entities without the required orientation fail; there is no implicit omni fallback.
+Analytic and its Isaac Lab entity producer use `per_pair_direct_path`: source and microphone factors are evaluated from their resolved orientations and multiplied for each direct source/microphone pair. Unknown values and non-omni entities without the required orientation fail; there is no implicit omni fallback.
 
-Direct feature paths report the magnitude of that pair factor in RMS. Waveform paths apply its signed value to the complete PyRoom-convolved pair stem, so negative lobes invert waveform polarity while RMS remains magnitude-only. The model does not evaluate a separate angle for each reflection.
+Direct feature paths report the magnitude of that pair factor in RMS. Waveform paths apply its signed value to the complete PyRoom-convolved pair stem, so negative lobes invert waveform polarity while RMS remains magnitude-only. Analytic does not evaluate a separate angle for each reflection. Geometry instead evaluates source departure and microphone arrival angles separately for each native specular path.
 
 Directivity is not an audio effect. The removed `audio.effects.directivity` tables, pattern sets, and `frequency_points` have no v3 alias or parser. Former directivity frequency points are not migrated because they represented frequency response independently of angle. A maintained microphone response must be authored manually under `audio.effects.channel_response.<mic>.frequency_response`.
 

@@ -59,10 +59,12 @@ class _AnalyticOcclusionTransitionRaycaster:
     def raycast_all(self, origin, direction, max_distance_m):
         if float(origin[0]) <= 3.0:
             return ()
-        return (OcclusionHit(
-            prim_path="/World/OcclusionFixture",
-            distance_m=0.5 * float(max_distance_m),
-        ),)
+        return (
+            OcclusionHit(
+                prim_path="/World/OcclusionFixture",
+                distance_m=0.5 * float(max_distance_m),
+            ),
+        )
 
 
 def main() -> int:
@@ -72,6 +74,8 @@ def main() -> int:
         type=Path,
         default=Path("build/validation/isaac_audio_sensors/isaac_sim_live_smoke.json"),
     )
+    parser.add_argument("--geometry-library", type=Path)
+    parser.add_argument("--specular-library", type=Path)
     args = parser.parse_args()
 
     frame_trace_path = args.out.with_suffix(".frames.jsonl")
@@ -154,6 +158,11 @@ def main() -> int:
             _validate_backend_result(result)
             backend_results[backend_id] = result
 
+        if args.geometry_library:
+            evidence["geometry"] = _run_geometry_smoke(
+                args.geometry_library, args.specular_library
+            )
+
         trace_summary = _validate_jsonl_frames(frame_trace_path)
         evidence.update(
             {
@@ -229,6 +238,79 @@ def main() -> int:
         sys.stdout.flush()
 
     return exit_code
+
+
+def _run_geometry_smoke(library, specular_library):
+    import numpy as np
+    from pxr import Sdf, Usd, UsdGeom
+
+    from isaac_audio_sensors.isaac.acoustic_scene import (
+        AcousticSceneSession,
+        GeometryAcousticsConfig,
+    )
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    UsdGeom.SetStageUpAxis(stage, "Z")
+    _author_stage(stage)
+    mesh = UsdGeom.Mesh.Define(stage, "/AcousticPlane")
+    mesh.GetSubdivisionSchemeAttr().Set("none")
+    mesh.GetPointsAttr().Set(
+        [(-10, -10, -1), (-10, 10, -1), (10, 10, -1), (10, -10, -1)]
+    )
+    mesh.GetFaceVertexCountsAttr().Set([4])
+    mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+    mesh.GetPrim().CreateAttribute("ias:absorption", Sdf.ValueTypeNames.Double).Set(0.4)
+    mesh.GetPrim().CreateAttribute("ias:scattering", Sdf.ValueTypeNames.Double).Set(0.0)
+    prepared = AcousticSceneSession(stage, roots=("/AcousticPlane",))
+    sensor = None
+    try:
+        sensor = IsaacAudioArraySensor.from_stage(
+            stage=stage,
+            array_prim_path="/World/RobotBase/ArrayMount/AudioArray",
+            source_prim_path="/World/MovingSource/Sound",
+            environment_resolution_cfg=IsaacEnvironmentResolutionCfg(mode="manual"),
+            environment=free_field_environment(environment_id="geometry_smoke"),
+            backend="geometry_acoustics",
+            acoustic_scene=prepared,
+            geometry_config=GeometryAcousticsConfig(
+                library_path=str(library),
+                specular_library_path=str(specular_library) if specular_library else "",
+                reflection_order=1,
+            ),
+            energy_threshold_dbfs=-60.0,
+        )
+        peaks, counts = [], []
+        for tick in range(12):
+            frame = sensor.capture(
+                start_time_s=tick * 0.05,
+                end_time_s=(tick + 1) * 0.05,
+                frame_index=tick,
+                usd_time_code=0.0,
+            )
+            block = sensor.latest_signal_block
+            if block.producer_id != "geometry_acoustics":
+                raise RuntimeError("Scalar capture selected the wrong PCM producer.")
+            peaks.append(float(np.max(abs(block.samples))))
+            counts.append(len(frame.observations))
+        if not any(counts) or max(peaks[:4]) <= 1e-5 or max(peaks[-2:]) > 1e-7:
+            raise RuntimeError(
+                f"Geometry scalar activity/tail failure: {peaks}, {counts}"
+            )
+        sensor.reset()
+        sensor.capture(start_time_s=0.0, end_time_s=0.05, usd_time_code=0.0)
+        return dict(
+            status="passed",
+            native_pcm=True,
+            common_scalar_perception=True,
+            reset=True,
+            observations=counts,
+            peaks=peaks,
+        )
+    finally:
+        if sensor is not None:
+            sensor.close()
+        prepared.close()
 
 
 def _binding_cfg() -> IsaacAudioSceneBindingCfg:
@@ -457,12 +539,10 @@ def _summarize_backend(
         result["analytic_solver"] = moved.diagnostics.get("analytic_solver")
         result["occlusion_debug_trace"] = {
             "before_has_hit": any(
-                item.get("kind") == "occlusion_hit"
-                for item in before_debug_primitives
+                item.get("kind") == "occlusion_hit" for item in before_debug_primitives
             ),
             "moved_has_ray": any(
-                item.get("kind") == "occlusion_ray"
-                for item in moved_debug_primitives
+                item.get("kind") == "occlusion_ray" for item in moved_debug_primitives
             ),
             "activity_transition": {
                 "warmup_empty": before.observations == (),
@@ -558,9 +638,7 @@ def _validate_backend_result(result: dict[str, Any]) -> None:
         raise RuntimeError(
             "analytic_acoustics did not expose the free-field solver diagnostic."
         )
-    if backend_id == "analytic_acoustics" and result.get(
-        "occlusion_debug_trace"
-    ) != {
+    if backend_id == "analytic_acoustics" and result.get("occlusion_debug_trace") != {
         "before_has_hit": True,
         "moved_has_ray": True,
         "activity_transition": {
@@ -582,9 +660,7 @@ def _validate_jsonl_frames(path: Path) -> dict[str, Any]:
     diagnostics_namespaces: set[str] = set()
     for line in lines:
         frame = frame_from_trace_dict(json.loads(line))
-        backend_counts[frame.producer_id] = (
-            backend_counts.get(frame.producer_id, 0) + 1
-        )
+        backend_counts[frame.producer_id] = backend_counts.get(frame.producer_id, 0) + 1
         diagnostics_namespaces.update(frame.diagnostics)
         for key in (
             "stage_snapshot",
@@ -901,8 +977,7 @@ def _movement_diagnostics(
         "rms_changed_from_reference": (
             False
             if reference_frame is None
-            else reference_frame.aggregate_per_mic_rms
-            != frame.aggregate_per_mic_rms
+            else reference_frame.aggregate_per_mic_rms != frame.aggregate_per_mic_rms
         ),
     }
 
@@ -931,6 +1006,8 @@ def _changed_sequence(left: Any, right: Any) -> bool:
     return any(
         abs(float(a) - float(b)) > 1e-6 for a, b in zip(left, right, strict=True)
     )
+
+
 def _record_isaacsim_preflight(evidence: dict[str, Any]) -> None:
     spec = importlib.util.find_spec("isaacsim")
     if spec is None or spec.origin is None:

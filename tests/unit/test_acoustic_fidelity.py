@@ -53,16 +53,17 @@ def test_implemented_level_names_all_canonical_directivity_families():
             assert family in modeled
 
 
-def test_l3_l4_are_metadata_only_not_runtime_backends():
+def test_l3_is_intermediate_and_l4_remains_metadata_only():
     by_level = _ladder_by_level()
 
     l3 = by_level[AcousticFidelityLevel.L3]
     l4 = by_level[AcousticFidelityLevel.L4]
-    assert l3.lifecycle_status == "provisional_v1"
+    assert l3.lifecycle_status == "intermediate_optional"
     assert l4.lifecycle_status == "experimental_tooling_v1"
-    assert l3.backend_ids == ()
+    assert l3.backend_ids == ("geometry_acoustics",)
+    assert fidelity_level_for_backend("geometry_acoustics") is l3
     assert l4.backend_ids == ()
-    assert l3.runtime_selectable_v1 is False
+    assert l3.runtime_selectable_v1 is True
     assert l4.runtime_selectable_v1 is False
 
     for future_family in (l3.backend_family, l4.backend_family):

@@ -256,3 +256,41 @@ def test_channel_response_partitioning_and_session_reset(prepared):
         np.testing.assert_allclose(restarted.samples, whole, atol=3e-8, rtol=2e-6)
     finally:
         geometry.close()
+
+
+def test_geometry_signal_uses_existing_common_frame_contract(prepared):
+    from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
+    from isaac_audio_sensors.core.simulation import simulate_frame
+
+    geometry = backend(prepared, reflection_order=0)
+    try:
+        frame, block = simulate_frame(
+            geometry, scene(), "array", window(), perception=AudioPerceptionPipeline()
+        )
+        assert frame.provenance == "room_acoustics"
+        assert block.producer_id == "geometry_acoustics"
+        assert "geometry" not in block.diagnostics
+    finally:
+        geometry.close()
+
+
+def test_reset_before_first_read_and_reconfigured_array_are_discontinuous(prepared):
+    geometry = backend(prepared, reflection_order=0)
+    snap = scene()
+    try:
+        geometry.reset()
+        assert geometry.propagate(snap, "array", window()).discontinuity
+        changed = replace(
+            snap,
+            arrays=(
+                replace(
+                    snap.arrays[0],
+                    microphones=tuple(
+                        replace(m, gain_db=-3.0) for m in snap.arrays[0].microphones
+                    ),
+                ),
+            ),
+        )
+        assert geometry.propagate(changed, "array", window(0.1, 0.2)).discontinuity
+    finally:
+        geometry.close()

@@ -13,13 +13,12 @@ import re
 from collections.abc import Iterable
 from typing import Protocol
 
-from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.directivity import (
     DirectivityPattern,
     resolve_directivity_pattern,
 )
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
-from isaac_audio_sensors.kit.constants import ENVIRONMENT_MODE_CHOICES
+from isaac_audio_sensors.kit.constants import BACKEND_CHOICES, ENVIRONMENT_MODE_CHOICES
 
 from .results import ValidationFinding
 
@@ -118,10 +117,10 @@ def check_abs_prim_path(
 def check_runtime_state(state: ValidationState) -> tuple[ValidationFinding, ...]:
     """Check runtime configuration in the controller's fail-first order."""
 
-    if state.backend not in registered_backend_ids():
+    if state.backend not in BACKEND_CHOICES:
         return _error(
             "backend_supported",
-            f"Backend {state.backend!r} is not an implemented v1 backend.",
+            f"Backend {state.backend!r} is not available through Kit.",
             "backend",
         )
     if state.update_period_s <= 0.0 or not math.isfinite(state.update_period_s):

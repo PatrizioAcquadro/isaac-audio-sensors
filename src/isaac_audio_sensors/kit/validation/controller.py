@@ -27,7 +27,7 @@ class CapabilityState:
 
 
 def _available_backend_ids(report: CapabilityReport) -> tuple[str, ...]:
-    from isaac_audio_sensors.core.backends.base import registered_backend_ids
+    from isaac_audio_sensors.kit.constants import BACKEND_CHOICES
 
     optional = {
         capability.capability_id: capability.available
@@ -36,7 +36,7 @@ def _available_backend_ids(report: CapabilityReport) -> tuple[str, ...]:
     }
     return tuple(
         backend_id
-        for backend_id in registered_backend_ids()
+        for backend_id in BACKEND_CHOICES
         if optional.get(backend_id, True)
     )
 

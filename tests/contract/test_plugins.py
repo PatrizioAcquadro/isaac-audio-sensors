@@ -126,12 +126,8 @@ def test_protocols_and_canonical_signature() -> None:
         registry.resolve("doa_estimator", "tdoa_least_squares"),
         DoaEstimator,
     )
-    pyroom = {
-        item.plugin_id: item for item in registry.declarations("doa_estimator")
-    }
-    assert pyroom["pyroomacoustics_srp"].required_dependencies == (
-        "pyroomacoustics",
-    )
+    pyroom = {item.plugin_id: item for item in registry.declarations("doa_estimator")}
+    assert pyroom["pyroomacoustics_srp"].required_dependencies == ("pyroomacoustics",)
     if registry.availability("doa_estimator", "pyroomacoustics_srp").available:
         assert isinstance(
             registry.resolve("doa_estimator", "pyroomacoustics_srp"),
@@ -159,9 +155,7 @@ def test_built_in_least_squares_runs_from_mixture_and_local_geometry() -> None:
             signal,
         )
     ).astype(np.float32)
-    estimator = get_default_registry().resolve(
-        "doa_estimator", "tdoa_least_squares"
-    )
+    estimator = get_default_registry().resolve("doa_estimator", "tdoa_least_squares")
 
     doa, diagnostics = estimator.estimate(
         samples,
@@ -321,3 +315,17 @@ def test_geometry_public_import_does_not_load_optional_providers() -> None:
         "assert 'pxr' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", command], check=True)
+
+
+def test_geometry_requires_explicit_session_instead_of_static_config() -> None:
+    from isaac_audio_sensors.core.config import validate_audio_config
+    from isaac_audio_sensors.kit.constants import BACKEND_CHOICES
+
+    assert "geometry_acoustics" not in BACKEND_CHOICES
+    with pytest.raises(ConfigValidationError, match="prepared USD session"):
+        validate_audio_config(
+            {
+                "scene": {"scene_id": "geometry"},
+                "audio": {"default_backend": "geometry_acoustics"},
+            }
+        )

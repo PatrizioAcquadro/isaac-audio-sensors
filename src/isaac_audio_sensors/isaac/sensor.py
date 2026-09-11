@@ -77,6 +77,8 @@ class IsaacAudioArraySensor:
     stage: Any
     environment: AcousticEnvironmentSpec
     backend: str = "analytic_acoustics"
+    acoustic_scene: Any | None = None
+    geometry_config: Any | None = None
     effects: EffectsConfig = field(default_factory=EffectsConfig)
     environment_resolution_cfg: IsaacEnvironmentResolutionCfg = field(
         default_factory=lambda: IsaacEnvironmentResolutionCfg(mode="manual")
@@ -151,9 +153,9 @@ class IsaacAudioArraySensor:
             raise ValueError(
                 "environment_resolution_cfg must be an IsaacEnvironmentResolutionCfg."
             )
-        if self.backend != "analytic_acoustics":
+        if self.backend not in {"analytic_acoustics", "geometry_acoustics"}:
             raise ConfigValidationError(
-                "IsaacAudioArraySensor.backend must be 'analytic_acoustics'; "
+                "backend must select analytic_acoustics or geometry_acoustics; "
                 f"received {self.backend!r}."
             )
         if (
@@ -248,11 +250,35 @@ class IsaacAudioArraySensor:
             )
 
     def _validate_analytic_options(self) -> None:
+        if self.backend == "geometry_acoustics":
+            if self.geometry_config is None or self.acoustic_scene is None:
+                raise ValueError(
+                    "Geometry requires acoustic_scene and geometry_config."
+                )
+            if self.acoustic_scene.stage is not self.stage:
+                raise ValueError(
+                    "Geometry acoustic_scene must belong to the sensor stage."
+                )
+            if (
+                self.occlusion_enabled
+                or self.occlusion_raycaster is not None
+                or self.occlusion_transmission_resolver is not None
+            ):
+                raise ValueError(
+                    "Geometry owns occlusion; external attenuation is not allowed."
+                )
+            if (
+                self.analytic_max_order
+                or self.analytic_air_absorption
+                or self.analytic_ray_tracing
+            ):
+                raise ValueError("Geometry does not accept analytic solver controls.")
+            return
         kind = self.environment.kind
         if kind == "surface_set":
             raise UnsupportedEffectError(
                 "analytic_acoustics does not support surface_set; "
-                "use GeometryAcoustics when it becomes available."
+                "use the prepared-session GeometryAcoustics API."
             )
         if kind == "free_field" and self.analytic_max_order != 0:
             raise UnsupportedEffectError(
@@ -263,13 +289,13 @@ class IsaacAudioArraySensor:
                 "half_space analytic propagation supports max_order 0 or 1."
             )
         if kind in {"free_field", "half_space"} and (
-            self.analytic_air_absorption
-            or self.analytic_ray_tracing
+            self.analytic_air_absorption or self.analytic_ray_tracing
         ):
             raise UnsupportedEffectError(
                 "air_absorption and ray_tracing are available only for PyRoom "
                 "analytic solvers."
             )
+
     @classmethod
     def from_stage(
         cls,
@@ -279,6 +305,8 @@ class IsaacAudioArraySensor:
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         source_prim_path: str | None = None,
         backend: str = "analytic_acoustics",
+        acoustic_scene: Any | None = None,
+        geometry_config: Any | None = None,
         robot_base_prim_path: str | None = None,
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
@@ -320,6 +348,8 @@ class IsaacAudioArraySensor:
             array_id=snapshot.arrays[0].array_id,
             stage=stage,
             backend=backend,
+            acoustic_scene=acoustic_scene,
+            geometry_config=geometry_config,
             effects=EffectsConfig() if effects is None else effects,
             environment=snapshot.environment,
             environment_resolution_cfg=environment_resolution_cfg,
@@ -354,6 +384,8 @@ class IsaacAudioArraySensor:
         environment_resolution_cfg: IsaacEnvironmentResolutionCfg,
         binding_cfg: IsaacAudioSceneBindingCfg | None = None,
         backend: str = "analytic_acoustics",
+        acoustic_scene: Any | None = None,
+        geometry_config: Any | None = None,
         usd_time_code: Any | None = None,
         usd_time_code_scale: float | None = None,
         usd_time_code_offset: float = 0.0,
@@ -402,6 +434,8 @@ class IsaacAudioArraySensor:
             array_id=result.selected_array.spec.array_id,
             stage=stage,
             backend=backend,
+            acoustic_scene=acoustic_scene,
+            geometry_config=geometry_config,
             effects=EffectsConfig() if effects is None else effects,
             environment=resolved_environment,
             environment_resolution_cfg=environment_resolution_cfg,
@@ -495,6 +529,8 @@ class IsaacAudioArraySensor:
         self.latest_debug_primitives = ()
         self._latest_scene = None
         self._latest_sensor = None
+        if hasattr(self._propagation_backend, "close"):
+            self._propagation_backend.close()
         self._propagation_backend = None
         self._propagation_config = None
         self._occlusion_state.reset()
@@ -521,6 +557,8 @@ class IsaacAudioArraySensor:
         if self._stage_cache is not None:
             self._stage_cache.close()
             self._stage_cache = None
+        if hasattr(self._propagation_backend, "close"):
+            self._propagation_backend.close()
         self._propagation_backend = None
         self._propagation_config = None
         self._occlusion_state.reset()
@@ -672,6 +710,13 @@ class IsaacAudioArraySensor:
             "air_absorption": self.analytic_air_absorption,
             "ray_tracing": self.analytic_ray_tracing,
         }
+        if self.backend == "geometry_acoustics":
+            self._validate_analytic_options()
+            kwargs = dict(
+                acoustic_scene=self.acoustic_scene,
+                geometry_config=self.geometry_config,
+                speed_of_sound_mps=self.speed_of_sound_mps,
+            )
         if not self.effects.all_disabled:
             kwargs["effects"] = self.effects
         if window_motion is not None:
@@ -684,12 +729,16 @@ class IsaacAudioArraySensor:
             self.analytic_max_order,
             self.analytic_air_absorption,
             self.analytic_ray_tracing,
+            id(self.acoustic_scene),
+            self.geometry_config,
         )
         if self._propagation_backend is None or self._propagation_config != config:
             reconfigured = self._propagation_backend is not None
+            if hasattr(self._propagation_backend, "close"):
+                self._propagation_backend.close()
             self._propagation_backend = get_backend(self.backend, **kwargs)
             self._propagation_config = config
-            if reconfigured and self.backend == "analytic_acoustics":
+            if reconfigured:
                 self._propagation_backend.reset()
         backend = self._propagation_backend
         if self.backend == "analytic_acoustics":
@@ -765,8 +814,7 @@ class IsaacAudioArraySensor:
             velocity_source=str(velocity_sources[sensor.array_id]),
         )
         window_sample_count = round(
-            (time_window.end_time_s - time_window.start_time_s)
-            * sensor.sample_rate_hz
+            (time_window.end_time_s - time_window.start_time_s) * sensor.sample_rate_hz
         )
         if self.effects.motion.segments_per_window > window_sample_count:
             raise UnsupportedEffectError(
@@ -896,6 +944,9 @@ class IsaacAudioArraySensor:
                     "for direct live capture."
                 )
             scene = self._enrich_live_motion(scene, time_s=sim_time_s)
+        if self.backend == "geometry_acoustics":
+            self.acoustic_scene.refresh(usd_time_code)
+            return scene
         try:
             return self._occlusion_state.apply(
                 scene,
@@ -907,7 +958,6 @@ class IsaacAudioArraySensor:
             self.stop()
             self.reset()
             raise
-
 
     def _enrich_live_motion(
         self,
@@ -961,6 +1011,8 @@ class IsaacAudioArraySensor:
         return enriched
 
     def _merge_acoustics_state(self, frame: AudioSensorFrame) -> AudioSensorFrame:
+        if self.backend == "geometry_acoustics":
+            return frame
         return self._occlusion_state.merge_frame(
             frame,
             cache=self._stage_cache,
@@ -999,9 +1051,7 @@ class IsaacAudioArraySensor:
             return explicit_time_code
         if self.usd_time_code_scale is not None:
             base_time_s = (
-                float(sim_time_s)
-                if sim_time_s is not None
-                else float(capture_time_s)
+                float(sim_time_s) if sim_time_s is not None else float(capture_time_s)
             )
             return base_time_s * float(self.usd_time_code_scale) + float(
                 self.usd_time_code_offset
@@ -1040,6 +1090,8 @@ class IsaacAudioArraySensor:
             self.update(force=False)
 
     def _reset_live_acoustic_state(self) -> None:
+        if hasattr(self._propagation_backend, "close"):
+            self._propagation_backend.close()
         self._propagation_backend = None
         self._propagation_config = None
         if self._pose_history is not None:

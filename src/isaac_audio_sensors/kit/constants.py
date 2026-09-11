@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 
-BACKEND_CHOICES = registered_backend_ids()
+# Prepared-session Geometry controls belong to 08.3.
+BACKEND_CHOICES = ("analytic_acoustics",)
 DIRECTIVITY_CHOICES = tuple(pattern.value for pattern in DirectivityPattern)
 LAYOUT_CHOICES = (
     "quad_front",

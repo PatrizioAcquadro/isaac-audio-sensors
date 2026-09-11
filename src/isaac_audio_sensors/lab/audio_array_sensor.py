@@ -27,6 +27,7 @@ class AudioArraySensor(SensorBase):
         self._data: AudioArraySensorData | None = None
         self._entity_binding: EntityBinding | None = None
         self._entity_backend = None
+        self._acoustic_scenes = None
         self._reference_backend: ReferenceBackend | None = None
         self._audio_time: torch.Tensor | None = None
         self._audio_last_update: torch.Tensor | None = None
@@ -63,7 +64,9 @@ class AudioArraySensor(SensorBase):
         if force_recompute:
             self._update_outdated_buffers()
 
-    def bind_entities(self, scene: object, cfg: EntityBindingCfg) -> AudioArraySensor:
+    def bind_entities(
+        self, scene: object, cfg: EntityBindingCfg, *, acoustic_scenes=None
+    ) -> AudioArraySensor:
         """Bind the batched entity/tensor execution path."""
 
         if self.is_initialized:
@@ -73,6 +76,7 @@ class AudioArraySensor(SensorBase):
         if self.cfg.energy_threshold_dbfs is None:
             raise ValueError("energy_threshold_dbfs is required by the entity binding.")
         self._entity_binding = EntityBinding(scene, cfg)
+        self._acoustic_scenes = acoustic_scenes
         self._reference_backend = None
         self._validate_bound_runtime()
         return self
@@ -134,6 +138,12 @@ class AudioArraySensor(SensorBase):
             ).squeeze(-1)
             self._reference_backend.reset(env_ids_torch)
 
+    def _invalidate_initialize_callback(self, event):
+        if hasattr(self._entity_backend, "close"):
+            self._entity_backend.close()
+        self._entity_backend = None
+        super()._invalidate_initialize_callback(event)
+
     def _initialize_impl(self) -> None:
         super()._initialize_impl()
         self._validate_bound_runtime(runtime_ready=True)
@@ -151,7 +161,16 @@ class AudioArraySensor(SensorBase):
         if self._entity_binding is not None:
             from isaac_audio_sensors.lab._entity_audio import EntityAudioBackend
 
-            self._entity_backend = EntityAudioBackend(self._entity_binding, self.cfg)
+            if self.cfg.backend == "geometry_acoustics":
+                from isaac_audio_sensors.lab._geometry_audio import GeometryEntityAudio
+
+                self._entity_backend = GeometryEntityAudio(
+                    self._entity_binding, self.cfg, self._acoustic_scenes
+                )
+            else:
+                self._entity_backend = EntityAudioBackend(
+                    self._entity_binding, self.cfg
+                )
 
     def _update_buffers_impl(self, env_mask: wp.array) -> None:
         if self._data is None:
@@ -207,9 +226,36 @@ class AudioArraySensor(SensorBase):
                 )
             return
         if self._entity_binding is not None:
-            if self.cfg.backend != "analytic_acoustics":
+            if self.cfg.backend == "geometry_acoustics":
+                if self.cfg.geometry_config is None or self._acoustic_scenes is None:
+                    raise ValueError(
+                        "Geometry binding requires geometry_config and acoustic_scenes."
+                    )
+                if len(self._acoustic_scenes) != self._entity_binding.num_envs:
+                    raise ValueError(
+                        "Provide one isolated acoustic scene per environment."
+                    )
+                if len({id(s) for s in self._acoustic_scenes}) != len(
+                    self._acoustic_scenes
+                ):
+                    raise ValueError(
+                        "Geometry environments must own independent acoustic sessions."
+                    )
+                owned = set()
+                for session in self._acoustic_scenes:
+                    session.refresh()
+                    geometry = {(id(session.stage), path) for path in session.objects}
+                    if owned & geometry:
+                        raise ValueError(
+                            "Geometry environment sessions overlap acoustic geometry."
+                        )
+                    owned.update(geometry)
+            elif self.cfg.backend != "analytic_acoustics":
                 raise ValueError("Entity binding supports only analytic_acoustics.")
-            if self._entity_binding.cfg.environment.kind != "free_field":
+            if (
+                self.cfg.backend == "analytic_acoustics"
+                and self._entity_binding.cfg.environment.kind != "free_field"
+            ):
                 raise ValueError(
                     "Entity-bound analytic_acoustics supports only an explicit "
                     "free_field environment."

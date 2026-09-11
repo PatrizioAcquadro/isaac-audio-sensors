@@ -40,3 +40,12 @@ def test_capacity_failure_preserves_previous_response():
     with pytest.raises(ValueError, match="history"):
         stream.update([np.ones(10)])
     np.testing.assert_allclose(stream.process([1.0, 2.0]), [[1.0, 2.0]], atol=1e-7)
+
+
+def test_retargeting_an_active_transition_retains_current_gain():
+    stream = ConvolutionStream(1, 8, 4)
+    stream.update([np.array([1.0])])
+    stream.update([np.array([2.0])])
+    np.testing.assert_allclose(stream.process([1.0, 1.0]), [[1.25, 1.5]], atol=1e-7)
+    stream.update([np.array([0.0])])
+    np.testing.assert_allclose(stream.process([1.0, 1.0]), [[1.125, 0.75]], atol=1e-7)

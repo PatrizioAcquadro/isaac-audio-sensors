@@ -106,7 +106,10 @@ def test_single_plane_two_sides_timing_and_mesh_subdivision(native_scene):
         session.refresh()
 
 
-def test_door_blocks_reflections_and_transmits_direct_then_reopens(native_scene):
+@pytest.mark.parametrize("offset", (0.0, 0.0001, 0.001, 0.01, 0.1))
+def test_door_blocks_reflections_and_transmits_direct_then_reopens(
+    native_scene, offset
+):
     import pyroomacoustics as pra
 
     value = stage()
@@ -120,7 +123,7 @@ def test_door_blocks_reflections_and_transmits_direct_then_reopens(native_scene)
     move = mesh.AddTranslateOp()
     move.Set((0, 0, 0))
     session, engine = native_scene(value)
-    snap = snapshot()
+    snap = snapshot(source_position=(2, 3 + offset, 1.2))
     producer = backend(session)
     try:
         outputs = []
@@ -140,6 +143,9 @@ def test_door_blocks_reflections_and_transmits_direct_then_reopens(native_scene)
             np.linalg.norm(outputs[0], axis=1),
             rtol=0.02,
         )
+        mesh.GetPrim().GetAttribute("ias:transmission_loss_db").Set(120.0)
+        opaque = producer.propagate(snap, "array", window(0.3, 0.4, 3))
+        assert np.max(abs(opaque.samples[:, 1000:])) < 1e-7
     finally:
         producer.close()
 

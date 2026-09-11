@@ -86,7 +86,7 @@ class GeometryAcoustics:
         self.chain = ChannelEffectsChain(self.effects)
         self.streams = {}
         self.closed = False
-        self._reset_keys = set()
+        self._reset_notice = False
         acoustic_scene.refresh()
         self._check_scene()
         if acoustic_scene.provider is None:
@@ -113,7 +113,7 @@ class GeometryAcoustics:
         stream["specular"].close()
 
     def reset(self):
-        self._reset_keys.update(self.streams)
+        self._reset_notice = True
         for stream in self.streams.values():
             self._release(stream)
         self.streams.clear()
@@ -121,6 +121,18 @@ class GeometryAcoustics:
     def close(self):
         self.reset()
         self.closed = True
+
+    def _response_margin(self, rate):
+        if not self.effects.channel_response.enabled:
+            return 1024
+        delays = [
+            abs(float(m.delay_s or 0))
+            for m in (self.effects.channel_response.microphones or {}).values()
+        ]
+        delay = max(delays, default=0.0)
+        if not math.isfinite(delay) or delay > self.config.max_delay_s:
+            raise ValueError("Microphone response delay exceeds max_delay_s.")
+        return 1024 + math.ceil(delay * rate)
 
     def _create(self, scene, array, signature, start):
         rate = array.sample_rate_hz
@@ -159,7 +171,8 @@ class GeometryAcoustics:
             convolvers={
                 s.source_id: ConvolutionStream(
                     len(receivers),
-                    math.ceil((self.config.max_delay_s + 0.3) * rate) + 1024,
+                    math.ceil((self.config.max_delay_s + 0.3) * rate)
+                    + self._response_margin(rate),
                     self.config.transition_samples,
                 )
                 for s in scene.sources
@@ -212,7 +225,7 @@ class GeometryAcoustics:
                     responses[i], (0, length - len(responses[i]))
                 )
             if self.effects.channel_response.enabled:
-                length = max(map(len, responses)) + 1024
+                length = max(map(len, responses)) + self._response_margin(rate)
                 matrix = np.array([np.pad(r, (0, length - len(r))) for r in responses])
                 matrix, _ = self.chain.apply_premix(
                     matrix,
@@ -260,7 +273,7 @@ class GeometryAcoustics:
         key = (scene.stage_id, array_id)
         signature = (rate, array.microphones, tuple(s.source_id for s in scene.sources))
         stream = self.streams.get(key)
-        discontinuity = key in self._reset_keys
+        discontinuity = stream is None and (self._reset_notice or start > 0)
         if stream and start < stream["cursor"]:
             raise ValueError("Geometry time moved backwards without reset.")
         if (
@@ -320,7 +333,6 @@ class GeometryAcoustics:
             },
         )
         stream["cursor"] = end
-        self._reset_keys.discard(key)
         if self.config.diagnostics:
             diagnostics["geometry"] = dict(
                 provider="steam_audio+pyroomacoustics_ism",
@@ -341,6 +353,6 @@ class GeometryAcoustics:
             channel_validity=(True,) * len(positions),
             channel_clipping=(None,) * len(positions),
             producer_id=self.backend_id,
-            provenance="geometry_simulation",
+            provenance="room_acoustics",
             diagnostics=diagnostics,
         )
