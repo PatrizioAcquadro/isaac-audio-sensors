@@ -10,7 +10,9 @@ reflections after native timing requalification failed. Historical R9 artifacts
 remain unchanged; their passing scope does not establish this missing capability.
 The subsequent coverage audit selects a hybrid architecture direction, but the
 executed Steam/Pyroomacoustics candidate fails admission; no replacement signal
-provider is qualified for full R10.
+provider is qualified for full R10. The intermediate specular provider is admitted
+separately; Milestone 2 also withdraws the historical NLOS path-arrival/TDOA
+interpretation and remains blocked on joint diffuse/path pressure.
 
 The R9.2 through R9.4 execution order is referenced by
 [[implementation_phases/01-geometry-provider-qualification|Implementation Plan 01]].
@@ -309,8 +311,9 @@ gain compensation. R9.4 did not qualify the proposed provider-native paired
 proxy, so R10 may use only the previously qualified single planar-assembly
 mapping and must not hide the limitation with route-dependent attenuation.
 Additive sequential-partition behavior remains unclaimed unless a later
-requalification passes it. Native pathing and path callbacks are qualified
-separately by R9.4 for its measured scenarios.
+requalification passes it. Native pathing signal/routing and path callbacks were qualified
+separately by R9.4 for its measured scenarios; the later Milestone 2 recheck
+withdraws the stronger NLOS arrival/TDOA interpretation.
 
 The selection targets one or a few high-fidelity Isaac environments, not
 mass-parallel Isaac Lab execution. R8's analytic path remains responsible for
@@ -341,13 +344,16 @@ independently measured assembly losses. No post-render gain compensation was
 applied. The `acoustic_proxy_transmission` gate therefore fails and the proxy
 is not admitted to R10.
 
-Provider-native pathing passes. Deterministic probe batches bake dynamic path
+Historical provider-native pathing signal and routing controls pass within their
+measured scope; the later Milestone 2 recheck below withdraws physical NLOS
+arrival/TDOA qualification. Deterministic probe batches bake dynamic path
 data and run `PATHING` with the default UTD deviation model. Each microphone
 owns an independent point receiver and `IPLPathEffect`; the effect renders a
 non-spatialized first-order Ambisonic field and its omnidirectional component
 becomes that microphone's signal. Across both the L-corridor and connected-room
 fixtures, all microphones pass five of five repetitions at least 129.32 dB
-above the disabled control. Maximum all-pair TDOA error is 0.391 samples and
+above the disabled control. Against the historical straight-distance reference,
+maximum all-pair TDOA error is 0.391 samples and
 minimum realigned correlation is 0.99175. Dynamic validation detects four
 occluded segments per repetition, alternate-path search retains nonzero output
 with a 3.36 dB level change, and callback capture stays bounded at seven
@@ -359,7 +365,9 @@ absolute arrival or physical reflected TDOA. The later
 [[implementation_phases/r10-geometry-acoustics-integration#Initial complete-path gate — NO-GO (2026-09-10)|08.2 native gate]]
 withdraws the stronger reflection-timing interpretation without rewriting these
 historical results. A private continuous windowed-sinc scheduler applies geometric delay
-once to direct and pathing only. Maximum direct/pathing arrival errors are
+once to direct and pathing only, using straight source–receiver distance. The
+pathing arrival control used the open connected-room case, not a detour. Against
+those original references, maximum direct/pathing arrival errors are
 0.475/0.370 samples, split-block and continuous static execution are identical,
 moving delay targets introduce no excess boundary step, and reflection samples
 remain byte-identical without a second delay.
@@ -372,7 +380,7 @@ these bounded fixtures; diagnostic overhead is reported separately and is not
 a realtime gate.
 
 The ordered `r9.4-v1` report records six passes, one measured failure, no
-blockers, and an unchanged R9.3 selection. It admits baked pathing, the private
+blockers, and an unchanged R9.3 selection. It historically admitted baked pathing, the private
 arrival scheduler, and bounded path diagnostics to future R10 work while
 excluding the acoustic assembly proxy. The completed harness added no public
 backend, API, configuration, schema, version, or dependency and is no longer
@@ -386,7 +394,8 @@ maintained.
 - The failed closed/paired proxy is excluded from R10; IAS must not correct its
   measured loss with a gain stage or synthetic route material.
 - Baked pathing may enter R10 only with the qualified independent-receiver,
-  non-spatialized omnidirectional signal mapping and deterministic probe model.
+  non-spatialized omnidirectional signal mapping and deterministic probe model,
+  plus the physical path-arrival requalification required by Milestone 2 below.
 - IAS schedules direct and pathing arrival time once because Steam omits it from
   PCM. Reflection PCM bypassed that bridge in R9.4; this is not an absolute
   reflected-arrival qualification, as the later 08.2 gate establishes.
@@ -545,6 +554,47 @@ pathing/diffraction coverage, broader dynamic qualification, installation and
 full scaling decisions also remain open. Analytic stays operational. Exact
 implementation, measured acceptance and installation commands belong to
 [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
+
+## Milestone 2 native coverage decision (2026-09-10)
+
+**Complete coverage remains blocked; intermediate production stays admitted.**
+[[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 complete acoustic coverage — blocked (2026-09-10)|R10 owns the new native measurements and acceptance correction]].
+The five-repeat corridor recheck demonstrates that the archived R9.4 bridge uses
+straight-line distance for NLOS output. The physical detour-arrival and TDOA
+interpretation is withdrawn without changing the original reports. Native
+validation/alternate search and the direct-path fractional scheduler retain only
+the behavior actually established by their controls.
+
+The diffuse investigation executes native PRA reconstruction with independent
+and shared random seeds. Neither provides the required joint field over distinct
+microphone positions. Steam's energy-bin reconstruction and its aggregated public
+path effect also discard information needed for independent temporal contributions.
+No seed, global delay, post-render gain, independent-noise tail or unconditional
+sum of provider outputs is admitted as a physical repair.
+
+Additional alternatives were inspected before stopping:
+
+| Candidate | New evidence and admission boundary |
+| --- | --- |
+| TASCAR at `2e8b8b19b52a029af536383bfd59de2ee66db882` | The native `mic_t::process_diffuse` uses `W + X*nx + Y*ny + Z*nz`, with microphone position normalized to a direction. It bypasses the point-source delay processor. The exact method, compiled with buffer-only test stubs, gives identical output for positions `(0.02,0,0)` and `(0.10,0,0)` m. This rejects that native diffuse microphone renderer as a replacement for arbitrary physical omni arrays. The full runtime was not built or tested; this is not a rejection of every possible TASCAR configuration. |
+| PFFDTD at `aa319f6c86517cb95aabfae8656277da62c3ead5` | A promising independent wave-based reference with multiple receiver outputs, CUDA and frequency-dependent impedance boundaries. Inspected setup serializes voxel boundaries and fixed source/receiver indices into HDF5; the engine time loop uses those arrays. No retained-field moving-geometry interface was found in that path. Continuous dynamic USD and the existing scattering/transmission authoring contract need separate model/integration work. Not run, not acoustically rejected, and not a qualified full replacement. |
+| DynamicSound, arXiv `2601.15433v1` | Its published model covers continuous moving sources/arrays, propagation delay and first-order planar reflections. The paper explicitly excludes occlusion and diffraction. It does not resolve the required complete indirect/diffuse domain; no runtime claim is made. |
+
+Sources: [TASCAR native microphone renderer](https://github.com/HoerTech-gGmbH/tascar/blob/2e8b8b19b52a029af536383bfd59de2ee66db882/plugins/src/receivermod_micarray.cc),
+[PFFDTD source](https://github.com/bsxfun/pffdtd/tree/aa319f6c86517cb95aabfae8656277da62c3ead5),
+[DynamicSound paper](https://arxiv.org/html/2601.15433v1).
+Prior GSound distribution/build and RAC native temporal limits remain recorded
+above; they are not presented as newly repeated measurements.
+
+**Required architectural work.** Retain the hybrid producer interface, but obtain
+joint pressure or individually timed native contributions before energy/path
+aggregation. This requires a substantive provider renderer extension or a newly
+qualified provider; it is beyond the bounded specular ABI/visibility corrections
+already admitted. R10 does not authorize replacing external scattering/path search
+with an IAS propagation solver. A maintained provider-development workstream must
+establish that missing model and its physical evidence before another integration
+attempt can claim complete coverage. This is not a claim of universal impossibility.
+Final requirements and the coverage-before-scaling sequence remain unchanged.
 
 ## Artifacts
 

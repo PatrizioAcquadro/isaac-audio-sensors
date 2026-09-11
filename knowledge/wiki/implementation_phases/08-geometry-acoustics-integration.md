@@ -1,6 +1,6 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; full 08.2 remains open (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
+Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; Milestone 2 complete coverage blocked; full scope unchanged (2026-09-10); 08.3 remains planned. Bounded 07.2 admission follows the latest [[status|user sequencing decision]]; geometry integration does not imply perceptual qualification. R10 owns the propagation/perception boundary.
 
 ## Objective
 
@@ -26,7 +26,7 @@ This reference adds no requirements beyond R10.1.
 
 After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]]. Begin with its
 [[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (resume after blocker)|early complete-path and scaling decision gate]]:
-compare against the 07.2 practical baseline, locate bottlenecks, investigate
+after complete acoustic coverage passes, compare against the 07.2 practical baseline, locate bottlenecks, investigate
 Linux/NVIDIA acceleration and prototype GPU work only when justified. Decide
 whether to retain both backends after matched functional/performance checks;
 CUDA support and analytic retirement are not assumed outcomes.
@@ -42,6 +42,9 @@ The user subsequently authorizes an intermediate direct/transmission/specular
 milestone without reducing final R10 scope. Its bounded native corrections,
 streaming adapter, common perception and actual Isaac qualification are tracked
 in [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
+The subsequent [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 complete acoustic coverage — blocked (2026-09-10)|Milestone 2 admission gate]] is blocked on coherent diffuse pressure and corrected
+NLOS path timing. Complete coverage must pass before final performance
+qualification/scaling; the 32–256 matrix has not started.
 A coherent diffuse field and complete final coverage remain required before
 08.2 closure and 08.3 operating integration.
 This reference adds no requirements beyond R10.2.

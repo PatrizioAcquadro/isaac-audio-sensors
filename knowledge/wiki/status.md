@@ -2,6 +2,26 @@
 
 Updated: 2026-09-10. Package version: `3.0.0`.
 
+## Subphase 08.2 / R10.2 — Milestone 2 complete coverage blocked
+
+The newly requested complete acoustic coverage milestone is **not achieved**.
+Native admission checks reproduce PRA's incoherent diffuse pressure, reject the
+shared-seed correction for separated microphones, and discover that the archived
+R9.4 NLOS bridge used straight-line rather than detour delay. Its stronger
+physical path-arrival/TDOA interpretation is withdrawn; historical artifacts stay
+unchanged. A TASCAR native diffuse-component check also fails the spacing contract.
+All 47 new acoustic archives agree between ordinary and supported Isaac Python.
+These are native CPU checks, not a new GPU/integration qualification.
+
+Completion requires a provider that retains joint spatial pressure and individual
+path timing before aggregation. No failing contribution is enabled and no new
+production model is claimed. The operational intermediate milestone below remains
+valid. Final R10 scope is unchanged; final performance qualification and 32–256
+scaling are explicitly deferred until complete coverage passes.
+
+See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 complete acoustic coverage — blocked (2026-09-10)|R10 for measured failures and concrete next gates]]
+and [[implementation_phases/r9-geometry-acoustics-provider-selection#Milestone 2 native coverage decision (2026-09-10)|R9 for provider alternatives and the required architecture work]].
+
 ## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
 
 The user authorizes an intermediate coherent direct/transmission/specular

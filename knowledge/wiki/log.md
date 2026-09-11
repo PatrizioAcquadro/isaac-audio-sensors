@@ -1528,3 +1528,21 @@ All five documentation-boundary checks pass, including wiki inventory and links.
 Current status, R9 architecture, R10 acceptance, Phase 08 sequence and affected
 Core/Isaac/Lab topics agree with the implemented intermediate domain. Historical
 provider failures remain labeled and preserved; full R10 is not marked complete.
+
+## 2026-09-10 — update: Milestone 2 native acoustic coverage gate
+
+Record failed native diffuse pressure and shared-seed spatial controls, the
+R9.4 NLOS straight-distance scheduling error, bounded path visibility/LOS
+controls, and the TASCAR diffuse component result. Ordinary and supported Isaac
+Python agree across 47 acoustic archives. Preserve historical artifacts and the
+working intermediate producer; full coverage remains blocked before scaling.
+Document provider development requirements and the PFFDTD/DynamicSound boundaries
+without claiming a new native model, full runtime qualification or reduced R10.
+
+## 2026-09-10 — lint: Milestone 2 blocked coverage closeout
+
+All five documentation-boundary tests pass. Wiki inventory, links and whitespace
+checks preserve the single R9/R10 authorities, explicit intermediate/final scope,
+and the withdrawn NLOS timing interpretation. Only canonical documentation is
+tracked; probe sources, native component build, PCM and alternative-provider
+checkouts remain local and ignored. No failing model is promoted to production.

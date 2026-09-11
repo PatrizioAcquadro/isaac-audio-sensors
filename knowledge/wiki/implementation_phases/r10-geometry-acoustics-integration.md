@@ -1,7 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); full coverage remains open; R10.3 remains planned.
-R9.4 risk retirement is complete and constrains the supported R10 scope.
+Status: R10.1 / 08.1 completed within the documented scene-preparation boundary. R10.2 / 08.2 intermediate coherent hybrid milestone completed (2026-09-10); Milestone 2 complete coverage is blocked at native admission (2026-09-10); full scope is unchanged; R10.3 remains planned.
+R9.4 historical risk retirement constrains the supported scope; its stronger NLOS arrival/TDOA interpretation is withdrawn by the Milestone 2 recheck below.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
 This page is the sole authority for the geometry integration.
@@ -198,7 +198,7 @@ material transmission, and functional indirect NLOS output, then return one
 phase-coherent final waveform per physical microphone through the common
 `MicrophoneSignalBlock` boundary.
 
-When using Steam pathing, enable the R9.4-qualified baked path: deterministic `DYNAMIC` probe
+When using Steam pathing, retain the R9.4 native configuration and requalify physical path timing as required by the Milestone 2 gate below: deterministic `DYNAMIC` probe
 batches, provider-default UTD deviation, one independent point receiver and
 `IPLPathEffect` per microphone, and the omnidirectional component of the
 non-spatialized Ambisonic field. Retain dynamic validation, alternate-path
@@ -511,6 +511,123 @@ the final measurements. Previous R9,
 reflection failures and coverage artifacts remain intact. Neither diffuse-field
 coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
 acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.
+
+#### Milestone 2 complete acoustic coverage — blocked (2026-09-10)
+
+**The milestone is not achieved. Final R10 scope is unchanged.** The user prioritizes
+coherent diffuse pressure, complete indirect/pathing, functional NLOS and dynamic
+scenes before final performance qualification. No 32–256 scaling or new performance
+claim is made. Production remains the admitted intermediate Steam/PRA specular
+provider; no failing diffuse/pathing contribution is enabled.
+
+The new admission work runs actual PRA 0.10.1 and the unchanged qualified Steam
+4.8.1/Embree binary. The retired R9.4 harness is restored from `c59f830` into the
+new ignored evidence directory only. It is an independent audit of that historical
+claim, not the current production binding and not a restored maintained tool.
+Both ordinary Python and the supported Isaac Python reproduce all 47 saved PCM /
+spectral archives within 1e-12 absolute/relative tolerance. These are CPU-native
+acoustic checks, not SimulationApp, CUDA perception or live GPU smoke qualification.
+No new integration exists to submit to those downstream gates.
+
+**Diffuse pressure.** Five native closed-room RT runs use 8192 rays, a 150 ms
+horizon, 4 ms energy bins, absorption 0.2 and scattering 0.3. Co-located identical
+microphones have exactly identical energy histograms, but relative PCM error is
+1.380–1.489 and correlation is -0.058–0.028. Reconstructing the unchanged response
+again changes its pressure with relative error 1.365–1.486. The previously measured
+co-location failure therefore remains reproducible, and response caching alone
+would not repair its spatial model.
+
+The attempted minimal correction resets the native Python renderer to the same
+random seed for each receiver. It repairs identical receiver output, but fails
+separated receivers. To isolate synthesis from room anisotropy, a separate control
+supplies the same ideal homogeneous isotropic energy histogram to native
+`compute_rt_rir`; this is explicitly not a geometric room simulation. Across 20
+realizations, independent seeds yield complex coherence about -0.0065+0.0140i at
+1 kHz. Shared seeds yield 1.0 at every spacing. The isotropic reference is
+`sinc(2*f*d/c)` using NumPy's normalized sinc: at 80 mm / 1 kHz it is 0.6786,
+and at 200 mm it is -0.1361. Both strategies fail a deliberately broad 0.1 complex
+coherence tolerance in the required separated controls. A directional limiting
+case also requires 3.7318 samples of delay over 80 mm at 16 kHz even when both
+arrivals occupy the same 64-sample energy bin; identical histogram inputs and
+shared RNG cannot supply that difference. This last case is an information-loss
+control, not an executed geometry/timing pass.
+
+The covariance reference is the homogeneous isotropic field only; it is not imposed
+on arbitrary rooms or directional early reflections. See the
+[diffuse-field derivation](https://pub.dega-akustik.de/DAGA_1999-2008/data/articles/000952.pdf).
+Native PRA reduces ray hits to energy histograms and reconstructs pressure
+stochastically per receiver. Native Steam's reflection reconstructor similarly
+uses 10 ms energy bins and noise-weighted synthesis. Sharing seeds, shifting the
+whole tail, adding ray count, or fitting gains does not restore common path events,
+individual arrival times and position-dependent phase. A new joint pressure
+renderer would be model development, not a parameter or ABI correction.
+
+**Pathing arrival requalification.** The retired R9.4 bridge at
+`steam_audio_r9_4.py:538` schedules its complete native path output using the
+straight source–microphone distance. Its explicit arrival check used the open
+connected-room fixture, where this happened to be a valid distance. The reported
+small NLOS TDOA errors also used the straight-distance reference. They did not
+qualify travel time around the partition. That stronger interpretation is now
+withdrawn; archived reports and PCM remain unchanged.
+
+The new check reuses the original full-height corridor partition ending at
+`y=0.5 m`, source `(2,-1,1.2) m`, and the original four receivers around
+`(-2,-1,1.2) m`. The analytic shortest detour around the partition edge provides
+an independent arrival lower bound for this fixture; it is not a production path
+solver. Five repetitions produce native-plus-archived-bridge peaks 133.11–146.54
+samples too early at 48 kHz, with maximum all-pair TDOA error 13.43 samples.
+Moving the original blocker extends the edge to `y=1.5 m`: alternate-path search
+changes level but arrivals remain 327.38–344.86 samples too early, with maximum
+all-pair TDOA error 17.48 samples. These are substantial failures against the
+one-sample timing criterion, not sub-sample interpolation differences.
+
+Two controls delimit this finding. The open connected-room native path output
+is nonzero (peak about 0.09390), so it cannot be blindly added to an already owned
+LOS/direct branch. A widened dynamic blocker closes the entire opening: validation
+alone retains nonzero output in this harness, whereas validation **and** alternate
+search yield exact silence in all five repetitions. Native routing therefore
+retains useful functionality; it is not rejected as universally nonfunctional.
+Its combined path signal and archived delay mapping are not physically qualified.
+
+Source inspection confirms that `PathSimulator::findPaths` constructs routes,
+then aggregates their weights, SH directions and EQ before `IPLPathEffect`
+applies one filter to one dry signal. The public `IPLPathEffectParams` contains no
+per-route length, delay, weight or stable identity. The visualization callback
+exposes validation segments, including rejected candidates, not the selected
+weighted temporal transfer functions. Choosing a shortest route from those
+segments or delaying their mixture once cannot preserve multiple path arrivals.
+The required next native interface must expose selected contributions before
+aggregation, or render their correctly timed combined pressure itself. LOS
+ownership, source/microphone directionality, invalidation and overlap with
+specular/diffuse paths must then be qualified together. No extra attenuation or
+arrival compensation is admitted to conceal this missing information.
+
+**Alternatives and decision.** R9 owns the additional TASCAR component rejection
+and the PFFDTD/DynamicSound admission boundaries. None of the examined native
+interfaces supplies a qualified replacement for this complete domain. This is a
+block on completion with the admitted implementations, not proof that acoustic
+simulation is impossible or that every external engine fails.
+
+The next step is dedicated provider work: a maintained upstream/native extension
+or replacement that retains a shared spatial pressure representation and selected
+path events before aggregation. The R10 boundary still assigns scattering, ray
+traversal and path search to the external engine. Implementing an IAS statistical
+reflection/path solver would cross that architectural boundary; reducing the
+acceptance domain would violate the user's unchanged final scope. The existing
+bounded PRA specular fixes do not qualify such a new acoustic model.
+
+Before any integration resumes, that provider must pass co-location, separated
+isotropic and directional controls, path-specific arrival/gain, multi-route
+non-duplication, closed/open/closed visibility and dynamic continuity. Then
+repeat continuous/block equivalence, tails, reset, independent environments and
+the common PCM scalar/CUDA integration. Final performance/scaling follows only
+after this coverage milestone passes. No native fork or new model is silently
+promoted as a solution by this investigation.
+
+Evidence and replay instructions: `local/r10/08_2_complete_coverage/README.md`.
+`diffuse_gate.json`, `pathing_gate.json`, `path_visibility.json`, the matching
+`isaac/` results, `tascar_component.json` and `summary.json` retain outcomes and
+limits. The admitted intermediate evidence, SDK and `knowledge/raw/` are preserved.
 
 #### Provider coverage and hybrid admission gate (2026-09-10)
 
