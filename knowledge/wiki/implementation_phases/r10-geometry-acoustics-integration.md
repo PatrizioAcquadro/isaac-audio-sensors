@@ -1,6 +1,6 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: R10.1 / 08.1 and the intermediate coherent hybrid milestone are completed within their documented boundaries. The user revises Milestone 2 to robot-audition fidelity (2026-09-11): bounded task qualification and integration remain pending; absolute dynamic-acoustic completeness is no longer the admission gate. R10.3 remains planned.
+Status: R10.1 / 08.1 and the intermediate coherent hybrid milestone are completed within their documented boundaries. The user confirms priority Profile 1 (AV attention/search) and complementary Profile 2 (mobile robot audition) within Milestone 2 robot-audition fidelity (2026-09-11): bounded task qualification and integration remain pending; absolute dynamic-acoustic completeness is no longer the admission gate. R10.3 remains planned.
 R9.4 historical risk retirement constrains the supported scope; its stronger NLOS arrival/TDOA interpretation is withdrawn by the Milestone 2 recheck below.
 [[implementation_phases/08-geometry-acoustics-integration|Implementation Plan 08]]
 references the R10.1–R10.3 execution order but adds no technical requirements.
@@ -30,6 +30,55 @@ misrepresent observations or task decisions within the declared operating domain
 An unknown effect remains unqualified for that domain; it does not automatically
 block all supported uses or force a provider replacement.
 
+### Confirmed profiles and ownership
+
+The user confirms **Profile 1: AV attention/search as the priority**, and
+**Profile 2: mobile robot audition as the complementary qualification profile**.
+Both belong to the final declared R10 domain; implementation and validation
+proceed in that order. A Profile 1-only delivery may be recorded as an intermediate
+result, but must not silently close the complementary Profile 2 requirement.
+The SDK remains reusable across robots. Geometry Acoustics must be qualified as a
+robot-audition signal producer, not as a general-purpose acoustic engine.
+
+| Profile | Representative simulated conditions | Task evidence |
+| --- | --- | --- |
+| 1 — AV attention/search | Fixed base with rotating head/array; stationary and moving out-of-view sources; sustained and intermittent sounds; one source and competing sources/distractors; LOS, weak direct, reverberation and physical occlusion | Useful visual-search direction, probability of placing a visible source in the camera FOV, time to visual acquisition, unnecessary searches, wrong associations and loss/reacquisition behavior |
+| 2 — Mobile robot audition | Translating/rotating receiver; moving sources; rooms and connected corridors; ordinary door/obstacle motion; sustained NLOS and changing dominant arrivals | Localization/availability during motion and scripted observed-only homing/navigation; success, timeouts, collisions and route efficiency against paired audio-disabled controls |
+
+Profile 1 is motivated by the approved SquadBot AV fixed-Alex003 scope:
+hear an out-of-view person or relevant event, orient head/neck, obtain visual
+confirmation and update the downstream graph. Its mobile approach is deferred.
+The local authority is the sibling repository's
+`knowledge/wiki/topics/alex003-scope-and-roadmap.md`; the approved original is
+[Alex003 Purdue/IHMC scope](https://github.com/PatrizioAcquadro/squadbot-av/blob/0de1e40aa50a1781bc61b4be4deb6bc04c55b8e8/implementation_phases/_program/alex003_purdue_ihmc_integration_scope.md).
+SquadBot's immediate fixed-platform boundary does not remove the SDK's mobile
+profile. Conversely, broad SquadBot exploration goals do not import every robot
+mobility, manipulation or high-speed acoustic effect into R10 acceptance.
+
+Keep out-of-FOV sources separate from physically hidden sources. A source that
+remains behind an opaque wall need not become visually confirmable after a turn;
+a valid result can retain an unconfirmed acoustic cue. An NLOS arrival may point
+toward an opening rather than the hidden source. Score these meanings separately.
+False visual confirmation or an easier result caused by an acoustic artifact is
+not successful fidelity validation.
+
+Use a bounded simulated consumer harness to assess task impact. Robot-specific
+joint adapters, semantic target selection, persistent visual tracking and scene
+graphs remain downstream. R10 does not implement an AV recognition system or
+complete SquadBot's robot phases. Simulator visual annotations may support an
+explicit reference consumer and independent scoring; they do not qualify a
+learned detector or physical recognition. Do not feed emission schedules, hidden
+bearings or source IDs to audio perception or navigation decisions.
+
+The earlier candidate values for room dimensions, source/receiver speeds,
+reverberation and task-error margins remain proposed engineering settings, not
+approved partner specifications or measured capability. Freeze the concrete
+matrix and numerical budgets before qualification runs. Camera FOV, usable joint
+range, mounting and observation timing determine the orientation task's error
+budget; a static bench's FOV is not automatically the final robot camera's FOV.
+Physical Alex003 mounting and partner acceptance are not dependencies for R10's
+simulation-only qualification or reasons to invent hardware performance targets.
+
 ### Required behavior and permitted approximations
 
 | Area | Required for the supported robot-task domain | Not an unconditional R10 requirement |
@@ -39,6 +88,29 @@ block all supported uses or force a provider replacement.
 | Doors and obstacles | Correct sustained open/closed behavior and alternate-route effects; measured transition latency/artifacts under representative trajectories | Full space-time native graph search solely to pass the millisecond two-gate boundary control |
 | Reverberation and diffuse sound | Plausible banded energy/decay, meaningful joint microphone statistics and motion behavior in task-relevant bands/DRR conditions | Matching the exact stochastic phase of an arbitrary room; isotropic covariance in non-isotropic rooms |
 | Integration | Common PCM clock, audiovisual timing, no truth in perception/policy, reset/partial-reset/isolation, unchanged public schemas and working consumers | Replacing Analytic or creating a repository-owned multibounce engine to obtain completeness |
+
+**Non-negotiable invariants within either declared profile:**
+
+- Preserve a causal common source/receiver clock, meaningful direct/dominant
+  indirect delays and inter-microphone timing/direction cues. Never substitute
+  Euclidean delay for an exported detour or apply physical delay twice.
+- Respect sustained visibility and the declared transmission model; do not admit
+  unexplained propagation through opaque partitions. Direct/transmitted,
+  reflected/scattered and deviation contributions have explicit non-overlapping
+  ownership, attenuation and energy accounting.
+- Construct a valid joint multichannel field with meaningful co-location and
+  spatial statistics. Do not manufacture independent receiver signals and repair
+  their covariance afterward, or tune gain/phase to obtain preferred task scores.
+- Preserve finite PCM, source-stop tails, meaningful motion/update continuity,
+  unchanged-scene reproducibility, reset/partial-reset and environment isolation.
+  Respect shared AV timestamps and keep truth confined to diagnostics/scoring.
+- Declare model, material and coverage limits. Sampling/numerical tolerances must
+  be physically and task justified; no artifact may be hidden by display smoothing,
+  favorable scoring exclusions or silently disabled requested contributions.
+
+These invariants prevent misleading sensing even when one consumer happens to
+perform well. They require correct behavior within the adopted model, not exact
+late-path phase or complete moving-boundary wave physics.
 
 Quasi-static geometry updates, bounded reflection order and statistical late
 reverberation are candidate approximations, not automatic passes. Interpolation
@@ -92,9 +164,13 @@ without supplying paths, source identity or hidden bearing to the consumer.
 
 Measure DOA/TDOA error, unmatched/extra observations, ambiguity, latency and
 spurious motion/visibility transients. Score NLOS arrival direction separately
-from the hidden source bearing. Check task benefit with the already selected
-scripted, untrained closed-loop homing/navigation consumer, then competing-source
-trials: success, collision/timeout rate and route efficiency against paired
+from the hidden source bearing. For priority Profile 1, measure useful camera acquisition, unnecessary search,
+false confirmations and added cue-to-acquisition latency under matched camera,
+controller and source trajectories. Separate acoustic/perception delay from
+mechanical turning and visual processing; report unavailable cues and unresolved
+NLOS cases rather than dropping them. For complementary Profile 2, check task
+benefit with the already selected scripted, untrained closed-loop homing/navigation
+consumer, then competing-source trials: success, collision/timeout rate and route efficiency against paired
 audio-disabled trials. Geometric collision avoidance is permitted; acoustic
 truth and target identity are scoring-only inputs. Check audiovisual timestamps
 and the existing Lab consumer boundary without adding a new AV model or policy
@@ -150,6 +226,31 @@ combines acoustic measurements with embodied-navigation and far-field speech
 recognition evaluations. Its reported sim-to-real result for speech recognition
 is not evidence of transfer for this SDK. This is methodological context, not a
 new provider evaluation or endorsement.
+
+### Remaining Phase 08 closeout gates
+
+| Gate | Current verified state | Work still required |
+| --- | --- | --- |
+| 08.1 scene preparation | Completed in its documented geometry/material/runtime boundary | Preserve it while integrating admitted contributions |
+| 08.2 operational intermediate | Steam direct/transmission + native PRA specular PCM and existing consumer smokes work | Retain compatibility and Analytic |
+| 08.2 Profile 1 priority | Scope confirmed; native timing and controlled diffuse sensitivity evidence exist | Freeze domain/budgets, integrate corrected NLOS and a qualified joint diffuse approximation, then demonstrate useful AV attention/search under representative conditions |
+| 08.2 Profile 2 complement | Analytic and native motion controls exist; they do not qualify the full Geometry profile | Qualify moving-array/source cues, ordinary door transitions and observed-only mobile task benefit |
+| 08.2/08.3 runtime and lifecycle | Intermediate runtime evidence exists | Repeat affected stream/reset/isolation, scalar/CUDA, actual Isaac Sim/Lab/Kit and packaging checks for the admitted implementation; finish final declared-domain performance qualification after Milestone 2 |
+| 08.3 operating integration | Scene preparation UI and common observed instruments exist | Complete production configuration, capability/error reporting, truthful provider diagnostics, sensor-to-instrument workflow and consumer-safe consolidation |
+
+The scope is now suitable for completing Phase 08, but the phase is **not
+complete**. The current production configuration does not enable the experimental
+Steam route or PRA joint diffuse contributions. Reclassifying stress failures is
+not their admission. Exact asynchronous path history is no longer a global
+blocker; the measured weak-direct diffuse bias still needs a materiality decision
+for each claimed condition. No replacement provider is selected or required by
+this update.
+
+Final performance/scaling is outside Milestone 2, not silently marked completed
+by this change. Use the existing one/few-environment target and explicit supported
+runtime claims; 32–256 exploratory scaling and acoustic GPU acceleration are not
+prerequisites for a bounded AV demo. Physical recordings, policy training and
+robot-specific hardware acceptance are not added as Phase 08 requirements.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -1237,7 +1338,7 @@ Complete the geometry-backed sensor-to-instrument chain for a bounded occlusion 
 
 Target high-quality operation for one or a few Isaac environments first. Apply the R10.2 scaling/retention decision when choosing the maintained training path. If the analytic path retains a distinct role, expose bounded geometry-derived statistics that can inform its randomization without requiring the geometry provider in every environment.
 
-Export provider- and scenario-versioned bounded distributions for broadband and banded transmission, blocked-path fraction, sequential-partition count, direct-to-indirect ratio, dominant indirect delay/level, and changes caused by doors or dynamic occluders. When the analytic path is retained, consume those distributions offline through R8.3. An online geometry provider for parallel execution requires the R10.2 complete-path scaling gate; it is neither assumed nor categorically excluded. Label the parameters as geometry-derived simulation data rather than measured physical calibration.
+Expose provider/scenario-bounded summaries only where an active consumer needs them and the relevant behavior is qualified: for example direct-to-indirect ratio, dominant indirect delay/level or ordinary door transitions. Do not make unsupported sequential-partition physics or a speculative distribution catalog an 08.3 blocker. Phase 09 owns selection and validation of useful randomization/transfer distributions for the retained analytic path. An online geometry provider for parallel execution still requires the declared-domain runtime gate; it is neither assumed nor categorically excluded. Label all such parameters as geometry-derived simulation data rather than measured physical calibration.
 
 The temporary R9 adapters, runners, fixtures, report builders, validators, and tests are already removed. Implement one production Steam binding and validate provider-version upgrades directly through focused version, timing, assembly, pathing, signal, and performance tests at that boundary. Remove redundant geometry, material, or occlusion paths as the production integration settles. NVIDIA RTX Acoustic remains documentation and historical evidence only, with no executable or configurable provider surface. Do not keep provider-specific public observations or test-only runtime shortcuts.
 
@@ -1245,7 +1346,7 @@ The temporary R9 adapters, runners, fixtures, report builders, validators, and t
 
 - `GeometryAcoustics` is the primary daily high-fidelity Isaac path.
 - Retain `AnalyticAcoustics` as the current Lab baseline; apply the R10.2 evidence-based decision before retiring it or maintaining both paths long term.
-- One selected geometry provider is the maintained high-fidelity integration.
+- One Geometry signal producer integrates the admitted native engines behind the declared profile/capability boundary.
 - Provider-specific controls remain behind the provider capability boundary.
 - One production Steam adapter owns runtime behavior and focused requalification.
 - Public perception and dataset contracts remain signal-producer-independent.
@@ -1265,8 +1366,8 @@ analytic, geometry, and physical inputs, and one consolidated maintained
 geometry-provider surface. R10.1 now provides the USD preparation service,
 shared Kit panel and private native scene binding. Local evidence is under
 `build/validation/r10/scene/` (GPU scene/Undo/Redo/coordinate checks and panel
-capture) and `build/validation/r10/kit/` (complete extension regression). R10.2
-and R10.3 deliverables remain future work. The failed 08.2 candidate and decisive
+capture) and `build/validation/r10/kit/` (complete extension regression). R10.2 has the operational intermediate described above; final profile qualification
+and R10.3 operating integration remain open. The failed 08.2 candidate and decisive
 reflection evidence are preserved under `local/r10/08_2_gate/`.
 
 ## Files

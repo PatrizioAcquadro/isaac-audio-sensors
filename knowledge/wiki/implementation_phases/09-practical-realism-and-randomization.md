@@ -4,9 +4,17 @@ Status: Planned after the observed pipeline works across analytic, geometry, and
 
 ## Objective
 
-Improve simulated audio only where it materially affects activity detection, DOA, or robot policy behavior, avoiding expensive detail without measurable application benefit.
+Improve simulated audio only where it materially affects activity detection, DOA, AV attention/search or mobile robot behavior, preserving R10's priority Profile 1 and complementary Profile 2 and avoiding expensive detail without measurable application benefit.
 
 Plan 09 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: realism increases only where evidence justifies implementation, runtime, and maintenance cost.
+
+Use [[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10's confirmed profiles]] as the fidelity boundary. Extend only conditions with
+measured task value; Phase 09 must not reintroduce absolute dynamic-acoustic
+completeness as an entry or exit gate. Preserve R10's non-negotiable physical and
+signal invariants. Noise, randomization or favorable thresholds must not hide a
+known propagation defect. Existing physical evidence informs bounded ranges;
+physical transfer is a separate claim, not a retroactive requirement to complete
+R10's simulated profiles.
 
 ## Subphase 09.1 — Task-Relevant Realism Model
 
@@ -47,11 +55,11 @@ Use the 06.3 per-take level/noise and channel-relative reports to propose bounde
 
 - Asset amplitude is not calibrated source level.
 - Private truth may label audibility but never enter perception.
-- Geometry Acoustics remains the high-fidelity reference; analytic training does not claim exact equivalence.
+- Geometry Acoustics is a reference only within its qualified profile/domain and model limits; analytic training does not claim exact equivalence.
 
 #### Problems / Limitations
 
-Simulation evidence requires physical comparison, and transferred distributions apply only to the scenario family from which they were derived.
+Claims of physical transfer require physical comparison; simulated task utility can be qualified in simulation. Transferred distributions apply only to the scenario family from which they were derived.
 
 ## Subphase 09.3 — Validation and Cleanup
 

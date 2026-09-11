@@ -691,6 +691,18 @@ additional permanent reflection layer. No new provider evaluation is authorized
 or performed by this scope revision.
 [[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the active domain, requirements and qualification protocol]].
 
+#### Confirmed profile-based provider admission (2026-09-11)
+
+The user confirms priority AV attention/search and complementary mobile robot
+audition. Assess provider changes against both declared profiles in that order,
+with essential timing, joint pressure statistics, visibility/energy and lifecycle
+invariants preserved. Broader SquadBot mobility goals do not create a general
+acoustic-engine requirement. Exact asynchronous path history remains a stress
+limit unless representative task impact justifies resolving it. A documented
+approximation is eligible only after its materiality gate; no existing failed
+contribution is enabled merely by this scope decision.
+[[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10 owns the confirmed profiles and remaining production gates]].
+
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit

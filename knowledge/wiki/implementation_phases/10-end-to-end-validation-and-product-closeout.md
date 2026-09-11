@@ -33,6 +33,23 @@ Evaluate activity, joint audible-event count/direction, missing/extra events, an
 
 The user's bounded 07.2 admission is a sequencing decision, not a waiver of perceptual qualification. Retain the failed temporal experiments and qualify every claimed capability against its declared robot behaviors and domain. General temporal reliability remains unqualified until supported by new evidence. If a claimed behavior requires reliable dynamic multisource listening, its qualification must address the joint count/direction and response failures; scaling, GUI completeness and improved geometric realism cannot substitute for that evidence. A narrower validated product scope must explicitly exclude unsupported claims.
 
+Carry forward [[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10's priority AV attention/search and complementary mobile audition profiles]].
+For Profile 1, report useful camera acquisition, missed/spurious search cues,
+false confirmation, loss/reacquisition and added latency, separating acoustic
+processing from robot turning and visual processing. For Profile 2, report
+motion-dependent cue quality and observed-only navigation success, collisions,
+timeouts and efficiency. A source remaining physically hidden is not expected to
+be visually confirmed; an NLOS arrival is not automatically the source bearing.
+
+Use predeclared domain/error budgets and paired trial-level uncertainty. Retain
+independent physical-cue checks, hard signal/lifecycle invariants and the truth
+boundary even if one consumer improves. Exact asynchronous path history and
+unqualified extreme motion remain explicit stress limits unless material
+in-domain impact makes them necessary. Do not turn this product closeout into
+universal acoustic-engine qualification or reopen deferred algorithms solely
+to pass an unrelated edge case. Record simulated utility and physical transfer
+as separate outcomes.
+
 Validate dataset alignment, schema consistency, replay, truth separation, split isolation, required integrity checks, and loader behavior. Real recordings are required for transfer claims, and blocked GPU or provider runtime remains blocked rather than being replaced with weaker evidence.
 
 #### Key Decisions

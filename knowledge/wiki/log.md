@@ -1622,3 +1622,24 @@ All 35 wiki pages remain indexed with resolving links; the new scope anchor,
 append-only log, documentation-only changes, version synchronization and whitespace
 checks pass. No acoustic tests were rerun or new runtime qualification claimed
 for this documentation-only revision.
+
+
+## 2026-09-11 — update: Confirm R10 profiles and Phase 08 / ONR remaining gates
+
+Formalize priority AV attention/search and complementary mobile audition in R10
+and Phase 08, with non-negotiable physical/signal invariants and task-qualified
+advanced approximations. Align R9 and Phases 09–11 without importing a general
+acoustic engine, partner hardware acceptance or semantic algorithms into R10.
+Status and ONR readiness distinguish remaining production/profile/08.3 work from
+the already delivered revised videos 1–3 and the remaining revisions 4–9. Saved
+media reports and production configuration were inspected; no new simulation,
+media generation or qualification was performed. AGENTS.md remains unchanged;
+its proposed amendment is presented to the user separately.
+
+## 2026-09-11 — lint: Confirmed profiles and ONR readiness consistency
+
+All 35 wiki pages remain indexed and their links resolve; new profile/closeout/
+ONR anchors, append-only log, version synchronization and whitespace checks pass.
+Changes are documentation-only. The ignored root AGENTS.md was read and remains
+unedited. No simulation, GPU, media or physical qualification is claimed by this
+update; current production configuration and saved ONR reports were inspected.

@@ -119,7 +119,8 @@ The corrected Subphase 04.2 qualification is role-based. `pyroomacoustics_srp` p
 
 Deterministic correctness, GPU execution, plausible waveforms, and agreement between backends do not prove physical fidelity.
 
-R10 targets robot-audition fidelity in a declared operating domain. Approximate
+R10 targets robot-audition fidelity in a declared operating domain, prioritizing
+AV attention/search and then complementary mobile robot audition. Approximate
 geometry updates and statistical reverberation are acceptable only when they
 preserve essential physical cues and stay within task-specific error budgets.
 Exact late-path phase or a failed extreme dynamic control is not by itself a

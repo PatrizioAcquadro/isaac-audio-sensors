@@ -4,9 +4,10 @@ Updated: 2026-09-11. Package version: `3.0.0`.
 
 ## Subphase 08.2 / R10.2 — Robot-audition fidelity qualification pending
 
-The user revises R10's scope to **robot-audition fidelity in a declared indoor
-task domain**, superseding the earlier absolute dynamic-acoustic completeness
-gate. Milestone 2 is not complete; it is not globally blocked solely by the
+The user confirms R10's scope as **robot-audition fidelity in a declared indoor
+task domain**, with **Profile 1 AV attention/search prioritized** and **Profile 2
+mobile robot audition complementary**, superseding the earlier absolute
+dynamic-acoustic completeness gate. Milestone 2 is not complete; it is not globally blocked solely by the
 two-gate boundary case or exact late-scattering phase failure. The operational
 intermediate provider and Analytic remain qualified within their existing limits;
 experimental contributions are not automatically enabled by this scope change.
@@ -27,9 +28,10 @@ they neither qualify the diffuse candidate nor establish that replacing PRA or
 building a larger transport model is necessary for the revised domain.
 
 Next, declare representative operating conditions and numerical task-error
-budgets before trials; qualify corrected NLOS, joint diffuse statistics and
-observed-only localization/multisource/navigation behavior with paired uncertainty
-and independent physical-cue controls. Preserve AV timing, Sim/Lab/Kit lifecycle,
+budgets before trials; integrate corrected NLOS and qualify joint diffuse
+statistics. Demonstrate Profile 1 visual-search acquisition/latency and failure
+behavior first, then Profile 2 localization/multisource/navigation behavior with
+paired uncertainty and independent physical-cue controls. Preserve AV timing, Sim/Lab/Kit lifecycle,
 partial reset and environment isolation. Separate simulation utility from real
 transfer. The prior recommendation to evaluate a whole-reflection replacement is
 suspended until a material in-domain gap justifies that decision; no evaluation
@@ -42,6 +44,19 @@ at most 3.798 degrees direction difference. The latest native follow-up passed
 Analytic preservation smoke. This scope revision changes documentation only and
 claims no new acoustic, task, CUDA or sim-to-real qualification. Failed evidence
 is preserved in R10's dated sections.
+
+Phase 08 is **not complete**: the current production Geometry configuration still
+contains only direct/transmission and native PRA specular contributions. The
+experimental NLOS and joint diffuse paths are not enabled. Both profile gates,
+affected native/actual Isaac/CUDA/consumer verification, final declared-domain
+runtime qualification and 08.3 operating controls/diagnostics remain open.
+Final scaling stays outside Milestone 2. No new physical campaign, policy training
+or exact asynchronous path-history engine is required to close the simulated
+profiles. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10 owns the detailed remaining gates]].
+
+The ONR audit confirms revised final deliveries 1–3 and the existing nine-video
+historical catalog. Revisions 4–9 remain to be agreed/gated individually; they are
+not all blocked on Phase 08. [[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|The ONR readiness matrix owns the dependencies]].
 
 ## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
 
@@ -71,8 +86,8 @@ are available; operating Kit controls remain in 08.3.
 [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the implementation, measurements, installation and current limits]].
 [[implementation_phases/r9-geometry-acoustics-provider-selection#Intermediate specular architecture (2026-09-10)|R9 owns the architecture decision]].
 Historical failed reflection/coverage evidence is preserved separately.
-Full 08.2 remains open for a coherent diffuse field, complete pathing and final
-coverage/scaling qualification; general fast motion, acoustic GPU acceleration,
+Full 08.2 remains open for qualified joint diffuse and NLOS behavior in both
+declared task profiles and final runtime/scaling qualification; general fast motion, acoustic GPU acceleration,
 Analytic retirement and operating GUI 08.3 are not established.
 
 ## Subphase 08.1 / R10.1 — Completed scene preparation

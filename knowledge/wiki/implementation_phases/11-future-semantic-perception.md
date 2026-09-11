@@ -1,12 +1,21 @@
 # Implementation Plan 11 — Future Semantic Perception
 
-Status: Classification, tracking, speech-specific processing, beamforming, and separation remain deferred. Simultaneous localization is now planned in 04.4 before 07.2.
+Status: Classification, tracking, speech-specific processing, beamforming, and separation remain deferred. Bounded simultaneous localization is maintained through the 04.4 reference and 07.2/07.3; its general temporal limits remain explicit.
 
 ## Objective
 
 Extend the observed pipeline with classification, tracking, speech-focused detection, and optional multi-source processing only when concrete application requirements justify their contracts and runtime cost.
 
 Plan 11 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision. Deferred capabilities create no placeholder fields, dependencies, modules, configuration, registry entries, or test-only production hooks before a concrete application authorizes them.
+
+R10's priority AV attention/search profile qualifies the microphone signal and
+its usefulness to an explicit simulated consumer. It does not authorize sound
+classification, estimator-owned identity tracking, a learned visual detector or
+semantic target selection here. SquadBot graph/linking and visual tracking remain
+downstream; repeated DOA or camera following is not a persistent identity claim.
+The complementary mobile profile also does not require policy training or a new
+semantic planner. Revisit these capabilities only for a separately authorized
+application need under the established contracts.
 
 ## Subphase 11.1 — Sound Classification
 
