@@ -1,0 +1,346 @@
+"""Prepared USD geometry to continuous physical microphone signals."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+
+from isaac_audio_sensors.core.backends._analytic.signals import _scheduled_window_signal
+from isaac_audio_sensors.core.directivity import (
+    microphone_world_orientation,
+    pair_directivity_gain,
+)
+from isaac_audio_sensors.core.effects import EffectsConfig
+from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
+from isaac_audio_sensors.core.microphone_array import microphone_world_positions
+from isaac_audio_sensors.core.types import MicrophoneSignalBlock
+
+from ._convolution import ConvolutionStream
+from ._specular import SpecularScene
+from ._steam_audio import Receiver
+
+
+@dataclass(frozen=True, slots=True)
+class GeometryAcousticsConfig:
+    """Explicit optional native providers for the intermediate specular domain."""
+
+    library_path: str
+    specular_library_path: str
+    frame_samples: int = 128
+    reflection_order: int = 3
+    max_image_candidates: int = 1_000_000
+    max_delay_s: float = 1.0
+    transition_samples: int = 32
+    air_absorption: bool = False
+    diagnostics: bool = False
+
+    def __post_init__(self):
+        if not self.library_path or not self.specular_library_path:
+            raise ValueError(
+                "Geometry requires explicit Steam and specular library paths."
+            )
+        for name in ("frame_samples", "max_image_candidates"):
+            if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
+                raise ValueError(f"{name} must be a positive integer.")
+        for name in ("reflection_order", "transition_samples"):
+            if type(getattr(self, name)) is not int or getattr(self, name) < 0:
+                raise ValueError(f"{name} must be a nonnegative integer.")
+        if self.frame_samples & (self.frame_samples - 1):
+            raise ValueError("frame_samples must be a power of two.")
+        if not math.isfinite(self.max_delay_s) or self.max_delay_s <= 0:
+            raise ValueError("max_delay_s must be finite and positive.")
+        if type(self.air_absorption) is not bool or type(self.diagnostics) is not bool:
+            raise TypeError("air_absorption and diagnostics must be booleans.")
+        if self.air_absorption:
+            raise ValueError(
+                "Air absorption is not yet qualified for the hybrid specular domain."
+            )
+
+
+class GeometryAcoustics:
+    """One acoustically isolated scene with independent receiver-clock streams."""
+
+    backend_id = "geometry_acoustics"
+
+    def __init__(
+        self,
+        *,
+        acoustic_scene,
+        geometry_config,
+        effects=None,
+        speed_of_sound_mps=343.0,
+        runtime_profile="waveform_fidelity",
+    ):
+        if not isinstance(geometry_config, GeometryAcousticsConfig):
+            raise TypeError("geometry_config must be GeometryAcousticsConfig.")
+        if not math.isfinite(speed_of_sound_mps) or speed_of_sound_mps <= 0:
+            raise ValueError("speed_of_sound_mps must be finite and positive.")
+        if runtime_profile != "waveform_fidelity":
+            raise ValueError("Geometry requires waveform_fidelity.")
+        self.session, self.config = acoustic_scene, geometry_config
+        self.speed = speed_of_sound_mps
+        self.effects = effects or EffectsConfig()
+        self.chain = ChannelEffectsChain(self.effects)
+        self.streams = {}
+        self.closed = False
+        self._reset_keys = set()
+        acoustic_scene.refresh()
+        self._check_scene()
+        if acoustic_scene.provider is None:
+            acoustic_scene.verify_provider(geometry_config.library_path)
+        if (
+            Path(acoustic_scene.provider.library_path)
+            != Path(geometry_config.library_path).resolve()
+        ):
+            raise ValueError(
+                "Prepared scene and geometry_config select different libraries."
+            )
+        self.provider = acoustic_scene.provider
+
+    def _check_scene(self):
+        if self.session.issues:
+            raise ValueError(
+                f"Acoustic scene preparation failed: {self.session.issues}"
+            )
+
+    @staticmethod
+    def _release(stream):
+        for receiver in stream["receivers"]:
+            receiver.close()
+        stream["specular"].close()
+
+    def reset(self):
+        self._reset_keys.update(self.streams)
+        for stream in self.streams.values():
+            self._release(stream)
+        self.streams.clear()
+
+    def close(self):
+        self.reset()
+        self.closed = True
+
+    def _create(self, scene, array, signature, start):
+        rate = array.sample_rate_hz
+        receivers = []
+        specular = None
+        try:
+            specular = SpecularScene(
+                self.session,
+                self.config.specular_library_path,
+                rate,
+                self.config.reflection_order,
+                self.speed,
+                self.config.max_image_candidates,
+            )
+            for _ in array.microphones:
+                receivers.append(
+                    Receiver(
+                        self.provider,
+                        rate,
+                        self.config,
+                        [s.source_id for s in scene.sources],
+                    )
+                )
+        except Exception:
+            for receiver in receivers:
+                receiver.close()
+            if specular:
+                specular.close()
+            raise
+        return dict(
+            signature=signature,
+            receivers=receivers,
+            specular=specular,
+            cursor=start,
+            pose=None,
+            convolvers={
+                s.source_id: ConvolutionStream(
+                    len(receivers),
+                    math.ceil((self.config.max_delay_s + 0.3) * rate) + 1024,
+                    self.config.transition_samples,
+                )
+                for s in scene.sources
+            },
+        )
+
+    def _responses(self, stream, scene, array, positions):
+        from scipy.signal import fftconvolve
+
+        rate = array.sample_rate_hz
+        specular = stream["specular"]
+        for receiver, position in zip(stream["receivers"], positions, strict=True):
+            receiver.refresh(position, scene.sources)
+        for source in scene.sources:
+            responses = specular.impulses(
+                source, array, positions, self.config.max_delay_s
+            )
+            for i, (mic, position, receiver) in enumerate(
+                zip(array.microphones, positions, stream["receivers"], strict=True)
+            ):
+                distance = np.linalg.norm(np.asarray(position) - source.position_world)
+                if distance <= 1e-6:
+                    raise ValueError(
+                        "Source and microphone positions must be distinct."
+                    )
+                delay = distance / self.speed
+                if delay > self.config.max_delay_s:
+                    raise ValueError("Direct arrival exceeds max_delay_s.")
+                sample = delay * rate
+                integer = math.floor(sample)
+                kernel = np.zeros((1, 81), np.float32)
+                specular.pra.libroom.fractional_delay(
+                    kernel, np.array([sample - integer], np.float32), 20, 1
+                )
+                direct = fftconvolve(receiver.impulse(source.source_id), kernel[0])
+                direct = np.pad(direct, (integer, 0))[40:]
+                gain = pair_directivity_gain(
+                    source_pattern=source.directivity,
+                    microphone_pattern=mic.directivity,
+                    source_position_world=source.position_world,
+                    source_orientation_world_xyzw=source.orientation_world_quat,
+                    microphone_position_world=position,
+                    microphone_orientation_world_xyzw=microphone_world_orientation(
+                        array.orientation_world_quat, mic.relative_orientation_quat
+                    ),
+                )
+                direct *= gain / (4 * math.pi)
+                length = max(len(direct), len(responses[i]))
+                responses[i] = np.pad(direct, (0, length - len(direct))) + np.pad(
+                    responses[i], (0, length - len(responses[i]))
+                )
+            if self.effects.channel_response.enabled:
+                length = max(map(len, responses)) + 1024
+                matrix = np.array([np.pad(r, (0, length - len(r))) for r in responses])
+                matrix, _ = self.chain.apply_premix(
+                    matrix,
+                    mic_ids=[m.mic_id for m in array.microphones],
+                    sample_rate_hz=rate,
+                    frame_id="geometry-response",
+                    backend_id=self.backend_id,
+                    runtime_profile="waveform_fidelity",
+                    microphone_self_noise_db={
+                        m.mic_id: m.self_noise_db for m in array.microphones
+                    },
+                )
+                responses = list(matrix)
+            stream["convolvers"][source.source_id].update(responses)
+
+    def propagate(self, scene, array_id, time_window):
+        if self.closed or self.session.closed:
+            raise RuntimeError("GeometryAcoustics or its acoustic scene is closed.")
+        if self.session.provider is not self.provider:
+            self.reset()
+            self.provider = self.session.provider
+        if self.provider is None or self.provider.closed:
+            raise RuntimeError("Geometry requires an active verified scene provider.")
+        if scene.occlusion:
+            raise ValueError("GeometryAcoustics rejects precomputed SourceOcclusion.")
+        array = scene.array_by_id(array_id)
+        rate = array.sample_rate_hz
+        start, end = (
+            round(t * rate) for t in (time_window.start_time_s, time_window.end_time_s)
+        )
+        if (
+            start < 0
+            or end <= start
+            or any(
+                abs(t * rate - n) > 1e-6
+                for t, n in (
+                    (time_window.start_time_s, start),
+                    (time_window.end_time_s, end),
+                )
+            )
+        ):
+            raise ValueError("Geometry windows must use the nonnegative sample clock.")
+        self.session.refresh(self.session._last_time)
+        self._check_scene()
+        key = (scene.stage_id, array_id)
+        signature = (rate, array.microphones, tuple(s.source_id for s in scene.sources))
+        stream = self.streams.get(key)
+        discontinuity = key in self._reset_keys
+        if stream and start < stream["cursor"]:
+            raise ValueError("Geometry time moved backwards without reset.")
+        if (
+            stream is None
+            or signature != stream["signature"]
+            or start != stream["cursor"]
+        ):
+            replacement = self._create(scene, array, signature, start)
+            if stream:
+                self._release(stream)
+                discontinuity = True
+            stream = self.streams[key] = replacement
+        positions_by_id = microphone_world_positions(array)
+        positions = [positions_by_id[m.mic_id] for m in array.microphones]
+        pose = (
+            tuple(tuple(p) for p in positions),
+            None
+            if array.orientation_world_quat is None
+            else tuple(array.orientation_world_quat),
+            tuple(
+                (
+                    tuple(s.position_world),
+                    None
+                    if s.orientation_world_quat is None
+                    else tuple(s.orientation_world_quat),
+                    s.directivity,
+                )
+                for s in scene.sources
+            ),
+            self.provider.builds,
+            self.provider.updates,
+        )
+        if pose != stream["pose"]:
+            self._responses(stream, scene, array, positions)
+            stream["pose"] = pose
+        count = end - start
+        output = np.zeros((len(positions), count), np.float32)
+        for source in scene.sources:
+            emission = _scheduled_window_signal(
+                source, time_window=time_window, sample_rate_hz=rate
+            ).signal
+            emission = np.pad(emission[:count], (0, max(0, count - len(emission))))
+            output += stream["convolvers"][source.source_id].process(emission)
+        output *= np.asarray([10 ** (m.gain_db / 20) for m in array.microphones])[
+            :, None
+        ]
+        output, diagnostics = self.chain.apply_mixture(
+            output,
+            mic_ids=[m.mic_id for m in array.microphones],
+            sample_rate_hz=rate,
+            frame_id=f"{scene.stage_id}:{array_id}",
+            backend_id=self.backend_id,
+            runtime_profile="waveform_fidelity",
+            nominal_window_start_sample=start,
+            microphone_self_noise_db={
+                m.mic_id: m.self_noise_db for m in array.microphones
+            },
+        )
+        stream["cursor"] = end
+        self._reset_keys.discard(key)
+        if self.config.diagnostics:
+            diagnostics["geometry"] = dict(
+                provider="steam_audio+pyroomacoustics_ism",
+                domain="intermediate_specular",
+                reflection_order=self.config.reflection_order,
+            )
+        return MicrophoneSignalBlock(
+            samples=output,
+            microphone_ids=tuple(m.mic_id for m in array.microphones),
+            microphone_positions_m=tuple(
+                m.relative_position_m for m in array.microphones
+            ),
+            array_id=array_id,
+            sample_rate_hz=rate,
+            time_window=time_window,
+            clock_domain="simulation",
+            discontinuity=discontinuity,
+            channel_validity=(True,) * len(positions),
+            channel_clipping=(None,) * len(positions),
+            producer_id=self.backend_id,
+            provenance="geometry_simulation",
+            diagnostics=diagnostics,
+        )

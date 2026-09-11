@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -296,6 +297,16 @@ def _load_public_waveform(
         ) from exc
     if not path.exists():
         raise ValueError(f"Audio asset {str(path)!r} does not exist.")
+    stat = resolved.stat()
+    return _decoded_waveform(
+        resolved, sample_rate_hz, stat.st_mtime_ns, stat.st_size
+    ), f"file:{path}"
+
+
+@lru_cache(maxsize=16)
+def _decoded_waveform(path, sample_rate_hz, modified_ns, size):
+    """Share immutable decoded content across independent source clocks."""
+    del modified_ns, size
     try:
         import soundfile as sf  # type: ignore
     except ImportError as exc:
@@ -312,7 +323,8 @@ def _load_public_waveform(
             from_hz=int(file_rate),
             to_hz=int(sample_rate_hz),
         )
-    return waveform, f"file:{path}"
+    waveform.setflags(write=False)
+    return waveform
 
 
 def _resample_waveform(

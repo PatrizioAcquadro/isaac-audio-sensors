@@ -351,6 +351,90 @@ or GPU throughput gate. Original R9 and initial 08.2 artifacts remain unchanged.
 The decision remains **NO-GO for the attempted Steam reflection mapping** and
 **GO only for bounded replacement-provider qualification**. Full 08.2 stays open.
 
+#### Intermediate coherent propagation milestone (2026-09-10)
+
+**In implementation; final 08.2 remains open.** The user explicitly authorizes
+an intermediate direct/transmission/specular milestone, with no reduction of
+final requirements. This supersedes the earlier sequencing restriction that
+required a diffuse provider before any further integration. The architectural
+split and bounded native corrections are owned by
+[[implementation_phases/r9-geometry-acoustics-provider-selection#Intermediate specular architecture (2026-09-10)|R9]].
+
+`geometry_acoustics` now implements the common `propagate(scene, array_id,
+time_window) -> MicrophoneSignalBlock` interface. It takes an explicit prepared
+`AcousticSceneSession` and `GeometryAcousticsConfig`; native libraries are not
+downloaded or loaded by ordinary package imports. Geometry alone owns occlusion
+and rejects precomputed `SourceOcclusion`. Its PCM contains Steam direct and
+qualified planar transmission plus native PRA specular reflections. No Steam
+reflection or PRA diffuse reconstruction is used, and no source metadata enters
+perception. Analytic remains registered and available.
+
+Native rendering uses persistent point receivers and scene state. Steam's
+frequency-dependent direct EQ exhibits an unstable Nyquist component at 16 kHz;
+the adapter renders its filters internally at at least 48 kHz and uses standard
+polyphase resampling with discrete impulse-area preservation. Flat transmission
+uses Steam's frequency-independent mode. Source/microphone gain and signed
+per-path directivity are each applied once. PRA's fixed fractional-filter delay
+is removed once, while physical path delays are retained. Frequency-dependent
+specular materials use native minimum-phase filter synthesis; this is a defined
+filter approximation, not measured material phase.
+
+Receiver-clock convolution retains bounded source history and does not render
+future emission blocks. Response changes crossfade over 32 samples by default;
+fragmenting reads does not restart the transition. Channel-response filtering is
+folded into the complete responses, avoiding per-read FIR state loss. Each array
+has its own cursor and reset notice. Gaps/reconfiguration discard old context,
+backward time requires reset, provider replacement resets streams, and close
+releases receivers and native specular state. Caller-owned scene sessions are
+not closed by the producer. Diagnostics are disabled by default and use existing
+signal diagnostics only; no frame, dataset or policy-tensor fields are added.
+
+The initial native controls pass direct amplitude/phase including sub-metre
+ranges, continuous-versus-fragmented PCM, source and channel-response semantics,
+reset/provider replacement, planar transmission, reflected arrival timing,
+both face orientations, coplanar tessellation boundaries, closed/open/closed
+doors, and reflected L-corridor NLOS. The motion control checks a 0.1 m/s source
+at 60 Hz against retarded emission phase. Response updates remain quasi-static:
+this milestone does not establish general fast-motion/Doppler accuracy or exact
+in-flight interaction timing for moving obstacles. Finite fractional filters
+retain their ordinary bandlimited pre-ringing; arrival qualification uses the
+same peak/TDOA convention as the native R9 controls.
+
+The first real RTX 4090 Lab gate passes two free-field environments. A subsequent
+16-environment, five-microphone indoor run gives 100% count agreement across
+320 same-PCM comparisons, direction difference p95 0.0131 degrees, maximum
+0.0154 degrees, and zero missing/extra events against the scalar reference.
+The unprofiled mean/p95 are 169.31/171.05 ms per 100 ms simulated; this workload
+is functional but slower than real time. The full matrix and remaining runtime
+checks are still being completed; these preliminary passes do not close the
+intermediate milestone.
+
+**Optional native build.** Install the existing `room` extra with PRA 0.10.1,
+provide Eigen and nanoflann headers, then build the separate library:
+
+```bash
+.venv/bin/python tools/native/build_specular.py \
+  --source .venv/lib/python3.12/site-packages/pyroomacoustics/libroom_src \
+  --eigen /usr/include/eigen3 --nanoflann /path/to/nanoflann/include \
+  --output build/native/libias_specular.so
+```
+
+The recipe copies source into a temporary build directory and applies only its
+explicit native fixes. It fails if source anchors do not match; it never edits
+installed packages or the qualified Steam build. Configure `library_path` for
+the qualified Steam library and `specular_library_path` for this library.
+`reflection_order` defaults to three, `max_delay_s` to one second and
+`max_image_candidates` to one million. Excessive native image expansion fails
+with an explicit acoustic-proxy/order requirement rather than hanging or
+silently truncating paths. Air absorption is explicitly unavailable in this
+intermediate hybrid configuration. Arbitrary USD detail is not a throughput
+promise; use the existing explicit acoustic representation when needed.
+
+New local artifacts live under `local/r10/08_2_intermediate/`; previous R9,
+reflection failures and coverage artifacts remain intact. Neither diffuse-field
+coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
+acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.
+
 #### Provider coverage and hybrid admission gate (2026-09-10)
 
 The follow-up implements an **executable local qualification adapter**, not a

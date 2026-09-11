@@ -513,6 +513,39 @@ full scaling work resumes. Analytic and the qualified 08.1 scene service remain
 operational. No SDK fork, repository-owned reflection solver, production GPU
 implementation or definitive Geometry adapter is delivered by this decision.
 
+## Intermediate specular architecture (2026-09-10)
+
+The user authorizes an intermediate milestone without reducing final R10 scope.
+Its implementation selects **Steam direct/planar transmission plus PRA native
+specular image sources**. Neither rejected diffuse reconstruction is enabled.
+Native path ownership is disjoint: Steam owns the direct branch; strictly
+positive PRA image orders own reflections, including bounded reflected NLOS.
+The maintained scalar and CUDA perception consume only the resulting PCM.
+
+A separate optional C ABI bridge compiles PRA 0.10.1's existing engine with four
+bounded corrections: allow standalone reflecting polygons, reject zero-length
+consecutive bounces, block paths crossing perpendicular partition junctions,
+and assign shared coplanar polygon-edge reflections to one face. No replacement
+ray solver is implemented. Original USD faces are reconstructed from the 08.1
+triangulation; nonplanar faces retain their actual triangles. Both surface sides
+are represented. Native tests cover the previous closed-door leak and the
+otherwise doubled reflection exactly on a tessellation edge. The installed PRA
+used by perception and the qualified Steam SDK remain unchanged.
+
+This is a bounded native correction, with an explicit source/version/build
+requirement, rather than evidence that unmodified PRA covers all R9. The adapter
+uses native fractional-delay kernels and material filters, per-path source and
+microphone directivity, a common sample clock, and bounded source history.
+Scene changes crossfade responses on that clock; motion is a quasi-static
+approximation, with a 0.1 m/s direct-phase control. This does not qualify general
+Doppler, rapidly moving reflectors, or retarded interaction times at a moving door.
+
+The independent diffuse-field gate remains mandatory for final closure. Full
+pathing/diffraction coverage, broader dynamic qualification, installation and
+full scaling decisions also remain open. Analytic stays operational. Exact
+implementation, measured acceptance and installation commands belong to
+[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
+
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit
@@ -530,7 +563,8 @@ two-candidate coverage without ranking or selection and is preserved as
 historical evidence; no maintained generator remains. The selected Steam
 source/build remains under `build/qualification/r9/steam-audio`. A provider
 upgrade requires a new bounded qualification through the production
-integration; no public geometry backend or R10 integration exists yet.
+integration. The later intermediate hybrid is described above; these historical
+artifacts do not qualify its final R10 coverage.
 
 The separate ignored R9.4 bundle lives at
 `build/validation/r9/r9.4-v1/steam_audio/`. It contains the ordered report,

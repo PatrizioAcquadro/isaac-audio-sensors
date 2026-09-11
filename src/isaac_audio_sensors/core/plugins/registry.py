@@ -81,8 +81,7 @@ class PluginRegistry:
         registrations = self._registrations[declaration.kind]
         if declaration.plugin_id in registrations:
             raise ConfigValidationError(
-                f"Duplicate {declaration.kind} plugin id "
-                f"{declaration.plugin_id!r}."
+                f"Duplicate {declaration.kind} plugin id {declaration.plugin_id!r}."
             )
 
         registrations[declaration.plugin_id] = _Registration(declaration, factory)
@@ -168,8 +167,7 @@ class PluginRegistry:
         overlap = construction_kwargs.keys() & factory_overrides.keys()
         if overlap:
             raise ConfigValidationError(
-                f"Duplicate factory kwargs for plugin {plugin_id!r}: "
-                f"{sorted(overlap)}."
+                f"Duplicate factory kwargs for plugin {plugin_id!r}: {sorted(overlap)}."
             )
         construction_kwargs.update(factory_overrides)
         try:
@@ -202,8 +200,7 @@ def _validate_instance(declaration: PluginDeclaration, instance: object) -> None
     if declaration.kind == "propagation_backend":
         if not isinstance(instance, PropagationBackend):
             raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} does not satisfy "
-                "PropagationBackend."
+                f"Plugin {declaration.plugin_id!r} does not satisfy PropagationBackend."
             )
         if instance.backend_id != declaration.plugin_id:
             raise ConfigValidationError(
@@ -214,8 +211,7 @@ def _validate_instance(declaration: PluginDeclaration, instance: object) -> None
     if declaration.kind == "activity_detector":
         if not isinstance(instance, ActivityDetector):
             raise ConfigValidationError(
-                f"Plugin {declaration.plugin_id!r} does not satisfy "
-                "ActivityDetector."
+                f"Plugin {declaration.plugin_id!r} does not satisfy ActivityDetector."
             )
         if instance.detector_id != declaration.plugin_id:
             raise ConfigValidationError(
@@ -263,6 +259,13 @@ def _lazy_analytic_backend(**kwargs: object) -> object:
     return AnalyticAcoustics(**kwargs)
 
 
+def _lazy_geometry_backend(**kwargs: object) -> object:
+    module = importlib.import_module(
+        "isaac_audio_sensors.isaac.acoustic_scene.propagation"
+    )
+    return module.GeometryAcoustics(**kwargs)
+
+
 def _lazy_auditok_detector(**kwargs: object) -> object:
     from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
 
@@ -295,6 +298,24 @@ def _built_in_declarations() -> tuple[tuple[PluginDeclaration, PluginFactory], .
                 provenance="isaac_audio_sensors.core.backends.analytic",
             ),
             _lazy_analytic_backend,
+        ),
+        (
+            PluginDeclaration(
+                plugin_id="geometry_acoustics",
+                kind="propagation_backend",
+                fidelity_level="L3",
+                required_dependencies=(),
+                supported_devices=("cpu",),
+                supported_profiles=("waveform_fidelity",),
+                deterministic=True,
+                output_contract=backend_contract,
+                description=(
+                    "Prepared USD: Steam direct/transmission and "
+                    "coherent PRA specular reflections."
+                ),
+                provenance="isaac_audio_sensors.isaac.acoustic_scene.propagation",
+            ),
+            _lazy_geometry_backend,
         ),
         (
             PluginDeclaration(

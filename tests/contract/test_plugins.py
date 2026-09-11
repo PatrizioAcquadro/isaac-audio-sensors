@@ -235,7 +235,7 @@ def test_registry_rejects_capability_and_factory_mismatches() -> None:
         registry.resolve("propagation_backend", "wrong_backend_id")
 
 
-def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
+def test_default_registry_exposes_analytic_and_optional_geometry_backends() -> None:
     declarations = {
         (item.kind, item.plugin_id): item
         for item in get_default_registry().declarations()
@@ -243,6 +243,7 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
     assert set(declarations) == {
         ("activity_detector", "auditok"),
         ("propagation_backend", "analytic_acoustics"),
+        ("propagation_backend", "geometry_acoustics"),
         ("doa_estimator", "tdoa_least_squares"),
         ("doa_estimator", "pyroomacoustics_srp"),
     }
@@ -273,7 +274,7 @@ def test_default_registry_exposes_only_analytic_runtime_backend() -> None:
         "shape": "MicrophoneSignalBlock",
         "dtype": "MicrophoneSignalBlock",
     }
-    assert registered_backend_ids() == ("analytic_acoustics",)
+    assert registered_backend_ids() == ("analytic_acoustics", "geometry_acoustics")
     assert isinstance(get_backend("analytic_acoustics"), AnalyticAcoustics)
 
 
@@ -309,3 +310,14 @@ def test_removed_runtime_backend_ids_fail_without_aliases(legacy_id: str) -> Non
 def test_removed_backend_modules_are_not_importable(module_name: str) -> None:
     with pytest.raises(ModuleNotFoundError):
         __import__(module_name)
+
+
+def test_geometry_public_import_does_not_load_optional_providers() -> None:
+    command = (
+        "import sys; "
+        "from isaac_audio_sensors.isaac.acoustic_scene import GeometryAcousticsConfig; "
+        "assert GeometryAcousticsConfig.__name__; "
+        "assert 'pyroomacoustics' not in sys.modules; "
+        "assert 'pxr' not in sys.modules"
+    )
+    subprocess.run([sys.executable, "-c", command], check=True)
