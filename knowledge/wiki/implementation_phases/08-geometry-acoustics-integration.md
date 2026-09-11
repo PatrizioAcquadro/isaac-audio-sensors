@@ -28,12 +28,13 @@ This reference adds no requirements beyond R10.1.
 
 #### Implementation
 
-After R10.1 is complete, implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2 Passive Microphone-Array Propagation]]. Begin with its
-[[implementation_phases/r10-geometry-acoustics-integration#Early complete-path and scaling decision gate (resume after blocker)|early complete-path and scaling decision gate]]:
-after the declared robot-task acoustic domain passes, compare against the 07.2 practical baseline, locate bottlenecks, investigate
-Linux/NVIDIA acceleration and prototype GPU work only when justified. Decide
-whether to retain both backends after matched functional/performance checks;
-CUDA support and analytic retirement are not assumed outcomes.
+Implement [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.2 — Passive Microphone-Array Propagation|R10.2]] under the
+[[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|approved domain, budgets, reference consumers and exclusions]].
+Both profiles use the same producer: qualify AV attention/search first, then mobile
+audition. Retain Analytic and the working intermediate configuration. Milestone 2
+ends with integrated acoustic/lifecycle evidence and both task profiles; final
+bounded runtime measurement follows. Real-time execution, acoustic GPU porting,
+32–256 scaling and Analytic retirement are not Phase 08 completion requirements.
 
 #### Key Decisions
 
@@ -51,7 +52,7 @@ Bounded geometry updates and statistical reverberation are eligible for task-dom
 qualification; neither physical imperfection alone nor passing tensor/PCM checks
 establishes admission. Corrected NLOS integration, representative diffuse-motion
 impact and practical-use/lifecycle checks remain open. Declared-domain coverage
-must pass before final scaling; the 32–256 matrix has not started.
+precedes final bounded runtime measurements; the larger scaling campaign is deferred.
 This reference adds no requirements beyond R10.2.
 
 ## Subphase 08.3 — Implement R10.3
@@ -72,9 +73,37 @@ R10.3 also owns provider-specific occlusion/path diagnostics and the integrated 
 
 ## Phase 08 closeout status
 
-Phase 08 remains open. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10's closeout table]] owns outstanding NLOS/diffuse integration,
-profile admission and 08.3 operation; final scaling stays outside Milestone 2.
-[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|ONR readiness]] is gated separately per video.
+Phase 08 remains open. The user has approved the scope and budgets; this is not
+implementation or admission evidence. R10's [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|closeout table]] owns requirements and status.
+
+### Remaining execution order
+
+| Step | Work | Completion evidence |
+| --- | --- | --- |
+| 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition and metric has a justified test/reference; no new approval needed for routine choices inside the approved scope |
+| 2 — Integrate Steam NLOS | Production selected-route timing, visibility, ordinary motion/door updates, non-duplication and explicit coverage limits | Native delay/geometry controls and continuous update tests pass; no impossible shortcut arrivals |
+| 3 — Qualify PRA diffuse extension | Shared spatial/temporal statistics, energy partition, normalization, visibility and representative weak-direct motion | Independent physical/statistical controls and approximation-impact comparisons pass; otherwise apply the approved blocker/decision rule |
+| 4 — Qualify the combined producer | Integrate admitted direct/specular/NLOS/diffuse contributions on one clock, retaining source-stop tails, block equivalence, resets and environment isolation | Focused continuous-stream and integration checks pass with unchanged signal/observation contracts |
+| 5 — Demonstrate Profile 1 | Observed audio guides camera search with explicitly simulated reference visual confirmation | Measured audio benefit, approximation budgets and honest missing/false/unconfirmed results under mandatory AV conditions |
+| 6 — Demonstrate Profile 2 | Moving-array/source trials and untrained homing; two-source goal is an audible source without supplied identity | Motion/door cues and matched audio-disabled navigation comparisons pass; collisions, switching and timeouts remain visible |
+| 7 — Complete 08.3 operation | Existing Python/Kit configuration, actionable diagnostics, capability failures and consumer-safe consolidation | Usable geometry-backed sensor-to-instrument chain; provider truth stays separate from observations |
+| 8 — Close Phase 08 | Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks; measure one/few-environment runtime and memory | Supported domain, failures and runtime limits documented; checks pass; local validated commits, no push |
+
+Steps 2 and 3 include focused native checks before wider integration. Carry
+lifecycle checks through development rather than postponing them to Step 8.
+**Steps 1–6 close Milestone 2 only if both profiles and the integrated producer
+pass. Steps 7–8 then close the whole phase.** Reuse still-valid evidence and rerun
+affected checks when integration changes their boundary.
+
+A Profile 1-only result is an intermediate delivery. A material mandatory-domain
+failure, invalid reference or unresolved task-usefulness gap stays open; do not
+remove the case, change the budget or substitute passing tensor checks. Report
+perception/controller failures separately from acoustic failures. A larger PRA
+fork or new provider evaluation requires the specific user decision in R10.
+
+[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|ONR readiness]] remains separate per video. Existing-capability videos can proceed
+through their own scene/media gates without waiting for all eight steps; this
+plan update neither produces media nor approves an untested scene.
 
 ## Artifacts
 

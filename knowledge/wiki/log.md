@@ -1662,3 +1662,23 @@ Clean-source Python/Kit artifacts pass inventory and dependency audits. Correcte
 the UX smoke order: finish the manual client before Extension Manager unloads its
 modules. The isolated, offline packaged Kit run passes; documented extraction
 identity and asset-path prerequisites. Wiki links and whitespace checks pass.
+
+## 2026-09-11 — update: Approve bounded Phase 08 qualification and execution order
+
+Record the user's approval of the ordinary-indoor domain, approximation-impact
+budgets, simulated AV reference and identity-free competing-source navigation.
+Retain both profiles, Analytic, physical invariants and the existing-provider stop
+rule. Defer a large PRA fork/provider evaluation pending a concrete decision,
+large-batch scaling, acoustic GPU porting and general perception research. Permit
+slower-than-real-time simulation while requiring bounded runtime measurements.
+Align Phase 08's eight-step sequence, status, Phases 09/10 and index; preserve all
+historical failures. No implementation, acoustic/runtime admission, new media or
+AGENTS.md edit is performed by this documentation update.
+
+## 2026-09-11 — lint: Verify approved Phase 08 plan consistency
+
+All 35 wiki pages are indexed; internal page and heading links resolve. The log
+is append-only, version synchronization passes at 3.0.0, and whitespace checks
+pass. Tracked changes are wiki documentation only; existing runtime, native
+builds, historical evidence, ONR deliveries, raw material and AGENTS.md are
+untouched. No acoustic, GPU, runtime or media tests were rerun for this plan update.

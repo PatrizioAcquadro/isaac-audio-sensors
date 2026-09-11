@@ -70,14 +70,126 @@ explicit reference consumer and independent scoring; they do not qualify a
 learned detector or physical recognition. Do not feed emission schedules, hidden
 bearings or source IDs to audio perception or navigation decisions.
 
-The earlier candidate values for room dimensions, source/receiver speeds,
-reverberation and task-error margins remain proposed engineering settings, not
-approved partner specifications or measured capability. Freeze the concrete
-matrix and numerical budgets before qualification runs. Camera FOV, usable joint
-range, mounting and observation timing determine the orientation task's error
-budget; a static bench's FOV is not automatically the final robot camera's FOV.
-Physical Alex003 mounting and partner acceptance are not dependencies for R10's
-simulation-only qualification or reasons to invent hardware performance targets.
+### Approved operating domain and ambition (2026-09-11)
+
+The user approves the ordinary-indoor domain, approximation budgets, reference
+consumers and exclusions below. These are project qualification requirements,
+not measured capabilities or partner/hardware acceptance specifications. Both
+profiles remain required for final Phase 08 completion; Profile 1 alone is an
+intermediate delivery. The profiles exercise one shared acoustic implementation.
+
+| Dimension | Required representative coverage | Stress or separate scope |
+| --- | --- | --- |
+| Geometry | Rooms with characteristic dimensions around 3–10 m, connected rooms and corridors | Arbitrary large or unusually complex spaces |
+| Source–array separation | Approximately 0.5–10 m; indirect paths may be longer | Near-contact and far-field extensions beyond this matrix |
+| Source translation | Stationary through 1.5 m/s | Faster sources |
+| Receiver motion | Fixed base/rotating array in Profile 1; translation through 1 m/s in Profile 2; array rotation through 90 degrees/s | Faster translation/rotation |
+| Doors and obstacles | Ordinary moving obstacles and door opening/closing over roughly 0.5–3 s | Extreme asynchronous openings during sound flight |
+| Sources | One and two; sustained/intermittent signals and distractors | Three-source trials |
+| Reverberation | Target decay times around 0.2–0.8 s, measured by relevant frequency band | Around 1.2 s as a stress control |
+| Acoustic conditions | Dominant direct, weak direct, reverberation, physical occlusion and sustained/changing NLOS | No silent exclusion of weak-direct motion after a failure |
+| Receivers | Maintained four- and five-microphone layouts as initial references | Other layouts require their own evidence; no artificial API restriction |
+
+Use a compact representative matrix, not every Cartesian combination. Include
+interior and boundary values and meaningful interactions, particularly weak
+direct sound with motion. Record actual banded decay, direct-to-reverberant
+ratio, source content/level, microphone spacing and active perception bands.
+The domain values do not impose hardcoded runtime clamps or prove arbitrary
+geometry coverage. Physical Alex003 mounting and partner acceptance are not
+simulation-only R10 dependencies.
+
+Before candidate comparisons, instantiate concrete scenes, trajectories, camera
+FOV/joint limits, observation timing, DRR levels, frequency checks, valid
+references, scoring definitions and independent trial counts. Select these
+within the approved domain using the maintained consumers; record them before
+inspecting candidate scores. They are implementation choices, not a new approval
+round. A necessary change to an approved domain or budget must return to the user;
+never tune it afterward to turn a failure into a pass.
+
+#### Approved approximation-impact budgets
+
+| Quantity | Allowed change attributable to the approximation |
+| --- | --- |
+| Mean direction error | Within 5 degrees |
+| 95th-percentile direction error | Within 10 degrees |
+| Missing or spurious observation rate | Within 5 percentage points, scored separately |
+| Visual-acquisition success probability | Within 5 percentage points |
+| Added acoustic/perceptual latency | At most one observation update, approximately 100 ms for the maintained 10 Hz reference |
+| Navigation success probability | Within 5 percentage points |
+| Navigation time and path length | Within 10 percent relative to a valid matched reference |
+
+These are differences from a valid reference, not absolute DOA-accuracy or total
+reaction-time promises. Predeclare latency summaries and timeout/censoring
+handling; separate estimator context, mechanical turning and visual processing.
+Use paired independent trials and 95% confidence intervals. For negligible
+impact, the interval must fit within the applicable budget; insufficient
+precision remains inconclusive. Assess both directions of change for artifacts,
+report missing/extra events separately, and never pool away a failing mandatory
+condition. Report collisions, false confirmations and ambiguity explicitly;
+a favorable aggregate score cannot waive a physical or truth-boundary failure.
+
+Task usefulness is a separate gate: demonstrate a measured benefit from audio
+against the matched audio-disabled consumer, report effect size and uncertainty,
+and check tradeoffs in success, time, path and failures. There is no universal
+absolute success percentage. Predeclare the primary task endpoint and controls;
+two equally unsuccessful configurations do not demonstrate usefulness. A refined
+candidate or the intermediate backend is not automatically ground truth: use
+independent geometric/analytic or controlled native references for the specific
+property, plus sampling/update refinement where applicable. Missing reference
+validity remains an evidence gap.
+
+#### Approved reference consumers and stop rule
+
+Profile 1 uses a small simulated hear → orient → visually confirm/unconfirmed
+consumer. Simulator visual annotations may supply a clearly labeled reference
+visual stage, constrained by camera FOV, visibility and declared processing
+latency. They may not direct the acoustic search or become an audio estimate.
+Report distractor associations, false confirmation and reacquisition. No learned
+visual detector, semantic tracker or complete SquadBot graph is required.
+
+Profile 2 uses the scripted, untrained acoustic-direction follower with geometric
+collision avoidance and exploration when cues are absent. Begin with single-source
+homing; with two sources the objective is to reach an audible source, without a
+preselected semantic identity. Score switching, indecision and failures as well as
+success and efficiency. Target identity, hidden bearing, provider routes and
+source schedules are scoring/diagnostic inputs only. The audio-disabled controller
+retains the same non-audio information and physical constraints.
+
+Keep the maintained localizer. If physical checks pass but perception/controller
+limits prevent task benefit, report that distinction and leave the affected
+usefulness gate open; do not silently launch general perception research.
+
+Extend the existing Steam/PRA implementations with the smallest general,
+maintainable corrections. Preserve indirect timing and qualify bounded scene
+updates; qualify PRA's shared statistical field without demanding the exact
+phase of every late interaction. If a material mandatory-domain gap cannot be
+closed by simpler native/statistical extensions and requires a new proprietary
+multibounce system, stop with reproducible evidence and working changes. Ask the
+user whether to evaluate replacement of the whole reflection subsystem or revise
+the domain. Do not begin another-provider evaluation, automatically add a third
+provider, or infer impossibility from one failed experiment.
+
+#### Approved exclusions and runtime boundary
+
+Retain AnalyticAcoustics for its maintained simple/reference and training roles;
+retirement is deferred beyond Phase 08. Exact asynchronous path-history coverage,
+a general wave solver, exact material twins, learned perception/tracking,
+semantic target selection, policy training and new physical recordings are not
+Phase 08 deliverables. Physical transfer remains a separate claim.
+
+Complete configuration and actionable diagnostics in the existing Python/Kit
+workflow; do not build an advanced acoustic-analysis GUI. Generic distributions
+for randomization belong to Phase 09 and need a concrete consumer. No speculative
+distribution catalog is required for 08.3.
+
+After Milestone 2, measure the admitted implementation in one and a few actual
+Isaac environments, including wall time, memory and lifecycle costs. Slower-than-
+real-time execution is acceptable if simulated timestamps, motion, sensor and
+controller clocks remain coherent and the measured limits are explicit. This
+qualifies neither interactive real-time operation nor mass-parallel training.
+The 32–256 campaign and acoustic GPU port are deferred, not failed or completed.
+Use GPU for supported Isaac/CUDA perception checks and CPU for the native engines
+that support only that path. No real-time threshold is a Phase 08 exit condition.
 
 ### Required behavior and permitted approximations
 
@@ -134,25 +246,17 @@ wavelength and observation time scale within the task profile.
 
 ### Qualification by material task impact
 
-Before the next implementation comparison, record a compact operating profile:
-room/corridor sizes around the intended approximately 10 m indoor use, source and
-array translation/rotation, actual door trajectories, microphone spacings and
-frequency band, reverberation duration and direct-to-reverberant ratio (DRR).
-Include stationary and moving receivers/sources, single and simultaneous sources,
-LOS, sustained NLOS and weak-direct/reverberant cases. Start from the maintained
-four/five-microphone consumers and measured 0.1/0.5 m/s source cases; these are
-initial test points, not proven speed limits or universal product restrictions.
-Separate representative cases from deliberately extreme boundary tests and keep
-both visible. Do not choose only strong-direct cases because they already pass.
+Instantiate the approved domain and budgets above before the next candidate
+comparison. The prior 0.1/0.5 m/s controls are starting evidence, not the full
+approved speed coverage. Include weak-direct/reverberant motion and separate
+representative cases from stress tests. Do not select only strong-direct cases
+because they already pass.
 
-For each task, fix numerical materiality budgets **before** examining candidate
-results, using the task's spatial/angular resolution, control tolerance,
-observation hop and acceptable success-rate change. Record the budgets with the
-trial configuration. There is no universal coherence, phase or DOA threshold
-that by itself certifies robot-audition fidelity. Existing 0.1 controlled-field
-coherence and one-sample route checks retain their specific meanings; neither
-alone closes or globally blocks R10. No numerical task budget has yet been
-qualified by this scope-revision task.
+Record the approved numerical budgets with the trial configuration and justify
+the concrete camera/control and observation settings. Existing 0.1 controlled-
+field coherence and one-sample route checks retain their specific meanings;
+neither alone closes or globally blocks R10. No candidate has yet been admitted
+against the approved task budgets by this documentation update.
 
 Use paired sources/trajectories and independent stochastic realizations; refine
 geometry-update intervals and acoustic sampling, and include independent analytic
@@ -233,7 +337,7 @@ new provider evaluation or endorsement.
 | --- | --- | --- |
 | 08.1 scene preparation | Completed in its documented geometry/material/runtime boundary | Preserve it while integrating admitted contributions |
 | 08.2 operational intermediate | Steam direct/transmission + native PRA specular PCM and existing consumer smokes work | Retain compatibility and Analytic |
-| 08.2 Profile 1 priority | Scope confirmed; native timing and controlled diffuse sensitivity evidence exist | Freeze domain/budgets, integrate corrected NLOS and a qualified joint diffuse approximation, then demonstrate useful AV attention/search under representative conditions |
+| 08.2 Profile 1 priority | Scope confirmed; native timing and controlled diffuse sensitivity evidence exist | Instantiate the approved matrix/references, integrate corrected NLOS and a qualified joint diffuse approximation, then demonstrate useful AV attention/search under representative conditions |
 | 08.2 Profile 2 complement | Analytic and native motion controls exist; they do not qualify the full Geometry profile | Qualify moving-array/source cues, ordinary door transitions and observed-only mobile task benefit |
 | 08.2/08.3 runtime and lifecycle | Intermediate runtime evidence exists | Repeat affected stream/reset/isolation, scalar/CUDA, actual Isaac Sim/Lab/Kit and packaging checks for the admitted implementation; finish final declared-domain performance qualification after Milestone 2 |
 | 08.3 operating integration | Scene preparation UI and common observed instruments exist | Complete production configuration, capability/error reporting, truthful provider diagnostics, sensor-to-instrument workflow and consumer-safe consolidation |
@@ -246,11 +350,10 @@ blocker; the measured weak-direct diffuse bias still needs a materiality decisio
 for each claimed condition. No replacement provider is selected or required by
 this update.
 
-Final performance/scaling is outside Milestone 2, not silently marked completed
-by this change. Use the existing one/few-environment target and explicit supported
-runtime claims; 32–256 exploratory scaling and acoustic GPU acceleration are not
-prerequisites for a bounded AV demo. Physical recordings, policy training and
-robot-specific hardware acceptance are not added as Phase 08 requirements.
+Final bounded runtime measurement remains after Milestone 2 and before Phase 08
+closeout. The approved scope defers large-batch scaling and acoustic GPU porting
+beyond this phase, retains Analytic, and permits slower-than-real-time simulation.
+No runtime or acoustic qualification is established by approving this plan.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -1241,65 +1344,31 @@ separate from the previously recorded production baseline gates.
 
 #### Early complete-path and scaling decision gate (resume after blocker)
 
-Apply the active robot-audition fidelity scope above: “complete” means the
-declared task-domain coverage, not absolute dynamic-acoustic completeness.
-Final scaling remains after Milestone 2 qualification.
+The approved domain/runtime boundary above supersedes the earlier requirement
+to pursue the 32–256 matrix or decide Analytic retirement inside Phase 08.
+Milestone 2 covers native physical behavior, combined streaming/lifecycle and both
+task profiles. Final bounded runtime measurement follows it; one and a few
+environments suffice, with slower-than-real-time execution explicitly allowed.
 
-Start 08.2 with a minimal production slice: prepared USD scene, source PCM,
-qualified CPU/Embree propagation, physical microphone PCM, and the unchanged
-observed-only perception/Lab projection. Verify this slice before expanding
-provider features or implementing GPU acceleration. 08.1 scene creation alone
-is not a propagation or training benchmark.
+Use the maintained 07.2 workload as a matched comparison where meaningful:
+16 kHz PCM, 60 Hz acquisition, 10 Hz observations, 750 ms causal context,
+two independent file sources and planar four-/raised five-microphone layouts.
+Keep missed/extra observations and scalar agreement on identical received PCM.
+Do not demand that reverberant PCM equal free-field PCM. Test native high-rate
+timing separately where required by the acoustic control.
 
-Use [[implementation_phases/07-isaac-lab-observation-integration#Practical Baseline Closeout|07.2 practical measurements]]
-as the historical comparison, and rerun its maintained workload on the same
-host/runtime when comparing implementations. That baseline is an entity-bound
-free-field PCM producer plus CUDA perception, not a qualification of arbitrary
-rooms or all AnalyticAcoustics solver modes. It uses 16 kHz PCM, 60 Hz acquisition,
-10 Hz observations, a 750 ms past context, two independent active file sources,
-and planar four-microphone / raised five-microphone layouts. Preserve these
-settings and the scalar received-PCM reference, including misses and extra events.
-The historical 4096-copy run is exploratory, not a required performance target.
+Measure uninstrumented mean/p95 wall time, simulated/wall ratio, memory, warm-up
+and partial-reset costs. Separate native acoustic refresh/rendering from
+perception and Isaac rendering/physics; report actual configuration and any
+shared GPU workload. Profile further only for a concrete measured bottleneck.
+Record useful operating limits without claiming real-time or mass-parallel
+training. Do not change simulated motion or timestamps to disguise slow execution.
 
-Measure 2/16 environments first, then 32/64/128/256 as memory and time permit.
-Separate matched free-field behavior from representative indoor geometry:
-compare waveform/timing correctness on equivalent physical cases, and compare
-perception against the scalar reference on each provider's actual received PCM.
-Do not require reverberant PCM to equal free-field PCM or rank providers after
-silently dropping reflections, sources, channels or observation work.
-
-Report uninstrumented steady-state mean/p95 wall time, simulated/wall ratio,
-aggregate environment updates per wall second, host memory, peak GPU memory,
-CPU use, warm-up and partial-reset cost. Profile USD discovery/update, native
-scene commit, acoustic simulation/refresh, PCM rendering/delays, CPU/GPU copies
-and synchronization, context, detector, WPE, localization and projection
-separately; nested timings must not be summed twice. Distinguish audio-only
-runs from runs sharing GPU resources with Isaac rendering/physics and, when
-available, actual learning. Do not describe an extrapolated duration as a
-completed training run. 07.2 found WPE/localization dominant in its free-field
-workload; that does not establish the bottleneck of geometric propagation.
-
-Review Linux + NVIDIA feasibility early. Steam 4.8.1 does not expose a qualified
-CUDA switch in the maintained build. Its documented Radeon Rays path is not a
-ready Linux solution. Custom ray-tracing callbacks are an investigation option,
-not proof that simulation, convolution or multi-environment scheduling moves to
-CUDA. Consult the current [Steam guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html)
-and [Scene API](https://valvesoftware.github.io/steam-audio/doc/capi/scene.html).
-Only prototype GPU acceleration for a measured bottleneck, on the actual RTX
-4090, with matched fidelity, transfer/synchronization cost and competing GPU
-workloads included. Prefer an existing maintained implementation over a new
-repository-owned ray tracer. Proceed to a production option only after a
-meaningful end-to-end gain and correctness/packaging qualification. A negative
-feasibility or gain result is an acceptable documented outcome; no CUDA delivery
-or full-GPU pipeline is promised by this plan.
-
-Retain AnalyticAcoustics during implementation and measurement. At this gate,
-record whether geometric and analytic paths serve distinct verified roles.
-Retire the analytic path only if the geometric implementation covers its active
-consumers, platform/installation needs, controllable simple scenarios, signal
-contracts and practical training throughput, followed by migration and regression
-checks. Otherwise keep both with explicit roles. GPU acceleration alone is not
-a retirement criterion, and retaining both forever is not predetermined.
+Retain AnalyticAcoustics and the intermediate Geometry configuration. A later
+large-batch campaign or acoustic GPU implementation requires a concrete use case
+and measured benefit; it is not an unfinished Phase 08 gate. Existing supported
+GPU perception and Isaac simulation still run on the actual GPU. No new
+repository-owned ray tracer or provider evaluation is authorized here.
 
 #### Key Decisions
 
@@ -1337,7 +1406,7 @@ Expose useful acoustic participation, material assumptions, unavailable capabili
 
 Complete the geometry-backed sensor-to-instrument chain for a bounded occlusion demonstration. [[topics/onr-video-production|ONR Video 4]] can target this point for the fuller geometry version, after its specific scene is shown to work. Completion of 08.3 is not automatic approval of a video or proof of every possible occlusion scenario.
 
-Target high-quality operation for one or a few Isaac environments first. Apply the R10.2 scaling/retention decision when choosing the maintained training path. If the analytic path retains a distinct role, expose bounded geometry-derived statistics that can inform its randomization without requiring the geometry provider in every environment.
+Target high-quality operation for one or a few Isaac environments under the approved runtime boundary. Retain AnalyticAcoustics. Expose geometry-derived summaries only for an active consumer; selection and validation of randomization distributions remain in Phase 09.
 
 Expose provider/scenario-bounded summaries only where an active consumer needs them and the relevant behavior is qualified: for example direct-to-indirect ratio, dominant indirect delay/level or ordinary door transitions. Do not make unsupported sequential-partition physics or a speculative distribution catalog an 08.3 blocker. Phase 09 owns selection and validation of useful randomization/transfer distributions for the retained analytic path. An online geometry provider for parallel execution still requires the declared-domain runtime gate; it is neither assumed nor categorically excluded. Label all such parameters as geometry-derived simulation data rather than measured physical calibration.
 
@@ -1346,12 +1415,12 @@ The temporary R9 adapters, runners, fixtures, report builders, validators, and t
 #### Key Decisions
 
 - `GeometryAcoustics` is the primary daily high-fidelity Isaac path.
-- Retain `AnalyticAcoustics` as the current Lab baseline; apply the R10.2 evidence-based decision before retiring it or maintaining both paths long term.
+- Retain `AnalyticAcoustics` for its maintained reference/simple and Lab roles; retirement is outside Phase 08.
 - One Geometry signal producer integrates the admitted native engines behind the declared profile/capability boundary.
 - Provider-specific controls remain behind the provider capability boundary.
 - One production Steam adapter owns runtime behavior and focused requalification.
 - Public perception and dataset contracts remain signal-producer-independent.
-- Geometry-derived distributions transfer bounded behavior, not provider implementation details or raw path traces, into the analytic path.
+- Phase 09 owns consumer-justified distribution transfer; 08.3 does not require a generic export catalog.
 - Geometry, analytic, and physical producers preserve the same `MicrophoneSignalBlock` input boundary and downstream perception contracts.
 
 #### Problems / Limitations

@@ -8,7 +8,7 @@ Improve simulated audio only where it materially affects activity detection, DOA
 
 Plan 09 follows the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision: realism increases only where evidence justifies implementation, runtime, and maintenance cost.
 
-Use [[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10's confirmed profiles]] as the fidelity boundary. Extend only conditions with
+Use [[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|R10's approved domain and budgets]] as the fidelity boundary. Extend only conditions with
 measured task value; Phase 09 must not reintroduce absolute dynamic-acoustic
 completeness as an entry or exit gate. Preserve R10's non-negotiable physical and
 signal invariants. Noise, randomization or favorable thresholds must not hide a
@@ -47,7 +47,7 @@ Model bounded variation in source levels and interference, distance, microphone 
 
 Existing DSP already provides channel response, noise, clock variation, AGC, clipping and quantization capabilities. Their existence does not establish useful realistic parameter ranges or justify exposing every parameter in the GUI. Select coherent presets and controls only where they help users reproduce a supported condition. Keep dBFS distinct from calibrated sound pressure, mixture RMS distinct from per-event level, and estimated SNR distinct from privileged simulation ratios. Calibration data must not imply that a correction has been applied automatically.
 
-Extract useful provider-versioned transmission, blocked-path, direct-to-indirect, indirect delay/level, door, and dynamic-occluder behavior from representative Geometry Acoustics scenarios. Transfer distributions, not provider internals or raw paths, into scalable analytic and Isaac Lab execution.
+Select geometry-derived summaries only for a concrete randomization consumer and qualified behavior. Possible quantities include direct-to-indirect ratio, indirect delay/level and ordinary door transitions; do not require a generic catalog or unsupported sequential-partition transmission. Distribution design and validation belong here, not to Phase 08 closeout. Analytic remains maintained. R10's bounded offline-capable Geometry qualification does not establish mass-parallel throughput or distribution transfer.
 
 Use the 06.3 per-take level/noise and channel-relative reports to propose bounded, coherent source/receiver variation for a later validation campaign. Keep room/source effects separate from microphone sensitivity; the current data admits no gain correction. Preserve pair ambiguity and abstention when varying levels instead of forcing a unique bearing. The measured activity-offset tail motivates checking source-off interference and temporal behavior, but does not establish reverberation or absolute latency. No realism distribution is implemented or qualified by this documentation update.
 

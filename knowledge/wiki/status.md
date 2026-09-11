@@ -33,11 +33,17 @@ joint diffuse rendering are not enabled in the production configuration.
   for a larger solver or provider replacement. Failed evidence remains in R10.
   [[implementation_phases/r9-geometry-acoustics-provider-selection#Robot-audition scope revision (2026-09-11)|R9 owns the provider decision and suspended replacement evaluation]].
 
-Next: freeze the declared domain and numerical task-error budgets, integrate
-corrected NLOS and qualify joint diffuse behavior, demonstrate both profiles,
-then complete affected runtime/lifecycle checks and 08.3 operating controls.
-Final scaling remains outside Milestone 2. No new physical campaign or policy
-training is implied. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10 owns the remaining gates]].
+The user has approved [[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|the ordinary-indoor domain, numerical approximation budgets and consumer semantics]].
+Next: instantiate the trial matrix and valid references, integrate corrected NLOS,
+qualify the minimal PRA joint field, combine the streams, and demonstrate Profile 1
+then Profile 2. Finish 08.3 and affected runtime/packaging checks afterward.
+[[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|Phase 08 lists the eight remaining steps and their completion evidence]].
+
+Retain Analytic. One/few-environment runtime measurement remains required after
+Milestone 2, but slower-than-real-time simulation is allowed. Large-batch scaling,
+acoustic GPU porting, new perception algorithms, policy training and physical
+campaigns are deferred. Approval changes the scope, not the current producer's
+capabilities or qualification status.
 
 ONR deliveries 1–3 remain approved. Revisions 4–9 require individual scenario
 and media gates; they are not all blocked on Phase 08.
@@ -55,14 +61,12 @@ Robot-specific assets and mounts, downstream adapters and policies, task orchest
 
 ## Current Priorities
 
-**08.1 and its preparation-editor follow-up are complete (2026-09-10).**
-08.2 is implementing the explicitly bounded hybrid intermediate; full closure remains open.
-Resolve reflected visibility and coherent receiver rendering before resuming the complete-path and
-07.2 comparison. A targeted
-Linux/NVIDIA GPU prototype depends on measured bottlenecks and end-to-end gain;
-CUDA delivery and analytic-backend retirement are not presumed. Operational
-diagnostics remain in 08.3. Automatic room recognition, deformables, subdivision,
-point instancers and thick/sequential-construction transmission remain deferred.
+**08.1 and the 08.2 intermediate are complete within their recorded boundaries.**
+Milestone 2 now follows the approved task-domain matrix above; corrected NLOS,
+joint diffuse admission and both task profiles remain open. Complete 08.3
+operating diagnostics and bounded runtime measurement afterward. Automatic room
+recognition, deformables, subdivision, point instancers and thick/sequential-
+construction transmission remain deferred.
 
 **07.3 is complete (2026-09-10).** The observed GUI now shows simultaneous events and unresolved alternatives, with explicit activity, context, localization availability and truncation. New GUI arrays default to 16 kHz; current frames and bounded history have separate lifecycle semantics. The local-commit cleanup removes abandoned streaming experiments and redundant campaign surfaces while preserving the scalar/CUDA roles and decisive negative results. Host, actual GPU/runtime, visual Kit and distribution gates pass; see [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]] for evidence and limits.
 

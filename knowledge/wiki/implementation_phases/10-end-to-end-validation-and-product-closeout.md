@@ -41,7 +41,7 @@ motion-dependent cue quality and observed-only navigation success, collisions,
 timeouts and efficiency. A source remaining physically hidden is not expected to
 be visually confirmed; an NLOS arrival is not automatically the source bearing.
 
-Use predeclared domain/error budgets and paired trial-level uncertainty. Retain
+Apply [[implementation_phases/r10-geometry-acoustics-integration#Approved operating domain and ambition (2026-09-11)|R10's approved domain/error budgets and consumer semantics]] with paired trial-level uncertainty. A simulated visual reference is not a learned recognizer; competing-source homing supplies no target identity. Bounded slower-than-real-time Geometry execution is an accepted operating mode, not a failed real-time target; keep live and mass-parallel claims separate. Retain
 independent physical-cue checks, hard signal/lifecycle invariants and the truth
 boundary even if one consumer improves. Exact asynchronous path history and
 unqualified extreme motion remain explicit stress limits unless material
