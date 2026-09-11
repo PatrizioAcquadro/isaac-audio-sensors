@@ -43,6 +43,7 @@ def test_interception_depends_on_flight_time_not_emission_or_reception():
 
 
 def test_moving_endpoints_retarded_equation_and_partitioned_stream():
+    pytest.importorskip("scipy")
     fs = 16000
     nodes = np.array([[2, 0, 0], [1, 1, 0], [-1, 1, 0], [-2, 0, 0]], float)
     route = Route(
@@ -80,6 +81,7 @@ def test_moving_endpoints_retarded_equation_and_partitioned_stream():
 
 
 def test_epoch_retirement_preserves_valid_flight_and_reset_discards_it():
+    pytest.importorskip("scipy")
     nodes = np.array([[2, 0, 0], [1, 1, 0], [-1, 1, 0], [-2, 0, 0]], float)
     length = np.linalg.norm(np.diff(nodes, axis=0), axis=1).sum()
     route = Route((-1, 0, 1, -2), nodes, float(length), 1.0, (1.0, 1.0, 1.0))

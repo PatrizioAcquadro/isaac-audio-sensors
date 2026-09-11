@@ -51,4 +51,5 @@ jobs:
       - name: Run optional audio gate
         run: |
           python -m pytest -q tests/integration/test_recording_codecs.py tests/integration/test_audio_output_panel.py tests/contract/test_dataset_truth.py tests/integration/test_multisource_perception.py tests/integration/test_sparse_localization.py
+          python -m pytest -q tests/unit/test_geometry_convolution.py tests/unit/test_native_pathing_render.py tests/unit/test_retarded_pathing.py
           make smoke-optional PYTHON=python
