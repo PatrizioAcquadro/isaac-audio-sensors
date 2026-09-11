@@ -157,27 +157,17 @@ class RouteFilter:
         if self.handle:
             self.lib.iplPathEffectRelease(C.byref(self.handle))
 
-    def impulse(self, route, *, gain=1.0, speed=343.0, max_delay_s=1.0):
-        """gain contains source/microphone directivity, without distance or weight.
-
-        Pressure convention matches Geometry: 1/(4*pi*r). Native probe deviation
-        EQ is an approximation to bending loss, not a calibrated diffraction law.
-        """
+    def equalizer(self, eq):
+        """Settled causal native EQ at the receiver sample rate, without transport."""
         import math
 
-        import pyroomacoustics as pra
-        from scipy.signal import fftconvolve, resample_poly
+        from scipy.signal import resample_poly
 
         if not self.handle:
             raise RuntimeError("Native path filter is closed.")
-        if not np.isfinite((gain, speed, max_delay_s)).all() or speed <= 0:
-            raise ValueError("Finite gain and positive speed/horizon required.")
-        delay = route.length_m / speed
-        if not math.isfinite(delay) or not 0 < delay <= max_delay_s:
-            raise ValueError("Selected route exceeds its physical delay horizon.")
         sh = (C.c_float * 1)(1.0)
         params = _PathEffectParams()
-        params.eq_coeffs[:] = route.eq
+        params.eq_coeffs[:] = eq
         params.sh_coeffs = sh
         self.lib.iplPathEffectReset(self.handle)
         emission = np.zeros(self.frame, np.float32)
@@ -212,6 +202,27 @@ class RouteFilter:
                 * self.native_rate
                 / self.rate
             )
+        return response
+
+    def impulse(self, route, *, gain=1.0, speed=343.0, max_delay_s=1.0):
+        """gain contains source/microphone directivity, without distance or weight.
+
+        Pressure convention matches Geometry: 1/(4*pi*r). Native probe deviation
+        EQ is an approximation to bending loss, not a calibrated diffraction law.
+        """
+        import math
+
+        import pyroomacoustics as pra
+        from scipy.signal import fftconvolve
+
+        if not self.handle:
+            raise RuntimeError("Native path filter is closed.")
+        if not np.isfinite((gain, speed, max_delay_s)).all() or speed <= 0:
+            raise ValueError("Finite gain and positive speed/horizon required.")
+        delay = route.length_m / speed
+        if not math.isfinite(delay) or not 0 < delay <= max_delay_s:
+            raise ValueError("Selected route exceeds its physical delay horizon.")
+        response = self.equalizer(route.eq)
         sample = delay * self.rate
         integer = math.floor(sample)
         kernel = np.zeros((1, 81), np.float32)

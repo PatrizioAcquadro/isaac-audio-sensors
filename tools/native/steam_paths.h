@@ -23,6 +23,15 @@ typedef void (*IASPathCallback)(int count, const int* probe_ids,
 int ias_path_abi(void); // Returns 1.
 void ias_path_capture(IASPathCallback callback, void* user_data); // NULL disables.
 
+// Independent additive ABI for immutable, time-indexed scene snapshots.
+// Inputs use Steam world metres. Returns 0, or -1 for invalid input.
+// Geometry must be committed and must not mutate while being queried.
+// Segment end is excluded; timed callers assign that point to the next epoch.
+// Origin inclusion uses 10 micrometres of backward numerical tolerance.
+int ias_visibility_abi(void); // Returns 1.
+int ias_scene_segments(void* scene, int count, const float* starts_xyz,
+                       const float* ends_xyz, unsigned char* blocked);
+
 #ifdef __cplusplus
 }
 #endif

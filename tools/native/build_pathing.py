@@ -1,7 +1,8 @@
 """Build the experimental Steam 4.8.1 selected-route interface on Linux.
 
 Requires its existing CMake Makefiles build with CPU/Embree dependencies. Reuses
-unchanged native objects; only path_simulator.cpp changes, with no C++ ABI change.
+unchanged native objects, replacing path_simulator.cpp and adding native segment
+queries without changing the C++ object layout.
 Does not download dependencies or modify the source SDK, build, or installed PCM
 provider. This interface alone does not qualify complete R10 propagation.
 """
@@ -74,6 +75,22 @@ def main():
             ],
             check=True,
         )
+        visibility = work / "steam_visibility.o"
+        subprocess.run(
+            [
+                link[0],
+                *flags["CXX_DEFINES"],
+                *flags["CXX_INCLUDES"],
+                *flags["CXX_FLAGS"],
+                "-I" + str(source / "src/core"),
+                "-c",
+                str(Path(__file__).with_name("steam_visibility.cpp").resolve()),
+                "-o",
+                str(visibility),
+            ],
+            check=True,
+        )
+        link.append(str(visibility))
         library = work / "libphonon.so"
         link[link.index("-o") + 1] = str(library)
         link[link.index(object_name)] = str(obj)
