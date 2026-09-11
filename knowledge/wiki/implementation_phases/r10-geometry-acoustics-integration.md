@@ -512,6 +512,37 @@ reflection failures and coverage artifacts remain intact. Neither diffuse-field
 coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
 acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.
 
+#### Targeted NLOS and observation-sensitivity follow-up (2026-09-11)
+
+The user authorizes a bounded usefulness investigation before choosing a larger
+PRA redesign or evaluating another provider. Full R10 scope remains unchanged.
+This follow-up does not enable an unqualified production contribution.
+
+**Experimental NLOS renderer.** `tools/native/pathing.py` consumes the existing
+selected-route ABI, copies callback data before it expires, checks the ABI and
+route lengths, and renders each contribution through its own settled native EQ
+and physical delay. Interpolation weight, distance attenuation and optional
+caller-supplied directional gain are applied once. No visualization callback or
+combined-signal distance shift supplies production paths. This helper is outside
+the installed package; probe creation, coverage and geometry lifecycle remain
+caller-owned experimental responsibilities.
+
+Its emission-clock overlap-add helper preserves already scheduled responses when
+new emission uses a changed route, and passes block partitioning, source-stop
+and reset/isolation controls. **This is not complete dynamic propagation:** a
+blocker moved at 5 ms can intercept the old corridor route at 8.416 ms, before its
+16.713 ms arrival. Keeping every old contribution would incorrectly retain that
+arrival. The helper documents this unsupported interception explicitly and is
+not connected to the production `GeometryAcoustics` configuration. Retarded
+interaction/visibility and continuous route evolution remain admission work.
+
+Separate native filter controls pass one-sample route timing at 5.706 and 9.494 m,
+pressure gain within 0.1% (finite interpolation/resampling ripple), exact gain
+linearity and filter-state independence. Existing native fixtures retain
+LOS exclusion, two distinct screen routes per microphone, obstacle removal and
+restoration. These improve the reusable native experiment, not the full acoustic
+coverage claim. Evidence: `local/r10/08_2_usefulness/README.md`.
+
 #### Milestone 2 native extensions — dynamic-field blocker (2026-09-11)
 
 **Milestone 2 is not achieved; final scope is unchanged.** The authorized

@@ -26,6 +26,11 @@ evidence remain intact. Final performance/scaling is deferred. No new provider
 evaluation began; further persistent-surface native transport redesign versus a
 new provider evaluation requires the user's architecture decision.
 
+The authorized follow-up adds an experimental per-route native renderer and
+emission-clock arrival retention, outside the installed package. Dynamic
+interception remains unsupported; the working Geometry configuration is unchanged.
+[[implementation_phases/r10-geometry-acoustics-integration#Targeted NLOS and observation-sensitivity follow-up (2026-09-11)|R10 owns the targeted usefulness investigation]].
+
 See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10 for implementation, measured limits and the remaining gates]]
 and [[implementation_phases/r9-geometry-acoustics-provider-selection#Existing-provider extension decision (2026-09-11)|R9 for the provider decision boundary]].
 

@@ -1564,3 +1564,9 @@ blocked-versus-passing claims. Host checks pass 651 unit/contract, 336 integrati
 and 58 release tests. Rebuilt and replayed the Steam patch with exact-input and
 protected-output checks; decisive native evidence agrees across both interpreters.
 No package propagation, observation schemas, raw material or historical SDK changed.
+
+## 2026-09-11 — update: Experimental selected-route rendering
+
+Document the authorized NLOS/usefulness follow-up, native per-route filtering and
+emission-clock controls. Keep the moving-obstacle interception limit explicit;
+production Geometry and the full R10 admission boundary remain unchanged.
