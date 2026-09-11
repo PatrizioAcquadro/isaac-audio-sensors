@@ -1643,3 +1643,15 @@ ONR anchors, append-only log, version synchronization and whitespace checks pass
 Changes are documentation-only. The ignored root AGENTS.md was read and remains
 unedited. No simulation, GPU, media or physical qualification is claimed by this
 update; current production configuration and saved ONR reports were inspected.
+
+## 2026-09-11 — update: Consolidate local geometry maintenance
+
+Consolidated status, Phase 08 sequencing and R9 architecture summaries around the
+canonical R10 implementation/evidence. Preserved failed trials, active profiles
+and provider decisions; corrected stale current-state and pathing-timing wording.
+Recorded scoped runtime/test cleanup and isolated optional-dependency validation.
+
+## 2026-09-11 — lint: Verify geometry cleanup documentation
+
+All 35 pages remain indexed; internal pages/headings and append-only log checks
+pass. No raw material, historical evidence or ONR delivery was changed.

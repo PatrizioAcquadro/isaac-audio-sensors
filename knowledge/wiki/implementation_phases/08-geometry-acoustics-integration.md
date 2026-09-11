@@ -6,13 +6,9 @@ Status: 08.1 completed; 08.2 intermediate hybrid milestone completed; Milestone 
 
 Record the execution order of the R10 geometry-integration work. This page is a sequence reference only; [[implementation_phases/r10-geometry-acoustics-integration|R10]] is the sole authority for requirements, decisions, limitations, artifacts, acceptance semantics, and application of the [[decisions/minimal-maintained-repository-surface|Minimal Maintained Repository Surface]] decision.
 
-The confirmed qualification order is **Profile 1: AV attention/search first**, then
-**Profile 2: mobile robot audition as the complement**. Essential timing, joint
-microphone statistics, visibility/energy accounting, streaming and truth separation
-remain required. Advanced acoustic phenomena may use documented approximations
-within measured task-error budgets. Perfect asynchronous path history is a stress
-test, not a global phase blocker. The SDK remains general-purpose for robot
-audition; R10 is not a general-purpose acoustic-engine qualification.
+Qualification follows [[implementation_phases/r10-geometry-acoustics-integration#Confirmed profiles and ownership|R10's confirmed profiles]]: AV attention/search first,
+then complementary mobile audition. R10 owns physical invariants, approximation
+budgets and stress-test boundaries.
 
 ## Subphase 08.1 — Implement R10.1
 
@@ -76,18 +72,9 @@ R10.3 also owns provider-specific occlusion/path diagnostics and the integrated 
 
 ## Phase 08 closeout status
 
-The approved scope is actionable, but Phase 08 is not closed. 08.1 and the
-operational intermediate are complete; corrected NLOS and joint diffuse production
-integration, both profile gates and 08.3 operation remain open. Freeze the domain
-and numerical error budgets, demonstrate profile-specific task utility, then
-complete affected actual runtime/consumer checks and final declared-domain
-performance qualification. Scaling stays outside Milestone 2.
-[[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10 owns the detailed closeout table]].
-
-ONR videos have separate scenario and media gates. In particular, a bounded
-direct-occlusion Video 4 can precede full Phase 08; the richer Geometry version
-targets 08.3. Videos 5/7/8/9 are not all automatically blocked on Phase 08.
-[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|The ONR page owns their current readiness]].
+Phase 08 remains open. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10's closeout table]] owns outstanding NLOS/diffuse integration,
+profile admission and 08.3 operation; final scaling stays outside Milestone 2.
+[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|ONR readiness]] is gated separately per video.
 
 ## Artifacts
 

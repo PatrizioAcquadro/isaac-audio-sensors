@@ -2,137 +2,50 @@
 
 Updated: 2026-09-11. Package version: `3.0.0`.
 
-## Subphase 08.2 / R10.2 — Robot-audition fidelity qualification pending
+## Phase 08 / R10 — Current geometry integration
 
-The user confirms R10's scope as **robot-audition fidelity in a declared indoor
-task domain**, with **Profile 1 AV attention/search prioritized** and **Profile 2
-mobile robot audition complementary**, superseding the earlier absolute
-dynamic-acoustic completeness gate. Milestone 2 is not complete; it is not globally blocked solely by the
-two-gate boundary case or exact late-scattering phase failure. The operational
-intermediate provider and Analytic remain qualified within their existing limits;
-experimental contributions are not automatically enabled by this scope change.
-[[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the revised requirements, permitted approximations and materiality protocol]].
+**08.1 scene preparation and the 08.2 intermediate hybrid are implemented;
+Milestone 2 and 08.3 remain open.** The active qualification domain is indoor
+robot audition: priority AV attention/search, then complementary mobile audition.
+[[implementation_phases/r10-geometry-acoustics-integration#Active scope — Robot-audition fidelity (2026-09-11)|R10 owns the profiles, permitted approximations and task-error budgets]].
 
-Corrected Steam route delays improve corridor arrival-direction error from about
-58 degrees to 0.037 degrees. Selected-flight retarded timing and native historical
-visibility controls pass. The two-gate case still demonstrates a missing route,
-but ordinary-task frequency and impact are unmeasured: retain it as a stress
-limit while qualifying bounded scene updates and production NLOS integration.
+The maintained `GeometryAcoustics` producer combines Steam direct/planar
+transmission with native PRA specular reflections and feeds the common scalar
+or CUDA perception pipeline. It uses a prepared USD session and explicit native
+libraries. Analytic remains available. Experimental selected-route NLOS and
+joint diffuse rendering are not enabled in the production configuration.
 
-The PRA moving-field defect remains relevant: a controlled weak-direct case at
-0.5 m/s adds 34–43 percentage points of unmatched directions; strong-direct cases
-change little and competing-source effects are mixed. First-scatter anchoring
-passes a plane reference but fails later-scatter phase persistence under mirror
-motion. These results require representative room/DRR/motion task assessment;
-they neither qualify the diffuse candidate nor establish that replacing PRA or
-building a larger transport model is necessary for the revised domain.
+- **Scene preparation:** composed USD import, source-band materials, selective
+  geometry/pose updates and Kit authoring with mixed values, proxy relationships
+  and Undo/Redo are implemented. Unsupported geometry and transmission remain
+  explicit. [[implementation_phases/r10-geometry-acoustics-integration#Subphase R10.1 — USD Acoustic Scene|R10.1 owns supported inputs and preparation evidence]].
+- **Intermediate propagation:** native timing, gain, planar transmission,
+  reflected NLOS, block continuity, reset and bounded slow motion have passing
+  controls, including actual Isaac Sim/Lab/Kit. The 1,440 same-PCM comparisons
+  establish scalar/CUDA agreement within that domain, not general motion or
+  physical transfer. Sixteen Geometry environments were slower than real time;
+  no acoustic GPU acceleration or Analytic retirement is claimed.
+  [[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the acceptance matrix, installation and measured limits]].
+- **Experimental findings:** corrected NLOS delays improve the corridor control;
+  temporal route discovery remains incomplete. PRA diffuse motion can bias
+  weak-direct observations. These findings require representative task assessment;
+  the two-gate and later-scatter controls are stress limits, not automatic orders
+  for a larger solver or provider replacement. Failed evidence remains in R10.
+  [[implementation_phases/r9-geometry-acoustics-provider-selection#Robot-audition scope revision (2026-09-11)|R9 owns the provider decision and suspended replacement evaluation]].
 
-Next, declare representative operating conditions and numerical task-error
-budgets before trials; integrate corrected NLOS and qualify joint diffuse
-statistics. Demonstrate Profile 1 visual-search acquisition/latency and failure
-behavior first, then Profile 2 localization/multisource/navigation behavior with
-paired uncertainty and independent physical-cue controls. Preserve AV timing, Sim/Lab/Kit lifecycle,
-partial reset and environment isolation. Separate simulation utility from real
-transfer. The prior recommendation to evaluate a whole-reflection replacement is
-suspended until a material in-domain gap justifies that decision; no evaluation
-has begun. Final scaling and policy training remain outside this milestone.
+Next: freeze the declared domain and numerical task-error budgets, integrate
+corrected NLOS and qualify joint diffuse behavior, demonstrate both profiles,
+then complete affected runtime/lifecycle checks and 08.3 operating controls.
+Final scaling remains outside Milestone 2. No new physical campaign or policy
+training is implied. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10 owns the remaining gates]].
 
-Historical validation remains valid within its tested scope: 888 streams used
-RTX 4090 perception; 960 scalar/CUDA frames had 100% count/activity agreement and
-at most 3.798 degrees direction difference. The latest native follow-up passed
-8 focused tests, 1051 host tests and actual Isaac Sim intermediate Geometry/
-Analytic preservation smoke. This scope revision changes documentation only and
-claims no new acoustic, task, CUDA or sim-to-real qualification. Failed evidence
-is preserved in R10's dated sections.
+ONR deliveries 1–3 remain approved. Revisions 4–9 require individual scenario
+and media gates; they are not all blocked on Phase 08.
+[[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|The ONR readiness matrix owns those dependencies]].
 
-Phase 08 is **not complete**: the current production Geometry configuration still
-contains only direct/transmission and native PRA specular contributions. The
-experimental NLOS and joint diffuse paths are not enabled. Both profile gates,
-affected native/actual Isaac/CUDA/consumer verification, final declared-domain
-runtime qualification and 08.3 operating controls/diagnostics remain open.
-Final scaling stays outside Milestone 2. No new physical campaign, policy training
-or exact asynchronous path-history engine is required to close the simulated
-profiles. [[implementation_phases/r10-geometry-acoustics-integration#Remaining Phase 08 closeout gates|R10 owns the detailed remaining gates]].
-
-The ONR audit confirms revised final deliveries 1–3 and the existing nine-video
-historical catalog. Revisions 4–9 remain to be agreed/gated individually; they are
-not all blocked on Phase 08. [[topics/onr-video-production#Remaining ONR deliveries after the R10 profile decision|The ONR readiness matrix owns the dependencies]].
-
-## Subphase 08.2 / R10.2 — Intermediate hybrid milestone completed
-
-The user authorizes an intermediate coherent direct/transmission/specular
-milestone **without reducing final R10 scope**. The native closed-door and
-shared-edge failures now have bounded PRA corrections in a separate optional
-C ABI bridge; installed PRA and the qualified Steam SDK are unchanged.
-`GeometryAcoustics` produces continuous microphone PCM from the prepared USD
-scene, using Steam direct/planar transmission and positive-order PRA specular
-paths. Analytic remains available. Neither rejected diffuse renderer is enabled.
-
-Native timing, direct gain, planar transmission, door, reflected NLOS, block
-continuity, reset and bounded slow-motion controls pass. `make check` passes
-651 unit/contract, 336 integration and 58 release tests; the supported Isaac
-suite passes 179 tests on RTX 4090. Actual Isaac Sim scalar, Isaac Lab and Kit
-smokes pass. The final 2/16-environment planar/raised, free-field/indoor matrix
-contains 1,440 same-PCM comparisons: 100% count agreement, zero missing/extra
-events, worst per-case direction p95 0.0612 degrees and maximum 2.4187 degrees.
-
-Audio-only mean updates cost 41–44 ms at two environments and 121–159 ms at 16,
-per 100 ms simulated. The latter is slower than real time. Equivalent Analytic
-free-field costs about 62/87 ms at 16 planar/raised copies, so Analytic is retained.
-A measured native one-tap optimization improves Geometry throughput; no acoustic
-GPU prototype or automatic migration is claimed. Python prepared-session controls
-are available; operating Kit controls remain in 08.3.
-
-[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the implementation, measurements, installation and current limits]].
-[[implementation_phases/r9-geometry-acoustics-provider-selection#Intermediate specular architecture (2026-09-10)|R9 owns the architecture decision]].
-Historical failed reflection/coverage evidence is preserved separately.
-Full 08.2 remains open for qualified joint diffuse and NLOS behavior in both
-declared task profiles and final runtime/scaling qualification; general fast motion, acoustic GPU acceleration,
-Analytic retirement and operating GUI 08.3 are not established.
-
-## Subphase 08.1 / R10.1 — Completed scene preparation
-
-Automatic composed-USD import, source-band materials, selective geometry/pose
-updates and the shared Kit preparation panel are implemented. The optional
-private Steam Audio 4.8.1 binding creates and updates actual native assemblies;
-the later 08.2 intermediate adds the Geometry signal producer described above.
-
-The preparation-editor follow-up adds seven documented scattering-only records
-in the same catalog (30 entries total), conservative construction-name inference,
-selection-populated roots, mixed/effective coefficient fields, selective atomic
-coefficient edits, per-family reset, and Undo/Redo for acoustic-proxy relationships.
-The Kit panel follows the Advanced Tools section/field conventions. Legacy
-nominal presets remain explicit options; generic names no longer infer their
-transmission curves. Ordinary material scattering remains nominal 0.05.
-
-The current host gate passes 646 unit/contract, 336 integration and 58 release
-tests. The supported Isaac suite passes 162 tests (21 focused USD/native cases).
-The RTX 4090 scene/editor gate and complete extension workflow/screenshot gate
-pass. The scene gate checks selection, mixed values, unchanged coefficient
-families, invalid-edit atomicity, roots, scattering, proxy Undo/Redo (also after changing roots), native
-coordinate parity, articulated robot/door PhysX movement without USD pose writes, reset and stage
-replacement. Evidence and inspected screenshots are under
-`build/validation/r10/editor_followup/`; earlier 08.1 evidence remains preserved.
-
-A controlled scene with 266 objects / 3192 triangles covers repeated references,
-visual/collision duplication, two room shells, robot links and sensor/source
-housing. Profiling found quadratic direct-microphone-child discovery. A direct
-child index plus unchanged-scene pose polling reduces idle preparation p95 from
-about 493 ms to 0.48 ms in live Kit. Initial import is about 302 ms; a local
-movement/material edit takes about 135/145 ms, without rebuilding unrelated
-geometry. This is a bounded preparation measurement, not a general 10 Hz
-large-scene guarantee, audio benchmark or training result. CPU/Embree owns native
-geometry; Isaac uses the actual GPU. Initial sandbox CUDA access failures were
-resolved by running the supported tests with host GPU access.
-
-[[implementation_phases/r10-geometry-acoustics-integration|R10]] owns the exact
-supported shapes, authoring API, material assumptions and native binary boundary.
-Subdivision/deformable geometry remains explicit unsupported input; conventional
-visual/collision deduplication may require manual correction for unusual assets.
-Nonplanar transmission falls back to opaque; predictable sequential-assembly
-transmission remains unsupported. These checks do not establish received audio,
-material calibration or perceptual qualification. Next: 08.2 / R10.2 passive
-microphone-array propagation.
+The [[implementation_phases/r10-geometry-acoustics-integration#Maintenance cleanup (2026-09-11)|local geometry cleanup]] preserves these contracts and passes host, optional,
+native and actual RTX 4090 Sim/Lab/Kit regression checks. It adds no acoustic
+qualification.
 
 ## Product Boundary
 
@@ -193,7 +106,7 @@ The recent-work cleanup retains the WPE/group-sparse runtime and single-event ro
 - Subphase 05.1 provides dataset-owned `FrameTruth`, `TruthEvent`, `AnnotationRecord`, and `recording.simulate_dataset_frame()` from one analytic render. Frame-record v2 persists truth and annotations atomically beside observed frame v3, including resets, gaps, shard boundaries, recovery, replay, and FLAC. Manifest v2 removes the old episode source truth without legacy readers; emission, linear received RMS, and mixture residual evidence remain distinct.
 
 - Stable frame, calibration, manifest, serialization, configuration, plugin, capability, CLI, and packaged JSON Schema contracts; the observed-only frame schema is v4, dataset-manifest is v4, frame-record is v2, and calibration-profile remains v1.
-- One runtime propagation backend, `analytic_acoustics`, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
+- The `analytic_acoustics` propagation backend, with deterministic direct geometry, optional PyRoom closed-room propagation, motion, Doppler, channel response, noise, electronics, and material behavior. Maintained least-squares and PyRoom SRP estimators are perception components rather than propagation behavior.
 - Canonical entity-owned `omni`, `cardioid`, `supercardioid`, and `figure_eight` directivity shared by Core, USD, Kit, and Isaac Lab, with explicit orientation failures and signed L2 waveform versus magnitude-only RMS behavior.
 - One fail-closed amplitude-gain conversion, source gain once before propagation for generated and original-amplitude WAV assets, microphone gain once after propagation, distinct correction/stress/occlusion deltas, and calibration gain kept data-only.
 - Public snapshot-authoritative propagation through `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`, with exact-window, ordered, immutable `float32` microphone mixtures and no source, perception, persistence, or serialized-schema fields.

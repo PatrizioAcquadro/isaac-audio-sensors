@@ -479,15 +479,13 @@ is a qualified full replacement. Complementary native capabilities justify a
 hybrid direction, but combining incomplete models does not establish full R10.
 There is currently no admitted definitive adapter, including a hybrid one.
 
-| Criterion | Pyroomacoustics as primary | Another primary provider | Hybrid architecture |
-| --- | --- | --- | --- |
-| Physical correctness | ISM passes bounded specular controls. No through-wall transmission model; tested planar partition mapping leaks specular paths. | Steam direct/planar transmission remains useful, but its reflection field fails. GSound and RAC are not qualified replacements. | Separates complementary phenomena; the executed combination still leaks reflected sound through a closed partition. No fitted gain can repair path visibility. |
-| Inter-microphone timing | ISM passes the four earlier timing controls. RT pressure fails five co-located receiver tests despite identical native energy histograms. | Steam reflection timing fails. RAC's native delay component rounds samples and fails the executed slow-motion arrival test. | Requires a common clock and coherent native contributions. Steam direct delay plus PRA ISM is feasible in the bounded control, not proof of a coherent diffuse field. |
-| R9/R10 coverage | Missing transmission; functional reflected NLOS demonstrated in one L corridor, not general diffraction. Full material/scattering domain fails admission. | Steam covers the historical bounded pathing/transmission domain but not the newly required reflection field. No inspected replacement covers all gates. | Can retain Steam's useful direct/transmission/pathing roles and select another reflection renderer. Reflected visibility and diffuse field remain blockers; historical pathing still needs combined qualification. |
-| Dynamic scenes | Static RIR recomputation responds to the tested asymmetric opening. General door topology, continuous motion, tails and resets are unqualified. | RAC advertises dynamic image-edge tracing; its public runtime uses wall-clock background work and shared audio state, and the tested delay component loses slow movement. | One scene revision must update every contribution; stale RIRs and independent reset clocks are unacceptable. This lifecycle is not yet qualified. |
-| USD / Isaac | Prepared vertices/materials can be translated, but Room's enclosure assumptions do not match arbitrary 08.1 meshes and planar partitions. | Steam reuses qualified 08.1 mesh instances. RAC accepts triangles but needs a new binding and synchronous, isolated receiver lifecycle. | Reuse one `AcousticSceneSession`; translate its geometry to each admitted engine. Do not invent thickness, room boxes or pose jitter to hide unsupported USD. |
-| Performance | Native RIR refresh measured at 2/16 copies; generic ISM cost and reconstruction grow with geometry/order. This is not a streaming/Lab benchmark. | GSound's attempted Python 3.12 build fails; RAC full-runtime cost is unmeasured. Prior Steam timings cannot rank these replacements. | Includes scene duplication, simulation, rendering and mixing costs. Correctness currently stops scaling/GPU optimization; no end-to-end advantage is established. |
-| Complexity / maintenance | Existing optional dependency, but full coverage would require native/model changes, not just an adapter. | GSound's published distribution terms and build failure prevent admission. RAC would require temporal and lifecycle work beyond a thin binding. | Prefer a fixed, explicit split behind one producer, with each engine justified by a passing capability. Higher internal complexity is accepted only for actual coverage, not speculative fallbacks. |
+The comparison supports this division:
+
+| Option | Admission decision |
+| --- | --- |
+| PRA as primary | Bounded specular timing passes, but missing transmission, partition leakage and the failed joint diffuse field prevent full-provider admission. |
+| Another primary provider | No inspected replacement passes the required domain. GSound distribution/build and RAC temporal/lifecycle limits remain documented below. |
+| Hybrid | Retain one producer with explicit ownership of complementary native contributions. The initial combination still failed reflected visibility; later bounded native corrections admit only the intermediate milestone. |
 
 **Concrete split to qualify.** Steam owns direct occlusion and bounded planar
 transmission, with the existing continuous arrival bridge applied once. A
@@ -534,29 +532,16 @@ Native path ownership is disjoint: Steam owns the direct branch; strictly
 positive PRA image orders own reflections, including bounded reflected NLOS.
 The maintained scalar and CUDA perception consume only the resulting PCM.
 
-A separate optional C ABI bridge compiles PRA 0.10.1's existing engine with four
-bounded corrections: allow standalone reflecting polygons, reject zero-length
-consecutive bounces, block paths crossing perpendicular partition junctions,
-and assign shared coplanar polygon-edge reflections to one face. No replacement
-ray solver is implemented. Original USD faces are reconstructed from the 08.1
-triangulation; nonplanar faces retain their actual triangles. Both surface sides
-are represented. Native tests cover the previous closed-door leak and the
-otherwise doubled reflection exactly on a tessellation edge. The installed PRA
-used by perception and the qualified Steam SDK remain unchanged.
+A separate optional C ABI bridge applies bounded corrections to PRA 0.10.1's
+existing image-source engine; installed PRA and the qualified Steam SDK remain
+unchanged. This admits the documented direct/transmission/specular domain, not
+unmodified PRA as a full provider. The intermediate uses quasi-static response
+updates; general Doppler, rapidly moving reflectors and moving-door interaction
+times are not qualified. Analytic remains operational.
 
-This is a bounded native correction, with an explicit source/version/build
-requirement, rather than evidence that unmodified PRA covers all R9. The adapter
-uses native fractional-delay kernels and material filters, per-path source and
-microphone directivity, a common sample clock, and bounded source history.
-Scene changes crossfade responses on that clock; motion is a quasi-static
-approximation, with a 0.1 m/s direct-phase control. This does not qualify general
-Doppler, rapidly moving reflectors, or retarded interaction times at a moving door.
-
-The independent diffuse-field gate remains mandatory for final closure. Full
-pathing/diffraction coverage, broader dynamic qualification, installation and
-full scaling decisions also remain open. Analytic stays operational. Exact
-implementation, measured acceptance and installation commands belong to
-[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10's intermediate milestone]].
+[[implementation_phases/r10-geometry-acoustics-integration#Intermediate coherent propagation milestone (2026-09-10)|R10 owns the native corrections, streaming implementation, acceptance and installation]].
+The later task-domain revision governs final diffuse/NLOS admission; it does not
+automatically enable either experimental contribution.
 
 ## Milestone 2 native coverage decision (2026-09-10)
 
@@ -601,32 +586,17 @@ Final requirements and the coverage-before-scaling sequence remain unchanged.
 
 #### Existing-provider extension decision (2026-09-11)
 
-The authorized Steam/PRA native extensions were implemented before considering
-another provider. Steam's experimental selected-route interface removes the
-public aggregation barrier and passes bounded route-delay/visibility controls.
-It does not yet qualify complete production pathing integration. PRA's native
-joint-event renderer and transport iterations improve stationary spatial pressure
-and bounded door visibility, but fail the moving-source field control: ray hit
-locations carry the stochastic phase and move with the source. A 1 cm movement
-normal to a diffuse plane gives about 0.687 complex-coherence error at 4 kHz against
-a fixed-surface reference, converging to the same error as ray count increases.
+The authorized Steam/PRA extensions preceded consideration of another provider.
+Steam's selected-route interface passes bounded controls and remains available
+for native development. PRA's joint-event transport improves stationary behavior
+but fails the moving-source field control. The intermediate stays in production;
+failed PRA patches remain local evidence. At this stage the choice between a
+larger native transport model and a replacement evaluation was left open; the
+later scope revision below suspends replacement evaluation pending task impact.
 
-This failure is not repaired by the admitted polygon fixes, response caching,
-per-ray RNG, or more rays. A physically persistent field requires material-anchored
-scattering state, source illumination, multibounce transport and receiver sampling
-with common timing/visibility. Whether to undertake that larger native transport
-redesign or evaluate another maintained provider is now a user decision. The run
-stops before any new provider evaluation; it neither selects a replacement nor
-claims that extending PRA is universally impossible. No IAS propagation solver or
-scene-specific compensation is introduced.
-
-The existing hybrid remains the working production intermediate. R10's complete
-dynamic diffuse/NLOS domain and downstream robot-audition usefulness are not
-reduced to the passing components. Final scaling remains deferred. The failed PRA
-native patch and executable controls remain isolated local evidence; the optional
-Steam interface/build tool is retained for further native work. Exact implementation,
-results and replay are owned by
-[[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10's native-extension gate]].
+[[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10 owns the measured failure, attempted corrections and replay]].
+No replacement provider, IAS propagation solver or full-R10 admission follows
+from this experiment.
 
 #### Targeted usefulness follow-up (2026-09-11)
 
@@ -657,7 +627,7 @@ general solution for the required dynamic domain. Generalization would need
 persistent state and consistently weighted transport at later interactions,
 not just the retained PRA traversal or a seed/cache adjustment.
 
-The recommended next decision is whether to authorize a bounded evaluation of a
+The recommendation at this stage, superseded by the scope revision below, was a bounded evaluation of a
 maintained replacement for the **whole reflection subsystem**, compared against
 the established intermediate behavior and these failed controls, before taking
 ownership of a larger PRA transport model. This is not a selected replacement,

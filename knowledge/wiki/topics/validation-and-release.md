@@ -90,9 +90,10 @@ PYTHONPATH=src:tools/smoke:exts/isaac_audio_sensors.omni CUDA_VISIBLE_DEVICES=0 
   --out build/validation/r10/scene
 ```
 
-For this checkout, the complete Isaac/Kit regression also needs the existing
-`.venv/lib/python3.12/site-packages` on `PYTHONPATH` for Auditok and NARA WPE;
-this does not replace the Isaac interpreter or its CUDA PyTorch runtime.
+The Isaac/Kit runtime also needs Auditok 0.5.2 and NARA WPE 0.0.11. If absent,
+install their existing wheels with `pip install --no-deps --target <runtime-deps>`
+and append that directory to `PYTHONPATH`. Keep Isaac's native packages and CUDA
+PyTorch authoritative; do not add the entire host virtual environment to its path.
 The gate compares native exported coordinates, exercises PhysX poses without
 USD writes, tests shared Kit edits and Undo/Redo, and captures the actual panel.
 It does not qualify propagation PCM or perceptual accuracy.

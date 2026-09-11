@@ -1319,10 +1319,11 @@ a retirement criterion, and retaining both forever is not predetermined.
 
 The provider's supported physics define the advanced-fidelity ceiling.
 Unsupported effects remain explicit rather than being replaced with
-undocumented heuristics. Steam pathing depends on baked probes, produces an
-Ambisonic field, and is qualified only through the independent-receiver mapping
-measured in R9.4. Diagnostics retain actionable provenance, limitations, and
-observable sensor state rather than obsolete internal structures.
+undocumented heuristics. Steam pathing depends on baked probes. The R9.4 independent-receiver mapping
+retains its historical functional scope, but its arrival/TDOA interpretation was
+withdrawn by the Milestone 2 requalification above. The selected-route extension
+remains experimental; production timing and task-domain admission are still open.
+Diagnostics retain actionable provenance, limitations and observable sensor state.
 
 Moving doors and occluders must produce temporally meaningful changes in the received signal as direct and indirect paths change. Address transition artifacts and stale geometry in the supported provider domain; visual smoothing alone does not establish acoustic continuity. Do not promise exact edge diffraction, thickness-derived transmission or structural wall behavior beyond the qualified provider capabilities. The current analytic direct-loss model remains a simpler, separately bounded approximation.
 
@@ -1356,6 +1357,24 @@ The temporary R9 adapters, runners, fixtures, report builders, validators, and t
 #### Problems / Limitations
 
 The geometry backend is not required to scale directly to thousands of simultaneous Isaac Lab environments. Transferred distributions apply only to the provider's simulated scenario family. Preserve only the minimum probes and resources required to operate or revalidate the selected provider. Before adopting a newer Steam release, rerun the focused version, timing, assembly, pathing, signal, and performance gates against its exact stable tag.
+
+## Maintenance cleanup (2026-09-11)
+
+The review of `c443412..43762fc` preserves the intermediate producer and useful
+experimental Steam tools. USD refresh now separates settings, representations,
+object updates and face materials; Kit/Python share setting construction. Native
+build commands, sensor resource cleanup and geometry test setup no longer repeat
+the same operations. Public APIs, native ABI layouts and signal clocks are unchanged.
+Receiver-clock and emission-clock convolution remain distinct physical contracts.
+
+SciPy-dependent temporal tests skip only their optional cases on the host and run
+explicitly in optional-audio CI. Validation passes 1,051 host tests with room
+extras, 997 tests in an isolated dev-only environment (43 optional skips), 181
+supported Isaac tests, eight selected-route native tests against the rebuilt
+library, and 40 optional tests. Actual RTX 4090 Sim, Lab, acoustic editor and
+complete Kit extension smokes pass. Editor checks include default-setting
+Undo/Redo and invalid-edit atomicity. Evidence is in `build/validation/cleanup/`.
+These are maintenance regressions, not new profile admission or Phase 08 closure.
 
 ## Artifacts
 
