@@ -38,8 +38,19 @@ The 888 simulated PCM streams use RTX 4090 perception. Scalar/CUDA checks cover
 960 frames with 100% count/activity agreement and at most 3.798 degrees difference.
 Actual Isaac Sim intermediate Geometry smoke and 1047 host tests pass. The new
 per-route native renderer and emission-clock helper remain outside the installed
-package: dynamic in-flight interception is unsupported. The working Geometry
-configuration is unchanged, and full R10 remains open.
+package. The later dynamic follow-up corrects selected-flight interception and
+retarded endpoint motion, but a two-gate control proves instantaneous native
+route selection can miss a physically valid flight. Complete NLOS still needs
+native time-dependent graph search and Geometry integration.
+
+A minimal PRA first-scatter surface anchor passes the controlled plane reference,
+but moving a subsequent mirror reproduces the defect at the next diffuse bounce:
+complex coherence error stays about 0.300 at 1 kHz under ray-count refinement.
+This does not establish a small general PRA fix. A larger persistent transport
+model versus evaluating a whole-reflection replacement remains the decision;
+no replacement evaluation began. The working Geometry configuration and full
+R10 requirements are unchanged.
+[[implementation_phases/r10-geometry-acoustics-integration#Dynamic NLOS and minimum PRA extension follow-up (2026-09-11)|R10 owns the new implementation, positive controls and concrete admission failures]].
 [[implementation_phases/r10-geometry-acoustics-integration#Targeted NLOS and observation-sensitivity follow-up (2026-09-11)|R10 owns the targeted usefulness investigation]].
 
 See [[implementation_phases/r10-geometry-acoustics-integration#Milestone 2 native extensions — dynamic-field blocker (2026-09-11)|R10 for implementation, measured limits and the remaining gates]]

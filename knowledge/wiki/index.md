@@ -28,7 +28,7 @@
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Acoustic Environment Contract]] — unified analytic environment meaning, configuration entry paths, and fail-closed Isaac resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic Acoustics Backend]] — analytic propagation and completed bounded solid-collider/unavailable-occlusion corrections.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Geometry Acoustics Provider Selection]] — historical Steam qualification, reopened selection and three-option coverage decision: bounded intermediate hybrid corrections, Milestone 2 provider gates and withdrawn historical NLOS timing interpretation.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native preparation; intermediate Steam/PRA specular propagation, passed intermediate Sim/Lab/Kit qualification; native selected-route rendering, measured observation sensitivity and dynamic diffuse-field blocker before final scaling.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 Geometry Acoustics Integration]] — completed USD/native preparation; intermediate Steam/PRA specular propagation, passed intermediate Sim/Lab/Kit qualification; native retarded-flight controls, temporal route-discovery failure and minimal PRA anchoring limit before final scaling.
 
 ## Topics
 

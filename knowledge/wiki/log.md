@@ -1585,3 +1585,21 @@ R10 scope; no replacement provider evaluation or final scaling was run.
 Wiki links/index, documentation-boundary tests, source/evidence references and
 whitespace checks pass. Final host checks pass 653 unit/contract, 336 integration
 and 58 release tests. Preserve immutable raw material and all prior native builds.
+
+
+## 2026-09-11 — update: Retarded NLOS and minimal PRA anchoring feasibility
+
+R10 records native time-indexed segment visibility, retarded selected-flight
+transport and its two-gate route-discovery failure. The minimal native PRA
+first-scatter anchor passes the plane reference but fails persistence at a later
+scatter under mirror motion. R9 and status preserve full scope and distinguish
+these results from production admission. No replacement evaluation or final
+scaling began; the larger reflection architecture decision remains explicit.
+
+
+## 2026-09-11 — lint: Dynamic extension follow-up verification
+
+All 35 wiki pages resolve and remain indexed; whitespace checks pass. Eight
+focused unit/native checks, 1051 host tests and actual Isaac Sim intermediate
+Geometry/Analytic preservation smoke pass. Experimental complete-dynamics
+admission remains blocked by the recorded negative controls.

@@ -638,6 +638,31 @@ supports targeted further work without selecting another provider.
 Production admission, persistent PRA transport versus replacement, and full R10
 closure remain separate decisions/gates. No new provider evaluation was started.
 
+
+#### Dynamic extension feasibility follow-up (2026-09-11)
+
+The authorized minimal-extension experiment fixes selected-flight Steam timing
+and interception, but a two-gate control exposes missing time-dependent route
+discovery. Further Steam graph/search work remains necessary independently of
+any reflection-provider decision.
+
+For PRA, fixed first-scatter anchors plus native ISM/RT pass a bounded plane
+reference without gain fitting. A moving specular mirror shifts the next
+scattering realization on a stationary floor; the resulting covariance error
+persists under ray-count refinement. First-hit anchoring is therefore not a
+general solution for the required dynamic domain. Generalization would need
+persistent state and consistently weighted transport at later interactions,
+not just the retained PRA traversal or a seed/cache adjustment.
+
+The recommended next decision is whether to authorize a bounded evaluation of a
+maintained replacement for the **whole reflection subsystem**, compared against
+the established intermediate behavior and these failed controls, before taking
+ownership of a larger PRA transport model. This is not a selected replacement,
+proof that another provider meets the contract, or authorization to add a third
+permanent reflection contribution. No new provider evaluation began. Native
+Steam direct/pathing and Analytic remain separate maintained capabilities.
+[[implementation_phases/r10-geometry-acoustics-integration#Dynamic NLOS and minimum PRA extension follow-up (2026-09-11)|R10 owns the implementation, evidence and remaining gates]].
+
 ## Artifacts
 
 R9.1 provides the internal qualification validator and its deterministic unit

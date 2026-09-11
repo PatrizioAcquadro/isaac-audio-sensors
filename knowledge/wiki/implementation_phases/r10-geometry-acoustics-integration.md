@@ -512,6 +512,96 @@ reflection failures and coverage artifacts remain intact. Neither diffuse-field
 coverage, complete pathing, general dynamic scenes, 32–256 scaling, GPU acoustic
 acceleration, Analytic retirement nor GUI 08.3 is claimed by this milestone.
 
+#### Dynamic NLOS and minimum PRA extension follow-up (2026-09-11)
+
+The user authorizes completing dynamic NLOS and testing the smallest general PRA
+change before committing to a larger reflection redesign. The follow-up produces
+working experimental transport changes and two concrete negative admission
+controls. **Neither complete NLOS nor complete diffuse propagation is admitted.**
+The installed intermediate provider, Analytic, schemas and full R10 scope remain
+unchanged. Evidence and executable replay: `local/r10/08_2_dynamics/README.md`.
+
+**Selected-flight transport corrected.** The separate Steam build now exports
+`ias_visibility_abi` / `ias_scene_segments`, using native scene traversal against
+caller-retained immutable snapshots. `tools/native/retarded_pathing.py` solves
+emission time through the fixed native probe backbone with source position at
+emission and microphone position at reception. Each segment is tested only in
+the geometry epochs traversed during its flight. Emission history and native EQ
+tails persist independently of PCM read partitioning; reset clears them. Scene
+history provides explicit pruning/release and independent environment ownership.
+Native interval starts use a 10-micrometre numerical tolerance because Embree
+excludes a hit exactly at the ray origin; the end belongs to the next epoch.
+
+The native corridor regression now blocks the packet when closure occurs at
+5 ms, preserves it when closure occurs at 12 ms, and preserves it through a
+closure/reopening at 4/6 ms, before crossing. Four endpoint-motion cases
+(0.1/0.5 m/s source, 0.5 m/s receiver and simultaneous motion) satisfy the
+retarded equation to 1.8e-12 samples. Irregular PCM partitions differ by at most
+1.4e-9. These controls use actual native filters and immutable native scenes,
+not a visualization callback or custom intersection engine.
+
+**Complete route discovery still fails.** A two-gate control crosses the gates
+at 6.958 and 9.874 ms. The first closes at 7.459 ms; the second opens at
+9.374 ms. The polyline is valid during the flight even though every actual scene
+snapshot contains a closed gate. Native selected-route capture returns zero
+routes for all four microphones in every snapshot. An all-open native route,
+used only as a diagnostic candidate, passes the independent timed native
+visibility check and yields peak pressure 0.001626; selected-only rendering
+produces zero. Keeping the union of selected snapshots cannot recover a route
+that none contains. An all-open scene is not a production workaround. This is a
+discrete-update causal boundary control; its occurrence rate and observation
+impact in ordinary robot-door trajectories have not been measured.
+
+Closing this gate requires a further native graph-candidate/time-dependent search
+interface, including endpoint connections, interpolation ownership and rebake
+coverage. The current private selected-route ABI is insufficient. Geometry is
+held between epochs; continuous obstacle-pose interpolation and moving bend
+interaction laws remain open. Sample reconstruction is linear, and settled
+native EQ is applied on the receiver clock. No complete Geometry integration or
+new Sim/Lab/Kit dynamic admission is claimed from this experimental helper.
+
+**Small PRA anchoring prototype and its limit.** A separate native wrapper fixes
+first-scatter samples to material-surface quadrature. It reuses PRA ISM for the
+incident path and PRA ISM/ray tracing for outgoing paths. Surface area and
+Lambertian incidence/departure cosines supply energy normalization; there is no
+fitted gain. The single-plane control passes 12 native/independent-reference
+comparisons, with maximum complex coherence error 8.21e-6 and energy agreement
+within 1e-5 relative. This establishes a bounded useful construction, not a
+qualified general room field. Fixed finite ISM prefix order also leaves higher
+specular prefixes before first scattering outside this prototype.
+
+An anchored first scatter is then held fixed while native rays encounter a
+moving specular mirror and a stationary diffuse floor. A 1 cm mirror movement
+moves second-scatter phase locations by 2 cm on that stationary floor. Complex
+temporal coherence errors against the independent fixed-floor image-source
+reference remain approximately 0.151, 0.300 and 1.031 at 500, 1000 and 4000 Hz
+across 4096, 16384 and 65536 launch rays. This is a controlled ensemble-phase
+comparison; it does not impose isotropic covariance on arbitrary rooms. The
+first-anchor change moves the persistence defect to later interactions rather
+than resolving the complete moving-geometry domain.
+
+**Decision boundary.** This candidate cannot be generalized merely by caching
+responses, stabilizing random seeds or anchoring the first hit. Later scattering
+needs persistent material state, changing illumination, correctly weighted
+multibounce transport and visibility/timing. Native traversal remains reusable,
+but it does not supply that pressure-state evolution. This is concrete evidence
+against promoting the minimal candidate, not proof that all PRA extensions are
+impossible. A larger owned transport model versus evaluation of a maintained
+replacement for the whole reflection subsystem is now the architecture decision.
+No such replacement evaluation or proprietary multibounce implementation began.
+The remaining Steam search extension is a separate requirement and is not
+claimed to be solved by replacing PRA. Closed-loop navigation and full R10
+admission remain open; final scaling remains deferred.
+
+Validation of this follow-up: eight focused unit/native tests pass, including
+actual Embree interval boundaries. `make check` passes 657 unit/contract,
+336 integration and 58 release tests (1051 total). Actual Isaac Sim 6.0.1 on
+RTX 4090 preserves the original intermediate Geometry and Analytic smoke,
+including received PCM, scalar perception, source-stop and reset. These are
+preservation checks, not admission of the experimental dynamic renderer or new
+CUDA accuracy evidence. Native acoustic execution remains on its supported CPU
+path. Wiki links/index and whitespace checks pass.
+
 #### Targeted NLOS and observation-sensitivity follow-up (2026-09-11)
 
 The user authorizes a bounded usefulness investigation before choosing a larger
@@ -530,11 +620,11 @@ caller-owned experimental responsibilities.
 Its emission-clock overlap-add helper preserves already scheduled responses when
 new emission uses a changed route, and passes block partitioning, source-stop
 and reset/isolation controls. **This is not complete dynamic propagation:** a
-blocker moved at 5 ms can intercept the old corridor route at 8.416 ms, before its
+blocker moved at 5 ms could intercept the old corridor route at 8.416 ms, before its
 16.713 ms arrival. Keeping every old contribution would incorrectly retain that
 arrival. The helper documents this unsupported interception explicitly and is
-not connected to the production `GeometryAcoustics` configuration. Retarded
-interaction/visibility and continuous route evolution remain admission work.
+not connected to the production `GeometryAcoustics` configuration. The later dynamic follow-up above corrects selected-flight interception; complete
+route discovery and continuous scene integration remain admission work.
 
 Separate native filter controls pass one-sample route timing at 5.706 and 9.494 m,
 pressure gain within 0.1% (finite interpolation/resampling ripple), exact gain
