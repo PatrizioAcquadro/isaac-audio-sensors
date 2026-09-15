@@ -120,8 +120,11 @@ historical selected-route replays, not automatic preparation.
 
 Steam generates floor probes inside the prepared static bounds, with defaults
 `probe_spacing_m=1`, `probe_height_m=1.2`, `max_probes=4096`, `update_hz=100`.
-Native clearance rays exclude probes on surfaces; no wall-endpoint shortcuts are
-allowed. Probe influence radius is at least the generation height. A bounded grid
+The native floor grid is centered within horizontal cells. Clearance rays exclude
+probes on surfaces and corners; graph baking, live path validation and capture use
+the same inclusive native segment bounds (10 micrometres numerical tolerance).
+This prevents both wall-endpoint shortcuts and discarded interpolation weight
+from inconsistent visibility tests. Probe influence radius is at least the generation height. A bounded grid
 precheck and actual retained-probe limit prevent unbounded baking. The static
 graph excludes explicitly dynamic objects; every selected route is validated
 against the actual live scene. This graph is candidate preparation, never an

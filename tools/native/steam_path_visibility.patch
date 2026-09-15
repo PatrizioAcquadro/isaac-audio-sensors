@@ -1,0 +1,7 @@
+--- a/path_visibility.cpp
++++ b/path_visibility.cpp
+@@ -17,0 +18 @@
++#include "steam_segment.h"
+@@ -89 +90 @@
+-        return (!scene.isOccluded(fromProbe, toProbe));
++        return !iasSegmentBlocked(scene, fromProbe, toProbe);

@@ -58,11 +58,36 @@ def main():
             check=True,
         )
         obj = work / "path_simulator.cpp.o"
+        visibility = source / "src/core/path_visibility.cpp"
+        expected_visibility = (
+            "79bbc3042603803059d62883c5f6c4a01225c023c383107cae7d8515105b2c76"
+        )
+        if hashlib.sha256(visibility.read_bytes()).hexdigest() != expected_visibility:
+            parser.error("Expected unchanged Steam 4.8.1 path_visibility.cpp.")
+        shutil.copyfile(visibility, work / visibility.name)
+        subprocess.run(
+            [
+                "patch",
+                "--batch",
+                "--forward",
+                "--fuzz=0",
+                "-p1",
+                "-i",
+                str(Path(__file__).with_name("steam_path_visibility.patch").resolve()),
+            ],
+            cwd=work,
+            check=True,
+        )
         additions = [
             (Path(__file__).with_name(name + ".cpp").resolve(), work / (name + ".o"))
             for name in ("steam_visibility", "steam_probes")
         ]
-        for source_file, object_file in [(path, obj), *additions]:
+        visibility_obj = work / "path_visibility.cpp.o"
+        for source_file, object_file in [
+            (path, obj),
+            (work / visibility.name, visibility_obj),
+            *additions,
+        ]:
             subprocess.run(
                 [
                     link[0],
@@ -71,6 +96,7 @@ def main():
                     *flags["CXX_FLAGS"],
                     "-ffile-prefix-map=" + str(work) + "=ias-steam-build",
                     "-I" + str(source / "src/core"),
+                    "-I" + str(Path(__file__).parent.resolve()),
                     "-c",
                     str(source_file),
                     "-o",
@@ -82,9 +108,19 @@ def main():
         library = work / "libphonon.so"
         link[link.index("-o") + 1] = str(library)
         link[link.index(object_name)] = str(obj)
+        link[link.index("CMakeFiles/core.dir/path_visibility.cpp.o")] = str(
+            visibility_obj
+        )
         subprocess.run(link, cwd=build, check=True)
         output.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(library, output)
+        # Replacing the inode keeps already loaded native libraries intact.
+        with tempfile.NamedTemporaryFile(dir=output.parent, delete=False) as target:
+            pending = Path(target.name)
+        try:
+            shutil.copyfile(library, pending)
+            pending.replace(output)
+        finally:
+            pending.unlink(missing_ok=True)
     print(output)
 
 

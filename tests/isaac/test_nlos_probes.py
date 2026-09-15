@@ -35,7 +35,7 @@ def probe_scenes(native_filter):  # noqa: F811
     device, scenes, meshes = Handle(), [], []
     assert lib.iplEmbreeDeviceCreate(context, C.byref(C.c_byte()), C.byref(device)) == 0
 
-    def make(blocker):
+    def make(blocker=0, *, faces=None):
         scene = Handle()
         assert (
             lib.iplSceneCreate(
@@ -44,7 +44,8 @@ def probe_scenes(native_filter):  # noqa: F811
             == 0
         )
         scenes.append(scene)
-        faces = [[[-3, 0, -3], [3, 0, -3], [3, 0, 3], [-3, 0, 3]]]
+        if faces is None:
+            faces = [[[-3, 0, -3], [3, 0, -3], [3, 0, 3], [-3, 0, 3]]]
         if blocker:
             faces.append(
                 [[0, 0, -blocker], [0, 3, -blocker], [0, 3, blocker], [0, 0, blocker]]
@@ -120,3 +121,45 @@ def test_probe_capacity_fails_before_unbounded_bake(probe_scenes):
     lib, _, make = probe_scenes
     with pytest.raises(RuntimeError, match="capacity"):
         ProbeRoutes(lib, make(0), [[-3, 0, -3], [3, 3, 3]], 0.01, 1.2, 512)
+
+
+@pytest.mark.parametrize("spacing", [1.0, 0.5, 0.25])
+def test_corridor_probe_refinement_preserves_weights_and_detour(probe_scenes, spacing):
+    lib, _, make = probe_scenes
+    # L-shaped free space; coordinates below are Steam Y-up metres.
+    polygon = [(0, 0), (8, 0), (8, 8), (6, 8), (6, 2), (0, 2)]
+    faces = [
+        [[0, 0, 0], [8, 0, 0], [8, 0, 2], [0, 0, 2]],
+        [[6, 0, 2], [8, 0, 2], [8, 0, 8], [6, 0, 8]],
+    ]
+    for (x, z), (u, v) in zip(polygon, polygon[1:] + polygon[:1], strict=True):
+        faces.append([[x, 0, z], [u, 0, v], [u, 3, v], [x, 3, z]])
+    scene = make(faces=faces)
+    paths = ProbeRoutes(lib, scene, [[0, 0, 0], [8, 3, 8]], spacing, 1.2, 1024)
+    try:
+        # Include both maintained apertures, the raised microphone and a source
+        # exactly aligned with an old lattice point (previous near-total dropout).
+        offsets = [
+            (-0.033, -0.033, 0),
+            (-0.033, 0.033, 0),
+            (0.033, 0.033, 0),
+            (0.033, -0.033, 0),
+            (-0.03, -0.03, 0),
+            (-0.03, 0.03, 0),
+            (0.03, 0.03, 0),
+            (0.03, -0.03, 0),
+            (0, 0, 0.04),
+        ]
+        for dx, dz, dy in offsets:
+            source = np.array([7, 1.2, 6])
+            mic = np.array([1 + dx, 1.2 + dy, 1 + dz])
+            routes, state = paths.find(scene, source, mic)
+            assert state == "selected"
+            assert sum(r.weight for r in routes) == pytest.approx(1, abs=2e-6)
+            corner = np.array([6, 1.2, 2])
+            lower = np.linalg.norm(source - corner) + np.linalg.norm(
+                (mic - corner)[[0, 2]]
+            )
+            assert all(r.length_m >= lower - 1e-5 for r in routes)
+    finally:
+        paths.close()

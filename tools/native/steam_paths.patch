@@ -1,6 +1,7 @@
 --- a/path_simulator.cpp
 +++ b/path_simulator.cpp
-@@ -26,0 +27,15 @@
+@@ -26,0 +27,16 @@
++#include "steam_segment.h"
 +namespace {
 +// Synchronous thread-local capture: callback storage is owned by the caller.
 +using RouteCallback = void (*)(int, const int*, const float*, float, float,
@@ -21,7 +22,7 @@
 @@ -172 +188 @@
 -                if (sEnablePathsFromAllSourceProbes)
 +                if (sEnablePathsFromAllSourceProbes || routeCallback)
-@@ -205,0 +222,45 @@
+@@ -205,0 +222,38 @@
 +    if (routeCallback) {
 +        for (int i = 0; i < numPaths && i < int(selectedNodes.size()); ++i) {
 +            // Endpoint-connected native route, independently validated as segments.
@@ -37,19 +38,12 @@
 +            bool valid = true;
 +            for (size_t k = 1; k < points.size(); ++k)
 +                {
-+                    auto delta = points[k] - points[k-1];
-+                    auto direction = Vector3f::unitVector(delta);
-+                    constexpr float tolerance = 1e-5f;
-+                    if (scene.anyHit(Ray{points[k-1] - tolerance * direction, direction},
-+                                     0.f, delta.length() + 2.f*tolerance)) valid = false;
++                    if (iasSegmentBlocked(scene, points[k-1], points[k])) valid = false;
 +                }
 +            if (!valid) continue;
 +            // Native scene visibility removes redundant endpoint/probe detours.
 +            for (size_t k = 0; k + 2 < points.size();) {
-+                auto delta = points[k+2] - points[k];
-+                auto direction = Vector3f::unitVector(delta);
-+                if (!scene.anyHit(Ray{points[k] - 1e-5f * direction, direction},
-+                                  0.f, delta.length() + 2e-5f)) {
++                if (!iasSegmentBlocked(scene, points[k], points[k+2])) {
 +                    points.erase(points.begin()+k+1); ids.erase(ids.begin()+k+1);
 +                    if (k) --k;
 +                } else ++k;

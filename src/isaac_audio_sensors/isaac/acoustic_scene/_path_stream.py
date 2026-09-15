@@ -91,6 +91,8 @@ class GeometryHistory:
         ):
             raise ValueError("Geometry history does not cover the acoustic flight.")
         visible = np.ones(len(emission), bool)
+        if not len(emission):
+            return visible
         lengths = np.linalg.norm(np.diff(points, axis=1), axis=-1)
         times = (
             emission[:, None]

@@ -43,8 +43,14 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_create(
         double cells = (std::floor(transform(0,0)/spacing)+1)
                      * (std::floor(transform(2,2)/spacing)+1);
         if (cells > 16.0 * maxProbes) return -3;
+        // Center the native floor lattice within horizontal cells, away from
+        // boundary walls and corners. Keep the original bounds for the range.
+        auto generationTransform = transform;
+        for (int axis : {0, 2})
+            generationTransform(axis,axis) = std::max(spacing * .01f,
+                transform(axis,axis) - spacing);
         ipl::ProbeArray generated;
-        ipl::ProbeGenerator::generateProbes(*scene, transform,
+        ipl::ProbeGenerator::generateProbes(*scene, generationTransform,
             ipl::ProbeGenerationType::UniformFloor, spacing, height, generated);
         ipl::vector<ipl::Probe> retained;
         for (int i = 0; i < generated.numProbes(); ++i) {
@@ -55,10 +61,16 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_create(
                 if (center[axis] < bounds[axis] || center[axis] > bounds[axis+3]) valid = false;
                 ipl::Vector3f direction(0.f,0.f,0.f);
                 direction[axis] = 1.f;
-                // Native finite clearance queries reject points on walls, including
-                // thin proxy planes that exclude an exact ray endpoint.
-                if (scene->anyHit(ipl::Ray{center - 1e-4f*direction, direction},
-                                  0.f, 2e-4f)) valid = false;
+                // Offset native rays also detect triangle edges/corners; a ray
+                // exactly through a vertex can miss both adjoining triangles.
+                for (int u = -1; u <= 1; ++u) {
+                    for (int v = -1; v <= 1; ++v) {
+                        auto origin = center - 1e-4f*direction;
+                        origin[(axis+1)%3] += u*5e-5f;
+                        origin[(axis+2)%3] += v*5e-5f;
+                        if (scene->anyHit(ipl::Ray{origin, direction}, 0.f, 2e-4f)) valid = false;
+                    }
+                }
             }
             if (valid) {
                 probe.influence.radius = std::max(spacing, height);

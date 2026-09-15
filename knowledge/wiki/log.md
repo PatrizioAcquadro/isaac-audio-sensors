@@ -176,3 +176,7 @@ Recorded automatic Steam probe preparation, coverage errors, native interpolatio
 ## 2026-09-15 — update: Opt-in causal NLOS producer
 
 Documented automatic probes, ABI 2 interpolation identity, surface-endpoint shortcut corrections, causal transport and live RTX lifecycle evidence. Step 2 motion/refinement qualification remains in progress.
+
+## 2026-09-15 — update: Consistent native NLOS corridor visibility
+
+Recorded the corner/weight-loss regression, centered native probe preparation and shared graph/export visibility bounds; retained failed evidence and the open refinement gate.

@@ -148,6 +148,25 @@ Initial failures remain in `local/r10/08_step2_nlos/coverage_initial.json`; corr
 coverage and live results are in that directory. Ordinary door/motion refinement
 runs are still in progress; no task-utility or diffuse admission follows from these checks.
 
+### Corridor refinement correction
+
+The subsequent refinement control exposed near-total weight loss when an endpoint
+aligned with the old lattice: captured weight could fall to 0.00031 instead of 1.
+Filtering corner probes alone moved the failure to other grid spacings. The repair
+centers the native lattice and uses identical inclusive segment bounds during
+native graph baking, alternate validation and route export. It does not renormalize
+missing paths. The maintained L-corridor regression passes all nine microphone
+positions at 1, 0.5 and 0.25 m spacing: total interpolation weight is 1 within 2e-6,
+and every route respects the independent detour bound.
+
+The corrected native binary rebuilds byte-identically (`b9954dc6…`); seven native
+controls, eleven filter/transport controls and fourteen producer regressions pass.
+The repeated actual RTX 4090 / CUDA Physics control passes four simulated seconds,
+180 geometry updates and reset (about 44 seconds including startup/shutdown).
+Final-build evidence is in `local/r10/08_step2_nlos/final/`; earlier failed refinement
+evidence remains in `dynamics_before_clearance.json`. Ordinary refinement is still
+being assessed; these repairs alone do not close Step 2.
+
 ## Selected-flight dynamics — bounded correction, stress limit
 
 `retarded_pathing.py` retains emission history and tests only the traveled segment
