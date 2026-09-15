@@ -129,12 +129,24 @@ Independent reference refinement passes. **Step 3 remains not qualified.** The
 user authorized a targeted PCM/observation follow-up before a provider decision;
 the failed physical diagnostic remains recorded under the
 [[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|revised decision]].
-Native preparation is committed; shared pressure,
-full energy/reference qualification, producer integration and weak-direct
-observation budgets remain open. Evidence and reproduction live under
+Native preparation is committed; general shared pressure,
+full energy/reference qualification, producer integration and complete weak-direct
+observation qualification remain open. Evidence and reproduction live under
 `local/r10/08_2_step3_diffuse/`; the
 [[experiments/geometry-acoustics-admission|admission record]] owns the result.
 No larger pressure-transport solver or replacement evaluation was started.
+
+The targeted follow-up now supplies actual RTX 4090 observation evidence under
+`local/r10/08_2_step3_impact/`. Analytic scalar synthesis/reference, persistence and
+CUDA independence checks pass. Fresh source-motion trials meet mean/p95 angular
+budgets on both arrays; rates remain partly inconclusive. The rotating selected
+mixture meets every observation-impact budget on both arrays at measured DRR
+about -15.7 dB (96 independent episodes per condition, 65536 rays, 2.5 ms updates).
+The isolated rotating family's spurious-rate bounds remain inconclusive. These
+are controlled statistical PCM comparisons, not a complete D producer or room
+qualification. The unchanged 0.17045 field discrepancy alone does not justify
+provider replacement. The [[experiments/geometry-acoustics-admission|admission record]]
+owns the intervals, reference validity, consumer limits and remaining work.
 
 Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,

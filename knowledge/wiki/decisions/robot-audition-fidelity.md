@@ -151,6 +151,13 @@ Full Step 3 qualification still requires its other applicable controls. A bounde
 impact pass cannot establish arbitrary-room fidelity, learning transfer or AV/mobile
 usefulness. Retain both harmful and artificially beneficial changes in scoring.
 
+The executed follow-up supports retaining PRA: a controlled weak-direct selected
+mixture passes the observation-impact budgets despite the retained field-statistic
+failure. Other comparisons and full producer/room qualification remain open. This
+is a bounded continuation decision, not public diffuse admission or proof of
+SquadBot utility. The [[experiments/geometry-acoustics-admission|admission record]]
+owns the results, reference limits and outstanding controls.
+
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical
 extensions and requires a repository-owned multibounce engine, stop with working

@@ -77,9 +77,13 @@ repetition without changing domain/budgets or hiding unresolved difficult strata
 
 Step 3 was attempted on 2026-09-15: native transport preparation passes, but the
 shared statistical candidate fails controlled temporal coherence during mirror
-rotation after independent reference and ray-count refinement. The approved stop
-rule applies; Step 3, later producer integration and weak-direct observation
-qualification remain open. The
+rotation after independent reference and ray-count refinement. The user then
+authorized targeted observation comparisons before a provider decision. Those
+comparisons now pass all observation-impact budgets for a controlled rotating
+selected mixture on both arrays with weak direct; source-motion angular budgets
+also pass, while several rates/p95 bounds remain inconclusive. The physical
+failure is retained; Step 3, the full D producer, room/energy/reference validation
+and later consumers remain open. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 

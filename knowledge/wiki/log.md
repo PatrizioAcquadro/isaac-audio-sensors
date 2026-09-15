@@ -231,3 +231,27 @@ and observation impact before deciding on provider replacement. Preserve the
 failed rotating-mirror diagnostic, domain, observation budgets and essential
 physical/interface invariants. R10 and status now distinguish the authorized
 follow-up from public diffuse admission and the earlier moving-ray failure.
+
+## 2026-09-15 — experiment: Measure current PRA candidate observation impact
+
+Preserve the native/statistical candidate and its failed rotating-mirror field
+diagnostic. A separate scalar PCM harness supplies independent Lambertian/image
+references, synthesis/energy/persistence checks, selected ray/update refinements
+and actual RTX 4090 observations. Fresh confirmation uses 24 motion/two-source
+episodes and 96 rotating/held-mirror episodes per condition, with both arrays.
+The controlled rotating selected mixture passes all observation-impact budgets
+at DRR about -15.7 dB; moving-source angular budgets pass, while several rates/p95
+bounds remain inconclusive. No thresholds, budgets, provider or public SDK behavior
+changed. Full D/room/energy/causal and AV/mobile utility qualification remain open.
+The admission page owns the measured intervals, explicit reference limits and
+consumer limitations; local evidence preserves 2304 multichannel streams.
+
+## 2026-09-15 — lint: Targeted observation-impact evidence
+
+Wiki links/index, changed-path scope, whitespace and evidence consistency checks
+pass. The reference sampling replay reproduces its saved report; local scoring
+tests, synthesis checks and Ruff pass. Scalar/CUDA parity and environment
+independence use the actual RTX 4090. The confidence-interval plot was inspected.
+Only canonical wiki files are tracked changes; experimental code/PCM remains in
+the new ignored evidence directory. Raw, historical evidence and the existing
+Obsidian metadata are preserved. No public provider admission or push is implied.

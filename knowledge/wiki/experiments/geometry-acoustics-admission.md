@@ -340,6 +340,121 @@ and weak-direct observation comparisons remain open. No new CUDA/consumer result
 is inferred from these controls. The failed candidate does not prove all PRA or
 statistical extensions impossible; replacement evaluation has not started.
 
+## Current candidate: targeted observation impact (2026-09-15)
+
+The user authorized this follow-up after the physical stop. The preserved native
+transport and `surface_field.project` candidate were not changed. A separate
+experimental PCM harness compares them with fixed-surface Lambertian quadrature
+and exact mirror-image reference geometry. The 0.17045 temporal-coherence failure
+remains recorded; its relevance to observations is measured rather than assumed.
+Evidence and reproduction: `local/r10/08_2_step3_impact/README.md`; compact values
+in `summary.json`, confidence-interval plot in `impact.png`.
+
+**Result: the rotating-mirror selected-mixture observation comparison passes on
+both arrays, including weak direct. Overall Step 3 remains open.** Other cases
+retain inconclusive rate/p95 intervals. No fresh confirmation interval establishes
+an impact outside its budget; this does not turn inconclusive intervals into passes.
+The results support retaining PRA and pursuing the missing qualification, rather
+than inferring provider inadequacy from the failed field statistic alone.
+
+### Method and essential controls
+
+- Exact maintained square/raised arrays; 16 kHz, 3.2 s episodes with an interruption
+  and final source stop. Pilot: four independent signal/field-phase episodes per
+  case; static, source/receiver translation, receiver rotation, one/two sources,
+  and the rotating family. Both direct gains 1 and 0.1 are sensitivity axes;
+  attenuation does not represent a physical door. No gain is fitted to the field.
+- Refine 4096/16384/65536 native rays and 10/5/2.5 ms updates on selected source/
+  mirror episodes. Fresh confirmation: 24 episodes for moving source/two sources
+  at 65536 rays/10 ms, and 96 for isolated/mixed, rotating/held mirror controls at
+  65536 rays/2.5 ms. Arrays and hard conditions remain separate. These refinements
+  do not provide an independent model reference or prove full numerical convergence.
+- Native scalar energy and the synthesis kernel are checked analytically. Plane
+  expected energy differs from reference by at most 0.313%; the fractional kernel's
+  passband power is 0.99528–1.000002 and its phase-delay error is <0.000352 samples.
+  Whole-Nyquist kernel energy is included explicitly in the random-RIR expectation.
+  Co-located/reordered/split microphone, refresh, equivalent source-coordinate,
+  partition, stop-tail, reset and independent-state checks pass in this harness.
+- Source/receiver/yaw reference quadrature .25→.0625 m changes temporal coherence
+  by <0.000097 over the actual episode lags. Mirror energy/coherence refinement
+  changes are <0.137%/<0.00425 in the center-microphone control. Refining actual
+  reference importance sampling 8192→65536 at .25 m changes joint temporal/
+  cross-microphone covariance by at most 0.01740. These are independent analytic
+  statistical controls with quantified approximation limits.
+- Actual RTX 4090 `TorchPerception`, unchanged thresholds/parameters, observed PCM
+  and microphone positions only. Scalar parity on eight selected streams preserves
+  every count/activity decision; maximum angular difference is 1.246 degrees.
+  Solo/reordered/loud-neighbor/partial-reset CUDA controls also preserve counts
+  and activity, with maximum angle difference <0.000016 degrees.
+
+Bootstrap 10000 paired whole episodes, never frames. Mean and pooled p95 angular
+errors use emitted estimates, with misses reported separately. A spurious rate
+is the fraction of scored updates containing an unmatched estimate; extras/update
+and penalized assignment error remain in raw results. Score first acquisition and
+reacquisition separately, retaining timeout deadlines. When every paired episode
+difference is zero, supplement the degenerate bootstrap with the exact upper
+probability of unseen discordance: `1 - 0.025**(1/n)`, scaled by the metric range.
+At 24 episodes, identical observed rates therefore do not prove a five-point bound.
+
+### Fresh weak-direct effects
+
+Values below are candidate minus reference; rate intervals are percentage points.
+Each interval is 95%. All source/mirror mean-angle intervals are inside +/-5 degrees.
+
+| Case / array | Mean angle change (degrees) | Miss-rate interval | Spurious-rate interval | Remaining budget result |
+| --- | ---: | ---: | ---: | --- |
+| Moving source / square | -0.905 [-2.882, 0.920] | [-17.763, 2.851] | [-13.596, 6.579] | Rates inconclusive; p95 and both latency budgets pass |
+| Moving source / raised | -0.805 [-2.603, 0.931] | [-10.088, 4.825] | [-1.316, 0.000] | Misses inconclusive; other budgets pass |
+| Two sources / square | -0.660 [-2.608, 1.395] | [-8.553, 2.632] | [-4.386, 1.316] | Misses and p95 inconclusive; both latency budgets pass |
+| Two sources / raised | -0.315 [-2.111, 1.589] | [-4.167, 5.702] | [-2.632, 0.000] | Misses inconclusive; other budgets pass |
+| Rotating family isolated / square | 0.057 [0.020, 0.095] | [-3.770, 3.770] | [1.645, 10.855] | Spurious updates increase; exceeding five points is inconclusive |
+| Rotating family isolated / raised | -0.021 [-0.052, 0.010] | [-3.770, 3.770] | [-1.316, 6.360] | Spurious budget inconclusive; other budgets pass |
+| Rotating selected mixture / square | 0.142 [-0.482, 0.769] | [-1.206, -0.055] | [-0.932, 3.565] | All observation-impact budgets pass |
+| Rotating selected mixture / raised | -0.027 [-0.447, 0.402] | [-0.987, 0.164] | [-1.754, 0.384] | All observation-impact budgets pass |
+
+Measured reference DRR is about -8.23 dB for moving source, -8.45 dB for two
+sources, -2.97 dB for the isolated rotating family, and -15.68 dB for the selected
+mixture. The latter adds the two first-scatter families to the tested
+diffuse/specular/diffuse family. At the initial position the rotating family is
+5.36% of these diffuse components' expected energy, or 1.45% with unit-gain direct.
+These fractions exclude other reflections and are not full-room budgets.
+
+The isolated square case already has a spurious-rate difference with the mirror
+held: +4.276 points [1.590, 7.018]. The added dynamic-minus-static difference is
++1.864 points [-2.467, 6.195]. This ablation does not isolate a confirmed
+over-budget effect attributable specifically to rotation. Held-mirror rate bounds
+also remain inconclusive for the isolated square and mixed raised cases.
+
+### Interpretation and limits
+
+Preserving this candidate's field statistic exactly to 0.1 is not established as
+necessary for the measured observation budgets. A relevant weak-direct mixture
+passes despite that statistic's failure. The isolated-family spurious discrepancy
+and remaining interval widths still warrant attention; neither is waived.
+
+Passing approximation-impact budgets is not useful robot behavior by itself.
+The weak two-source reference already misses about 59.5–69.6% of targets in these
+noise-signal controls. Selected-mixture spurious-update rates are about 87–89% in
+both variants. These limitations cannot be assigned to the PRA approximation
+alone, and no perception parameters or controller were changed to improve scores.
+
+The renderer holds geometry per emission update and drains emitted responses;
+general interaction-time visibility/retarded motion is not solved here. References
+are controlled scalar statistical geometric acoustics, not measured rooms or
+moving-boundary wave solutions. The mixed case omits other paths, including the
+mirror's direct specular reflection. It does not implement the complete D branch.
+Full band/decay/radius/order/horizon qualification, arbitrary-surface persistence,
+C03/C04 room representatives, general causal integration and AV/mobile/learning
+utility remain open. No public diffuse configuration is enabled.
+
+There are 2304 retained multichannel streams, not 2304 independent episodes per
+condition. Fresh motion generation/inference-plus-analysis took 345/41 s; mirror
+confirmation took 643/143 s. CUDA batches of 32 have about 88 ms mean and 124 ms
+p95 inference per observation update. Generation shares geometry/RIR work across
+episodes; these are offline experiment costs, not live producer or real-time
+qualification. Local synthesis/scoring checks and Ruff pass; the maintained SDK
+implementation and historical evidence remain unchanged.
+
 ## Measured observation impact — earlier evidence
 
 Actual RTX 4090 `TorchPerception`, observed PCM only; truth used after inference.

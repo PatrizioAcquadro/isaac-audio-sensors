@@ -25,19 +25,23 @@ Milestone 2 and operating integration remain open.**
   Full-field decay/DRR, closed-door scattering and moving-room references remain
   unresolved with later qualification owners; affected comparisons stay blocked.
   No closed-loop benefit or combined-model qualification ran in Step 1.
-- Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
-  timing/visibility controls pass, while door-pressure refinement has not established
+- Key unresolved result: the earlier moving-ray PRA model biases weak-direct
+  observations; bounded NLOS timing/visibility controls pass, while door-pressure refinement has not established
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 remains open; targeted observation impact is being evaluated.** Checked native
+- **Step 3 remains open; targeted observation impact is now measured.** Checked native
   multiband transport and corrected traversal pass focused checks. The shared
   statistical candidate improves source/translation controls but retains rotating-
   mirror coherence error ~0.17 against the 0.1 bound, including 12 realizations at
   over one million rays and an independently refined reference. No diffuse option
-  or new observation claim is enabled. The user authorized a bounded PCM/reference
-  comparison before deciding on a larger redesign; domain, task budgets and the
-  physical failure remain unchanged. [[experiments/geometry-acoustics-admission|Evidence and limits]].
+  is enabled. The new controlled PCM study on RTX 4090 finds that a rotating
+  selected mixture passes every observation-impact budget on both arrays at
+  DRR about -15.7 dB, despite the field-statistic failure. Source-motion angular
+  budgets pass; several rate/p95 comparisons remain inconclusive. This supports
+  retaining PRA, not overall admission: full D, room/band/energy/causal qualification
+  and AV/mobile usefulness remain open. Domain, budgets and failed evidence are
+  unchanged. [[experiments/geometry-acoustics-admission|Evidence and limits]].
 
 ## Maintained capabilities and boundaries
 
