@@ -177,6 +177,66 @@ directories remain historical. New transport regressions cover the declared
 1.5/1 m/s endpoint speeds, rebuilt probe identity without duplicate arrivals and
 directivity when a moving endpoint meets a route node.
 
+### Accumulated length and ordinary opening controls
+
+The pose sweep exposed a separate preparation error: the scene diagonal had also
+limited total baked path length. A bent route can exceed that diagonal; at E4
+source (7,6.45), the coarse grid retained only 0.883 of the interpolation weight.
+The native bake now admits the finite simple-path bound of the graph, while the
+producer enforces its explicit travel-time horizon before history can expire.
+The final native artifact is `74f3d78b381afd84ff98e20b000705cf3128a831735c888ca60a13ebf77604ba`.
+
+Across 567 E4 pose/channel/grid checks (both layouts, source motion, receiver motion
+and yaw), all selected paths respect the independent corridor detour bound and
+native segment visibility; interpolation sums remain 1 within 2e-6. Refining
+1 to 0.5 m spacing changes weighted path length by at most 0.6214 m and direction
+by 3.53 degrees. Refining 0.5 to 0.25 m reduces these differences to 0.00754 m and
+1.45 degrees. These are numerical refinement differences, not calibrated
+diffraction-error bounds; the default 1 m grid is deliberately coarse.
+
+An ordinary opening must also reconsider previously emitted, unassigned sound.
+Native producer controls emit a 1 ms signal behind a gate and a second, persistent
+NLOS screen: opening at 2 ms preserves the same arrival as the already-open
+reference; opening at 6 ms blocks it. Geometry is checked at passage time. Only
+previously `no_selected_route` intervals are reconsidered; previous LOS and assigned
+routes are excluded. Source stop, structural rebaking before arrival, and fixed
+geometry epochs under fragmented PCM reads have independent producer regressions.
+The asynchronous two-gate stress exclusion below remains unchanged.
+
+### Step 2 selected-route transport closeout
+
+Both maintained layouts pass the bounded source 1.5 m/s, receiver 1 m/s and
+90 degree/s yaw trials. Ordinary doors open/close over 0.5, 1.5 and 3 seconds with
+held, explicitly timestamped geometry. The 30 native/producer regressions pass,
+including delay within one sample after separating native EQ, route alternatives,
+LOS exclusion, rebuild, source stop, reset, array isolation and fragmented reads.
+The actual RTX 4090 Isaac run passes four simulation seconds with CUDA physics,
+180 native scene updates and reset; Steam/Embree remains CPU native.
+The final host check passes 668 unit/contract, 336 integration and 58 release
+tests. The wheel built through the sdist matches all 183 source Python modules
+and imports NLOS in isolation without experimental script dependencies.
+
+| Refinement | Measured difference | Interpretation |
+| --- | --- | --- |
+| Motion refresh 100 → 200 → 400 Hz | Maximum relative PCM difference 0.024%, then 0.015% | Small update sensitivity in the measured corridor motions |
+| Door refresh 100 → 200 → 400 Hz | Identical PCM with geometry held at 100 Hz | Faster selection does not add unobserved geometry |
+| Door probe spacing 0.5 → 0.25 m, both arrays | Relative PCM 1.283–1.284; 10 ms RMS-envelope difference 0.347–0.349; integrated level difference 0.56–0.58 dB | Pressure remains sensitive to probe representation |
+| Door probe spacing 0.25 → 0.125 m, square array | Relative PCM 0.618; RMS-envelope difference 0.213; integrated level difference 0.56 dB | Differences decrease, but pressure convergence is not established |
+
+These controls close selected-route transport with measured approximation limits;
+they do not admit calibrated diffraction pressure, unavailable full-room references,
+the diffuse branch, combined-model energy partition or consumer impact budgets.
+No fitted gains, temporal fades or new multibounce solver were introduced.
+The final native visibility cache gives identical dense-door PCM and reduces that
+run from 178 to 74 seconds; this is one measurement, not a general runtime claim.
+
+Final ignored evidence is in `local/r10/08_step2_nlos/closeout/`: `summary.json`,
+`dynamics.json`, `refinement.json`, `native_cache.json`, `live.json`, logs and PCM.
+Independent geometry/weight refinement is in `validation/path_refinement.json`;
+`validation/coverage.json` includes both layouts, the corridor, connected rooms,
+screen and bounded Office/Hospital endpoint coverage. The latter is not full-field
+qualification. Earlier reports remain historical and are not overwritten.
+
 ## Selected-flight dynamics — bounded correction, stress limit
 
 `retarded_pathing.py` retains emission history and tests only the traveled segment

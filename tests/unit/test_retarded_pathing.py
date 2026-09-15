@@ -140,3 +140,42 @@ def test_rebuilt_probe_identity_keeps_existing_route_and_arrival_once():
         actual,
         reference.read(800, trajectory(nodes[0]), [trajectory(nodes[-1])], history),
     )
+
+
+@pytest.mark.parametrize("opening", [0.004, 0.01])
+def test_new_route_uses_emitted_sound_only_if_gate_opens_before_passage(opening):
+    nodes = np.array([[2.0, 0, 0], [1.0, 1.0, 0], [-1.0, 1.0, 0], [-2.0, 0, 0]])
+    length = float(np.linalg.norm(np.diff(nodes, axis=0), axis=1).sum())
+    route = Route((-1, 0, 1, -2), nodes, length, 1.0, (1.0, 1.0, 1.0))
+    history = GeometryHistory()
+    history.append(0, plane)
+    history.append(opening, lambda a, b: np.zeros(len(a), bool))
+    fs = 16000
+    cut = round(opening * fs)
+    stream = RetardedRouteStream(fs, 1, 0.1, lambda eq: np.ones(1))
+    stream.append(0, np.r_[1.0, np.zeros(cut - 1)], [[]], states=("no_selected_route",))
+    before = stream.read(cut, trajectory(nodes[0]), [trajectory(nodes[-1])], history)
+    stream.append(cut, np.zeros(800 - cut), [[route]], states=("selected",))
+    result = np.concatenate(
+        [
+            before,
+            stream.read(
+                800 - cut, trajectory(nodes[0]), [trajectory(nodes[-1])], history
+            ),
+        ],
+        axis=1,
+    )
+    if opening < (np.sqrt(2) + 1) / 343:
+        assert abs(np.argmax(abs(result)) - length / 343 * fs) <= 1
+        assert np.max(abs(result)) > 1e-4
+    else:
+        np.testing.assert_array_equal(result, 0)
+
+
+def test_new_nlos_route_does_not_backfill_a_previous_los_interval():
+    points = np.array([[2.0, 0, 0], [0, 1, 0], [-2.0, 0, 0]])
+    route = Route((-1, 0, -2), points, 2 * np.sqrt(5), 1.0, (1.0, 1.0, 1.0))
+    stream = RetardedRouteStream(16000, 1, 0.1, lambda eq: np.ones(1))
+    stream.append(0, np.ones(80), [[]], states=("los",))
+    stream.append(80, np.zeros(80), [[route]], states=("selected",))
+    assert not stream.epochs[0].routes[0]

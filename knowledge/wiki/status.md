@@ -10,10 +10,12 @@ Milestone 2 and operating integration remain open.**
 - Approved scope: [[decisions/robot-audition-fidelity|ordinary-indoor robot audition, numerical impact budgets and stop rule]], AV attention/search first, then mobile.
 - Production Geometry: Steam direct/planar transmission + corrected native PRA
   specular reflections. Selected-route NLOS is implemented as an explicit option;
-  Step 2 ordinary-motion/refinement qualification remains in progress. Shared
-  diffuse pressure is not enabled. Analytic remains maintained.
+  Step 2 selected-route transport controls are complete, including ordinary
+  motion, doors, probe/update refinement and actual RTX Isaac updates. Door
+  pressure remains probe-sensitive and uncalibrated; shared diffuse pressure is
+  not enabled. Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
-  prepared matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
+  PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
 - Step 1 [[experiments/geometry-acoustics-trial-protocol|concrete preparation is complete within the clarified scope]]:
   recovered RTX 4090, concrete scenes/inputs, bounded Office/Hospital acoustic
@@ -24,7 +26,8 @@ Milestone 2 and operating integration remain open.**
   unresolved with later qualification owners; affected comparisons stay blocked.
   No closed-loop benefit or combined-model qualification ran in Step 1.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
-  timing is integrated; current qualification is recorded separately. [[experiments/geometry-acoustics-admission|Admission evidence]]
+  timing/visibility controls pass, while door-pressure refinement has not established
+  convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
 

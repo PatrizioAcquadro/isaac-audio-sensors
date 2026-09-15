@@ -161,6 +161,7 @@ class NLOSStream:
             raise ValueError("NLOS update_hz cannot exceed the audio sample rate.")
         self.array = Trajectory()
         self.trajectories, self.streams, self.routes = {}, {}, {}
+        self.query_keys = {}
         self.states = {}
         self.next_tick = math.ceil(start * owner.cfg.update_hz / self.rate)
         self.start = start
@@ -227,9 +228,27 @@ class NLOSStream:
                 positions = [r.at(np.array([time]))[0] for r in receivers]
                 for source in scene.sources:
                     source_id = source.source_id
-                    self.routes[source_id], self.states[source_id] = self.owner.routes(
-                        self.trajectories[source_id].at(np.array([time]))[0], positions
+                    source_position = self.trajectories[source_id].at(np.array([time]))[
+                        0
+                    ]
+                    query_key = (
+                        self.owner.live_signature,
+                        self.owner.bakes,
+                        tuple(source_position),
+                        tuple(tuple(p) for p in positions),
                     )
+                    if self.query_keys.get(source_id) == query_key:
+                        continue
+                    self.routes[source_id], self.states[source_id] = self.owner.routes(
+                        source_position, positions
+                    )
+                    if any(
+                        route.length_m > self.speed * self.config.max_delay_s
+                        for channel in self.routes[source_id]
+                        for route in channel
+                    ):
+                        raise ValueError("Selected NLOS route exceeds max_delay_s.")
+                    self.query_keys[source_id] = query_key
                 self.geometry_signature = self.owner.live_signature
                 self.next_tick = max(
                     self.next_tick,
@@ -249,6 +268,7 @@ class NLOSStream:
                     cursor,
                     emissions[source_id][cursor - start : stop - start],
                     self.routes[source_id],
+                    states=self.states[source_id],
                 )
             cursor = stop
         output = np.zeros((len(receivers), count), np.float32)

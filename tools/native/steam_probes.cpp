@@ -2,6 +2,7 @@
 #include "api_scene.h"
 #include "path_simulator.h"
 #include "probe_generator.h"
+#include "steam_visibility_cache.h"
 #include <cmath>
 #include <memory>
 #include <mutex>
@@ -11,6 +12,7 @@ struct Paths {
     ipl::shared_ptr<ipl::ProbeBatch> probes;
     std::unique_ptr<ipl::ProbeTree> tree;
     std::unique_ptr<ipl::PathSimulator> simulator;
+    ipl::vector<unsigned char> visibility;
     float range;
 };
 // Steam's baker owns process-global state; independent scenes serialize baking.
@@ -127,8 +129,11 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_create(
         id.variation = ipl::BakedDataVariation::Dynamic;
         {
             std::lock_guard<std::mutex> lock(bakeMutex);
+            // A bent path can exceed the scene diagonal. A simple graph path
+            // has fewer than N edges; do not truncate valid interpolation pairs.
+            const auto pathRange = paths->range * generated.numProbes();
             ipl::PathBaker::bake(*scene, id, 1, 0.f, .5f, paths->range,
-                paths->range, paths->range, false, -ipl::Vector3f::kYAxis,
+                paths->range, pathRange, false, -ipl::Vector3f::kYAxis,
                 false, 1, *paths->probes, [](float, void*) {});
         }
         if (!paths->probes->hasData(id)) return -4;
@@ -161,6 +166,15 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_find(
         if (!sp.hasValidProbes() || !rp.hasValidProbes()) return -4;
         sp.calcWeights(s);
         rp.calcWeights(r);
+        // All endpoint pairs use the same immutable scene during this call.
+        // Keep ordered edges: reversing a floating-point ray need not be identical.
+        const int size = paths.probes->numProbes();
+        paths.visibility.assign(size_t(size) * size, 0);
+        ipl::iasVisibilityCache = paths.visibility.data();
+        ipl::iasVisibilitySize = size;
+        struct CacheScope {
+            ~CacheScope() { ipl::iasVisibilityCache = nullptr; ipl::iasVisibilitySize = 0; }
+        } cacheScope;
         float eq[3], sh[1];
         return paths.simulator->findPaths(s,r,*scene,*paths.probes,sp,rp,
             0.f,.5f,paths.range,0,true,true,true,true,eq,sh,

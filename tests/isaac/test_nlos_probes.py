@@ -126,7 +126,10 @@ def test_probe_capacity_fails_before_unbounded_bake(probe_scenes):
 
 
 @pytest.mark.parametrize("spacing", [1.0, 0.5, 0.25])
-def test_corridor_probe_refinement_preserves_weights_and_detour(probe_scenes, spacing):
+@pytest.mark.parametrize("source_z", [6.0, 6.45])
+def test_corridor_probe_refinement_preserves_weights_and_detour(
+    probe_scenes, spacing, source_z
+):
     lib, _, make = probe_scenes
     # L-shaped free space; coordinates below are Steam Y-up metres.
     polygon = [(0, 0), (8, 0), (8, 8), (6, 8), (6, 2), (0, 2)]
@@ -153,7 +156,7 @@ def test_corridor_probe_refinement_preserves_weights_and_detour(probe_scenes, sp
             (0, 0, 0.04),
         ]
         for dx, dz, dy in offsets:
-            source = np.array([7, 1.2, 6])
+            source = np.array([7, 1.2, source_z])
             mic = np.array([1 + dx, 1.2 + dy, 1 + dz])
             routes, state = paths.find(scene, source, mic)
             assert state == "selected"

@@ -184,3 +184,17 @@ Recorded the corner/weight-loss regression, centered native probe preparation an
 ## 2026-09-15 — update: Native NLOS neighborhood selection
 
 Recorded the traversal-order cutoff that omitted one side of a screen, native nearest-visible probe selection and added motion/identity/directivity regressions.
+
+## 2026-09-15 — update: Step 2 selected-route transport closeout
+
+Closed bounded NLOS transport controls, documented causal opening recovery, total
+path bounds, native query caches and actual RTX Isaac evidence. Recorded probe
+refinement sensitivity without claiming converged or calibrated door pressure;
+diffuse, combined-model, reference and consumer gates remain separate.
+
+## 2026-09-15 — lint: Step 2 closeout documentation
+
+Verified wiki links/index coverage, repository references, whitespace and scope
+against current tests and saved evidence. Final host checks pass 668 unit/contract,
+336 integration and 58 release tests; native/producer checks pass 30 tests.
+The clean-source wheel matches 183 Python modules and imports NLOS independently.

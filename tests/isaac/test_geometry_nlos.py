@@ -187,3 +187,83 @@ def test_nlos_microphone_gain_polarity_and_delay_apply_once(prepared_nlos):
     np.testing.assert_allclose(result[0, 2:], -(10**0.3) * plain[0, :-2], atol=1e-7)
     np.testing.assert_allclose(result[0, :2], 0, atol=1e-7)
     np.testing.assert_allclose(result[1:], plain[1:], atol=1e-7)
+
+
+def test_structural_rebake_preserves_already_emitted_arrivals(prepared_nlos):
+    backend, session, snapshot = prepared_nlos
+    snapshot = replace(
+        snapshot, sources=(replace(snapshot.sources[0], duration_s=0.001),)
+    )
+    reference = backend.propagate(snapshot, "array", window()).samples
+    backend.reset()
+    first = backend.propagate(snapshot, "array", window(0, 0.002)).samples
+    # Change static bounds/probe IDs after emission, before any NLOS arrival.
+    outside = UsdGeom.Cube.Define(session.stage, "/Outside")
+    outside.CreateSizeAttr(0.2)
+    outside.AddTranslateOp().Set((4, 0, 1.5))
+    second = backend.propagate(snapshot, "array", window(0.002, 0.1))
+    assert not second.discontinuity and backend.nlos.bakes == 2
+    assert np.max(abs(second.samples)) > 1e-5
+    np.testing.assert_allclose(
+        np.concatenate([first, second.samples], axis=1), reference, atol=1e-7
+    )
+
+
+def test_geometry_epochs_are_independent_of_pcm_subdivision(prepared_nlos):
+    backend, session, snapshot = prepared_nlos
+    door = session.stage.GetPrimAtPath("/Screen").GetAttribute("xformOp:translate")
+
+    def render(cuts):
+        door.Set((0, 0, 1.5))
+        backend.reset()
+        output = []
+        for a, b in zip(cuts[:-1], cuts[1:], strict=True):
+            if a == 0.04:
+                door.Set((0, 5, 1.5))
+            if a == 0.08:
+                door.Set((0, 0, 1.5))
+            output.append(backend.propagate(snapshot, "array", window(a, b)).samples)
+        return np.concatenate(output, axis=1)
+
+    reference = render([0, 0.04, 0.08, 0.12])
+    split = render([0, 0.003, 0.017, 0.04, 0.041, 0.069, 0.08, 0.113, 0.12])
+    np.testing.assert_allclose(split, reference, atol=1e-7)
+    assert [e[0] for e in backend.nlos.history.epochs] == [0.0, 0.04, 0.08]
+
+
+@pytest.mark.parametrize("opening", [0.002, 0.006])
+def test_native_opening_recovers_only_emissions_that_cross_after_opening(
+    prepared_nlos, opening
+):
+    backend, session, snapshot = prepared_nlos
+    snapshot = replace(
+        snapshot, sources=(replace(snapshot.sources[0], duration_s=0.001),)
+    )
+    gate = UsdGeom.Cube.Define(session.stage, "/Gate")
+    gate.CreateSizeAttr(1.0)
+    position = gate.AddTranslateOp()
+    position.Set((1, 10, 1.5))
+    gate.AddScaleOp().Set((0.02, 8, 3))
+    gate.GetPrim().CreateAttribute(DYNAMIC, Sdf.ValueTypeNames.Token).Set("dynamic")
+    reference = backend.propagate(snapshot, "array", window()).samples
+    backend.reset()
+    position.Set((1, 0, 1.5))
+    first = backend.propagate(snapshot, "array", window(0, opening)).samples
+    assert set(
+        backend.streams[(snapshot.stage_id, "array")]["nlos"].states["tone"]
+    ) == {"no_selected_route"}
+    position.Set((1, 10, 1.5))
+    second = backend.propagate(snapshot, "array", window(opening, 0.1)).samples
+    result = np.concatenate([first, second], axis=1)
+    if opening == 0.002:
+        assert np.max(abs(result)) > 1e-5
+        np.testing.assert_allclose(result, reference, atol=1e-7)
+    else:
+        np.testing.assert_allclose(result, 0, atol=1e-7)
+
+
+def test_nlos_delay_horizon_fails_before_silent_history_retirement(prepared_nlos):
+    backend, _, snapshot = prepared_nlos
+    backend.config = replace(backend.config, max_delay_s=0.012)
+    with pytest.raises(ValueError, match="NLOS route exceeds"):
+        backend.propagate(snapshot, "array", window(0, 0.001))

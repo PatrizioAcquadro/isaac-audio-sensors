@@ -6,7 +6,8 @@ checks and the RTX cost pilot are saved. Reference gaps still block affected lat
 comparisons; this is not admission of the full acoustic field or an executable
 qualified campaign. User steering replaces blanket per-row repetition and assigns
 model-specific conditioning/qualification once to the later 08.2 steps.
-No candidate comparison or Step 2+ model implementation has run.
+No candidate comparison or Step 2+ model implementation ran as part of Step 1.
+Subsequent model work is recorded in [[experiments/geometry-acoustics-admission|admission evidence]].
 
 [[decisions/robot-audition-fidelity|Approved domain and budgets]] remain binding.
 User choices: generic rigs; building-exploration-relevant indoor scenes and sounds;

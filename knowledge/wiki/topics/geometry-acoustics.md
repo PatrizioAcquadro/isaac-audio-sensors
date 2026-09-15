@@ -133,6 +133,12 @@ The bridge queries the native probe tree before selecting the nearest eight
 visible endpoint probes, with coordinate-based tie ordering. Steam's original
 bounded lookup returns traversal order, which can omit one side of a symmetric
 screen. Native interpolation weights and native path search remain unchanged.
+The bake's total-path bound covers a simple path through the finite graph; the
+scene diagonal bounds individual visibility edges, not accumulated bent-path
+length. The producer separately enforces `max_delay_s` without truncating arrivals.
+Unchanged endpoint/geometry queries reuse their selection; each native search
+memoizes ordered probe-edge visibility only within that immutable scene call.
+These caches preserve PCM and do not change native weights or search results.
 Missing floor, unavailable endpoint coverage and native failures raise errors;
 `no_selected_route` does not certify complete physical silence or diffraction coverage.
 
@@ -145,6 +151,19 @@ route updates are independent of PCM read partitioning. Poses without a supplied
 motion plan describe window start; timestamped plans reuse the common trajectory
 model. No asynchronous two-gate route discovery or exact moving-boundary wave
 solution is claimed.
+
+Scene changes must be committed at their explicit simulation-time boundaries;
+PCM windows can be subdivided within those geometry epochs. Unobserved past
+geometry cannot be reconstructed from a later live USD pose. Structural rebaking
+does not reset already-emitted routes or reuse old probe IDs as persistent identity.
+When an ordinary opening reveals a route, still-retained emissions from previously
+unselected intervals can use it if each segment is clear at traversal time. This
+does not reassign LOS or already-assigned intervals, duplicate their contributions,
+or rewrite PCM preceding discovery. Native weights/EQ at discovery remain the
+bounded interpolation approximation for those previously unselected emissions.
+Probe refinement measurably changes door-transition pressure; selected-route
+transport qualification does not establish calibrated diffraction or converged
+full-room pressure. See [[experiments/geometry-acoustics-admission|refinement evidence]].
 
 The final mixture retains existing PCM/observation/recording schemas. Optional
 geometry diagnostics contain probe counts, rebuild counts and per-source/channel

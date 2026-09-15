@@ -130,6 +130,8 @@ class RouteEpoch:
     start: float
     end: float
     routes: tuple
+    states: tuple
+    activation: tuple
 
 
 def routed_emission(times, receiver, source_trajectory, route, speed, rate):
@@ -187,31 +189,59 @@ class RetardedRouteStream:
         self.epoch_signature = None
         self.tail = EmissionConvolution(microphones, int(0.25 * rate) + 128)
 
-    def append(self, start_sample, emission, routes):
+    def append(self, start_sample, emission, routes, *, states=None):
         if start_sample != self.input_start + len(self.emission):
             raise ValueError("Emission must append on a continuous sample clock.")
         if len(routes) != self.microphones:
             raise ValueError("Route microphone count changed.")
+        states = (
+            tuple(states) if states is not None else ("unavailable",) * self.microphones
+        )
+        if len(states) != self.microphones:
+            raise ValueError("Selection-state microphone count changed.")
         values = np.asarray(emission, np.float32)
         if values.ndim != 1 or not np.isfinite(values).all() or not len(values):
             raise ValueError("Append a finite, nonempty mono emission.")
         self.emission = np.r_[self.emission, values]
-        signature = tuple(
+        signature = (
+            states,
             tuple(
-                (tuple(route.points[1:-1].flat), route.weight, route.eq)
-                for route in channel
-            )
-            for channel in routes
+                tuple(
+                    (tuple(route.points[1:-1].flat), route.weight, route.eq)
+                    for route in channel
+                )
+                for channel in routes
+            ),
         )
         if self.epochs and signature == self.epoch_signature:
             self.epochs[-1].end = (start_sample + len(values)) / self.rate
             return
         self.epoch_signature = signature
+        # An ordinary opening can reveal a route before older emissions reach it.
+        # Reconsider only previously unselected intervals, never LOS or an already
+        # assigned route. Activation prevents later discovery rewriting past PCM.
+        for mic, channel in enumerate(routes):
+            if not channel:
+                continue
+            for epoch in reversed(self.epochs):
+                if epoch.states[mic] != "no_selected_route":
+                    break
+                previous = list(epoch.routes)
+                previous[mic] = tuple(channel)
+                epoch.routes = tuple(previous)
+                previous = list(epoch.states)
+                previous[mic] = "selected"
+                epoch.states = tuple(previous)
+                previous = list(epoch.activation)
+                previous[mic] = start_sample / self.rate
+                epoch.activation = tuple(previous)
         self.epochs.append(
             RouteEpoch(
                 start_sample / self.rate,
                 (start_sample + len(values)) / self.rate,
                 tuple(tuple(ch) for ch in routes),
+                states,
+                (start_sample / self.rate,) * self.microphones,
             )
         )
 
@@ -281,6 +311,7 @@ class RetardedRouteStream:
                         (emission >= epoch.start)
                         & (emission < epoch.end)
                         & (emission >= 0)
+                        & (times >= epoch.activation[mic])
                     )
                     if not mask.any():
                         continue

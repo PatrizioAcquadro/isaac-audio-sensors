@@ -104,11 +104,15 @@ Complete the following before closing Milestone 2:
 
 #### Problems / Limitations
 
-Selected-route NLOS is integrated as an explicit optional configuration; ordinary
-motion/refinement qualification is in progress in Step 2. The default remains the
+Selected-route NLOS is integrated as an explicit optional configuration. Step 2
+transport controls pass for both maintained arrays, ordinary motion/doors,
+probe/update refinement and actual RTX Isaac updates. The default remains the
 intermediate and joint diffuse pressure is not enabled. Automatic probe coverage,
-causal route timing, immutable visibility snapshots and producer lifecycle now
-have maintained native tests. This does not close Milestone 2.
+causal route timing, immutable visibility snapshots and producer lifecycle have
+maintained native tests. Door pressure remains probe-sensitive: refinement has
+not established pressure convergence or calibrated diffraction accuracy. See
+[[experiments/geometry-acoustics-admission|the measured limits and closeout]].
+This does not close Milestone 2 or unavailable full-field/reference comparisons.
 PRA moving-ray phases bias weak-direct observations; a fixed first-scatter anchor
 passes one plane but fails later-scatter persistence. Neither proves all PRA
 extensions impossible. The two-gate asynchronous failure is a stress limit;

@@ -1,7 +1,16 @@
 --- a/path_visibility.cpp
 +++ b/path_visibility.cpp
-@@ -17,0 +18 @@
+@@ -17,0 +18,2 @@
 +#include "steam_segment.h"
-@@ -89 +90 @@
++#include "steam_visibility_cache.h"
+@@ -24,0 +27,2 @@
++thread_local unsigned char* iasVisibilityCache = nullptr;
++thread_local int iasVisibilitySize = 0;
+@@ -89 +93,6 @@
 -        return (!scene.isOccluded(fromProbe, toProbe));
-+        return !iasSegmentBlocked(scene, fromProbe, toProbe);
++        auto entry = iasVisibilityCache
++            ? &iasVisibilityCache[size_t(from) * iasVisibilitySize + to] : nullptr;
++        if (entry && *entry) return *entry == 1;
++        bool visible = !iasSegmentBlocked(scene, fromProbe, toProbe);
++        if (entry) *entry = visible ? 1 : 2;
++        return visible;
