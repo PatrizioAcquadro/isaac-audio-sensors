@@ -86,7 +86,10 @@ class SteamScene:
         # Exact version cannot be inferred from ABI success.
         import hashlib
 
-        if hashlib.sha256(path.read_bytes()).hexdigest() != QUALIFIED_LIBRARY_SHA256:
+        if hashlib.sha256(path.read_bytes()).hexdigest() not in (
+            QUALIFIED_LIBRARY_SHA256,
+            NLOS_LIBRARY_SHA256,
+        ):
             raise ValueError(
                 "Steam binary is not the qualified 4.8.1 Release/Embree build; "
                 "requalification is required"
@@ -294,6 +297,12 @@ class SteamScene:
             raise RuntimeError("Steam scene is closed")
         self.lib.iplSceneSaveOBJ(self.scene, str(Path(path).resolve()).encode())
 
+    def snapshot(self):
+        """Retain shared meshes with independent, immutable instance transforms."""
+        if self.closed:
+            raise RuntimeError("Steam scene is closed")
+        return SceneSnapshot(self)
+
     def close(self):
         if self.closed:
             return
@@ -314,3 +323,38 @@ class SteamScene:
 QUALIFIED_LIBRARY_SHA256 = (
     "eaf2a6420d8c8e7822795a79dab455df70512e367a70d2d0d53ffc32dd0fd445"
 )
+
+# Native probe/filter/visibility controls; domain admission is documented separately.
+NLOS_LIBRARY_SHA256 = "d739a711c68acada1a234459f43f9fdcdf747f6a408a3a33ea000ddf4fd41ceb"
+
+
+class SceneSnapshot:
+    """Own only scene/instance handles; Steam retains the shared static meshes."""
+
+    def __init__(self, provider):
+        self.lib = provider.lib
+        self.scene = provider._scene()
+        self.instances = []
+        try:
+            for sub, _, _, _, _, transform, *_ in provider.entries.values():
+                instance = Handle()
+                provider._check(
+                    self.lib.iplInstancedMeshCreate(
+                        self.scene,
+                        C.byref(InstanceSettings(sub, _matrix(transform))),
+                        C.byref(instance),
+                    )
+                )
+                self.instances.append(instance)
+                self.lib.iplInstancedMeshAdd(instance, self.scene)
+            self.lib.iplSceneCommit(self.scene)
+        except Exception:
+            self.close()
+            raise
+
+    def close(self):
+        for instance in self.instances:
+            self.lib.iplInstancedMeshRelease(C.byref(instance))
+        self.instances.clear()
+        if self.scene:
+            self.lib.iplSceneRelease(C.byref(self.scene))

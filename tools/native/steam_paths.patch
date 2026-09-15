@@ -18,6 +18,9 @@
 +
 @@ -151,0 +167 @@
 +    selectedNodes.clear();
+@@ -172 +188 @@
+-                if (sEnablePathsFromAllSourceProbes)
++                if (sEnablePathsFromAllSourceProbes || routeCallback)
 @@ -205,0 +222,36 @@
 +    if (routeCallback) {
 +        for (int i = 0; i < numPaths && i < int(selectedNodes.size()); ++i) {

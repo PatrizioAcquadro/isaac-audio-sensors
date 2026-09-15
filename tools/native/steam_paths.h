@@ -35,3 +35,23 @@ int ias_scene_segments(void* scene, int count, const float* starts_xyz,
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Automatic UniformFloor generation in native metre/Y-up bounds [min,max].
+// Bake only static geometry. Always validate selected routes against the live scene.
+// Create: positive probe count; -1 invalid input, -2 no floor probes,
+// -3 configured capacity exceeded, -4 bake failure. Output owns its native data.
+int ias_probes_abi(void); // Returns 1.
+int ias_probes_create(void* static_scene, const float* bounds_min_max,
+                     float spacing_m, float height_m, int max_probes, void** output);
+void ias_probes_release(void* handle);
+// Find: 0 completed (possibly no selected route), 1 LOS excluded;
+// -1 invalid input, -2/-3 uncovered source/receiver,
+// -4 no visible endpoint probes, -5 native failure. Register ias_path_capture first.
+int ias_probes_find(void* handle, void* live_scene,
+                    const float* source_xyz, const float* listener_xyz);
+#ifdef __cplusplus
+}
+#endif

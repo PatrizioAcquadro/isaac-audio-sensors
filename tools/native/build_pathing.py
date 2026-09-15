@@ -58,11 +58,11 @@ def main():
             check=True,
         )
         obj = work / "path_simulator.cpp.o"
-        visibility = work / "steam_visibility.o"
-        for source_file, object_file in (
-            (path, obj),
-            (Path(__file__).with_name("steam_visibility.cpp").resolve(), visibility),
-        ):
+        additions = [
+            (Path(__file__).with_name(name + ".cpp").resolve(), work / (name + ".o"))
+            for name in ("steam_visibility", "steam_probes")
+        ]
+        for source_file, object_file in [(path, obj), *additions]:
             subprocess.run(
                 [
                     link[0],
@@ -77,7 +77,7 @@ def main():
                 ],
                 check=True,
             )
-        link.append(str(visibility))
+        link.extend(str(object_file) for _, object_file in additions)
         library = work / "libphonon.so"
         link[link.index("-o") + 1] = str(library)
         link[link.index(object_name)] = str(obj)

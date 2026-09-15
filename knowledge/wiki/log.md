@@ -168,3 +168,7 @@ documentation/version tests and 104 episode-input checks pass. All 131 affected 
 overlay roots have explicit meters/Z-up; proxy world coordinates and required
 clear/blocked/open links pass. Diff review preserves raw/original assets, approved
 numerical budgets and later-step gates; historical cost envelopes are superseded.
+
+## 2026-09-15 — update: Step 2 native probe preparation
+
+Recorded automatic Steam probe preparation, coverage errors, native interpolation and focused component controls; dynamic producer admission remains open.

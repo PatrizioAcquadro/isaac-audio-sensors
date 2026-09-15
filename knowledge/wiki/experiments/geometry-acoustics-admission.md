@@ -112,6 +112,21 @@ pass one-sample timing, <0.1% gain error and independent filter state.
 Probe coverage, duplicate representation weighting, rebake identity and full
 production directivity/lifecycle still need qualification.
 
+## Step 2 native preparation — 2026-09-15
+
+The maintained private bridge now uses Steam UniformFloor generation, bounded
+probe capacity, native baking and alternate search. All visible source-probe
+weights participate in exported routes. LOS is excluded; uncovered endpoints,
+missing floor and native preparation failures are explicit errors. Equivalent
+geometric/EQ contributions sum interpolation weights; duplicate native records
+fail. Native meshes can be retained with immutable instance transforms.
+
+Ten focused native/stream checks pass: automatic probe generation, screen detour
+lower bounds and per-route one-sample timing, closure/restoration, LOS exclusion,
+coverage/capacity failure and the prior filter/visibility/transport controls.
+The SDK baker needs a non-null progress callback; the bridge supplies one.
+This is component validation, not ordinary-motion or producer admission.
+
 ## Selected-flight dynamics — bounded correction, stress limit
 
 `retarded_pathing.py` retains emission history and tests only the traveled segment
