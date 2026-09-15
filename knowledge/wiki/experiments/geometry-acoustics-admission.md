@@ -167,6 +167,16 @@ Final-build evidence is in `local/r10/08_step2_nlos/final/`; earlier failed refi
 evidence remains in `dynamics_before_clearance.json`. Ordinary refinement is still
 being assessed; these repairs alone do not close Step 2.
 
+The explicit two-alternative screen test then exposed the native tree's
+traversal-order neighborhood cutoff. Querying the full native neighborhood and
+retaining the nearest visible eight restores both alternatives while preserving
+native interpolation weights. The checked `d8d442dc…` build passes 21 native and
+producer tests and repeats the CUDA Physics smoke (about 46 seconds). Evidence
+for this subsequent build is in `local/r10/08_step2_nlos/qualified/`; earlier
+directories remain historical. New transport regressions cover the declared
+1.5/1 m/s endpoint speeds, rebuilt probe identity without duplicate arrivals and
+directivity when a moving endpoint meets a route node.
+
 ## Selected-flight dynamics — bounded correction, stress limit
 
 `retarded_pathing.py` retains emission history and tests only the traveled segment

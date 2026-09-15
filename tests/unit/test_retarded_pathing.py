@@ -1,15 +1,17 @@
 """Retarded routing semantics with independent segment/time oracles."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
 from isaac_audio_sensors.core.backends._analytic.arrival import Trajectory
-from tools.native.pathing import Route
-from tools.native.retarded_pathing import (
+from isaac_audio_sensors.isaac.acoustic_scene._path_stream import (
     GeometryHistory,
     RetardedRouteStream,
     routed_emission,
 )
+from isaac_audio_sensors.isaac.acoustic_scene._paths import Route
 
 
 def trajectory(position, velocity=(0, 0, 0)):
@@ -42,7 +44,8 @@ def test_interception_depends_on_flight_time_not_emission_or_reception():
     assert visible([(0, True), (crossing - 0.001, False)])
 
 
-def test_moving_endpoints_retarded_equation_and_partitioned_stream():
+@pytest.mark.parametrize("speeds", [(0.4, -0.2), (1.5, -1.0)])
+def test_moving_endpoints_retarded_equation_and_partitioned_stream(speeds):
     pytest.importorskip("scipy")
     fs = 16000
     nodes = np.array([[2, 0, 0], [1, 1, 0], [-1, 1, 0], [-2, 0, 0]], float)
@@ -53,8 +56,8 @@ def test_moving_endpoints_retarded_equation_and_partitioned_stream():
         1.0,
         (1.0, 1.0, 1.0),
     )
-    source = trajectory(nodes[0], (0.4, 0.1, 0))
-    mic = trajectory(nodes[-1], (-0.2, 0.05, 0))
+    source = trajectory(nodes[0], (speeds[0], 0, 0))
+    mic = trajectory(nodes[-1], (speeds[1], 0, 0))
     times = np.arange(8000) / fs
     te, dist, _ = routed_emission(times, mic.at(times), source, route, 343, fs)
     np.testing.assert_allclose(te + dist / 343, times, atol=1e-10)
@@ -118,3 +121,22 @@ def test_geometry_history_releases_drained_snapshots_and_isolates_environments()
     first.close()
     assert released == [0, 1]
     assert len(second.epochs) == 1
+
+
+def test_rebuilt_probe_identity_keeps_existing_route_and_arrival_once():
+    nodes = np.array([[2.0, 0, 0], [0, 1, 0], [-2.0, 0, 0]])
+    route = Route((-1, 0, -2), nodes, 2 * np.sqrt(5), 1.0, (1.0, 1.0, 1.0))
+    rebuilt = replace(route, probes=(-1, 47, -2), interpolation_probes=(18, 33))
+    history = GeometryHistory()
+    history.append(0, lambda a, b: np.zeros(len(a), bool))
+    stream = RetardedRouteStream(16000, 1, 0.1, lambda eq: np.ones(1))
+    stream.append(0, np.r_[1.0, np.zeros(79)], [[route]])
+    stream.append(80, np.zeros(720), [[rebuilt]])
+    assert len(stream.epochs) == 1
+    actual = stream.read(800, trajectory(nodes[0]), [trajectory(nodes[-1])], history)
+    reference = RetardedRouteStream(16000, 1, 0.1, lambda eq: np.ones(1))
+    reference.append(0, np.r_[1.0, np.zeros(799)], [[route]])
+    np.testing.assert_array_equal(
+        actual,
+        reference.read(800, trajectory(nodes[0]), [trajectory(nodes[-1])], history),
+    )

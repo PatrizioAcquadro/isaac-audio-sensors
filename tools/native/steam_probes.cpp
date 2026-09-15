@@ -9,7 +9,7 @@
 namespace {
 struct Paths {
     ipl::shared_ptr<ipl::ProbeBatch> probes;
-    ipl::ProbeManager manager;
+    std::unique_ptr<ipl::ProbeTree> tree;
     std::unique_ptr<ipl::PathSimulator> simulator;
     float range;
 };
@@ -17,6 +17,41 @@ struct Paths {
 std::mutex bakeMutex;
 bool finite3(const float* v) {
     return v && std::isfinite(v[0]) && std::isfinite(v[1]) && std::isfinite(v[2]);
+}
+bool neighborhood(Paths& paths, const ipl::IScene& scene, const ipl::Vector3f& point,
+    ipl::ProbeNeighborhood& result) {
+    // Steam's bounded tree lookup returns traversal order. Query its full native
+    // neighborhood before retaining the nearest visible eight interpolation nodes.
+    ipl::ProbeNeighborhood candidates;
+    candidates.resize(paths.probes->numProbes());
+    paths.tree->getInfluencingProbes(point, paths.probes->probes(),
+        candidates.numProbes(), candidates.probeIndices.data());
+    bool covered = false;
+    for (int i = 0; i < candidates.numProbes(); ++i) {
+        if (candidates.probeIndices[i] >= 0) {
+            candidates.batches[i] = paths.probes.get();
+            covered = true;
+        }
+    }
+    candidates.checkOcclusion(scene, point);
+    ipl::vector<int> visible;
+    for (int i = 0; i < candidates.numProbes(); ++i)
+        if (candidates.probeIndices[i] >= 0) visible.push_back(candidates.probeIndices[i]);
+    std::sort(visible.begin(), visible.end(), [&](int a, int b) {
+        const auto& pa = (*paths.probes)[a].influence.center;
+        const auto& pb = (*paths.probes)[b].influence.center;
+        auto da = (pa-point).lengthSquared(), db = (pb-point).lengthSquared();
+        if (da != db) return da < db;
+        for (int axis = 0; axis < 3; ++axis)
+            if (pa[axis] != pb[axis]) return pa[axis] < pb[axis];
+        return false;
+    });
+    result.resize(8);
+    for (int i = 0; i < 8 && i < int(visible.size()); ++i) {
+        result.batches[i] = paths.probes.get();
+        result.probeIndices[i] = visible[i];
+    }
+    return covered;
 }
 }
 
@@ -97,8 +132,8 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_create(
                 false, 1, *paths->probes, [](float, void*) {});
         }
         if (!paths->probes->hasData(id)) return -4;
-        paths->manager.addProbeBatch(paths->probes);
-        paths->manager.commit();
+        paths->tree = std::make_unique<ipl::ProbeTree>(
+            paths->probes->numProbes(), paths->probes->probes());
         paths->simulator = std::make_unique<ipl::PathSimulator>(
             *paths->probes, 1, false, -ipl::Vector3f::kYAxis);
         *output = paths.release();
@@ -121,12 +156,8 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_find(
         ipl::Vector3f r(listener[0], listener[1], listener[2]);
         if (!scene->isOccluded(s,r)) return 1; // Direct renderer owns LOS.
         ipl::ProbeNeighborhood sp, rp;
-        paths.manager.getInfluencingProbes(s,sp);
-        paths.manager.getInfluencingProbes(r,rp);
-        if (!sp.hasValidProbes()) return -2;
-        if (!rp.hasValidProbes()) return -3;
-        sp.checkOcclusion(*scene,s);
-        rp.checkOcclusion(*scene,r);
+        if (!neighborhood(paths,*scene,s,sp)) return -2;
+        if (!neighborhood(paths,*scene,r,rp)) return -3;
         if (!sp.hasValidProbes() || !rp.hasValidProbes()) return -4;
         sp.calcWeights(s);
         rp.calcWeights(r);

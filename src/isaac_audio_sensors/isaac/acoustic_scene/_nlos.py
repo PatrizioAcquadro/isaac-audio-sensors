@@ -25,6 +25,16 @@ def world(points):
     return np.asarray(points)[..., [0, 2, 1]] * (1, -1, 1)
 
 
+def endpoint_directions(points):
+    """Skip a collapsed endpoint leg when a moving endpoint meets a route node."""
+    legs = np.diff(points, axis=1)
+    valid = np.linalg.norm(legs, axis=-1) > 1e-7
+    rows = np.arange(len(points))
+    first = valid.argmax(axis=1)
+    last = valid.shape[1] - 1 - valid[:, ::-1].argmax(axis=1)
+    return legs[rows, first], -legs[rows, last]
+
+
 @dataclass(frozen=True, slots=True)
 class SteamNLOSConfig:
     """Opt-in automatic floor probes; metre units and explicit bounded resources.
@@ -248,10 +258,11 @@ class NLOSStream:
             def gain(
                 mic, emission, reception, points, source=source, trajectory=trajectory
             ):
+                initial, final = endpoint_directions(points)
                 value = polar_gain(
                     source.directivity,
                     trajectory.orientation_at(emission),
-                    points[:, 1] - points[:, 0],
+                    initial,
                 )
                 microphone = array.microphones[mic]
                 local_axis = rotate_vector_by_quaternion(
@@ -259,7 +270,7 @@ class NLOSStream:
                     microphone.relative_orientation_quat or (0.0, 0.0, 0.0, 1.0),
                 )
                 axis = rotate_vectors(local_axis, self.array.orientation_at(reception))
-                direction = points[:, -2] - points[:, -1]
+                direction = final
                 cosine = np.sum(axis * direction, axis=-1) / np.linalg.norm(
                     direction, axis=-1
                 )

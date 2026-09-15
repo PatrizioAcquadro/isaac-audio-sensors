@@ -180,3 +180,7 @@ Documented automatic probes, ABI 2 interpolation identity, surface-endpoint shor
 ## 2026-09-15 — update: Consistent native NLOS corridor visibility
 
 Recorded the corner/weight-loss regression, centered native probe preparation and shared graph/export visibility bounds; retained failed evidence and the open refinement gate.
+
+## 2026-09-15 — update: Native NLOS neighborhood selection
+
+Recorded the traversal-order cutoff that omitted one side of a screen, native nearest-visible probe selection and added motion/identity/directivity regressions.

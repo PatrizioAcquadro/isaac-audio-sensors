@@ -129,6 +129,10 @@ precheck and actual retained-probe limit prevent unbounded baking. The static
 graph excludes explicitly dynamic objects; every selected route is validated
 against the actual live scene. This graph is candidate preparation, never an
 all-open acoustic rendering. Structural changes rebake; ordinary doors reuse it.
+The bridge queries the native probe tree before selecting the nearest eight
+visible endpoint probes, with coordinate-based tie ordering. Steam's original
+bounded lookup returns traversal order, which can omit one side of a symmetric
+screen. Native interpolation weights and native path search remain unchanged.
 Missing floor, unavailable endpoint coverage and native failures raise errors;
 `no_selected_route` does not certify complete physical silence or diffraction coverage.
 

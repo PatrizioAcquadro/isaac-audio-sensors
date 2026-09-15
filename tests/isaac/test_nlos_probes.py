@@ -96,6 +96,8 @@ def test_automatic_native_paths_visibility_timing_and_coverage(probe_scenes):
         routes, state = paths.find(screen, source, mic)
         assert state == "selected" and routes
         assert sum(r.weight for r in routes) <= 1.00001
+        assert any(np.max(r.points[1:-1, 2]) > 0.6 for r in routes)
+        assert any(np.min(r.points[1:-1, 2]) < -0.6 for r in routes)
         # Any path around this screen is at least two diagonal legs.
         lower_bound = 2 * np.sqrt(2**2 + 0.6**2)
         for route in routes:

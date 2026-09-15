@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from isaac_audio_sensors.isaac.acoustic_scene import SteamNLOSConfig
+from isaac_audio_sensors.isaac.acoustic_scene._nlos import endpoint_directions
 from isaac_audio_sensors.isaac.acoustic_scene._paths import Route, canonical_routes
 
 
@@ -37,3 +38,10 @@ def test_probe_representations_preserve_interpolation_without_duplicate_energy()
 def test_nlos_invalid_configuration_fails(kwargs):
     with pytest.raises(ValueError):
         SteamNLOSConfig(**kwargs)
+
+
+def test_directivity_uses_nonzero_leg_when_endpoint_meets_probe():
+    points = np.array([[[0.0, 0, 0], [0.0, 0, 0], [1.0, 1, 0], [1.0, 1, 0]]])
+    initial, final = endpoint_directions(points)
+    np.testing.assert_array_equal(initial, [[1, 1, 0]])
+    np.testing.assert_array_equal(final, [[-1, -1, 0]])

@@ -158,3 +158,32 @@ def test_source_stop_retains_delayed_nlos(prepared_nlos):
     pcm = backend.propagate(snapshot, "array", window(0, 0.3)).samples
     assert np.max(abs(pcm[:, 500:650])) > 1e-4
     assert np.max(abs(pcm[:, 4000:])) < 1e-7
+
+
+def test_nlos_microphone_gain_polarity_and_delay_apply_once(prepared_nlos):
+    from isaac_audio_sensors.core.effects import (
+        ChannelResponseConfig,
+        ChannelResponseMicConfig,
+        EffectsConfig,
+    )
+    from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
+
+    backend, _, snapshot = prepared_nlos
+    plain = backend.propagate(snapshot, "array", window()).samples
+    backend.reset()
+    first = snapshot.arrays[0].microphones[0].mic_id
+    backend.effects = EffectsConfig(
+        channel_response=ChannelResponseConfig(
+            enabled=True,
+            microphones={
+                first: ChannelResponseMicConfig(
+                    delay_s=2 / 16000, gain_db=6.0, polarity=-1
+                )
+            },
+        )
+    )
+    backend.chain = ChannelEffectsChain(backend.effects)
+    result = backend.propagate(snapshot, "array", window()).samples
+    np.testing.assert_allclose(result[0, 2:], -(10**0.3) * plain[0, :-2], atol=1e-7)
+    np.testing.assert_allclose(result[0, :2], 0, atol=1e-7)
+    np.testing.assert_allclose(result[1:], plain[1:], atol=1e-7)
