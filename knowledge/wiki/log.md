@@ -97,3 +97,20 @@ full prior prose remains in Git. No code, raw material, AGENTS.md or media chang
 All 41 pages indexed; page/heading links and approved-scope/evidence checks pass.
 Five documentation-boundary tests, version sync and whitespace pass. Documentation
 only; no acoustic/runtime/media qualification rerun. Raw and local evidence untouched.
+
+## 2026-09-15 — update: Define Phase 08 trials
+
+Record the user's preferences in the canonical Geometry trial protocol. Primary
+IHMC sources motivate building-exploration scenes and signals; manufacturer RGB
+specifications motivate a generic 90-degree camera with 70/110-degree sensitivity.
+Declare geometry, trajectories, sources, levels, both consumers, scoring, reference
+validity gates and a cost-first sample plan. Preserve the approved domain/budgets.
+Scene realization, acoustic conditioning, full reference validity and cost pilot
+remain open; no production, native, perception or runtime qualification changes.
+
+## 2026-09-15 — lint: Validate trial protocol
+
+Nine documentation/version tests pass. Wiki page/heading links, 23 matrix row IDs,
+maintained array coordinates, existing signal paths, L-corridor geometry, 10 m
+range, pinhole FOV and binary-interval examples checked. Whitespace passes.
+No simulation, reference qualification, statistical campaign or media run performed.

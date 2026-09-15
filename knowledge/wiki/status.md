@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-11. Package version: `3.0.0`.
+Updated: 2026-09-15. Package version: `3.0.0`.
 
 ## Current work
 
@@ -12,8 +12,12 @@ Milestone 2 and operating integration remain open.**
   specular reflections. Experimental selected-route NLOS and shared diffuse
   pressure are not enabled. Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
-  concrete test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
+  realize/condition the declared test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
+- Step 1 [[experiments/geometry-acoustics-trial-protocol|protocol is defined]]:
+  building-exploration scenes/sounds, generic rigs, representative 90-degree camera,
+  both profiles and cost-first sample planning. Scene realization, measured acoustic
+  conditions, reference validity and the cost pilot remain open; no new qualification.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
   timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts

@@ -44,6 +44,11 @@ spacing, perception bands, camera FOV/joint limits, scoring, reference validity 
 independent trial counts. Routine choices inside this scope need no new approval.
 Changing the domain or budget requires the user; never tune them after a failure.
 
+The [[experiments/geometry-acoustics-trial-protocol|2026-09-15 trial protocol]]
+instantiates the user's scene/rig/content preferences and representative operating
+values within this scope. It owns exact scenarios, camera selection, scoring and
+sample planning; these choices do not change the budgets below or admit a provider.
+
 ## Physical and interface invariants
 
 - One causal emission/reception clock; meaningful dominant-path delays and TDOA.

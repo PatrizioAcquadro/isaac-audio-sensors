@@ -54,6 +54,12 @@ Both profiles and all applicable gates must pass. Scope approval is not implemen
 
 ### Remaining execution order
 
+Step 1 now has a [[experiments/geometry-acoustics-trial-protocol|concrete trial protocol]]
+(2026-09-15): building-exploration scenes/sounds, generic rigs, 90-degree horizontal
+camera with 70/110-degree sensitivity, scoring and a cost-first trial plan. Scene
+realization, acoustic conditioning, full reference validity and the technical cost
+pilot remain open; the document alone does not complete Step 1.
+
 | Step | Work | Completion evidence |
 | --- | --- | --- |
 | 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition and metric has a justified test/reference; no new approval needed for routine choices inside the approved scope |

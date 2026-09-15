@@ -54,7 +54,9 @@ stream timing and justified pressure synthesis. No second geometry attenuation s
 
 Complete the following before closing Milestone 2:
 
-1. Instantiate the approved trial matrix, scoring and valid independent references.
+1. Instantiate the [[experiments/geometry-acoustics-trial-protocol|declared trial matrix]],
+   scoring and valid independent references. Protocol choices are defined;
+   conditioning, reference validity and the technical cost pilot remain pending.
 2. Integrate the selected-route Steam extension before SH/EQ aggregation. Export
    topology, full source–mic length, departure/arrival direction, weight, native
    filtering and validity through a checked private ABI. Preserve native probe
