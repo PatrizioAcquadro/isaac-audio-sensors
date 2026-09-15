@@ -131,6 +131,26 @@ silently start general perception research.
 
 ## Provider stop rule and exclusions
 
+### Step 3 targeted impact decision (2026-09-15)
+
+The user authorized a bounded PCM/observation follow-up on the current persistent
+PRA candidate before deciding on provider replacement. The failed rotating-mirror
+temporal-coherence control remains a measured physical discrepancy, with its 0.1
+criterion unchanged. Its failure alone does not establish a material robot-audition
+error. Use it to select a sensitivity case and measure its energy and effect on the
+maintained perception, including weak direct; do not infer current-candidate task
+failure from the earlier moving-ray prototype.
+
+This authorizes an isolated experimental renderer and valid controlled references,
+not public diffuse admission or a larger propagation engine. Keep causal timing,
+visibility, energy ownership/normalization, shared microphone pressure and lifecycle
+requirements binding. Preserve the domain, approximation-impact budgets, independent
+episode confidence intervals and consumer parameters. A refinement or ablation is
+not model validation; missing references and inconclusive intervals stay open.
+Full Step 3 qualification still requires its other applicable controls. A bounded
+impact pass cannot establish arbitrary-room fidelity, learning transfer or AV/mobile
+usefulness. Retain both harmful and artificially beneficial changes in scoring.
+
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical
 extensions and requires a repository-owned multibounce engine, stop with working

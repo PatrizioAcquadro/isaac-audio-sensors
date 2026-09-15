@@ -223,3 +223,11 @@ three convolution tests plus repository Ruff checks pass. No live diffuse
 simulation or CUDA observation qualification is claimed. New failed candidates
 and reproduction reports remain in ignored local evidence; raw and historical
 provider assets are unchanged.
+
+## 2026-09-15 — update: Authorize targeted Step 3 observation impact
+
+Record the user's decision to measure the current PRA candidate's bounded PCM
+and observation impact before deciding on provider replacement. Preserve the
+failed rotating-mirror diagnostic, domain, observation budgets and essential
+physical/interface invariants. R10 and status now distinguish the authorized
+follow-up from public diffuse admission and the earlier moving-ray failure.

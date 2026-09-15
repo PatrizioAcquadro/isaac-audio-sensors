@@ -125,8 +125,11 @@ independent native handles have focused tests. The material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
 5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
 with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
-Independent reference refinement passes. **Step 3 remains not qualified and the
-approved stop rule applies.** Native preparation is committed; shared pressure,
+Independent reference refinement passes. **Step 3 remains not qualified.** The
+user authorized a targeted PCM/observation follow-up before a provider decision;
+the failed physical diagnostic remains recorded under the
+[[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|revised decision]].
+Native preparation is committed; shared pressure,
 full energy/reference qualification, producer integration and weak-direct
 observation budgets remain open. Evidence and reproduction live under
 `local/r10/08_2_step3_diffuse/`; the

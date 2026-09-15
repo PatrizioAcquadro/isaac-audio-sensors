@@ -330,8 +330,11 @@ seeds 100–111 after diagnostic seeds 0–11; confidence intervals resample who
 native realizations, not frames or robot episodes. Scripts, inputs, variants,
 derivations and commands are in the local README; `summary.json` owns the numbers.
 
-**Step 3 is not qualified.** The approved stop rule is applied before a larger
-pressure-transport redesign. No diffuse configuration is enabled; complete
+**Step 3 is not qualified.** The initial stop preceded a larger pressure-transport
+redesign. The user subsequently authorized a targeted PCM/observation comparison
+of this candidate before deciding on the provider; see
+[[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|the revised diagnostic role]].
+The failed 0.1 control remains unchanged. No diffuse configuration is enabled; complete
 energy/decay/radius qualification, causal integration, full-room reference validity
 and weak-direct observation comparisons remain open. No new CUDA/consumer result
 is inferred from these controls. The failed candidate does not prove all PRA or
