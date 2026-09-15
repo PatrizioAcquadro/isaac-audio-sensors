@@ -54,13 +54,13 @@ Both profiles and all applicable gates must pass. Scope approval is not implemen
 
 ### Remaining execution order
 
-Step 1 has a [[experiments/geometry-acoustics-trial-protocol|saved simulation preparation checkpoint]]
-(2026-09-15): generic-rig USD layers, local Office/Hospital inventory, normalized
-stimuli, explicit workload counts and a bounded failed decay-reference diagnostic.
-It is **not complete**: actual scene validation/conditioning and the GPU cost pilot
-remain blocked by a host NVIDIA driver/library mismatch. The user will reboot
-manually after saving. Full-room moving-reference gaps remain explicit; resolving
-all Step 2/3 model physics is not part of this preparation request.
+Step 1 has a [[experiments/geometry-acoustics-trial-protocol|concrete simulation preparation checkpoint]]
+(2026-09-15, after manual reboot): RTX CUDA/rendering and Office/Hospital PhysX checks,
+controlled material/door layers, episode inputs, bounded reference diagnostics and
+intermediate cost measurements. It is **not complete**: accepted banded decay/DRR,
+representative acoustic geometry and reference preflight remain open. The driver
+mismatch is resolved. Full-room moving-reference gaps remain explicit; implementing
+or qualifying Step 2/3 model physics is outside this preparation request.
 
 | Step | Work | Completion evidence |
 | --- | --- | --- |

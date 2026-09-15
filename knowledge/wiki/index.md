@@ -55,7 +55,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 Read for a specific result/reference; these pages do not add requirements.
 
 - [[experiments/geometry-acoustics-admission|Geometry Admission]] — intermediate pass, corrected NLOS, diffuse failures and task sensitivity.
-- [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — simulation-only Office/Hospital and control preparation, saved stimuli, reference gaps and cost envelope; GPU pilot blocked.
+- [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — simulation-only Office/Hospital and control inputs, recovered RTX runtime and cost evidence; acoustic conditioning/reference gaps remain.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
 - [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, precision rejection and practical batch costs.

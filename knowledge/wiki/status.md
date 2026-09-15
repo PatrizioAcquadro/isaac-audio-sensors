@@ -4,7 +4,7 @@ Updated: 2026-09-15. Package version: `3.0.0`.
 
 ## Current work
 
-**Phase 08: scene preparation and intermediate Geometry PCM are complete;
+**Phase 08: SDK scene preparation and intermediate Geometry PCM are complete;
 Milestone 2 and operating integration remain open.**
 
 - Approved scope: [[decisions/robot-audition-fidelity|ordinary-indoor robot audition, numerical impact budgets and stop rule]], AV attention/search first, then mobile.
@@ -14,14 +14,14 @@ Milestone 2 and operating integration remain open.**
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
   realize/condition the declared test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
-- Step 1 [[experiments/geometry-acoustics-trial-protocol|preparation is saved but incomplete]]:
-  eight generic-rig USD layers including original Office/Hospital references,
-  prepared stimuli and explicit workload/cost envelope. A bounded CPU-native
-  specular reference diagnostic failed every target decay band; no scene acoustic
-  conditioning was accepted. Actual Isaac validation and the GPU cost pilot are
-  blocked by loaded NVIDIA 580.173.02 versus installed 580.178.04. User chose manual
-  reboot after saving; no GPU workload was substituted with CPU. No model comparison
-  or Step 2+ work ran. Full-room moving-reference gaps remain visible.
+- Step 1 [[experiments/geometry-acoustics-trial-protocol|concrete preparation remains incomplete]]:
+  NVIDIA driver recovery is verified on the RTX 4090; Office/Hospital rendering and
+  PhysX queries work. Controlled layers, source/door/screen clocks, both arrays,
+  camera variants, scorer checks and intermediate-only cost evidence are saved.
+  Complete banded decay/DRR conditioning and representative acoustic geometry are
+  not accepted. Scalar energy references have explicit limits, including a rejected
+  closed-door result; full-room moving pressure references remain unavailable.
+  No acoustic model comparison, closed-loop benefit qualification or Step 2+ work ran.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
   timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts

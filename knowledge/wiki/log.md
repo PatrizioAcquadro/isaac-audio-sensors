@@ -133,3 +133,19 @@ Markdown whitespace checked. Eight saved USD layers reopen with the camera forwa
 axis verified. Native PRA diagnostic outputs are retained as failed conditioning
 evidence. GPU rendering, collision/trajectory validation and cost pilot remain
 unexecuted; no model or task admission is claimed.
+
+## 2026-09-15 — update: Phase 08 Step 1 after driver recovery
+
+Verified recovered RTX 4090 CUDA/Isaac runtime after the user reboot. Saved controlled
+USD layers, Office/Hospital queries, exact episode inputs and bounded reference
+diagnostics. Completed 24 intermediate-only cost episodes and enumerated additional
+mode/replay resource envelopes. Scene acoustic representation, banded decay/DRR and
+reference gates remain open; rejected closed-door scalar energy is retained. No
+model comparison, later-step implementation or broad campaign was performed.
+
+## 2026-09-15 — lint: Post-reboot Step 1 preparation
+
+All 42 wiki pages are indexed; internal targets and heading anchors resolve. Nine
+documentation/version tests pass. Episode inputs, scorer/background controls, USD
+composition and reference-overlay imports pass their bounded checks. Diff review
+preserves approved decisions, raw assets, historical evidence and Step 2+ boundaries.
