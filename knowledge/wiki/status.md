@@ -12,15 +12,15 @@ Milestone 2 and operating integration remain open.**
   specular reflections. Experimental selected-route NLOS and shared diffuse
   pressure are not enabled. Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
-  realize/condition the declared test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
+  prepared matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
-- Step 1 [[experiments/geometry-acoustics-trial-protocol|concrete preparation remains incomplete]]:
-  NVIDIA driver recovery is verified on the RTX 4090; Office/Hospital rendering and
-  PhysX queries work. Controlled layers, source/door/screen clocks, both arrays,
-  camera variants, scorer checks and intermediate-only cost evidence are saved.
-  Complete banded decay/DRR conditioning and representative acoustic geometry are
-  not accepted. Scalar energy references have explicit limits, including a rejected
-  closed-door result; full-room moving pressure references remain unavailable.
+- Step 1 [[experiments/geometry-acoustics-trial-protocol|concrete preparation is complete within the clarified scope]]:
+  recovered RTX 4090, concrete scenes/inputs, bounded Office/Hospital acoustic
+  proxies, generic footprint/visibility, static direct/scalar diagnostics and the
+  intermediate cost pilot. Local overlay units/up-axis were fixed without an SDK
+  change. A representative family plan supersedes exhaustive per-row repetition.
+  Full-field decay/DRR, closed-door scattering and moving-room references remain
+  unresolved with later qualification owners; affected comparisons stay blocked.
   No acoustic model comparison, closed-loop benefit qualification or Step 2+ work ran.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
   timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]

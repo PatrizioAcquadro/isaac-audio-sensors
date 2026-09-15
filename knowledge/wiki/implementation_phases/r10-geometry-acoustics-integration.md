@@ -55,12 +55,14 @@ stream timing and justified pressure synthesis. No second geometry attenuation s
 Complete the following before closing Milestone 2:
 
 1. Instantiate the [[experiments/geometry-acoustics-trial-protocol|declared trial matrix]],
-   scoring and property-specific references. Local layers, episode inputs and
-   intermediate cost evidence are saved; RTX CUDA/rendering and NVIDIA scene
-   queries pass after manual reboot. Banded decay/DRR conditioning, representative
-   acoustic geometry and reference preflight remain open, including rejected
-   closed-door scalar energy and unavailable full-room moving pressure. Step 1 is
-   not complete; no requirement to implement Steps 2/3 inside preparation is implied.
+   scoring and property-specific references. **Step 1 preparation is complete under
+   the clarified scope**: inputs, bounded NVIDIA acoustic proxies, essential geometry
+   checks, direct/scalar reference diagnostics and RTX cost evidence are saved.
+   No 08.1 SDK correction was needed; local overlay units/up-axis were corrected.
+   Banded full-field decay/DRR, scattering visibility and unavailable moving-room
+   references remain explicit prerequisites to affected Step 2/3 comparisons.
+   Do not treat this preparation closeout as model admission. Use the lean family
+   allocation and reuse still-valid evidence; no blanket 400 repetitions per row.
 
 2. Integrate the selected-route Steam extension before SH/EQ aggregation. Export
    topology, full source–mic length, departure/arrival direction, weight, native

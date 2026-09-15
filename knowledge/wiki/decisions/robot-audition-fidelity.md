@@ -52,6 +52,11 @@ The current preparation is simulation-only on the local machine, reuses existing
 NVIDIA Office/Hospital before considering new environments, and requires no physical
 measurement, new recording, purchase or hardware work. Reference gaps stay explicit;
 trial preparation does not authorize subsequent model implementation/qualification.
+The user's lean follow-up assigns bounded fixture checks to Step 1 and full-field
+qualification once to its later owning step. The protocol now uses representative
+family comparisons, retaining difficult strata and explicit per-cell uncertainty;
+family pooling does not claim every cell meets a 5-point bound. Numerical budgets
+and domain stay unchanged, and unavailable references still block affected claims.
 
 ## Physical and interface invariants
 

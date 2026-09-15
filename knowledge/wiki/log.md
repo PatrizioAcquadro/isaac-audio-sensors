@@ -149,3 +149,22 @@ All 42 wiki pages are indexed; internal targets and heading anchors resolve. Nin
 documentation/version tests pass. Episode inputs, scorer/background controls, USD
 composition and reference-overlay imports pass their bounded checks. Diff review
 preserves approved decisions, raw assets, historical evidence and Step 2+ boundaries.
+
+## 2026-09-15 — update: Lean Step 1 preparation closeout
+
+Completed bounded Office/Hospital acoustic inputs through the existing 08.1 API,
+corrected local USD overlay units/up-axis and checked native world coordinates.
+Saved essential visibility/static path and direct/scattering diagnostics. Preserved
+reference failures; assigned full-field conditioning and model-specific refinements
+once to their later steps. Replaced blanket per-cell repetition with representative
+family comparisons and conditional cost envelopes, retaining domain/budgets and
+unresolved difficult strata. Step 1 preparation is complete under clarified scope;
+no later model implementation, candidate comparison or extended campaign ran.
+
+## 2026-09-15 — lint: Lean preparation and execution ownership
+
+All 42 wiki pages are indexed and internal links/anchors resolve. Nine
+documentation/version tests and 104 episode-input checks pass. All 131 affected USD
+overlay roots have explicit meters/Z-up; proxy world coordinates and required
+clear/blocked/open links pass. Diff review preserves raw/original assets, approved
+numerical budgets and later-step gates; historical cost envelopes are superseded.

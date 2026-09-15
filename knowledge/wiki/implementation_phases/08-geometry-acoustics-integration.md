@@ -54,17 +54,19 @@ Both profiles and all applicable gates must pass. Scope approval is not implemen
 
 ### Remaining execution order
 
-Step 1 has a [[experiments/geometry-acoustics-trial-protocol|concrete simulation preparation checkpoint]]
-(2026-09-15, after manual reboot): RTX CUDA/rendering and Office/Hospital PhysX checks,
-controlled material/door layers, episode inputs, bounded reference diagnostics and
-intermediate cost measurements. It is **not complete**: accepted banded decay/DRR,
-representative acoustic geometry and reference preflight remain open. The driver
-mismatch is resolved. Full-room moving-reference gaps remain explicit; implementing
-or qualifying Step 2/3 model physics is outside this preparation request.
+Step 1 [[experiments/geometry-acoustics-trial-protocol|simulation preparation is complete]]
+under the user's clarified lean scope (2026-09-15). Concrete inputs, bounded
+Office/Hospital acoustic representations, generic footprint/visibility checks,
+static reference diagnostics and the RTX cost pilot are saved. The local USD
+units/up-axis authoring error is fixed; 08.1 SDK behavior was not changed.
+Full-field conditioning/DRR and moving-reference gaps still block affected later
+comparisons and have explicit Step 2/3 owners. No later model or consumer was
+implemented or qualified. Representative family sampling replaces blanket per-cell
+repetition without changing domain/budgets or hiding unresolved difficult strata.
 
 | Step | Work | Completion evidence |
 | --- | --- | --- |
-| 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition and metric has a justified test/reference; no new approval needed for routine choices inside the approved scope |
+| 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition/metric has concrete inputs, bounded controls and an explicit valid/unavailable reference entry with later qualification ownership; no full-model implementation inside preparation |
 | 2 — Integrate Steam NLOS | Production selected-route timing, visibility, ordinary motion/door updates, non-duplication and explicit coverage limits | Native delay/geometry controls and continuous update tests pass; no impossible shortcut arrivals |
 | 3 — Qualify PRA diffuse extension | Shared spatial/temporal statistics, energy partition, normalization, visibility and representative weak-direct motion | Independent physical/statistical controls and approximation-impact comparisons pass; otherwise apply the approved blocker/decision rule |
 | 4 — Qualify the combined producer | Integrate admitted direct/specular/NLOS/diffuse contributions on one clock, retaining source-stop tails, block equivalence, resets and environment isolation | Focused continuous-stream and integration checks pass with unchanged signal/observation contracts |
