@@ -104,9 +104,11 @@ Complete the following before closing Milestone 2:
 
 #### Problems / Limitations
 
-The production configuration does not enable selected-route NLOS or joint diffuse
-pressure. Native Steam route timing now passes bounded tests and materially improves
-one corridor's arrival direction, but dynamic integration and coverage remain open.
+Selected-route NLOS is integrated as an explicit optional configuration; ordinary
+motion/refinement qualification is in progress in Step 2. The default remains the
+intermediate and joint diffuse pressure is not enabled. Automatic probe coverage,
+causal route timing, immutable visibility snapshots and producer lifecycle now
+have maintained native tests. This does not close Milestone 2.
 PRA moving-ray phases bias weak-direct observations; a fixed first-scatter anchor
 passes one plane but fails later-scatter persistence. Neither proves all PRA
 extensions impossible. The two-gate asynchronous failure is a stress limit;

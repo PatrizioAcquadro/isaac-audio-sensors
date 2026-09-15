@@ -69,6 +69,7 @@ def main():
                     *flags["CXX_DEFINES"],
                     *flags["CXX_INCLUDES"],
                     *flags["CXX_FLAGS"],
+                    "-ffile-prefix-map=" + str(work) + "=ias-steam-build",
                     "-I" + str(source / "src/core"),
                     "-c",
                     str(source_file),

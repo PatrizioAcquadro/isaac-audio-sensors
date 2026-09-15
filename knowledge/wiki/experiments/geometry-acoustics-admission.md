@@ -127,6 +127,27 @@ coverage/capacity failure and the prior filter/visibility/transport controls.
 The SDK baker needs a non-null progress callback; the bridge supplies one.
 This is component validation, not ordinary-motion or producer admission.
 
+### Producer integration and surface-endpoint correction
+
+The optional producer path passes static/moving read partitioning, source-stop,
+reset and source/array independence tests. Whole-host checks pass 662 unit/contract,
+336 integration and 58 release tests. A live RTX 4090 / CUDA Physics run passes
+four simulated seconds, 180 native door updates, selected/LOS/selected transitions
+and reset; it measured about 228 seconds including application startup/shutdown.
+This is bounded integration evidence, not a real-time claim.
+
+Step 1 E4 revealed probes exactly on wall planes: native endpoint exclusion allowed
+an impossible 8.23 m path versus a 9.22 m detour bound. E3 also leaked through its
+closed planar door on the coarse grid. Native probe clearance and inclusive route
+validation remove these shortcuts. ABI 2 preserves interpolation-pair identity
+through simplification, fixing false duplicate detection on the denser grid.
+Both 1 m and 0.5 m grids now respect E4 bounds across both layouts; E3 closed yields
+no selected route on both grids. Screen paths and bounded Office/Hospital coverage
+complete on both grids (Hospital 0.5 m: 2399 probes, about 24 seconds preparation).
+Initial failures remain in `local/r10/08_step2_nlos/coverage_initial.json`; corrected
+coverage and live results are in that directory. Ordinary door/motion refinement
+runs are still in progress; no task-utility or diffuse admission follows from these checks.
+
 ## Selected-flight dynamics — bounded correction, stress limit
 
 `retarded_pathing.py` retains emission history and tests only the traveled segment

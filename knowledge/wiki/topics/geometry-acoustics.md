@@ -98,13 +98,58 @@ The explicit delay bound includes microphone response. Excessive image expansion
 fails with an acoustic-proxy/order requirement; no silent truncation. Air absorption
 is explicitly unavailable in this intermediate configuration.
 
-Selected-route experimental tooling: `tools/native/build_pathing.py`,
-`steam_paths.patch`, `steam_paths.h`, `pathing.py`, `steam_visibility.cpp`,
-`retarded_pathing.py`. Private versioned callbacks copy selected route topology,
-length, weights and native EQ before aggregation; storage is temporary/thread-local.
-Native segment visibility uses immutable scene epochs. Empty route output still
-confounds no route with missing probe coverage; rebaking invalidates probe IDs.
-These tools are not production propagation or a visualization-derived route solver.
+### Optional Steam NLOS
+
+`GeometryAcousticsConfig.nlos=SteamNLOSConfig()` enables the native selected-route
+component; `None` preserves the intermediate. Use the checked extension binary
+as `library_path`, with the existing separate specular binary. Build it with:
+
+```bash
+.venv/bin/python tools/native/build_pathing.py \
+  --source build/qualification/r9/steam-audio/core \
+  --build build/qualification/r9/steam-audio/core/build/r9-release \
+  --output build/native/libias_pathing.so
+```
+
+The builder preserves the SDK and original provider; temporary debug paths are
+normalized so repeated builds against the same inputs are byte-identical. The
+binding accepts only the explicitly checked original/extension artifacts, then
+checks private route/probe/visibility ABIs. Route ABI 2 retains original endpoint
+probe IDs separately from simplified topology. ABI 1 remains readable only for
+historical selected-route replays, not automatic preparation.
+
+Steam generates floor probes inside the prepared static bounds, with defaults
+`probe_spacing_m=1`, `probe_height_m=1.2`, `max_probes=4096`, `update_hz=100`.
+Native clearance rays exclude probes on surfaces; no wall-endpoint shortcuts are
+allowed. Probe influence radius is at least the generation height. A bounded grid
+precheck and actual retained-probe limit prevent unbounded baking. The static
+graph excludes explicitly dynamic objects; every selected route is validated
+against the actual live scene. This graph is candidate preparation, never an
+all-open acoustic rendering. Structural changes rebake; ordinary doors reuse it.
+Missing floor, unavailable endpoint coverage and native failures raise errors;
+`no_selected_route` does not certify complete physical silence or diffraction coverage.
+
+Each physical route uses emission-time source pose, reception-time microphone
+pose, full polyline delay, native EQ, interpolation weight and directional gain.
+Equivalent geometric/EQ representations sum their interpolation weights. Immutable
+native snapshots test visibility only during the traveled portions of each epoch;
+source-stop and native EQ tails drain on the same sample clock. Fixed integer-clock
+route updates are independent of PCM read partitioning. Poses without a supplied
+motion plan describe window start; timestamped plans reuse the common trajectory
+model. No asynchronous two-gate route discovery or exact moving-boundary wave
+solution is claimed.
+
+The final mixture retains existing PCM/observation/recording schemas. Optional
+geometry diagnostics contain probe counts, rebuild counts and per-source/channel
+coverage states; they are not observations. The NLOS microphone response currently
+supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negative
+delay is explicitly unqualified for this causal component; the intermediate keeps
+its existing response support. Full combined-producer qualification remains Step 4.
+
+Production bindings live in the package; `tools/native/pathing.py` and
+`retarded_pathing.py` retain lightweight import compatibility for historical replay
+consumers. `tools/native/steam_paths.patch`, `steam_probes.cpp`,
+`steam_visibility.cpp` and the private header/build recipe remain maintained.
 
 Exact local replay recipes: `local/r10/08_2_intermediate/README.md`,
 `local/r10/08_2_extensions/README.md`, `local/r10/08_2_dynamics/README.md`.

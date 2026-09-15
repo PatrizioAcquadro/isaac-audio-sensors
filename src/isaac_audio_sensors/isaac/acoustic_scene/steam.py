@@ -325,7 +325,7 @@ QUALIFIED_LIBRARY_SHA256 = (
 )
 
 # Native probe/filter/visibility controls; domain admission is documented separately.
-NLOS_LIBRARY_SHA256 = "d739a711c68acada1a234459f43f9fdcdf747f6a408a3a33ea000ddf4fd41ceb"
+NLOS_LIBRARY_SHA256 = "9dc4942f42f6b3acc9a02d7ca8f989f9dcfff6ffbcd76b321b4ac97b86326c37"
 
 
 class SceneSnapshot:

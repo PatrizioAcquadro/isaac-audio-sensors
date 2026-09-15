@@ -743,6 +743,8 @@ class IsaacAudioArraySensor:
             ):
                 backend.reset()
             backend.window_motion = window_motion
+        elif self.backend == "geometry_acoustics":
+            backend.window_motion = window_motion
         assert self.perception_pipeline is not None
         frame, signal_block = simulate_frame(
             backend,

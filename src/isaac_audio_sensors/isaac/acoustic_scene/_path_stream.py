@@ -96,7 +96,11 @@ class GeometryHistory:
             emission[:, None]
             + np.c_[np.zeros(len(points)), np.cumsum(lengths, axis=1)] / speed
         )
-        for index, (stamp, query, _) in enumerate(self.epochs):
+        stamps = [epoch[0] for epoch in self.epochs]
+        first = max(0, int(np.searchsorted(stamps, times.min(), side="right")) - 1)
+        last = int(np.searchsorted(stamps, times.max(), side="right"))
+        for index in range(first, last):
+            stamp, query, _ = self.epochs[index]
             stop = self.epochs[index + 1][0] if index + 1 < len(self.epochs) else np.inf
             for leg in range(lengths.shape[1]):
                 start = np.maximum(times[:, leg], stamp)
@@ -178,6 +182,7 @@ class RetardedRouteStream:
         self.input_start = 0
         self.emission = np.empty(0, np.float32)
         self.filters = {}
+        self.epoch_signature = None
         self.tail = EmissionConvolution(microphones, int(0.25 * rate) + 128)
 
     def append(self, start_sample, emission, routes):
@@ -189,6 +194,17 @@ class RetardedRouteStream:
         if values.ndim != 1 or not np.isfinite(values).all() or not len(values):
             raise ValueError("Append a finite, nonempty mono emission.")
         self.emission = np.r_[self.emission, values]
+        signature = tuple(
+            tuple(
+                (tuple(route.points[1:-1].flat), route.weight, route.eq)
+                for route in channel
+            )
+            for channel in routes
+        )
+        if self.epochs and signature == self.epoch_signature:
+            self.epochs[-1].end = (start_sample + len(values)) / self.rate
+            return
+        self.epoch_signature = signature
         self.epochs.append(
             RouteEpoch(
                 start_sample / self.rate,
@@ -202,6 +218,7 @@ class RetardedRouteStream:
         self.cursor = self.input_start = 0
         self.emission = np.empty(0, np.float32)
         self.filters.clear()
+        self.epoch_signature = None
         self.tail.reset()
 
     def read(
@@ -229,12 +246,32 @@ class RetardedRouteStream:
                     "Retarded routes require subsonic source/receiver motion."
                 )
         times = (self.cursor + np.arange(count)) / self.rate
+        positions = [receiver.at(times) for receiver in receivers]
+        knots = np.asarray(source_trajectory.times)
         # Each carrier is delayed first, then filtered using the native route EQ.
         carriers = {}
         for epoch in self.epochs:
+            # The norm on a linear trajectory segment reaches its maximum at an
+            # endpoint. This conservative bound retires old flights before solving
+            # per-sample arrival times, without assuming a fixed route delay.
+            source_points = source_trajectory.at(
+                np.r_[
+                    epoch.start,
+                    epoch.end,
+                    knots[(knots > epoch.start) & (knots < epoch.end)],
+                ]
+            )
             for mic, routes in enumerate(epoch.routes):
-                position = receivers[mic].at(times)
+                position = positions[mic]
                 for route in routes:
+                    nodes = route.points[1:-1]
+                    maximum = (
+                        np.linalg.norm(source_points - nodes[0], axis=-1).max()
+                        + np.linalg.norm(np.diff(nodes, axis=0), axis=-1).sum()
+                        + np.linalg.norm(position - nodes[-1], axis=-1).max()
+                    )
+                    if epoch.end + maximum / speed < times[0]:
+                        continue
                     emission, length, points = routed_emission(
                         times, position, source_trajectory, route, speed, self.rate
                     )

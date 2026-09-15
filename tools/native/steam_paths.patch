@@ -4,12 +4,12 @@
 +namespace {
 +// Synchronous thread-local capture: callback storage is owned by the caller.
 +using RouteCallback = void (*)(int, const int*, const float*, float, float,
-+                              const float*, void*);
++                              const float*, int, int, void*);
 +thread_local RouteCallback routeCallback = nullptr;
 +thread_local void* routeUserData = nullptr;
 +thread_local vector<vector<int>> selectedNodes;
 +}
-+extern "C" __attribute__((visibility("default"))) int ias_path_abi() { return 1; }
++extern "C" __attribute__((visibility("default"))) int ias_path_abi() { return 2; }
 +extern "C" __attribute__((visibility("default"))) void ias_path_capture(
 +    RouteCallback callback, void* userData) {
 +    routeCallback = callback;
@@ -21,7 +21,7 @@
 @@ -172 +188 @@
 -                if (sEnablePathsFromAllSourceProbes)
 +                if (sEnablePathsFromAllSourceProbes || routeCallback)
-@@ -205,0 +222,36 @@
+@@ -205,0 +222,45 @@
 +    if (routeCallback) {
 +        for (int i = 0; i < numPaths && i < int(selectedNodes.size()); ++i) {
 +            // Endpoint-connected native route, independently validated as segments.
@@ -36,11 +36,20 @@
 +            points.push_back(listener); ids.push_back(-2);
 +            bool valid = true;
 +            for (size_t k = 1; k < points.size(); ++k)
-+                if (scene.isOccluded(points[k-1], points[k])) valid = false;
++                {
++                    auto delta = points[k] - points[k-1];
++                    auto direction = Vector3f::unitVector(delta);
++                    constexpr float tolerance = 1e-5f;
++                    if (scene.anyHit(Ray{points[k-1] - tolerance * direction, direction},
++                                     0.f, delta.length() + 2.f*tolerance)) valid = false;
++                }
 +            if (!valid) continue;
 +            // Native scene visibility removes redundant endpoint/probe detours.
 +            for (size_t k = 0; k + 2 < points.size();) {
-+                if (!scene.isOccluded(points[k], points[k+2])) {
++                auto delta = points[k+2] - points[k];
++                auto direction = Vector3f::unitVector(delta);
++                if (!scene.anyHit(Ray{points[k] - 1e-5f * direction, direction},
++                                  0.f, delta.length() + 2e-5f)) {
 +                    points.erase(points.begin()+k+1); ids.erase(ids.begin()+k+1);
 +                    if (k) --k;
 +                } else ++k;
@@ -55,23 +64,23 @@
 +            vector<float> xyz;
 +            for (auto p : points) { xyz.push_back(p.x()); xyz.push_back(p.y()); xyz.push_back(p.z()); }
 +            routeCallback(int(points.size()), ids.data(), xyz.data(), length,
-+                          pathWeights[i], eq, routeUserData);
++                          pathWeights[i], eq, starts[i], ends[i], routeUserData);
 +        }
 +    }
-@@ -283 +335,2 @@
+@@ -283 +344,2 @@
 -    soundPath = bakedPathData.lookupShortestPath(sourceProbeIndex, listenerProbeIndex, nullptr);
 +    ProbePath selectedPath;
 +    soundPath = bakedPathData.lookupShortestPath(sourceProbeIndex, listenerProbeIndex, &selectedPath);
-@@ -292,0 +346 @@
+@@ -292,0 +355 @@
 +            soundPath = SoundPath();
-@@ -298 +352 @@
+@@ -298 +361 @@
 -        ProbePath probePath;
 +        auto& probePath = selectedPath;
-@@ -307,0 +362,5 @@
+@@ -307,0 +371,5 @@
 +        if (numPaths >= 64) return;
 +        vector<int> nodes{sourceProbeIndex};
 +        nodes.insert(nodes.end(), selectedPath.nodes.begin(), selectedPath.nodes.end());
 +        if (nodes.back() != listenerProbeIndex) nodes.push_back(listenerProbeIndex);
 +        selectedNodes.push_back(nodes);
-@@ -339,0 +399 @@
+@@ -339,0 +408 @@
 +            soundPath = SoundPath();

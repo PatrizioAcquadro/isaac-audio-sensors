@@ -9,8 +9,9 @@ Milestone 2 and operating integration remain open.**
 
 - Approved scope: [[decisions/robot-audition-fidelity|ordinary-indoor robot audition, numerical impact budgets and stop rule]], AV attention/search first, then mobile.
 - Production Geometry: Steam direct/planar transmission + corrected native PRA
-  specular reflections. Experimental selected-route NLOS and shared diffuse
-  pressure are not enabled. Analytic remains maintained.
+  specular reflections. Selected-route NLOS is implemented as an explicit option;
+  Step 2 ordinary-motion/refinement qualification remains in progress. Shared
+  diffuse pressure is not enabled. Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
   prepared matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
@@ -21,9 +22,9 @@ Milestone 2 and operating integration remain open.**
   change. A representative family plan supersedes exhaustive per-row repetition.
   Full-field decay/DRR, closed-door scattering and moving-room references remain
   unresolved with later qualification owners; affected comparisons stay blocked.
-  No acoustic model comparison, closed-loop benefit qualification or Step 2+ work ran.
+  No closed-loop benefit or combined-model qualification ran in Step 1.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
-  timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]
+  timing is integrated; current qualification is recorded separately. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
 

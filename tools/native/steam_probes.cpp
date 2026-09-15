@@ -42,12 +42,33 @@ extern "C" __attribute__((visibility("default"))) int ias_probes_create(
         // Bound the grid before native allocation; count all generated floors too.
         double cells = (std::floor(transform(0,0)/spacing)+1)
                      * (std::floor(transform(2,2)/spacing)+1);
-        if (cells > maxProbes) return -3;
+        if (cells > 16.0 * maxProbes) return -3;
         ipl::ProbeArray generated;
         ipl::ProbeGenerator::generateProbes(*scene, transform,
             ipl::ProbeGenerationType::UniformFloor, spacing, height, generated);
-        if (!generated.numProbes()) return -2;
-        if (generated.numProbes() > maxProbes) return -3;
+        ipl::vector<ipl::Probe> retained;
+        for (int i = 0; i < generated.numProbes(); ++i) {
+            auto probe = generated[i];
+            const auto& center = probe.influence.center;
+            bool valid = true;
+            for (int axis = 0; axis < 3; ++axis) {
+                if (center[axis] < bounds[axis] || center[axis] > bounds[axis+3]) valid = false;
+                ipl::Vector3f direction(0.f,0.f,0.f);
+                direction[axis] = 1.f;
+                // Native finite clearance queries reject points on walls, including
+                // thin proxy planes that exclude an exact ray endpoint.
+                if (scene->anyHit(ipl::Ray{center - 1e-4f*direction, direction},
+                                  0.f, 2e-4f)) valid = false;
+            }
+            if (valid) {
+                probe.influence.radius = std::max(spacing, height);
+                retained.push_back(probe);
+                if (retained.size() > size_t(maxProbes)) return -3;
+            }
+        }
+        if (retained.empty()) return -2;
+        generated.probes.resize(retained.size());
+        for (int i = 0; i < generated.numProbes(); ++i) generated[i] = retained[i];
         auto paths = std::make_unique<Paths>();
         paths->range = std::sqrt(transform(0,0)*transform(0,0)
             + transform(1,1)*transform(1,1) + transform(2,2)*transform(2,2));

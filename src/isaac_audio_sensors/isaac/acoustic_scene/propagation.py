@@ -19,6 +19,7 @@ from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import MicrophoneSignalBlock
 
 from ._convolution import ConvolutionStream
+from ._nlos import NLOSScene, NLOSStream, SteamNLOSConfig
 from ._specular import SpecularScene
 from ._steam_audio import Receiver
 
@@ -36,8 +37,11 @@ class GeometryAcousticsConfig:
     transition_samples: int = 32
     air_absorption: bool = False
     diagnostics: bool = False
+    nlos: SteamNLOSConfig | None = None
 
     def __post_init__(self):
+        if self.nlos is not None and not isinstance(self.nlos, SteamNLOSConfig):
+            raise TypeError("nlos must be SteamNLOSConfig or None.")
         if not self.library_path or not self.specular_library_path:
             raise ValueError(
                 "Geometry requires explicit Steam and specular library paths."
@@ -73,6 +77,7 @@ class GeometryAcoustics:
         effects=None,
         speed_of_sound_mps=343.0,
         runtime_profile="waveform_fidelity",
+        window_motion=None,
     ):
         if not isinstance(geometry_config, GeometryAcousticsConfig):
             raise TypeError("geometry_config must be GeometryAcousticsConfig.")
@@ -87,6 +92,8 @@ class GeometryAcoustics:
         self.streams = {}
         self.closed = False
         self._reset_notice = False
+        self.window_motion = window_motion
+        self.nlos = None
         acoustic_scene.refresh()
         self._check_scene()
         if acoustic_scene.provider is None:
@@ -99,6 +106,8 @@ class GeometryAcoustics:
                 "Prepared scene and geometry_config select different libraries."
             )
         self.provider = acoustic_scene.provider
+        if geometry_config.nlos is not None:
+            self.nlos = NLOSScene(acoustic_scene, geometry_config.nlos)
 
     def _check_scene(self):
         if self.session.issues:
@@ -108,6 +117,8 @@ class GeometryAcoustics:
 
     @staticmethod
     def _release(stream):
+        if stream.get("nlos"):
+            stream["nlos"].close()
         for receiver in stream["receivers"]:
             receiver.close()
         stream["specular"].close()
@@ -117,6 +128,9 @@ class GeometryAcoustics:
         for stream in self.streams.values():
             self._release(stream)
         self.streams.clear()
+        if self.nlos:
+            self.nlos.close()
+            self.nlos = None
 
     def close(self):
         self.reset()
@@ -162,7 +176,17 @@ class GeometryAcoustics:
             if specular:
                 specular.close()
             raise
+        nlos = None
+        try:
+            if self.nlos:
+                nlos = NLOSStream(self.nlos, array, self.config, start, self.speed)
+        except Exception:
+            for receiver in receivers:
+                receiver.close()
+            specular.close()
+            raise
         return dict(
+            nlos=nlos,
             signature=signature,
             receivers=receivers,
             specular=specular,
@@ -270,6 +294,10 @@ class GeometryAcoustics:
             raise ValueError("Geometry windows must use the nonnegative sample clock.")
         self.session.refresh(self.session._last_time)
         self._check_scene()
+        if self.config.nlos is not None:
+            if self.nlos is None:
+                self.nlos = NLOSScene(self.session, self.config.nlos)
+            self.nlos.refresh(start / rate)
         key = (scene.stage_id, array_id)
         signature = (rate, array.microphones, tuple(s.source_id for s in scene.sources))
         stream = self.streams.get(key)
@@ -311,12 +339,27 @@ class GeometryAcoustics:
             stream["pose"] = pose
         count = end - start
         output = np.zeros((len(positions), count), np.float32)
+        emissions = {}
         for source in scene.sources:
             emission = _scheduled_window_signal(
                 source, time_window=time_window, sample_rate_hz=rate
             ).signal
             emission = np.pad(emission[:count], (0, max(0, count - len(emission))))
+            emissions[source.source_id] = emission
             output += stream["convolvers"][source.source_id].process(emission)
+        if stream["nlos"]:
+            nlos_stream = stream["nlos"]
+            try:
+                nlos_stream.observe(scene, array, start / rate, self.window_motion)
+                indirect = nlos_stream.process(scene, array, start, emissions, count)
+                output += self._nlos_response(stream, array, indirect)
+            except Exception:
+                self._release(stream)
+                del self.streams[key]
+                self._reset_notice = True
+                raise
+            before = min(s["cursor"] / s["signature"][0] for s in self.streams.values())
+            self.nlos.history.prune(before - self.config.max_delay_s - 1 / rate)
         output *= np.asarray([10 ** (m.gain_db / 20) for m in array.microphones])[
             :, None
         ]
@@ -339,6 +382,15 @@ class GeometryAcoustics:
                 domain="intermediate_specular",
                 reflection_order=self.config.reflection_order,
             )
+            if stream["nlos"]:
+                diagnostics["geometry"].update(
+                    domain="intermediate_specular+nlos",
+                    nlos=dict(
+                        probes=self.nlos.paths.count,
+                        bakes=self.nlos.bakes,
+                        coverage=stream["nlos"].states,
+                    ),
+                )
         return MicrophoneSignalBlock(
             samples=output,
             microphone_ids=tuple(m.mic_id for m in array.microphones),
@@ -355,4 +407,45 @@ class GeometryAcoustics:
             producer_id=self.backend_id,
             provenance="room_acoustics",
             diagnostics=diagnostics,
+        )
+
+    def _nlos_response(self, stream, array, samples):
+        """Apply the deterministic microphone response once to the NLOS mixture."""
+        if not self.effects.channel_response.enabled:
+            return samples
+        if "nlos_response" not in stream:
+            for response in (self.effects.channel_response.microphones or {}).values():
+                if (
+                    response.frequency_response is not None
+                    or (response.delay_s or 0) < 0
+                ):
+                    raise ValueError(
+                        "NLOS streaming requires causal microphone response: gain, "
+                        "polarity and nonnegative delay; zero-phase FIR is unqualified."
+                    )
+            length = self._response_margin(array.sample_rate_hz)
+            impulses = np.zeros((len(array.microphones), length), np.float32)
+            impulses[:, 0] = 1
+            impulses, _ = self.chain.apply_premix(
+                impulses,
+                mic_ids=[m.mic_id for m in array.microphones],
+                sample_rate_hz=array.sample_rate_hz,
+                frame_id="nlos-response",
+                backend_id=self.backend_id,
+                runtime_profile="waveform_fidelity",
+                microphone_self_noise_db={
+                    m.mic_id: m.self_noise_db for m in array.microphones
+                },
+            )
+            responses = []
+            for impulse in impulses:
+                convolver = ConvolutionStream(1, length, 0)
+                convolver.update([impulse])
+                responses.append(convolver)
+            stream["nlos_response"] = responses
+        return np.array(
+            [
+                response.process(row)[0]
+                for response, row in zip(stream["nlos_response"], samples, strict=True)
+            ]
         )

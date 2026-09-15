@@ -1,8 +1,4 @@
-"""Experimental rendering of selected Steam routes on an emission sample clock.
-
-This consumes steam_paths.h ABI 1. It does not discover/bake probes, establish
-coverage, or qualify moving geometry. Callers own those admission boundaries.
-"""
+"""Native selected-route capture, automatic probes and per-route pressure filters."""
 
 from __future__ import annotations
 
@@ -28,6 +24,7 @@ class Route:
     length_m: float
     weight: float
     eq: tuple[float, float, float]
+    interpolation_probes: tuple[int, int] | None = None
 
 
 _CALLBACK = C.CFUNCTYPE(
@@ -41,6 +38,19 @@ _CALLBACK = C.CFUNCTYPE(
     Handle,
 )
 
+_CALLBACK_V2 = C.CFUNCTYPE(
+    None,
+    C.c_int,
+    C.POINTER(C.c_int),
+    C.POINTER(C.c_float),
+    C.c_float,
+    C.c_float,
+    C.POINTER(C.c_float),
+    C.c_int,
+    C.c_int,
+    Handle,
+)
+
 
 def _require_abi(lib):
     try:
@@ -49,8 +59,9 @@ def _require_abi(lib):
         version = lib.ias_path_abi()
     except AttributeError as exc:
         raise RuntimeError("Steam selected-route extension is unavailable.") from exc
-    if version != 1:
+    if version not in (1, 2):
         raise RuntimeError("Unsupported Steam selected-route ABI.")
+    return version
 
 
 def capture(lib, simulate):
@@ -59,15 +70,19 @@ def capture(lib, simulate):
     Not reentrant: the caller must serialize captures on this thread. An empty
     result means no exported route; it does not certify complete probe coverage.
     """
-    _require_abi(lib)
+    version = _require_abi(lib)
     lib.ias_path_capture.argtypes = [Handle, Handle]
     lib.ias_path_capture.restype = None
     routes = []
 
-    @_CALLBACK
-    def receive(count, ids, xyz, length, weight, eq, _user):
+    def receive(count, ids, xyz, length, weight, eq, *rest):
         points = np.ctypeslib.as_array(xyz, shape=(count * 3,)).copy().reshape(-1, 3)
-        routes.append(Route(tuple(ids[:count]), points, length, weight, tuple(eq[:3])))
+        pair = tuple(rest[:2]) if version == 2 else None
+        routes.append(
+            Route(tuple(ids[:count]), points, length, weight, tuple(eq[:3]), pair)
+        )
+
+    receive = (_CALLBACK_V2 if version == 2 else _CALLBACK)(receive)
 
     lib.ias_path_capture(C.cast(receive, Handle), None)
     try:
@@ -278,7 +293,8 @@ class ProbeRoutes:
     def __init__(self, lib, scene, bounds, spacing, height, max_probes):
         import threading
 
-        _require_abi(lib)
+        if _require_abi(lib) != 2:
+            raise RuntimeError("Automatic NLOS requires selected-route ABI 2.")
         self.lib, self.handle = lib, Handle()
         self.lock = threading.Lock()
         try:
@@ -366,7 +382,7 @@ def canonical_routes(routes):
     for route in routes:
         geometry = tuple(tuple(p) for p in np.round(route.points[1:-1], 6))
         key = geometry, route.eq
-        record = route.probes, key
+        record = route.interpolation_probes or route.probes, key
         if record in seen:
             raise RuntimeError("Steam exported a duplicate probe contribution.")
         seen.add(record)

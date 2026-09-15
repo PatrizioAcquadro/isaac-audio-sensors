@@ -172,3 +172,7 @@ numerical budgets and later-step gates; historical cost envelopes are superseded
 ## 2026-09-15 — update: Step 2 native probe preparation
 
 Recorded automatic Steam probe preparation, coverage errors, native interpolation and focused component controls; dynamic producer admission remains open.
+
+## 2026-09-15 — update: Opt-in causal NLOS producer
+
+Documented automatic probes, ABI 2 interpolation identity, surface-endpoint shortcut corrections, causal transport and live RTX lifecycle evidence. Step 2 motion/refinement qualification remains in progress.
