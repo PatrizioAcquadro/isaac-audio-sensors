@@ -198,3 +198,9 @@ Verified wiki links/index coverage, repository references, whitespace and scope
 against current tests and saved evidence. Final host checks pass 668 unit/contract,
 336 integration and 58 release tests; native/producer checks pass 30 tests.
 The clean-source wheel matches 183 Python modules and imports NLOS independently.
+
+## 2026-09-15 — update: PRA native diffuse transport preparation
+
+Documented checked pre-histogram band-energy capture, disjoint receiver ownership,
+two-sided stochastic transport and the remaining shared-pressure qualification.
+The existing specular producer and installed native providers remain preserved.

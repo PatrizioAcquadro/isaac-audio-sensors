@@ -30,6 +30,9 @@ Milestone 2 and operating integration remain open.**
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
+- Step 3 native preparation adds checked multiband surface/receiver transport
+  capture and corrected scattering traversal. Shared pressure synthesis is still
+  under qualification; no diffuse configuration or new observation claim is enabled.
 
 ## Maintained capabilities and boundaries
 

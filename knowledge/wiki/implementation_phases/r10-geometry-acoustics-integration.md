@@ -118,6 +118,13 @@ passes one plane but fails later-scatter persistence. Neither proves all PRA
 extensions impossible. The two-gate asynchronous failure is a stress limit;
 representative weak-direct bias cannot be waived.
 
+Step 3 native preparation now exposes checked pre-histogram, multiband incident
+and received energy capture through the existing PRA build. Disjoint ISM/RT
+receiver ownership, two-sided visibility, band branching, unchanged calls and
+independent native handles have focused tests. This is not diffuse pressure
+admission: shared statistical synthesis and its motion/reference gates remain
+in progress, with all new outputs under `local/r10/08_2_step3_diffuse/`.
+
 Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,
 separated spacings/frequencies, within-bin directional timing, rotation/translation,

@@ -1,8 +1,8 @@
 # Geometry Acoustics
 
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
-transmission plus corrected native PRA 0.10.1 specular reflections. Experimental
-NLOS and joint diffuse pressure are not production options. See
+transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
+NLOS is an explicit option; joint diffuse pressure is not enabled. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
 
@@ -97,6 +97,38 @@ The builder patches a temporary source copy and rejects unmatched anchors. Confi
 The explicit delay bound includes microphone response. Excessive image expansion
 fails with an acoustic-proxy/order requirement; no silent truncation. Air absorption
 is explicitly unavailable in this intermediate configuration.
+
+### Native PRA transport qualification interface
+
+The same build now additionally exposes private `ias_pra_transport_abi=1`,
+`ias_pra_event_size`, `ias_pra_trace` and `ias_pra_trace_outputs`. The existing
+specular ABI remains 1. This is an incident/received energy interface, not a
+qualified diffuse PCM option or a change to `GeometryAcousticsConfig`.
+
+`tools/native/pra_diffuse.h` defines the event layout. A surface event records
+energy after absorption and before scattering, native face/plane coordinates,
+travel/departure direction, traveled distance, parent event and interaction counts.
+Its scattering flag describes the continuation actually sampled. Receiver events
+exclude direct and pure-specular paths through the configured ISM order; higher
+pure-specular and scattered paths use native finite-radius capture. Do not add
+surface-event energy directly to received energy. Pressure synthesis and shared
+field admission remain separate gates. Native face coordinates/indices are local
+to a scene handle; persistent authored-object identity still needs adapter mapping.
+
+Capture uses an unbiased specular/Lambertian branch with per-band importance
+weights and the incident hemisphere, with no additional `scat_ray` deposit.
+All authored polygons obstruct traversal. Forward-intersection and departing-plane
+checks avoid tolerance-induced backward hits or spurious immediate re-reflections
+across two-sided partitions. Escaping rays can reach receivers before the horizon.
+Native receiver-radius sampling is a statistical approximation, not exact point
+receiver timing. Its radius convergence is not yet qualified.
+
+Each handle owns its output; copy events and `count * band_count` energies before
+the next trace. Output capacity, argument errors and event-budget exhaustion fail
+explicitly and clear incomplete captures. Serialize calls on a handle; independent
+handles have isolated per-thread random streams. Installed PRA and previous native
+builds remain unchanged. Set `IAS_PRA_LIBRARY` when running
+`tests/isaac/test_pra_transport.py` against a new extension build.
 
 ### Optional Steam NLOS
 
