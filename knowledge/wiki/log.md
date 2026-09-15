@@ -204,3 +204,22 @@ The clean-source wheel matches 183 Python modules and imports NLOS independently
 Documented checked pre-histogram band-energy capture, disjoint receiver ownership,
 two-sided stochastic transport and the remaining shared-pressure qualification.
 The existing specular producer and installed native providers remain preserved.
+
+## 2026-09-15 — update: Step 3 diffuse statistical candidate stop
+
+Recorded improvements in controlled source-motion and mirror-translation fields,
+then the failed finite-rotation temporal-coherence gate. Independent quadrature
+and native image-length checks pass; 12 fresh realizations at 1048576 rays retain
+mean error 0.17045, 95% interval [0.16783, 0.17321], above 0.1. Applied the approved
+stop rule; native preparation remains usable, while diffuse pressure, full energy,
+producer, weak-direct observation and later consumer qualification remain open.
+No replacement evaluation or broader transport solver was started.
+
+## 2026-09-15 — lint: Step 3 bounded closeout
+
+Wiki index/link checks and whitespace checks pass. The new native library passes
+22 transport/specular/Geometry tests in the Isaac interpreter; 58 release and
+three convolution tests plus repository Ruff checks pass. No live diffuse
+simulation or CUDA observation qualification is claimed. New failed candidates
+and reproduction reports remain in ignored local evidence; raw and historical
+provider assets are unchanged.

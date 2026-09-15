@@ -288,7 +288,56 @@ stationary floor: errors ~0.151/0.300/1.031 at 500/1000/4000 Hz remain across
 finite specular prefixes also remain incomplete. Under the approved scope these
 are diagnostics; task-relevant statistical impact decides further work.
 
-## Measured observation impact
+## Step 3 shared statistical extension — not admitted (2026-09-15)
+
+New work under `local/r10/08_2_step3_diffuse/` preserves prior prototypes and the
+working producer. The checked native PRA extension captures incident surface and
+received band energy before histogramming, including parent interactions and
+directions. Disjoint ISM/RT receiver ownership, two-sided closed/open/closed
+containment, band branching, reproducibility and independent handles pass five
+native checks. Seventeen existing specular/Geometry tests pass against the new
+library using the Isaac interpreter. This is CPU-native evidence, not live diffuse
+PCM, CUDA perception or overall Phase 08 qualification.
+
+The statistical candidate uses fixed material surface nodes and shared delay/
+directional modes. Mean native path lengths remain unstable under source motion.
+A directional source phase gauge repairs the controlled one/two-scatter case:
+at 65536 rays, 0.5 m nodes, 4 ms modes and 64 directions, maximum temporal errors
+are 0.05586/0.04768, spatial errors 0.00471/0.01088 and energy ratios
+0.99693/1.00344. These bounded scalar-plane results do not establish full banded
+normalization, radius behavior, high-order ownership or a converged room tail.
+Near-surface refinement needs smaller nodes and more samples; increasing to
+262144/1048576 rays reduces its two-scatter temporal error to 0.06343/0.05648.
+
+Native interaction derivatives also correct a translating mirror between diffuse
+surfaces (bounded maximum error 0.02002 at 65536 rays), but the corresponding
+first-order rotation correction retains bias. In the independent two-Lambertian-
+surface control, a smooth mirror rotates 5 degrees around a fixed pivot; that
+change can occur in 100 ms at 50 degrees/s. This is a controlled transfer-statistics
+test, not an asynchronous-flight stress scenario or a furnished-room reference.
+
+| Native rays; 12 sampler realizations each | Mean complex temporal-coherence error at 500 Hz | 95% interval for the mean |
+| --- | --- | --- |
+| 262144 | 0.16404 | [0.15981, 0.16807] |
+| 1048576 | 0.17045 | [0.16783, 0.17321] |
+
+All realizations exceed the controlled 0.1 bound; 1000/4000 Hz controls pass.
+Independent exact image-distance quadrature changes only ~0.000406 between
+0.25/0.125 m discretizations at 500 Hz. Native selected path lengths agree with
+that geometry within 4.155e-6 m. The reference and sample refinements therefore
+do not explain away this candidate's bias. Final confirmation uses fresh native
+seeds 100–111 after diagnostic seeds 0–11; confidence intervals resample whole
+native realizations, not frames or robot episodes. Scripts, inputs, variants,
+derivations and commands are in the local README; `summary.json` owns the numbers.
+
+**Step 3 is not qualified.** The approved stop rule is applied before a larger
+pressure-transport redesign. No diffuse configuration is enabled; complete
+energy/decay/radius qualification, causal integration, full-room reference validity
+and weak-direct observation comparisons remain open. No new CUDA/consumer result
+is inferred from these controls. The failed candidate does not prove all PRA or
+statistical extensions impossible; replacement evaluation has not started.
+
+## Measured observation impact — earlier evidence
 
 Actual RTX 4090 `TorchPerception`, observed PCM only; truth used after inference.
 Twelve paired corridor realizations give arrival-direction mean error 0.03685
@@ -340,6 +389,7 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_extensions/` | README, native route/shared-event prototypes and Python/Isaac result equivalence |
 | `08_2_usefulness/` | README, paired observations, sensitivity figure, configurations and replay |
 | `08_2_dynamics/` | README, selected-flight history and anchored/later-scatter native controls |
+| `08_2_step3_diffuse/` | Checked native transport, persistent statistical candidates, independent rotating-mirror reference/refinement, fresh sampler confirmation and the Step 3 stop result |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
 Provider alternatives: [[experiments/acoustic-provider-evaluation|Provider Evaluation]].

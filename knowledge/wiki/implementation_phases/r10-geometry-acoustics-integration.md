@@ -121,9 +121,17 @@ representative weak-direct bias cannot be waived.
 Step 3 native preparation now exposes checked pre-histogram, multiband incident
 and received energy capture through the existing PRA build. Disjoint ISM/RT
 receiver ownership, two-sided visibility, band branching, unchanged calls and
-independent native handles have focused tests. This is not diffuse pressure
-admission: shared statistical synthesis and its motion/reference gates remain
-in progress, with all new outputs under `local/r10/08_2_step3_diffuse/`.
+independent native handles have focused tests. The material-anchored statistical
+candidate improves source-motion and translating-mirror controls but fails a
+5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
+with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
+Independent reference refinement passes. **Step 3 remains not qualified and the
+approved stop rule applies.** Native preparation is committed; shared pressure,
+full energy/reference qualification, producer integration and weak-direct
+observation budgets remain open. Evidence and reproduction live under
+`local/r10/08_2_step3_diffuse/`; the
+[[experiments/geometry-acoustics-admission|admission record]] owns the result.
+No larger pressure-transport solver or replacement evaluation was started.
 
 Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,

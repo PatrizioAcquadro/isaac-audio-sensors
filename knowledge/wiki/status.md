@@ -30,9 +30,13 @@ Milestone 2 and operating integration remain open.**
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- Step 3 native preparation adds checked multiband surface/receiver transport
-  capture and corrected scattering traversal. Shared pressure synthesis is still
-  under qualification; no diffuse configuration or new observation claim is enabled.
+- **Step 3 diffuse qualification stopped at the physical gate.** Checked native
+  multiband transport and corrected traversal pass focused checks. The shared
+  statistical candidate improves source/translation controls but retains rotating-
+  mirror coherence error ~0.17 against the 0.1 bound, including 12 realizations at
+  over one million rays and an independently refined reference. No diffuse option
+  or new observation claim is enabled; the approved decision point applies before
+  a larger redesign. [[experiments/geometry-acoustics-admission|Evidence and limits]].
 
 ## Maintained capabilities and boundaries
 

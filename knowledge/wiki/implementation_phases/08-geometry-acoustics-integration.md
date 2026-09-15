@@ -75,6 +75,14 @@ repetition without changing domain/budgets or hiding unresolved difficult strata
 | 7 — Complete 08.3 operation | Existing Python/Kit configuration, actionable diagnostics, capability failures and consumer-safe consolidation | Usable geometry-backed sensor-to-instrument chain; provider truth stays separate from observations |
 | 8 — Close Phase 08 | Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks; measure one/few-environment runtime and memory | Supported domain, failures and runtime limits documented; checks pass; local validated commits, no push |
 
+Step 3 was attempted on 2026-09-15: native transport preparation passes, but the
+shared statistical candidate fails controlled temporal coherence during mirror
+rotation after independent reference and ray-count refinement. The approved stop
+rule applies; Step 3, later producer integration and weak-direct observation
+qualification remain open. The
+[[experiments/geometry-acoustics-admission|admission record]] records the measured
+boundary and reusable native changes.
+
 Steps 2 and 3 include focused native checks before wider integration. Carry
 lifecycle checks through development rather than postponing them to Step 8.
 **Steps 1–6 close Milestone 2 only if both profiles and the integrated producer
