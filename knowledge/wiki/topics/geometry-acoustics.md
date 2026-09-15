@@ -115,6 +115,12 @@ surface-event energy directly to received energy. Pressure synthesis and shared
 field admission remain separate gates. Native face coordinates/indices are local
 to a scene handle; persistent authored-object identity still needs adapter mapping.
 
+The private `ias_pra_visibility_abi=1` / `ias_pra_segments_visible` interface uses
+PRA polygon intersections for paired segments. Endpoint surface contact is allowed;
+intervening opaque faces block from either side, including a partition crossed
+while interpolating on a floor. `_pra.Transport` checks both private ABIs and the
+event layout before borrowing a scene handle. This does not enable diffuse PCM.
+
 Capture uses an unbiased specular/Lambertian branch with per-band importance
 weights and the incident hemisphere, with no additional `scat_ray` deposit.
 All authored polygons obstruct traversal. Forward-intersection and departing-plane

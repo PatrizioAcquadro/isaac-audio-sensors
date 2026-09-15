@@ -76,6 +76,34 @@ void ias_specular_outputs(void* handle, float* images, float* damping, float* di
 // surface events are incident energy samples, never additional receiver energy.
 int ias_pra_transport_abi() { return 1; }
 int ias_pra_event_size() { return sizeof(IASPraEvent); }
+int ias_pra_visibility_abi() { return 1; }
+int ias_pra_segments_visible(void* handle, int count, const float* starts,
+                             const float* ends, unsigned char* visible) {
+    try {
+        if (!handle || count < 0 || (count && (!starts || !ends || !visible)))
+            throw std::invalid_argument("Invalid PRA visibility arguments.");
+        const auto& walls = static_cast<Scene*>(handle)->room->walls;
+        for (int i = 0; i < count; ++i) {
+            const Vectorf<3> a(starts + 3*i), b(ends + 3*i);
+            if (!a.allFinite() || !b.allFinite())
+                throw std::invalid_argument("Nonfinite visibility endpoint.");
+            visible[i] = 1;
+            if ((b-a).norm() <= libroom_eps) continue;
+            // Paired walls represent one two-sided surface. Endpoint contact is
+            // allowed; every strictly intervening polygon remains obstructing.
+            for (std::size_t w = 0; w < walls.size(); w += 2) {
+                Vectorf<3> hit;
+                if (walls[w].intersection(a, b, hit) >= 0 &&
+                    (hit-a).norm() > libroom_eps && (hit-b).norm() > libroom_eps) {
+                    visible[i] = 0;
+                    break;
+                }
+            }
+        }
+        error.clear();
+        return 0;
+    } catch (const std::exception& e) { error = e.what(); return -1; }
+}
 std::int64_t ias_pra_trace(void* handle, const float* source, int microphones,
                          const float* positions, int rays, float horizon,
                          float radius, float energy_threshold, std::uint64_t seed,

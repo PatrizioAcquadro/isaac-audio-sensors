@@ -3,10 +3,12 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.isaac.acoustic_scene._pra import Transport as SurfaceTransport
 from tests.isaac.pra_transport_helpers import Transport, box, partition
 
 pytest.importorskip("pyroomacoustics")
@@ -109,7 +111,7 @@ def test_trace_horizon_and_failure_clear_partial_capture(transport):
 
 
 def test_distinct_scenes_have_isolated_random_streams(transport):
-    first, second = transport(), transport(scattering=.8)
+    first, second = transport(), transport(scattering=0.8)
     args = ([2, 3, 1.2], [[4, 3, 1.2]])
     expected_a = first.trace(*args, seed=9)
     expected_b = second.trace(*args, seed=71)
@@ -119,3 +121,41 @@ def test_distinct_scenes_have_isolated_random_streams(transport):
         for actual, expected in ((a.result(), expected_a), (b.result(), expected_b)):
             for value, reference in zip(actual, expected, strict=True):
                 np.testing.assert_array_equal(value, reference)
+
+
+def test_native_surface_connections_do_not_cross_closed_partition(transport):
+    for opened in (False, True, False):
+        engine = transport(partition(opened))
+        native = SurfaceTransport(SimpleNamespace(lib=engine.lib, handle=engine.handle))
+        # Contact with the emitting surface is allowed from either side.
+        starts = np.array([[0, 3, 1.2], [6, 3, 1.2], [0, 1, 1.2]])
+        ends = np.array([[4, 3, 1.2], [2, 3, 1.2], [4, 1, 1.2]])
+        np.testing.assert_array_equal(
+            native.visible(starts, ends), [opened, opened, False]
+        )
+        np.testing.assert_array_equal(
+            native.visible(ends, starts), [opened, opened, False]
+        )
+        assert native.visible([3, 3, 1.2], [2, 3, 1.2])
+        assert native.visible([3, 3, 1.2], [4, 3, 1.2])
+        # Surface projection must not carry floor illumination across a wall.
+        assert not native.visible([2.9, 1, 0], [3.1, 1, 0])
+        with pytest.raises(RuntimeError, match="Nonfinite"):
+            native.visible([np.nan, 0, 0], [1, 0, 0])
+
+
+def test_borrowed_transport_matches_native_energy_capture(transport):
+    engine = transport(absorption=[0.2, 0.4], scattering=[0.3, 0.8])
+    native = SurfaceTransport(
+        SimpleNamespace(
+            lib=engine.lib,
+            handle=engine.handle,
+            bands=SimpleNamespace(centers=(500, 1000)),
+        )
+    )
+    expected = engine.trace([2, 3, 1.2], rays=4096, horizon=0.15, seed=19)
+    actual = native.trace(
+        [2, 3, 1.2], rays=4096, horizon=0.15, seed=19, limit=2_000_000
+    )
+    for value, reference in zip(actual, expected, strict=True):
+        np.testing.assert_array_equal(value, reference)

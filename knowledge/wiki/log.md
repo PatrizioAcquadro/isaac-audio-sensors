@@ -255,3 +255,15 @@ independence use the actual RTX 4090. The confidence-interval plot was inspected
 Only canonical wiki files are tracked changes; experimental code/PCM remains in
 the new ignored evidence directory. Raw, historical evidence and the existing
 Obsidian metadata are preserved. No public provider admission or push is implied.
+
+## 2026-09-15 — update: General PRA surface connection boundary
+
+Added the checked private PRA segment-visibility binding for persistent surface
+projection. Seven focused native tests pass, including both-sided closed/open/closed
+partitions and a floor segment crossing a partition. General pressure qualification
+is still in progress; the public diffuse option is not enabled.
+
+## 2026-09-15 — lint: PRA surface connection documentation
+
+Internal-link/index boundary checks and Markdown whitespace checks pass. The
+native interface is documented separately from unqualified pressure synthesis.

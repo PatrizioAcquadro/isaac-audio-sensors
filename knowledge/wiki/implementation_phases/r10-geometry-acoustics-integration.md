@@ -121,7 +121,10 @@ representative weak-direct bias cannot be waived.
 Step 3 native preparation now exposes checked pre-histogram, multiband incident
 and received energy capture through the existing PRA build. Disjoint ISM/RT
 receiver ownership, two-sided visibility, band branching, unchanged calls and
-independent native handles have focused tests. The material-anchored statistical
+independent native handles have focused tests. The resumed general-field work
+adds a checked native segment-visibility interface, including surface projection
+across partition boundaries; seven transport/visibility tests pass. Diffuse PCM
+admission remains separate. The material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
 5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
 with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
