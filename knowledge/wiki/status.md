@@ -14,10 +14,14 @@ Milestone 2 and operating integration remain open.**
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
   realize/condition the declared test matrix → NLOS → PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
-- Step 1 [[experiments/geometry-acoustics-trial-protocol|protocol is defined]]:
-  building-exploration scenes/sounds, generic rigs, representative 90-degree camera,
-  both profiles and cost-first sample planning. Scene realization, measured acoustic
-  conditions, reference validity and the cost pilot remain open; no new qualification.
+- Step 1 [[experiments/geometry-acoustics-trial-protocol|preparation is saved but incomplete]]:
+  eight generic-rig USD layers including original Office/Hospital references,
+  prepared stimuli and explicit workload/cost envelope. A bounded CPU-native
+  specular reference diagnostic failed every target decay band; no scene acoustic
+  conditioning was accepted. Actual Isaac validation and the GPU cost pilot are
+  blocked by loaded NVIDIA 580.173.02 versus installed 580.178.04. User chose manual
+  reboot after saving; no GPU workload was substituted with CPU. No model comparison
+  or Step 2+ work ran. Full-room moving-reference gaps remain visible.
 - Key unresolved result: PRA motion biases weak-direct observations; bounded NLOS
   timing is useful but not integrated. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts

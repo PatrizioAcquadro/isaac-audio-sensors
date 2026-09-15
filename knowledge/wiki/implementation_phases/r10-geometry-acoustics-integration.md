@@ -55,8 +55,11 @@ stream timing and justified pressure synthesis. No second geometry attenuation s
 Complete the following before closing Milestone 2:
 
 1. Instantiate the [[experiments/geometry-acoustics-trial-protocol|declared trial matrix]],
-   scoring and valid independent references. Protocol choices are defined;
-   conditioning, reference validity and the technical cost pilot remain pending.
+   scoring and property-specific references. Local layers, stimuli, workload counts
+   and reference gaps are recorded. Native finite-order decay preflight did not
+   meet target bands; no conditioning was accepted. GPU scene validation and cost
+   pilot await manual driver-recovery reboot. Step 1 remains open; no requirement
+   to implement Steps 2/3 inside trial preparation is implied.
 2. Integrate the selected-route Steam extension before SH/EQ aggregation. Export
    topology, full source–mic length, departure/arrival direction, weight, native
    filtering and validity through a checked private ABI. Preserve native probe

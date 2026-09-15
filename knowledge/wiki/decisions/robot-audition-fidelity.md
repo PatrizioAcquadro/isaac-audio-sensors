@@ -48,6 +48,10 @@ The [[experiments/geometry-acoustics-trial-protocol|2026-09-15 trial protocol]]
 instantiates the user's scene/rig/content preferences and representative operating
 values within this scope. It owns exact scenarios, camera selection, scoring and
 sample planning; these choices do not change the budgets below or admit a provider.
+The current preparation is simulation-only on the local machine, reuses existing
+NVIDIA Office/Hospital before considering new environments, and requires no physical
+measurement, new recording, purchase or hardware work. Reference gaps stay explicit;
+trial preparation does not authorize subsequent model implementation/qualification.
 
 ## Physical and interface invariants
 

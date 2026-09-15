@@ -114,3 +114,22 @@ Nine documentation/version tests pass. Wiki page/heading links, 23 matrix row ID
 maintained array coordinates, existing signal paths, L-corridor geometry, 10 m
 range, pinhole FOV and binary-interval examples checked. Whitespace passes.
 No simulation, reference qualification, statistical campaign or media run performed.
+
+## 2026-09-15 — update: Save Phase 08 Step 1 preparation
+
+Preserve the approved domain and budgets. Record local Office/Hospital composition,
+eight generic-rig USD layers, normalized existing stimuli, expanded workload counts
+and a bounded native specular reference diagnostic that fails the target decay
+bands. Keep unvalidated scene conditions and moving-room reference gaps explicit.
+Actual Isaac validation and cost pilot await the user-selected manual reboot for
+NVIDIA loaded/on-disk version mismatch. Step 1 remains incomplete; no Step 2+ work,
+long campaign, physical acquisition or GPU-to-CPU workload substitution.
+
+## 2026-09-15 — lint: Validate saved Step 1 checkpoint
+
+Nine documentation/version tests pass. Wiki page links/index, ten finite 16 kHz
+source files and fixed reference levels, 154 unique unready workload entries and
+Markdown whitespace checked. Eight saved USD layers reopen with the camera forward
+axis verified. Native PRA diagnostic outputs are retained as failed conditioning
+evidence. GPU rendering, collision/trajectory validation and cost pilot remain
+unexecuted; no model or task admission is claimed.
