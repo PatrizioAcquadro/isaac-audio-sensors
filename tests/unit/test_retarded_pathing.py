@@ -124,6 +124,7 @@ def test_geometry_history_releases_drained_snapshots_and_isolates_environments()
 
 
 def test_rebuilt_probe_identity_keeps_existing_route_and_arrival_once():
+    pytest.importorskip("scipy")
     nodes = np.array([[2.0, 0, 0], [0, 1, 0], [-2.0, 0, 0]])
     route = Route((-1, 0, -2), nodes, 2 * np.sqrt(5), 1.0, (1.0, 1.0, 1.0))
     rebuilt = replace(route, probes=(-1, 47, -2), interpolation_probes=(18, 33))
@@ -144,6 +145,7 @@ def test_rebuilt_probe_identity_keeps_existing_route_and_arrival_once():
 
 @pytest.mark.parametrize("opening", [0.004, 0.01])
 def test_new_route_uses_emitted_sound_only_if_gate_opens_before_passage(opening):
+    pytest.importorskip("scipy")
     nodes = np.array([[2.0, 0, 0], [1.0, 1.0, 0], [-1.0, 1.0, 0], [-2.0, 0, 0]])
     length = float(np.linalg.norm(np.diff(nodes, axis=0), axis=1).sum())
     route = Route((-1, 0, 1, -2), nodes, length, 1.0, (1.0, 1.0, 1.0))
