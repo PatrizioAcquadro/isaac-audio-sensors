@@ -1,6 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: 08.1 and the 08.2 intermediate are complete; Milestone 2 and 08.3 remain open.
+Status: 08.1, the 08.2 intermediate and Step 3 admission are complete. Step 3 is
+PASS with documented limits; Milestone 2 and 08.3 remain open. Step 4 is next.
 
 ## Objective
 
@@ -60,7 +61,8 @@ Complete the following before closing Milestone 2:
    checks, direct/scalar reference diagnostics and RTX cost evidence are saved.
    No 08.1 SDK correction was needed; local overlay units/up-axis were corrected.
    Banded full-field decay/DRR, scattering visibility and unavailable moving-room
-   references remain explicit prerequisites to affected Step 2/3 comparisons.
+   references were assigned to affected Step 2/3 comparisons; current results and
+   the explicitly revised full-room admission role are recorded below.
    Do not treat this preparation closeout as model admission. Use the lean family
    allocation and reuse still-valid evidence; no blanket 400 repetitions per row.
 
@@ -84,8 +86,9 @@ Complete the following before closing Milestone 2:
    Derive normalization from native energy and synthesis filters; test ray-count
    convergence and receiver-radius behavior without fitted gains. Exact late-path
    phase is not mandatory; apply the
-   [[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|current binding and diagnostic criteria]].
-   Matching the recorded cube late response is not an exit gate. Resolve material
+   [[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|current binding controls and accepted limitations]].
+   Full-room moving equivalence is NOT VALIDATED and explicitly non-blocking;
+   cube/mirror diagnostic limits remain separate. Resolve material
    measurement defects before affected comparisons, then share episodes/PCM across
    remaining motion and observation checks; reuse still-valid controls.
 4. Combine admitted direct, specular, diffuse and deviation contributions on one
@@ -118,9 +121,9 @@ maintained native tests. Door pressure remains probe-sensitive: refinement has
 not established pressure convergence or calibrated diffraction accuracy. See
 [[experiments/geometry-acoustics-admission|the measured limits and closeout]].
 This does not close Milestone 2 or unavailable full-field/reference comparisons.
-PRA moving-ray phases bias weak-direct observations; a fixed first-scatter anchor
-passes one plane but fails later-scatter persistence. Neither proves all PRA
-extensions impossible. The two-gate asynchronous failure is a stress limit;
+Historical PRA moving-ray phases biased weak-direct observations; a fixed
+first-scatter anchor passed one plane but failed later-scatter persistence. Neither
+proves all PRA extensions impossible. The two-gate asynchronous failure is a stress limit;
 representative weak-direct bias cannot be waived.
 
 Step 3 native preparation now exposes checked pre-histogram, multiband incident
@@ -136,8 +139,8 @@ tails and reset. The conditioned smooth-room pressure-decay and RTX observation
 comparison fails the original criteria after order/ray refinement, including
 order 7/65536 rays. The user-approved cube diagnostic decision preserves this
 failure but removes matching that late response as an admission prerequisite.
-Step 3 remains unadmitted because binding field and representative motion/room
-qualification remain open. The user requested
+Step 3 then remained unadmitted pending binding field and representative
+motion/room qualification. The user requested
 practical-impact diagnostics before a provider decision. Absolute-rate/persistence
 analysis, artificial late-response interventions and actual downstream software
 replay are complete. A sixteen-episode geometric head/camera loop and targeted
@@ -153,13 +156,13 @@ The earlier material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
 5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
 with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
-Independent reference refinement passes. **Step 3 remains not qualified.** The
+Independent reference refinement passes. **Step 3 was not qualified at that stage.** The
 user authorized a targeted PCM/observation follow-up before a provider decision;
 the failed physical diagnostic remains recorded under the
 [[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|revised decision]].
-General shared pressure and optional producer integration are implemented;
-full energy/reference and weak-direct observation qualification remain open.
-New evidence is separate under `local/r10/08_2_step3_general/`.
+General shared pressure and optional producer integration followed;
+full energy/reference and weak-direct observation qualification were then open.
+That evidence is separate under `local/r10/08_2_step3_general/`.
 Reference conditioning also exposed a banded specular synthesis defect: including
 scalar path gain inside minimum-phase conversion made phase depend on distance
 and discarded negative directivity. Material normalization and separate signed
@@ -178,8 +181,8 @@ future general-motion comparisons must use the actual producer at microphone
 positions or independently qualified sampling. Historical rate intervals retain
 the preceding consumer, rather than becoming fresh evidence after the fix.
 [[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|Measurement reliability]]
-owns the targeted effects and remaining reference limits. This maintenance changes
-neither the cube diagnostic decision nor the remaining Step 3 gates.
+owns the targeted effects and remaining reference limits. This maintenance changed
+neither the cube diagnostic decision nor the Step 3 gates then in force.
 
 A later E3 door probe corrected a sub-epsilon jamb projection leak. Native
 parent-surface departure-side checks now prevent interpolation behind the prior
@@ -206,7 +209,7 @@ explicit capacity override leaves accuracy budgets unchanged. Full moving-room
 references, conditioning and complete routes remain open. Costs are offline and
 recorded in the linked targeted closeout. See
 [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|joint motion/observation evidence]]
-for the validated scope, independent-reference boundary and remaining admission.
+for the validated scope and independent-reference boundary.
 
 The user then retained the full-room gate and authorized only a bounded reference
 feasibility task. Its
@@ -214,8 +217,18 @@ feasibility task. Its
 stops before trajectory rendering: existing components do not provide an
 independently justified shared moving-room pressure model. The identified missing
 work is a separate room-field formulation and qualification, not a demonstrated
-need to replace native PRA traversal. Current criteria and all prior PASS evidence
-remain intact; further reference-model work or a gate revision needs a user decision.
+need to replace native PRA traversal. The subsequent explicit user decision
+declines new independent reference development and accepts full-room moving
+pressure/observation equivalence as a **non-blocking known limitation, NOT VALIDATED**.
+Review of the saved evidence finds no other binding Step 3 blocker. **Step 3 is
+formally PASS under the revised criteria**, with unchanged numerical budgets,
+perception parameters and opt-in defaults. The
+[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|formal closeout]]
+separates passed controls, cube/mirror diagnostic failures, unvalidated full-room
+properties and later-step work. Runtime diagnostics report `step3_pass_with_limits`.
+Only admission documentation and diagnostic labels change at closure; no new
+tests, reference runs or provider evaluations are performed. Combined NLOS+D,
+AV/mobile utility and Milestone 2 remain open.
 
 The earlier targeted follow-up supplies actual RTX 4090 observation evidence under
 `local/r10/08_2_step3_impact/`. Analytic scalar synthesis/reference, persistence and

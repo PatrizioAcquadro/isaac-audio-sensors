@@ -45,7 +45,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 ## Key Decisions
 
-- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope, binding budgets/invariants, diagnostic cube exception, consumer semantics and provider stop rule.
+- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope/budgets, binding invariants, accepted cube/mirror and unvalidated full-room limits, Step 3 admission and provider stop rule.
 - [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival model, libraries and motion/lifecycle approximations.
 - [[decisions/minimal-maintained-repository-surface|Minimal Maintained Surface]] — consumer-proven implementation/cleanup principle.
 - [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces and exclusions.
@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — diagnostic cube, C03/C04/seed confirmations, E3 fix, room/NVIDIA evidence and the bounded full-room reference audit stopped at its explicit capability gap.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — Step 3 PASS under revised criteria, retained C03/C04/seed and room evidence, diagnostic failures and full-room moving equivalence explicitly NOT VALIDATED.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — exact fixtures/matrix, references/scoring and lean allocation, followed by completed preparation and its limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

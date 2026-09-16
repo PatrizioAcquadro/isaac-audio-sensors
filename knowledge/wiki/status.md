@@ -5,7 +5,8 @@ Updated: 2026-09-16. Package version: `3.0.0`.
 ## Current work
 
 **Phase 08: SDK scene preparation and intermediate Geometry PCM are complete;
-Milestone 2 and operating integration remain open.**
+Step 3 diffuse admission is PASS with documented limits; Milestone 2 and operating
+integration remain open.**
 
 - Approved scope: [[decisions/robot-audition-fidelity|ordinary-indoor robot audition, numerical impact budgets and stop rule]], AV attention/search first, then mobile.
 - Production Geometry: Steam direct/planar transmission + corrected native PRA
@@ -13,10 +14,10 @@ Milestone 2 and operating integration remain open.**
   Step 2 selected-route transport controls are complete, including ordinary
   motion, doors, probe/update refinement and actual RTX Isaac updates. Door
   pressure remains probe-sensitive and uncalibrated. Shared diffuse pressure is
-  an experimental opt-in, disabled by default and not admitted.
+  an opt-in, disabled by default, admitted at Step 3 with explicit limitations.
   Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
-  PRA diffuse → combined stream → AV → mobile →
+  combined stream (Step 4) → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
 - Step 1 [[experiments/geometry-acoustics-trial-protocol|concrete preparation is complete within the clarified scope]]:
   recovered RTX 4090, concrete scenes/inputs, bounded Office/Hospital acoustic
@@ -26,48 +27,29 @@ Milestone 2 and operating integration remain open.**
   Those initial full-field decay/DRR, closed-door scattering and moving-room
   reference gaps were assigned to later qualification; Step 3 results are below.
   No closed-loop benefit or combined-model qualification ran in Step 1.
-- Key unresolved result: the earlier moving-ray PRA model biases weak-direct
-  observations; bounded NLOS timing/visibility controls pass, while door-pressure refinement has not established
+- Historical prototype limit: the earlier moving-ray PRA model biased weak-direct
+  observations; current persistent-field evidence is recorded below. Bounded NLOS
+  timing/visibility controls pass, while door-pressure refinement has not established
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 remains unqualified; the cube failure is now diagnostic by user decision.**
-  The general persistent field and optional D producer pass 36 native, analytic
-  and streaming controls. Closed-partition projection and gain-dependent banded
-  specular phase defects are corrected. A conditioned smooth 3 m room still fails
-  the original pressure-decay criterion. The preceding numerical consumer at
-  order 7/65536 rays recorded the following RTX 4090 observation failures:
-  spurious-update changes are -23.08 points on square and -67.43 on raised, with
-  95% intervals outside the +/-5-point budget. Main-bearing, miss and added-latency
-  budgets pass in this fixed-scene comparison. These results remain FAIL under the
-  original criteria; matching the cube's late response is no longer required to
-  continue or close Step 3. The
-  [[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|approved decision]]
-  keeps structural invariants, numerical margins and representative observation
-  gates binding. It neither fixes the physics nor admits the candidate.
-  The reproduced raised-reference scalar/CUDA and batch-count defect is now
-  corrected; the historical intervals have not been rerun with the corrected consumer.
-  The earlier rotating selected-mixture pass remains historical evidence within
-  its scope; its ~0.17 physical statistic is also diagnostic with targeted impact
-  evidence.
-  C03/C04 now have actual-producer controls and selected maximum-speed
-  confirmations; complete room-motion qualification and later consumers remain
-  open. A targeted
-  follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
-  while replacing the late response recovers most reference extras. Actual SquadBot
-  software replay retains posterior orienting cues. A subsequent bounded geometric
-  head/camera study completes sixteen diagnostic and 192 fresh refined episodes
-  with actual RTX perception. Every treatment acquires the source; the candidate
-  retains a measured resumption-time benefit over audio-off. One 100 ms false
-  association is recorded; the pooled rate interval fits five points, while the
-  raised-only interval remains inconclusive. Direct-only controls expose a separate
-  numerical consumer defect, corrected by the measurement work below. The compact
-  joint campaign uses the actual D producer at microphone positions. Its remaining
-  room/reference boundary is recorded below. Full AV/mobile
-  usefulness belongs to Steps 5–6; tracking and matched physical transfer are separate unvalidated claims.
-  This acceptance revision changes the cube comparison's role, not the operating
-  domain or numerical margins. PRA remains retained and diffuse remains opt-in
-  and `not_admitted`. [[experiments/geometry-acoustics-admission|Evidence and limits]].
+- **Step 3 is formally PASS under the user's revised admission criteria.**
+  Review of the saved structural, energy, visibility, lifecycle, controlled-field
+  and selected C03/C04 observation evidence found no other unresolved binding
+  requirement or confirmed material representative failure. The
+  [[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|explicit decision]]
+  makes **representative full-room moving pressure/observation equivalence a known
+  non-blocking limitation: NOT VALIDATED, never PASS**. Its missing independent
+  reference, dependent conditioning and complete matched routes are not completed
+  tests. The cube late-pressure/spurious-update failure and earlier selected-mirror
+  coherence discrepancy retain their separately accepted diagnostic roles and
+  original failed results. The decision changes admission, not the physical model,
+  numerical budgets or perception parameters. Newly demonstrated structural or
+  material representative errors remain blocking. The
+  [[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|formal closeout]]
+  reconciles all previously open items. No new tests, references or provider
+  evaluations ran for this closure. Full AV/mobile usefulness remains Steps 5–6;
+  earlier bounded head/camera results do not close those gates or prove transfer.
 - **Measurement reliability:** weighted QR/pseudoinverse WPE and stable float64
   peak arithmetic correct direct-symmetry and scalar/CUDA count defects without
   retuning perception. The 27 affected RTX tests and 15 scalar tests pass; four
@@ -115,20 +97,21 @@ Milestone 2 and operating integration remain open.**
   original acoustic proxies; Hospital requires a documented 200000-node local
   capacity override. These are bounded property/integration results. Complete
   moving-room pressure/observation references, input conditioning and full-D routes
-  remain open. Native preparation costs 24.2–157.3 s per room pose in this panel;
-  it is offline. **Retain PRA; Step 3 remains `not_admitted` because the remaining
-  room gate lacks evidence, not because the diagnostic cube must be matched.**
+  remain unvalidated within the accepted full-room limitation. Native preparation
+  costs 24.2–157.3 s per room pose in this panel; it is offline. Retain PRA and the
+  explicit bounds of these integration results.
 
 - **Bounded full-room reference audit: stopped at the authorized scope.** The
-  user retained the current gate. Existing shoebox/plane references and native
+  user initially retained the gate. Existing shoebox/plane references and native
   energy/history do not supply an independently justified shared pressure field
   for the furnished moving-room conditions. The minimum missing work is a second
   room-field formulation and its validation, while PRA traversal remains reusable;
   no new geometric engine is proved necessary. Three existing motion paths and
   one static two-source companion are specified conditionally, with saved cost
   extrapolations. No room campaign, qualified-control rerun or provider evaluation
-  was launched. Further reference-model work or a requirement revision needs a
-  separate user decision. The full-room gate remains OPEN.
+  was launched. The user subsequently declined independent reference development
+  and accepted the full-room property as a non-blocking known limitation. It
+  remains unvalidated; the audit did not show that PRA needs replacement.
   [[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|Missing capabilities, reference limits and stop evidence]].
 
 ## Maintained capabilities and boundaries

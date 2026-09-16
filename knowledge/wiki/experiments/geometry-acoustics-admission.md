@@ -12,17 +12,18 @@ contracts/builds. Historical milestones below retain their original scope and ve
 | --- | --- | --- |
 | Steam direct + native PRA specular intermediate | Bounded arrival/gain, reflected visibility, streaming and actual Sim/Lab/Kit; scalar/CUDA agreement on identical PCM | General retarded motion and the full diffuse/combined field; selected-route integration is qualified separately below |
 | Steam selected routes | Step 2 native selected-route transport, producer lifecycle and ordinary-motion controls | Calibrated pressure/diffraction, combined producer and consumer admission |
-| PRA persistent surface pressure | Optional D implementation; native visibility, first-scatter quadrature, shared-field and streaming controls; bounded AV evidence supports retaining PRA | Cube late-response failure retained as diagnostic; binding field, representative motion/room/observation and later task admission remain open |
+| PRA persistent surface pressure | Step 3 PASS under the revised admission criteria; shared-field, energy, visibility, lifecycle and controlled motion/observation evidence | Full-room moving equivalence NOT VALIDATED; accepted cube/mirror diagnostic limits; combined producer and AV/mobile remain separate |
 | Closed-loop tasks | Targeted NLOS benefit and diffuse observation sensitivity | Both approved AV/mobile consumer gates |
 
-**Current decision (2026-09-16): retain PRA; Step 3 remains unadmitted.** The
-smooth E0/C02/R05 late-pressure and spurious-update comparisons remain **FAIL under
-the original criteria, diagnostic for current admission**. Their correction is
-not required to continue/close Step 3; other binding field, representative-motion
-and observation gates remain open. The
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|approved decision]]
-owns invariants, budgets and reopening rules. Dated stops below are historical,
-not instructions to halt on the cube alone.
+**Current decision (2026-09-16): retain PRA; Step 3 PASS with documented limits.**
+The user explicitly made representative full-room moving pressure/observation
+equivalence non-blocking; that property remains **NOT VALIDATED**, not PASS.
+The cube and selected rotating-mirror failures retain their separately accepted
+diagnostic roles. The
+[[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|governing decision]]
+keeps other binding controls, numerical budgets and material representative errors
+binding. The review below finds no additional unresolved Step 3 blocker in the
+saved evidence. Historical OPEN/FAIL artifacts are preserved unchanged.
 
 Key results:
 [[experiments/geometry-acoustics-admission#Step 2 selected-route transport closeout|NLOS closeout]] ·
@@ -30,6 +31,7 @@ Key results:
 [[experiments/geometry-acoustics-admission#Practical significance follow-up (2026-09-16)|cube impact]] ·
 [[experiments/geometry-acoustics-admission#Bounded head/camera diagnostics (2026-09-16)|AV evidence]] ·
 [[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|corrected measurements]] ·
+[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|Step 3 closeout]] ·
 [[experiments/geometry-acoustics-admission#Evidence and reproduction|reproduction]].
 
 ## Steam reflection reconstruction — rejected mapping
@@ -716,9 +718,9 @@ cube counterexample nor proves universal harmlessness, physical transfer or full
 profile usefulness. This experiment changed no threshold/domain/budget; the later
 user-approved cube decision changed that comparison's admission role.
 
-Step 3 remains unadmitted for binding field controls, numerical/cache/consumer
-limits and missing C03/C04/general-motion/two-source room evidence. Combined producer
-and full AV/mobile utility remain Steps 4–6. Address measured representation/consumer
+At that stage Step 3 remained unadmitted for binding field controls, numerical/
+cache/consumer limits and missing C03/C04/general-motion/two-source room evidence.
+Combined producer and full AV/mobile utility remain Steps 4–6. Address measured representation/consumer
 issues; these results do not establish a need for a new transport engine.
 
 The refined bank takes about 724 s including reference preparation with eight CPU
@@ -798,9 +800,9 @@ existing angular bank, not renewed confidence intervals or general-motion admiss
 Earlier cube/AV/direct-only/measured-replay rate tables and confidence intervals
 retain the preceding numerical runtime. They are historical evidence, not fresh
 qualification of the corrected consumer. No acoustic matrix or 192-episode campaign
-was repeated for this numerical maintenance. Step 3 remains `not_admitted` pending
-its binding field and representative motion/room/observation gates. These findings
-do not establish a need to replace PRA.
+was repeated for this numerical maintenance. Step 3 then remained `not_admitted`
+pending its binding field and representative motion/room/observation gates. These
+findings do not establish a need to replace PRA.
 
 ## Joint motion and observations (2026-09-16)
 
@@ -922,9 +924,9 @@ Full moving multibounce room references and material conditioning remain open.
 NLOS observations must not be scored against hidden-source bearing as though it
 were a validated arrival direction. The room probes can establish integration
 and absolute observations; they cannot by themselves establish approximation
-budgets. The cube's diagnostic exception and Step 3's `not_admitted` status remain
-unchanged. The 96-program confirmation takes about 20.5 minutes including PCM
-replay and both consumers, excluding native bank preparation; this is an offline
+budgets. At this stage the cube's diagnostic exception and Step 3's
+`not_admitted` status were unchanged. The 96-program confirmation takes about
+20.5 minutes including PCM replay and both consumers, excluding native bank preparation; this is an offline
 campaign time, not an isolated throughput benchmark. No provider replacement or
 new multibounce solver is implied by these results.
 
@@ -1058,6 +1060,9 @@ limits; they are not whole-building late-field references or full moving routes.
 
 ### Cost and remaining admission boundary
 
+This subsection records the targeted campaign's verdict before the later
+full-room admission revision. The formal closeout below owns current status.
+
 Fresh C04 translation/yaw confirmations take 33.6/29.7 minutes including PCM
 replay, RTX perception and bootstrap. They ran concurrently; these are not
 isolated throughput measurements or additive elapsed times. Corrected native
@@ -1067,7 +1072,7 @@ CPU-only by implementation. Offline computation is separate from the unchanged
 100 ms simulated added-latency budget. The two targeted field confirmations take
 6.4/8.5 minutes including replay, perception and resampling.
 
-| Property | Current result | Boundary |
+| Property | Result at campaign closeout | Boundary |
 | --- | --- | --- |
 | Shared representation, normalization and causal lifecycle | PASS in retained native/analytic/producer controls | No arbitrary moving-room conclusion from a plane |
 | Controlled isotropic synthesis and Lambertian field | PASS | Property-specific independent moment/transport references |
@@ -1081,15 +1086,16 @@ CPU-only by implementation. Offline computation is separate from the unchanged
 | Cube late response and earlier selected-mirror mismatch | Diagnostic limitations retained | Original failed evidence remains; no automatic provider replacement |
 | NLOS+D, AV and mobile | Later Steps 4–6 | No new combined-model or complete consumer claim |
 
-**The targeted campaign does not close global Step 3 under the current decision.**
-The remaining room gate requires applicable evidence or an explicit change to its
-admission role. Missing references cannot be relabeled PASS, and the cube
+**The targeted campaign did not close global Step 3 under the decision then in force.**
+At that time the remaining room gate required applicable evidence or an explicit
+change to its admission role. Missing references cannot be relabeled PASS, and the cube
 exception does not extend to other properties. The results do not establish a
 need to replace PRA. Preserve the implemented renderer and the completed controls;
 do not repeat the full matrix to address an absent reference.
 
 ## Bounded full-room reference feasibility (2026-09-16)
 
+Historical outcome before the subsequent explicit admission revision:
 **STOP within the authorized reference-reuse scope; representative full-room
 pressure/observation equivalence remains OPEN.** The user retained the current
 gate and requested a bounded feasibility audit before complete room trajectories.
@@ -1163,10 +1169,61 @@ costs or lower bounds: receiver-only reuse, caching and parallelism could reduce
 them. They exclude reference development/rendering, conditioning, full-episode
 replay and confirmation. No cadence or budget was changed to fit a cost estimate.
 
-**Retain PRA and stop this reference-construction work.** A separate user
-decision is now needed before reference-model development beyond this audit or
-explicit revision of the full-room requirement. Existing PASS results, the
-cube-only diagnostic exception and the current admission gate are unchanged.
+**Retain PRA and stop this reference-construction work.** At this point a separate
+user decision was needed before reference-model development beyond the audit or
+revision of the full-room requirement. The user subsequently declined reference
+development and explicitly accepted that unvalidated property as a non-blocking
+limitation. The audit's capability findings and cost limits remain unchanged.
+
+## Step 3 formal admission (2026-09-16)
+
+**PASS under the explicitly revised criteria. Retain PRA.** This is an admission
+review of saved evidence at `ad4a6e2`, not a new experiment or a renderer repair.
+The full-room property is **NOT VALIDATED — accepted known limitation**. No other
+binding Step 3 requirement or confirmed material representative failure remains
+open within the approved representative allocation. No tests, reference runs or
+provider evaluations were started for this closeout.
+
+### Retained binding evidence
+
+| Requirement | Admission result and existing evidence |
+| --- | --- |
+| Shared realization and causal lifecycle | PASS in the retained native/field/producer controls: co-location, microphone reorder/regrouping, equivalent sources, unchanged refresh, reset/environment isolation, fractional delays, partitioned PCM and emission-stop tails; general D and joint-motion records above |
+| Energy accounting and synthesis | PASS for disjoint ISM/scattering/tail ownership, native/filter normalization and bounded band-energy/decay controls; production capture is invariant at receiver radii .05/.1/.2/.4 m; E2 2/4 s omitted pressure-energy fraction is 1.02e-14 with the same native cutoff |
+| Qualifiable field statistics | PASS for the retained Lambertian and controlled isotropic references; maximum isotropic spatial/cross-pose complex errors .01181/.02907 are below .1; selected-mirror discrepancy remains separately diagnostic |
+| Opaque visibility and ordinary geometry updates | PASS after the native departure-side correction: actual closed/open/closed D is exactly zero/nonzero/zero; 10278 ordinary door/screen connections agree with independent geometry; this is not a claim about full moving diffuse pressure/history |
+| Joint C03/C04 observation impact | PASS for 96 fresh paired programs per selected maximum source/receiver/yaw trajectory at 2.5 ms, both arrays and direct gains, with the unchanged RTX consumer and 95% budgets; C03's corrected `qualification.json` is authoritative |
+| Independent-field follow-up | Approved finite-seed check complete: three fresh fields; both signed low-N adverse strata have separate 96-program confirmations, all five metrics PASS in each; no population-wide field-equivalence claim |
+| Representative room integration and material-error review | Bounded E0/E1/E2/E3, two-source room probe and Office/Hospital integration evidence retained; static physical weak direct measures -11.64/-11.59 dB; the demonstrated jamb defect is fixed and both adverse seed pilots are resolved by their planned confirmations |
+
+Sources: `local/r10/08_2_step3_general/` for original structural/energy controls;
+`local/r10/08_2_step3_motion/{RESULTS.md,qualification.json}` for joint motion and
+corrected C03 inference; `local/r10/08_2_step3_closeout/{RESULTS.md,summary.json}`
+for final C04, both seed confirmations and representative controls. The latter
+directory's `summary_initial.json` predates the second seed confirmation and is
+not the final verdict. Original artifact-level OPEN labels describe the criteria
+at execution time; this section changes admission, not measurements.
+
+### Accepted limitations and outstanding-scope reconciliation
+
+| Item | Current role; no implicit PASS |
+| --- | --- |
+| Representative full-room moving pressure/observation equivalence | **NOT VALIDATED, non-blocking known limitation** by explicit user decision. The missing independent joint-field reference, dependent room conditioning and complete matched full-D routes are one unresolved property, not new completed controls |
+| Ordinary-motion full diffuse PCM/history and moving physical weak-direct room equivalence | Unvalidated parts of the full-room limitation. Geometry-only visibility and static weak-direct evidence do not establish these properties |
+| Cube late response | Original pressure-decay/spurious-update FAIL remains diagnostic under the earlier cube decision; no physics repair or rewritten interval |
+| Selected rotating-mirror covariance | Original approximately .17045 error above .1 remains diagnostic with bounded weak-direct impact evidence; controlled-statistics tolerances elsewhere are unchanged |
+| Numerical cadence and finite sampling | Maximum-motion observation admission uses 2.5 ms; unrestricted 10 ms is not qualified. Lower-speed and low-N seed cells retain diagnostic scope; no indiscriminate matrix repetition or population-wide confidence claim |
+| Nominal room decay recipes | Actual pressure decay is reported; some recipes miss nominal targets and lack independent conditioning. No target-match PASS is claimed. Analytical normalization and property-valid band-decay requirements remain binding |
+| Resources and runtime | Offline native preparation measured 24.2–157.3 s per room pose; Hospital requires the existing 200000-node local capacity override. No real-time or whole-building fidelity claim |
+| Full-pressure angular cache | Failed evaluator isolation remains excluded from unrestricted motion claims; C03/C04 closeout uses actual microphone-position producer responses |
+| NLOS+D, complete AV/mobile usefulness and physical transfer | Combined producer and consumer gates remain Steps 4–6; physical transfer is separate. Step 3 does not establish robot task success |
+
+Full-room equivalence remains unknown, so this review does not assert that no
+material room error could exist. Any subsequently demonstrated structural defect
+or confirmed material representative error reopens affected qualification under
+the unchanged budgets. The already passed controls remain reusable; no new
+independent room reference or alternative provider is planned by this decision.
+The next implementation step is **Step 4: qualify the combined producer**.
 
 ## Evidence and reproduction
 

@@ -1,8 +1,9 @@
 # Robot-Audition Fidelity
 
-Status: approved by the user on 2026-09-11, with the Step 3 cube diagnostic decision
-below approved on 2026-09-16; qualification is pending. This is the canonical R10
-scope/acceptance decision, not a claim of implemented capability.
+Status: approved by the user on 2026-09-11, with explicit Step 3 admission revisions
+on 2026-09-16. Step 3 is PASS under the current decision below; combined-producer
+and AV/mobile qualification remain pending. This is the canonical R10
+scope/acceptance decision; the admission record owns implementation evidence.
 It supersedes historical requirements for complete dynamic acoustic physics.
 
 ## Purpose and profiles
@@ -134,12 +135,53 @@ Keep the maintained localizer. If physics passes but perception/controller limit
 prevent benefit, identify that cause and leave the usefulness gate open; do not
 silently start general perception research.
 
+## Step 3 full-room limitation and admission decision (2026-09-16)
+
+After the bounded reference-feasibility stop, the user explicitly declined a new
+independent full-room moving reference and changed this property's admission role.
+This decision supersedes the earlier instruction below to retain it as a blocker.
+
+**Representative full-room pressure/observation equivalence is a known,
+non-blocking limitation: NOT VALIDATED, never PASS.** This includes the unresolved
+joint moving-room reference, its dependent room conditioning and complete matched
+full-D route comparisons. Their absence is documented, not replaced by a claim
+that static integration, geometry visibility or controlled-plane results validate
+the complete moving field. The intended domain stays recorded; demonstrated
+coverage remains bounded by the evidence.
+
+| Requirement | Current Step 3 admission role |
+| --- | --- |
+| Shared field/persistence, causal timing and lifecycle, opaque visibility, disjoint energy ownership and native/filter normalization | Binding; structural defects remain blockers |
+| Qualifiable controlled spatial/temporal statistics, band energy/decay, numerical refinement and observation impact | Binding within property-valid references and the approved representative allocation |
+| Representative full-room pressure/observation equivalence | Known limitation, NOT VALIDATED; non-blocking for Step 3 |
+| Recorded cube late-response failure and earlier selected rotating-mirror discrepancy | Retain their separately accepted diagnostic roles and original failed measurements |
+| Material errors demonstrated in representative scenarios | Binding; new failures do not inherit either limitation's non-blocking status |
+| Combined producer, AV and mobile usefulness | Separate Steps 4–6; unaffected by Step 3 admission |
+
+No numerical tolerance, perception parameter or previously applicable observation
+budget changes: retain complex error 0.1 where applicable, decay tolerance
+`max(0.03 s, 15% of target)`, omitted energy below 0.1%, and independent-episode
+95% intervals for mean/p95 angles (5/10 degrees), separate miss/extra rates
+(5 percentage points each) and added latency (100 ms). An unconditioned room
+recipe is not evidence of meeting its nominal decay target. This decision does
+not waive energy-accounting defects or turn unresolved measurements into passes.
+
+The user authorizes formal Step 3 PASS if the retained evidence leaves no other
+binding requirement open. The
+[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|closeout review]]
+records that outcome and the exact qualified scope. Reopen affected qualification
+for a demonstrated structural defect or confirmed material representative error;
+do not infer harmlessness throughout the domain from this acceptance decision.
+No new tests, reference development or provider evaluation are authorized for
+this closeout unless another actual blocker emerges. Diffuse remains opt-in;
+this decision neither enables defaults nor admits the combined producer.
+
 ## Step 3 cube diagnostic decision (2026-09-16)
 
 The user approved retaining the conditioned cube failure as a documented model
 limit and diagnostic, without requiring its correction to continue or close
 Step 3. This supersedes the earlier automatic stop on that result. It does not
-admit the current renderer or establish that its tail is harmless throughout the
+by itself admit the renderer or establish that its tail is harmless throughout the
 approved domain.
 
 **Scope:** the general D candidate's smooth, symmetric 3 m E0/C02 room, centered
@@ -150,7 +192,10 @@ admission**. Neither the data nor the original thresholds are rewritten. The
 room and its results stay in the evidence inventory; the 3 m domain boundary,
 smooth surfaces and weak direct are not removed from supported-domain coverage.
 
-### What remains binding
+### Requirements at the cube decision
+
+The later full-room decision above governs current admission. This table records
+the narrower revision made at the cube decision.
 
 | Check | Current admission role |
 | --- | --- |
@@ -190,11 +235,13 @@ Next, resolve evaluation defects that could affect those measurements, then use
 one compact set of shared episodes/PCM for the remaining movement and observation
 checks. Reuse valid structural controls and restrict refinement or confirmation
 to a concrete gap; this decision requires no blanket rerun or new physical capture.
-Step 3 remains `not_admitted` until its other applicable controls pass. A larger
-solver or provider evaluation still requires a separate user decision.
+At that point Step 3 remained `not_admitted` pending its other applicable controls.
+The later formal closeout uses the full-room decision above. A larger solver or
+provider evaluation still requires a separate user decision.
 
 ### Bounded full-room reference instruction (2026-09-16)
 
+Historical instruction, superseded by the full-room limitation decision above.
 After the targeted C04/field-seed closeout, the user explicitly retained the
 current full-room admission criterion. It does not inherit the cube's diagnostic
 exception. Define the minimum practical reference for a few complete existing
@@ -205,12 +252,12 @@ before implementation; then reconsider the requirement explicitly with the user.
 No other-provider evaluation is authorized. The
 [[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|bounded audit]]
 owns the resulting capability inventory and stop finding. That finding does not
-change the domain, budgets, Step 3's OPEN status or PRA retention.
+change the domain, budgets, Step 3's then-OPEN status or PRA retention.
 
 ## Provider stop rule and exclusions
 
-The dated follow-ups below retain their original decision context. The cube
-decision above governs the current admission role of that specific failure.
+The dated follow-ups below retain their original decision context. The full-room
+and cube decisions above govern their respective current admission roles.
 
 ### Step 3 targeted impact decision (2026-09-15)
 

@@ -154,13 +154,14 @@ builds remain unchanged. Set `IAS_PRA_LIBRARY` when running
 
 `GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` adds diffuse pressure to the
 same direct/specular producer. The default is `None`. Combining it with `nlos`
-is rejected until Step 4; diagnostics explicitly report `not_admitted`, the
-diagnostic cube late-response mismatch and remaining representative/moving-room
-qualification. The
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|admission decision]]
-preserves the original failed measurements without requiring the original
-late-response tolerances in that comparison. Structural invariants and representative observation
-budgets remain binding; the acceptance revision does not change synthesis.
+is rejected until Step 4. Diagnostics report `step3_pass_with_limits`, the accepted
+cube/selected-mirror diagnostic discrepancies, and the unvalidated full-room moving
+pressure/observation equivalence. That property is a non-blocking known limitation,
+not a PASS. The
+[[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|admission decision]]
+preserves original failed measurements, structural invariants, qualifiable controls
+and binding material representative errors. This revision changes the diagnostic
+status only, not synthesis, defaults or perception parameters.
 The public PCM, recording, perception and Lab observation contracts are unchanged.
 
 The first scattering interaction uses deterministic surface quadrature, including
@@ -191,8 +192,9 @@ simulation diagnostics, never perception inputs.
 The producer reuses receiver-clock convolution, including emission-stop tails,
 fragmented PCM reads, independent array clocks and reset. This retains the
 intermediate quasi-static motion approximation; it does not establish general
-retarded moving-room transport. Use an explicit 2 s horizon for the Step 3
-qualification, checked against 4 s. Physical/statistical and observation admission
+retarded moving-room transport. Maximum-motion observation evidence uses 2.5 ms
+updates and an explicit 2 s horizon, checked against 4 s; unrestricted 10 ms
+updates are not qualified. Physical/statistical and observation admission
 results belong to [[experiments/geometry-acoustics-admission|the admission record]].
 
 ### Optional Steam NLOS

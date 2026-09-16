@@ -8,8 +8,11 @@ comparisons. Later results belong to [[experiments/geometry-acoustics-admission|
 
 This page owns exact fixtures, consumers, scoring and the lean sample plan.
 [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] owns the approved domain,
-budgets and stop rule, including the later
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|C02/R05 diagnostic exception]].
+budgets and stop rule, including the
+[[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|current Step 3 admission revision]]
+and earlier C02/R05 diagnostic exception. Step 3 is now PASS under that revision;
+full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking.
+The saved preparation flags and historical ledger below are not rewritten as passes.
 [[implementation_phases/08-geometry-acoustics-integration|Phase 08]] owns sequencing;
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] owns implementation.
 
@@ -321,11 +324,14 @@ supported; inability to run or convergence failure remains visible. Use the last
 converged pair; max-order failure does not authorize truncation or fitted gains.
 Convergence alone cannot retire the known structural diffuse-motion error.
 
-**Open reference gate:** A04/A09/M06 and other diffuse-dominated room strata lack
+**Known reference limitation:** A04/A09/M06 and other diffuse-dominated room strata lack
 a validated moving multibounce pressure reference; NLOS amplitude/coverage can
 also remain unavailable. The Step 1 ledger records bounded controls and missing
 comparisons without implementing later models. Neither this protocol nor numerical
-convergence admits those rows or authorizes a new provider/general solver.
+convergence validates those rows or authorizes a new provider/general solver.
+The user explicitly made full-room moving pressure/observation equivalence
+non-blocking for Step 3. This does not admit complete AV/mobile comparisons or
+convert the missing room reference into a PASS.
 
 ## Consumers and scoring
 
@@ -594,8 +600,9 @@ Native PRA diagnostics use its supported CPU path; perception/simulation use RTX
 | Weak-direct moving rooms, A04/A09/M06 and affected NVIDIA strata | Assigned F1/F3/F4 controls, exact inputs and explicit unavailable entries | Full-room moving multibounce pressure reference and valid DRR strata remain unavailable; mandatory rows retained and later comparisons blocked |
 | AV/mobile endpoints | Evaluator-only scorer checks and saved inputs | No closed-loop success, perception accuracy, controller usefulness or approximation-budget claim |
 
-Unavailable references remain later-step prerequisites; they do not justify removing
-mandatory conditions or interpreting missing sound as physical silence.
+The table records the Step 1 preparation boundary. Unavailable references do not
+justify removing conditions or interpreting missing sound as physical silence;
+their current Step 3 admission role follows the explicit revision above.
 
 **Later Step 3 coverage (2026-09-16):** the
 [[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted closeout]]
@@ -614,8 +621,14 @@ as the minimum conditional full-room reference scope, with both arrays and
 unchanged cases. It stops before execution because no existing reference supplies
 the required independently justified joint room field. See the
 [[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|capability ledger and stop result]].
-This selection launches no trials and neither expands the matrix nor changes the
-full-room admission role, which the user explicitly retained.
+That selection launched no trials and did not expand the matrix. The user then
+explicitly declined a new independent reference and changed full-room moving
+equivalence to a non-blocking known limitation. It remains NOT VALIDATED, including
+the dependent conditioning and complete matched routes. The
+[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|formal Step 3 closeout]]
+reuses the retained evidence; no further reference or test campaign is scheduled
+by this protocol update. Other binding controls and material representative errors
+retain their admission role and budgets.
 
 ### Machine, GPU recovery and cost envelope
 

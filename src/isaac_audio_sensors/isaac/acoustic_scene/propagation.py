@@ -433,12 +433,15 @@ class GeometryAcoustics:
                     provider="steam_audio+pyroomacoustics_ism+native_pra_transport",
                     domain="experimental_direct+specular+diffuse",
                     diffuse=dict(
-                        qualification="not_admitted",
+                        qualification="step3_pass_with_limits",
                         motion="receiver-clock quasi-static field",
                         limits=(
-                            "Cube late-response mismatch is diagnostic; "
-                            "representative admission remains open.",
-                            "General moving-room pressure remains unqualified.",
+                            "Cube late-response and selected rotating-mirror "
+                            "mismatches remain diagnostic limitations.",
+                            "Full-room moving pressure/observation equivalence "
+                            "is not validated; accepted non-blocking Step 3 limitation.",
+                            "Maximum-motion observation evidence uses 2.5 ms "
+                            "updates and a 2 s horizon; unrestricted 10 ms is unqualified.",
                             "Combined NLOS/diffuse requires Step 4.",
                         ),
                         **self.diffuse_fields[rate].diagnostics,

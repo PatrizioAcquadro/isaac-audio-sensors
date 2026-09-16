@@ -528,3 +528,27 @@ Verified source anchors, all eight selected existing array-specific inputs,
 the algebraic diagnostic and the zero-render/provider-change audit scope.
 Inspected whitespace and the documentation-only tracked diff. All production
 code, native builds, prior evidence and raw sources remain unchanged.
+
+## 2026-09-16 — update: Step 3 admission with explicit full-room limitation
+
+The user declined new independent full-room reference development and explicitly
+made representative full-room moving pressure/observation equivalence non-blocking,
+without labeling that property PASS. Reviewed the saved final evidence and resolved
+admission roles: no other binding Step 3 blocker remains within the approved
+representative allocation. Step 3 is formally PASS with documented limits; the
+full-room property stays NOT VALIDATED, while cube/mirror failures retain their
+separately accepted diagnostic roles. Kept structural controls, budgets, material
+representative errors and later-step gates binding. Updated decision, admission,
+status, R10/08, protocol, topic and index. Aligned only the producer diagnostic
+label/limits and its existing assertion; no rendering, defaults or perception
+parameters changed. No tests, reference runs or provider evaluations were started.
+Historical evidence and raw sources remain unchanged. Step 4 is next.
+
+## 2026-09-16 — lint: Formal Step 3 closeout
+
+Editorial review resolves all 262 wikilinks and 54 heading targets, with all forty
+canonical pages indexed. Inspected final saved C03/C04 and field-confirmation
+verdicts, evidence pointers, current versus historical status, the diagnostic-only
+code diff and its existing expected label. Whitespace checks pass. No test suite,
+physical/statistical experiment, renderer or inference workload was executed;
+this review reuses existing qualification evidence without altering raw artifacts.
