@@ -125,12 +125,15 @@ receiver ownership, two-sided visibility, band branching, unchanged calls and
 independent native handles have focused tests. The resumed general-field work
 adds a checked native segment-visibility interface, including surface projection
 across partition boundaries. Native first-scatter quadrature and a general
-object-local pressure field now implement the optional D producer. Fourteen
-transport/field tests and nine native producer tests pass, including analytic
+object-local pressure field now implement the optional D producer. Thirty-six
+native, field, producer and convolution tests pass, including analytic
 Lambertian covariance/energy, unchanged refresh, array regrouping, emission-stop
-tails and reset. Band/room/motion observation admission remains in progress.
-See [[topics/geometry-acoustics#Experimental shared PRA diffuse field|the interface
-and approximations]]. The earlier material-anchored statistical
+tails and reset. The conditioned smooth-room pressure-decay and RTX observation
+comparison fails after order/ray refinement, including order 7/65536 rays. Step 3
+stops unadmitted under the approved rule; full motion/room qualification remains
+open. See [[topics/geometry-acoustics|the interface and approximations]] and the
+[[experiments/geometry-acoustics-admission|measured failure and consumer limits]].
+The earlier material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
 5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
 with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
@@ -151,7 +154,7 @@ Earlier prototype evidence and reproduction live under
 [[experiments/geometry-acoustics-admission|admission record]] owns the result.
 No larger pressure-transport solver or replacement evaluation was started.
 
-The targeted follow-up now supplies actual RTX 4090 observation evidence under
+The earlier targeted follow-up supplies actual RTX 4090 observation evidence under
 `local/r10/08_2_step3_impact/`. Analytic scalar synthesis/reference, persistence and
 CUDA independence checks pass. Fresh source-motion trials meet mean/p95 angular
 budgets on both arrays; rates remain partly inconclusive. The rotating selected

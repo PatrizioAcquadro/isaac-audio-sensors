@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — corrected NLOS, retained diffuse field failure, bounded weak-direct impact passes and open qualification.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — native corrections, bounded impact passes, and the general D candidate's conditioned-room admission failure.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — completed bounded simulation preparation, Office/Hospital proxies and lean comparison allocation; later field/reference gates remain explicit.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

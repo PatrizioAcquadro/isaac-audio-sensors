@@ -13,7 +13,7 @@ Milestone 2 and operating integration remain open.**
   Step 2 selected-route transport controls are complete, including ordinary
   motion, doors, probe/update refinement and actual RTX Isaac updates. Door
   pressure remains probe-sensitive and uncalibrated. Shared diffuse pressure is
-  an experimental opt-in, disabled by default; its admission remains pending.
+  an experimental opt-in, disabled by default and not admitted.
   Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
   PRA diffuse → combined stream → AV → mobile →
@@ -23,28 +23,28 @@ Milestone 2 and operating integration remain open.**
   proxies, generic footprint/visibility, static direct/scalar diagnostics and the
   intermediate cost pilot. Local overlay units/up-axis were fixed without an SDK
   change. A representative family plan supersedes exhaustive per-row repetition.
-  Full-field decay/DRR, closed-door scattering and moving-room references remain
-  unresolved with later qualification owners; affected comparisons stay blocked.
+  Those initial full-field decay/DRR, closed-door scattering and moving-room
+  reference gaps were assigned to later qualification; Step 3 results are below.
   No closed-loop benefit or combined-model qualification ran in Step 1.
 - Key unresolved result: the earlier moving-ray PRA model biases weak-direct
   observations; bounded NLOS timing/visibility controls pass, while door-pressure refinement has not established
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 remains open; targeted observation impact is now measured.** Checked native
-  multiband transport and corrected traversal pass focused checks. The shared
-  statistical candidate improves source/translation controls but retains rotating-
-  mirror coherence error ~0.17 against the 0.1 bound, including 12 realizations at
-  over one million rays and an independently refined reference. The earlier
-  controlled PCM study on RTX 4090 finds that a rotating
-  selected mixture passes every observation-impact budget on both arrays at
-  DRR about -15.7 dB, despite the field-statistic failure. Source-motion angular
-  budgets pass; several rate/p95 comparisons remain inconclusive. This supports
-  retaining PRA, not overall admission. A general object-local field and optional
-  D producer are now implemented; native/analytic field and producer invariants
-  pass. Room/band/energy/motion qualification and AV/mobile usefulness remain open.
-  Domain, budgets and failed evidence are
-  unchanged. [[experiments/geometry-acoustics-admission|Evidence and limits]].
+- **Step 3 is implemented but not qualified; the approved stop rule now applies.**
+  The general persistent field and optional D producer pass 36 native, analytic
+  and streaming controls. Closed-partition projection and gain-dependent banded
+  specular phase defects are corrected. A conditioned smooth 3 m room still fails
+  pressure decay and actual RTX 4090 observation impact at order 7/65536 rays:
+  spurious-update changes are -23.08 points on square and -67.43 on raised, with
+  95% intervals outside the +/-5-point budget. Main-bearing, miss and added-latency
+  budgets pass in this fixed-scene comparison. A raised-reference scalar/CUDA and
+  count-stability limit is recorded separately; the square comparison is stable.
+  The earlier rotating selected-mixture pass remains valid within its scope, and
+  its ~0.17 physical statistic is not the new sole blocker. General C03/C04 motion,
+  two-source/room confirmation and later consumers remain open. No domain/budget
+  change, larger solver, replacement evaluation or push was made.
+  [[experiments/geometry-acoustics-admission|Evidence, intervals and next decision]].
 
 ## Maintained capabilities and boundaries
 

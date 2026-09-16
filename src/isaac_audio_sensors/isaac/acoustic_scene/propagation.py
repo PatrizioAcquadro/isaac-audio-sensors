@@ -430,10 +430,16 @@ class GeometryAcoustics:
                 )
             if self.config.diffuse is not None:
                 diagnostics["geometry"].update(
+                    provider="steam_audio+pyroomacoustics_ism+native_pra_transport",
                     domain="experimental_direct+specular+diffuse",
                     diffuse=dict(
-                        qualification="pending",
+                        qualification="not_admitted",
                         motion="receiver-clock quasi-static field",
+                        limits=(
+                            "Smooth-room decay and observation impact fail admission.",
+                            "General moving-room pressure remains unqualified.",
+                            "Combined NLOS/diffuse requires Step 4.",
+                        ),
                         **self.diffuse_fields[rate].diagnostics,
                     ),
                 )

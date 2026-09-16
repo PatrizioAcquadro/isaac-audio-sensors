@@ -84,8 +84,10 @@ selected mixture on both arrays with weak direct; source-motion angular budgets
 also pass, while several rates/p95 bounds remain inconclusive. The physical
 failure is retained. The resumed work now implements the general shared field
 and optional D producer, with native visibility, analytic plane/energy and
-producer lifecycle checks. Step 3 room/energy/motion/reference admission and
-later consumers remain open. The
+producer lifecycle checks. The conditioned smooth-room pressure-decay and RTX
+observation-impact comparison fails after order/ray refinement. Step 3 is not
+admitted; the approved stop rule applies before broader motion/room qualification
+or a larger solver/provider change. Later consumers remain open. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 

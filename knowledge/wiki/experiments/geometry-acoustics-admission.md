@@ -1,18 +1,18 @@
 # Geometry Acoustics Admission Evidence
 
-Recorded experiments: 2026-09-10/11. This page preserves decisive measurements,
+Recorded experiments: 2026-09-10/11/15. This page preserves decisive measurements,
 reference corrections and replay pointers; it does not repeat the implementation
 plan. [[decisions/robot-audition-fidelity|The approved task-domain decision]] governs
 which failures block admission. [[implementation_phases/r10-geometry-acoustics-integration|R10]]
-owns current implementation work. No new experiment was run during consolidation.
+owns current implementation work.
 
 ## Admission summary
 
 | Contribution | Established | Still unqualified |
 | --- | --- | --- |
 | Steam direct + native PRA specular intermediate | Bounded arrival/gain, reflected visibility, streaming and actual Sim/Lab/Kit; scalar/CUDA agreement on identical PCM | General motion, diffuse pressure and selected-route production integration |
-| Steam selected routes | Per-route timing, LOS exclusion, multiple arrivals; selected-flight interception and endpoint-motion controls | Production lifecycle, identity/rebake/coverage, ordinary dynamic task domain |
-| PRA shared-event pressure | Co-location, unchanged refresh, controlled stationary spatial covariance | Persistent moving field, full energy/band/order/radius convergence and room/task admission |
+| Steam selected routes | Step 2 native selected-route transport, producer lifecycle and ordinary-motion controls | Calibrated pressure/diffraction, combined producer and consumer admission |
+| PRA persistent surface pressure | Optional D implementation; native visibility, first-scatter quadrature, shared-field and streaming controls | Conditioned smooth-room pressure decay and observation impact fail; full motion/room/task admission remains open |
 | Closed-loop tasks | Targeted NLOS benefit and diffuse observation sensitivity | Both approved AV/mobile consumer gates |
 
 ## Steam reflection reconstruction — rejected mapping
@@ -340,7 +340,7 @@ and weak-direct observation comparisons remain open. No new CUDA/consumer result
 is inferred from these controls. The failed candidate does not prove all PRA or
 statistical extensions impossible; replacement evaluation has not started.
 
-## Current candidate: targeted observation impact (2026-09-15)
+## Earlier candidate: targeted observation impact (2026-09-15)
 
 The user authorized this follow-up after the physical stop. The preserved native
 transport and `surface_field.project` candidate were not changed. A separate
@@ -445,7 +445,8 @@ moving-boundary wave solutions. The mixed case omits other paths, including the
 mirror's direct specular reflection. It does not implement the complete D branch.
 Full band/decay/radius/order/horizon qualification, arbitrary-surface persistence,
 C03/C04 room representatives, general causal integration and AV/mobile/learning
-utility remain open. No public diffuse configuration is enabled.
+utility remained open at that milestone. No public diffuse configuration was
+enabled by that earlier follow-up.
 
 There are 2304 retained multichannel streams, not 2304 independent episodes per
 condition. Fresh motion generation/inference-plus-analysis took 345/41 s; mirror
@@ -454,6 +455,120 @@ p95 inference per observation update. Generation shares geometry/RIR work across
 episodes; these are offline experiment costs, not live producer or real-time
 qualification. Local synthesis/scoring checks and Ruff pass; the maintained SDK
 implementation and historical evidence remain unchanged.
+
+## General D implementation and conditioned-room admission (2026-09-15)
+
+**Result: implemented, not admitted. The general Step 3 qualification stops with
+a material smooth-room decay and observation-impact failure after refinement.**
+This is a new bounded result, separate from the retained rotating-mirror statistic
+and its passing selected-mixture follow-up. It does not establish that PRA is
+universally unsuitable, or invalidate the working intermediate.
+
+### Implemented and verified boundary
+
+`GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` enables an experimental D
+producer; `None` remains the default. Native PRA owns flights, multibounce band
+energy, surface quadrature and visibility. Persistent object-local elements own
+pressure realization, independent of ray/microphone/source identifiers. First
+scattering is explicit; subsequent scattering and higher/mixed specular energy
+enter the statistical representation with disjoint ownership. The interface and
+normalization are documented in [[topics/geometry-acoustics|Geometry Acoustics]].
+
+Thirty-six native, field, producer and convolution controls pass. They cover
+two-sided closed/open/closed visibility, an initially discovered and corrected
+surface-projection leak across a partition, analytic Lambertian energy/covariance,
+colocation/reordering/regrouping, unchanged refresh, equivalent source identity,
+object motion/return, late-joining arrays, filter power, delay, source-stop tails
+and reset. A separate banded specular defect was corrected: minimum-phase material
+conversion no longer absorbs geometric level or signed directivity.
+
+The banded 6x6x3 m energy-envelope control has targets .2/.2/.35/.5/.65/.8/.8 s
+and candidate T20 values .226/.226/.374/.522/.671/.821/.821 s, within the approved
+tolerance. Native 2/4 s captures agree at the stated 1e-7 ray cutoff. A fully diffuse
+late-field .05 m source-shift control gives complex covariance differences
+.0781/.0698/.0164 at 500/1000/4000 Hz against reciprocal receiver motion. These
+bounded controls do not establish full moving-room pressure qualification.
+
+### Reference conditioning and validity
+
+The full-D diagnostic uses prescribed smooth E0/C02 geometry: a 3 m cube, source
+(2,1.5,1.2), array center (1,1.5,1.2), both exact maintained layouts, zero scattering
+and a .5 s decay target. Higher pure-specular orders belong to the chosen
+statistical tail, so zero scattering still exercises that approximation.
+
+An independent native PRA shoebox image model provides reflected pressure through
+order 100. Reference-only absorption conditioning yields .4493–.5402 s across
+250–4000 Hz and all microphones, inside .5 +/- .075 s. Both models use identical
+band coefficients. Orders 100/160 differ by at most 5.53e-8 relative RIR energy;
+native polygon and shoebox early responses agree within 2.6e-9 at orders 3/5/7.
+No gain, consumer parameter or acceptance budget was fitted to the candidate.
+
+Earlier local pilots used an unconditioned recipe, insufficient reference order
+or the subsequently corrected banded filter. They remain diagnostic evidence,
+excluded from the final admission comparison. Ray/order refinement is numerical
+sensitivity evidence, not an independent physical model reference.
+
+### Maintained RTX 4090 observation impact
+
+Use unchanged `TorchPerception`, -60 dBFS activity threshold, 750 ms context,
+100 ms updates and the maintained candidate limit. Each array receives 96 fresh
+independent S0 source waveforms, with interruption/reacquisition and final stop.
+The scene and field realization are frozen; intervals are conditional on this
+one scene/realization, not across-material or across-room claims. The 65536-ray
+refinement reuses the same defined 96 episodes as the 16384-ray order-7 comparison.
+Whole-episode paired bootstrap and zero-discordance bounds are unchanged.
+PCM uses the production specular/surface-pressure components and an analytically
+checked direct path. Native USD producer lifecycle is tested separately; this is
+not a moving Isaac consumer run.
+
+Final order-7 / 65536-ray results, candidate minus reference:
+
+| Array | Mean-angle change, 95% CI (degrees) | Spurious-update change, 95% CI (percentage points) | Other impact budgets |
+| --- | ---: | ---: | --- |
+| Square | .153 [.144, .161] | **-23.08 [-25.99, -20.18] — FAIL** | p95 angle, misses, first/reacquisition latency pass |
+| Raised | -.131 [-.156, -.106] | **-67.43 [-68.48, -66.28] — FAIL** | p95 angle, misses, first/reacquisition latency pass |
+
+Reference/candidate DRR is -8.48/-6.93 dB square and -9.21/-7.60 dB raised.
+The candidate suppresses reflected false detections and makes this task
+artificially easier. Absolute changes, including improvements, remain subject to
+the approved five-point bound. At 4096 rays/order 3, corresponding changes were
+-99.78 and -78.45 points; at 16384/order 7, -15.73 and -67.93. Increasing rays
+does not resolve this selected failure.
+
+The final candidate's 1 kHz pressure T20 is .352–.378 s across microphones,
+outside the .425–.575 s target interval; the conditioned reference is .534–.540 s
+in that band. The 250–2000 Hz RIR-energy ratios are approximately .624/.519/.754/.587
+relative to the coherent reference. These are measured pressure differences,
+not a failure of the independently checked scalar-energy bookkeeping.
+
+### Consumer limits and stop boundary
+
+CUDA solo/batch/reorder/loud-neighbor/reset checks pass for both candidate streams
+and the square reference. One raised reference changes its count at one of 19
+scored updates across batch sizes; the binary spurious-update outcome remains
+unchanged. Scalar/CUDA count/direction parity also fails on the raised reference
+(50% count agreement on the final selected stream). These are separate consumer
+qualification limits; no localizer parameters were changed. The stable square
+comparison already establishes an observation-impact failure.
+
+Full C03/C04 motion, two-source/general-room confirmation, complete isotropic and
+later-scatter moving-mirror controls, ordinary moving-geometry causal admission
+and missing room references remain open. The current run stops before repeating
+that wider matrix because the required static room already fails. Steps 4–6 are
+not started by this result. The original rotating-mirror .17045 diagnostic has
+not been reclassified as the sole blocker.
+
+Native synthesis is CPU-only: one held nine-channel RIR takes about 77 s at
+4096 rays/order 3, 210 s at 16384/order 7 and 493 s at 65536/order 7, with 7.45–32.44
+million retained modes. RTX inference at batch 32 averages 88 ms, p95 114 ms per
+observation update. These are offline costs, not live or real-time qualification.
+
+Working changes and failed evidence are retained. The approved stop rule requires
+a decision on the reflection-model/provider boundary before a larger proprietary
+multibounce solver or replacement evaluation. No replacement provider, threshold
+change, implicit domain reduction or push was performed. Reproduction, exact
+coefficients, PCM, intervals and the compact plot are in
+`local/r10/08_2_step3_general/README.md`, `summary.json` and `summary.png`.
 
 ## Measured observation impact — earlier evidence
 
@@ -508,6 +623,8 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_usefulness/` | README, paired observations, sensitivity figure, configurations and replay |
 | `08_2_dynamics/` | README, selected-flight history and anchored/later-scatter native controls |
 | `08_2_step3_diffuse/` | Checked native transport, persistent statistical candidates, independent rotating-mirror reference/refinement, fresh sampler confirmation and the Step 3 stop result |
+| `08_2_step3_impact/` | Earlier selected-mixture observation impact, retained physical discrepancy and bounded continuation evidence |
+| `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
 Provider alternatives: [[experiments/acoustic-provider-evaluation|Provider Evaluation]].

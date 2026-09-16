@@ -3,7 +3,7 @@
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
 transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
 NLOS is an explicit option. A shared PRA diffuse candidate is now available as a
-separate opt-in, with qualification still pending. See
+separate experimental opt-in, with admission failed in a conditioned smooth room. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
 
@@ -147,7 +147,8 @@ builds remain unchanged. Set `IAS_PRA_LIBRARY` when running
 
 `GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` adds diffuse pressure to the
 same direct/specular producer. The default is `None`. Combining it with `nlos`
-is rejected until Step 4; diagnostics explicitly report pending qualification.
+is rejected until Step 4; diagnostics explicitly report `not_admitted`, the
+smooth-room decay/observation failure and the remaining moving-room limit.
 The public PCM, recording, perception and Lab observation contracts are unchanged.
 
 The first scattering interaction uses deterministic surface quadrature, including

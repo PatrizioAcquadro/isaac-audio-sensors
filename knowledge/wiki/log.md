@@ -293,3 +293,21 @@ regression checks pass; unchanged flat-material behavior retains its controls.
 
 The canonical documentation boundary, affected Ruff checks and whitespace checks
 pass. The banded fix is separate from still-pending diffuse admission.
+
+## 2026-09-15 — experiment: General PRA D candidate remains unadmitted
+
+Completed the optional general field/producer and retained 36 passing focused
+controls. Corrected surface projection visibility and banded specular material
+phase. Conditioned an independent E0 room-pressure reference, then measured
+pressure decay and actual RTX 4090 observations through orders 3/5/7 and targeted
+4096/16384/65536-ray refinement. The final fixed-scene 96-episode comparison fails
+spurious-update budgets on both arrays, with a separate raised-reference consumer
+parity/count limit. Applied the approved stop rule; broader motion/room/two-source
+qualification stays open. New evidence is isolated from historical prototypes.
+
+## 2026-09-15 — lint: General Step 3 admission closeout
+
+Canonical links/index, affected Ruff and whitespace checks pass. Current status,
+R10, Phase 08, diagnostics and the admission record consistently distinguish the
+implemented candidate from failed qualification. Historical evidence is preserved;
+new confidence intervals are explicitly conditional on the frozen scene/field.

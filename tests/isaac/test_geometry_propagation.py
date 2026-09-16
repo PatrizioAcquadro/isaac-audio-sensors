@@ -286,7 +286,9 @@ def test_optional_diffuse_producer_preserves_partition_reset_and_source_identity
         block = geometry.propagate(snapshot, "array", window())
         dry = direct.propagate(snapshot, "array", window()).samples
         assert np.linalg.norm(block.samples - dry) > 1e-4
-        assert block.diagnostics["geometry"]["diffuse"]["qualification"] == "pending"
+        assert (
+            block.diagnostics["geometry"]["diffuse"]["qualification"] == "not_admitted"
+        )
         geometry.reset()
         pieces = [
             geometry.propagate(

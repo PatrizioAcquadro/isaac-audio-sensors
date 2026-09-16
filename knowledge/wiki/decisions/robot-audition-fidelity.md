@@ -158,6 +158,12 @@ is a bounded continuation decision, not public diffuse admission or proof of
 SquadBot utility. The [[experiments/geometry-acoustics-admission|admission record]]
 owns the results, reference limits and outstanding controls.
 
+The subsequent general D implementation remains unadmitted after a conditioned
+smooth-room pressure-decay and observation-impact failure. Apply the stop rule
+below to that new evidence; the earlier rotating-mirror discrepancy is still not
+an automatic rejection by itself. The admission record distinguishes the acoustic
+counterexample from an additional raised-array consumer-parity limit.
+
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical
 extensions and requires a repository-owned multibounce engine, stop with working
