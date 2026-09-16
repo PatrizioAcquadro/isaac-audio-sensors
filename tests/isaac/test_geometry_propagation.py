@@ -247,3 +247,94 @@ def test_reset_before_first_read_and_reconfigured_array_are_discontinuous(prepar
         assert geometry.propagate(changed, "array", window(0.1, 0.2)).discontinuity
     finally:
         geometry.close()
+
+
+def test_optional_diffuse_producer_preserves_partition_reset_and_source_identity(
+    prepared,
+    tmp_path,
+    monkeypatch,
+):
+    from pxr import Sdf
+
+    from isaac_audio_sensors.isaac.acoustic_scene import PRADiffuseConfig
+
+    plane = UsdGeom.Mesh.Define(prepared.stage, "/DiffusePlane")
+    plane.GetSubdivisionSchemeAttr().Set("none")
+    plane.GetPointsAttr().Set([(-2, -3, -2), (-2, 3, -2), (-2, 3, 4), (-2, -3, 4)])
+    plane.GetFaceVertexCountsAttr().Set([4])
+    plane.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+    plane.GetPrim().CreateAttribute("ias:scattering", Sdf.ValueTypeNames.Float).Set(1.0)
+    plane.GetPrim().CreateAttribute("ias:absorption", Sdf.ValueTypeNames.Float).Set(0.2)
+    prepared.refresh()
+    config = PRADiffuseConfig(rays=4096, surface_spacing_m=0.5)
+    geometry = backend(
+        prepared, reflection_order=0, max_delay_s=0.1, diffuse=config, diagnostics=True
+    )
+    direct = backend(prepared, reflection_order=0, max_delay_s=0.1)
+    from scipy.io.wavfile import write
+
+    asset = tmp_path / "shared-emission.wav"
+    write(
+        asset, 16000, np.random.default_rng(7).normal(0, 0.1, 1600).astype(np.float32)
+    )
+    snapshot = scene()
+    monkeypatch.chdir(tmp_path)
+    snapshot = replace(
+        snapshot, sources=(replace(snapshot.sources[0], audio_asset_path=asset.name),)
+    )
+    try:
+        block = geometry.propagate(snapshot, "array", window())
+        dry = direct.propagate(snapshot, "array", window()).samples
+        assert np.linalg.norm(block.samples - dry) > 1e-4
+        assert block.diagnostics["geometry"]["diffuse"]["qualification"] == "pending"
+        geometry.reset()
+        pieces = [
+            geometry.propagate(
+                snapshot, "array", window(i / 16000, j / 16000, k)
+            ).samples
+            for k, (i, j) in enumerate(((0, 267), (267, 533), (533, 1600)))
+        ]
+        np.testing.assert_allclose(
+            block.samples, np.concatenate(pieces, axis=1), atol=2e-8, rtol=2e-6
+        )
+        geometry.reset()
+        equivalent = replace(
+            snapshot, sources=(replace(snapshot.sources[0], source_id="renamed"),)
+        )
+        renamed = geometry.propagate(equivalent, "array", window()).samples
+        np.testing.assert_array_equal(block.samples, renamed)
+
+        # Array identities, grouping and evaluation order do not seed the field.
+        geometry.reset()
+        original = snapshot.arrays[0]
+        groups = ((2, 0), (3, 1))
+        arrays = tuple(
+            replace(
+                original,
+                array_id=f"split-{i}",
+                microphones=tuple(original.microphones[j] for j in indices),
+            )
+            for i, indices in enumerate(groups)
+        )
+        split = replace(snapshot, arrays=arrays)
+        for i in (1, 0):
+            actual = geometry.propagate(split, arrays[i].array_id, window()).samples
+            np.testing.assert_array_equal(actual, block.samples[list(groups[i])])
+
+        # Stopping emission retains the already emitted scattering tail.
+        geometry.reset()
+        stopped = replace(
+            snapshot, sources=(replace(snapshot.sources[0], duration_s=0.03),)
+        )
+        tail = geometry.propagate(stopped, "array", window()).samples
+        assert np.linalg.norm(tail[:, 640:1000]) > 1e-5
+        drained = geometry.propagate(stopped, "array", window(0.1, 0.3, 1)).samples
+        # Wait beyond both the physical horizon and synthesis-filter support.
+        assert np.linalg.norm(drained[:, 1600:]) < 1e-6
+        geometry.reset()
+        np.testing.assert_array_equal(
+            geometry.propagate(stopped, "array", window()).samples, tail
+        )
+    finally:
+        geometry.close()
+        direct.close()

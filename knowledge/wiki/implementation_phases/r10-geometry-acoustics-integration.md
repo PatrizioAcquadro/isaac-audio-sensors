@@ -107,7 +107,8 @@ Complete the following before closing Milestone 2:
 Selected-route NLOS is integrated as an explicit optional configuration. Step 2
 transport controls pass for both maintained arrays, ordinary motion/doors,
 probe/update refinement and actual RTX Isaac updates. The default remains the
-intermediate and joint diffuse pressure is not enabled. Automatic probe coverage,
+intermediate. Shared diffuse pressure is now a separate experimental opt-in;
+joint NLOS/diffuse admission is still Step 4. Automatic probe coverage,
 causal route timing, immutable visibility snapshots and producer lifecycle have
 maintained native tests. Door pressure remains probe-sensitive: refinement has
 not established pressure convergence or calibrated diffraction accuracy. See
@@ -123,8 +124,13 @@ and received energy capture through the existing PRA build. Disjoint ISM/RT
 receiver ownership, two-sided visibility, band branching, unchanged calls and
 independent native handles have focused tests. The resumed general-field work
 adds a checked native segment-visibility interface, including surface projection
-across partition boundaries; seven transport/visibility tests pass. Diffuse PCM
-admission remains separate. The material-anchored statistical
+across partition boundaries. Native first-scatter quadrature and a general
+object-local pressure field now implement the optional D producer. Fourteen
+transport/field tests and nine native producer tests pass, including analytic
+Lambertian covariance/energy, unchanged refresh, array regrouping, emission-stop
+tails and reset. Band/room/motion observation admission remains in progress.
+See [[topics/geometry-acoustics#Experimental shared PRA diffuse field|the interface
+and approximations]]. The earlier material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
 5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
 with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
@@ -132,9 +138,10 @@ Independent reference refinement passes. **Step 3 remains not qualified.** The
 user authorized a targeted PCM/observation follow-up before a provider decision;
 the failed physical diagnostic remains recorded under the
 [[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|revised decision]].
-Native preparation is committed; general shared pressure,
-full energy/reference qualification, producer integration and complete weak-direct
-observation qualification remain open. Evidence and reproduction live under
+General shared pressure and optional producer integration are implemented;
+full energy/reference and weak-direct observation qualification remain open.
+New evidence is separate under `local/r10/08_2_step3_general/`.
+Earlier prototype evidence and reproduction live under
 `local/r10/08_2_step3_diffuse/`; the
 [[experiments/geometry-acoustics-admission|admission record]] owns the result.
 No larger pressure-transport solver or replacement evaluation was started.

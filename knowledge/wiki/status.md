@@ -12,8 +12,9 @@ Milestone 2 and operating integration remain open.**
   specular reflections. Selected-route NLOS is implemented as an explicit option;
   Step 2 selected-route transport controls are complete, including ordinary
   motion, doors, probe/update refinement and actual RTX Isaac updates. Door
-  pressure remains probe-sensitive and uncalibrated; shared diffuse pressure is
-  not enabled. Analytic remains maintained.
+  pressure remains probe-sensitive and uncalibrated. Shared diffuse pressure is
+  an experimental opt-in, disabled by default; its admission remains pending.
+  Analytic remains maintained.
 - Next: [[implementation_phases/08-geometry-acoustics-integration#Remaining execution order|the eight-step sequence]]:
   PRA diffuse → combined stream → AV → mobile →
   operating workflow → actual runtime/packaging and bounded cost closeout.
@@ -34,13 +35,15 @@ Milestone 2 and operating integration remain open.**
   multiband transport and corrected traversal pass focused checks. The shared
   statistical candidate improves source/translation controls but retains rotating-
   mirror coherence error ~0.17 against the 0.1 bound, including 12 realizations at
-  over one million rays and an independently refined reference. No diffuse option
-  is enabled. The new controlled PCM study on RTX 4090 finds that a rotating
+  over one million rays and an independently refined reference. The earlier
+  controlled PCM study on RTX 4090 finds that a rotating
   selected mixture passes every observation-impact budget on both arrays at
   DRR about -15.7 dB, despite the field-statistic failure. Source-motion angular
   budgets pass; several rate/p95 comparisons remain inconclusive. This supports
-  retaining PRA, not overall admission: full D, room/band/energy/causal qualification
-  and AV/mobile usefulness remain open. Domain, budgets and failed evidence are
+  retaining PRA, not overall admission. A general object-local field and optional
+  D producer are now implemented; native/analytic field and producer invariants
+  pass. Room/band/energy/motion qualification and AV/mobile usefulness remain open.
+  Domain, budgets and failed evidence are
   unchanged. [[experiments/geometry-acoustics-admission|Evidence and limits]].
 
 ## Maintained capabilities and boundaries

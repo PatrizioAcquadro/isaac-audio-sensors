@@ -159,3 +159,29 @@ def test_borrowed_transport_matches_native_energy_capture(transport):
     )
     for value, reference in zip(actual, expected, strict=True):
         np.testing.assert_array_equal(value, reference)
+
+
+def test_first_scatter_quadrature_uses_native_visibility_and_band_energy(transport):
+    faces = [np.array([[0, -2, -2], [0, 2, -2], [0, 2, 2], [0, -2, 2]])]
+    engine = transport(faces, absorption=[0.2, 0.4], scattering=[0.3, 0.8])
+    native = SurfaceTransport(
+        SimpleNamespace(
+            lib=engine.lib,
+            handle=engine.handle,
+            bands=SimpleNamespace(centers=(500, 1000)),
+        )
+    )
+    for side in (-1, 1):
+        actual = native.illuminate([2 * side, 0, 0], [0], [[0, 0, 0]], [0.25])
+        expected = 0.25 / (2 * np.pi * 4) * np.array([0.8 * 0.3, 0.6 * 0.8])
+        np.testing.assert_allclose(actual[0], expected, rtol=1e-6)
+    engine = transport(partition(False), absorption=0.2, scattering=1.0)
+    native = SurfaceTransport(
+        SimpleNamespace(
+            lib=engine.lib, handle=engine.handle, bands=SimpleNamespace(centers=(1000,))
+        )
+    )
+    east = next(i for i, face in enumerate(partition(False)) if np.all(face[:, 0] == 6))
+    np.testing.assert_array_equal(
+        native.illuminate([2, 3, 1.2], [2 * east], [[6, 3, 1.2]], [0.25]), 0.0
+    )

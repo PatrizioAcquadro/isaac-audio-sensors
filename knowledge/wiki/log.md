@@ -267,3 +267,16 @@ is still in progress; the public diffuse option is not enabled.
 
 Internal-link/index boundary checks and Markdown whitespace checks pass. The
 native interface is documented separately from unqualified pressure synthesis.
+
+## 2026-09-15 — update: Optional persistent PRA pressure candidate
+
+Implemented native first-scatter quadrature, persistent object-local statistical
+surface pressure and the opt-in D producer. Documented disjoint energy ownership,
+filter power normalization and explicit approximation limits. Focused native,
+analytic field and producer lifecycle checks pass; room and observation admission
+remain pending. Historical prototypes and new general-field evidence are separate.
+
+## 2026-09-15 — lint: Persistent PRA candidate documentation
+
+Canonical wiki links/index, affected Ruff checks and whitespace checks pass.
+The optional implementation is explicitly separated from pending admission.

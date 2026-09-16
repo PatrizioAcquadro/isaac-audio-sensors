@@ -2,7 +2,8 @@
 
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
 transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
-NLOS is an explicit option; joint diffuse pressure is not enabled. See
+NLOS is an explicit option. A shared PRA diffuse candidate is now available as a
+separate opt-in, with qualification still pending. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
 
@@ -102,8 +103,8 @@ is explicitly unavailable in this intermediate configuration.
 
 The same build now additionally exposes private `ias_pra_transport_abi=1`,
 `ias_pra_event_size`, `ias_pra_trace` and `ias_pra_trace_outputs`. The existing
-specular ABI remains 1. This is an incident/received energy interface, not a
-qualified diffuse PCM option or a change to `GeometryAcousticsConfig`.
+specular ABI remains 1. This is an incident/received energy interface; pressure
+construction and admission are separate from native energy capture.
 
 `tools/native/pra_diffuse.h` defines the event layout. A surface event records
 energy after absorption and before scattering, native face/plane coordinates,
@@ -113,13 +114,15 @@ exclude direct and pure-specular paths through the configured ISM order; higher
 pure-specular and scattered paths use native finite-radius capture. Do not add
 surface-event energy directly to received energy. Pressure synthesis and shared
 field admission remain separate gates. Native face coordinates/indices are local
-to a scene handle; persistent authored-object identity still needs adapter mapping.
+to a scene handle; the surface-field adapter maps them to authored objects.
 
 The private `ias_pra_visibility_abi=1` / `ias_pra_segments_visible` interface uses
 PRA polygon intersections for paired segments. Endpoint surface contact is allowed;
 intervening opaque faces block from either side, including a partition crossed
-while interpolating on a floor. `_pra.Transport` checks both private ABIs and the
-event layout before borrowing a scene handle. This does not enable diffuse PCM.
+while interpolating on a floor. `ias_pra_illumination_abi=1` / `ias_pra_illuminate`
+integrates direct illumination at surface quadrature nodes using those same
+native visibility, absorption and scattering coefficients. `_pra.Transport`
+checks the private ABIs and event layout before borrowing a scene handle.
 
 Capture uses an unbiased specular/Lambertian branch with per-band importance
 weights and the incident hemisphere, with no additional `scat_ray` deposit.
@@ -135,6 +138,45 @@ explicitly and clear incomplete captures. Serialize calls on a handle; independe
 handles have isolated per-thread random streams. Installed PRA and previous native
 builds remain unchanged. Set `IAS_PRA_LIBRARY` when running
 `tests/isaac/test_pra_transport.py` against a new extension build.
+
+### Experimental shared PRA diffuse field
+
+`GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` adds diffuse pressure to the
+same direct/specular producer. The default is `None`. Combining it with `nlos`
+is rejected until Step 4; diagnostics explicitly report pending qualification.
+The public PCM, recording, perception and Lab observation contracts are unchanged.
+
+The first scattering interaction uses deterministic surface quadrature, including
+native source/node and node/receiver visibility. Subsequent scattering and higher
+or mixed specular contributions use native multibounce energy projected onto
+persistent object-local surface elements. Native traversal owns every geometric
+interaction. The adapter does not trace replacement paths. Specular image orders
+through `reflection_order`, direct first scattering, later scattering and the
+remaining specular transport are disjoint energy owners.
+
+Surface elements own random pressure signs, temporal and directional modes.
+The seed is independent of ray identities, source identifiers, microphone order
+and array grouping. Geometry updates move elements with their object; source and
+receiver connections update illumination, visibility and sub-bin delays. The
+late specular angular density is a normalized pair of mirrored von Mises–Fisher
+lobes. Motion of earlier interactions uses a first-order phase anchor; its
+accuracy requires dynamic qualification. This is a statistical approximation.
+
+Defaults are seed 0, 16384 rays, 0.25 m first-scatter spacing, 1 m tail spacing,
+4 ms temporal bins, 64 directional modes and specular concentration 64. Explicit
+event/node limits fail instead of silently truncating work. Independent octave
+pressure modes use a partition of filter **power**, with fractional-delay/filter
+energy normalization. There is no fitted room gain or receiver-radius parameter
+in pressure evaluation. Diagnostics expose projected/rejected surface energy,
+expected received energy and arrivals excluded by `max_delay_s`; these are
+simulation diagnostics, never perception inputs.
+
+The producer reuses receiver-clock convolution, including emission-stop tails,
+fragmented PCM reads, independent array clocks and reset. This retains the
+intermediate quasi-static motion approximation; it does not establish general
+retarded moving-room transport. Use an explicit 2 s horizon for the Step 3
+qualification, checked against 4 s. Physical/statistical and observation admission
+results belong to [[experiments/geometry-acoustics-admission|the admission record]].
 
 ### Optional Steam NLOS
 

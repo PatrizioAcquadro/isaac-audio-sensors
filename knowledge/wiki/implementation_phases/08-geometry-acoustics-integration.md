@@ -82,8 +82,10 @@ authorized targeted observation comparisons before a provider decision. Those
 comparisons now pass all observation-impact budgets for a controlled rotating
 selected mixture on both arrays with weak direct; source-motion angular budgets
 also pass, while several rates/p95 bounds remain inconclusive. The physical
-failure is retained; Step 3, the full D producer, room/energy/reference validation
-and later consumers remain open. The
+failure is retained. The resumed work now implements the general shared field
+and optional D producer, with native visibility, analytic plane/energy and
+producer lifecycle checks. Step 3 room/energy/motion/reference admission and
+later consumers remain open. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 

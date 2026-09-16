@@ -36,6 +36,19 @@ class Transport:
             "ias_pra_transport_abi": (C.c_int, []),
             "ias_pra_event_size": (C.c_int, []),
             "ias_pra_visibility_abi": (C.c_int, []),
+            "ias_pra_illumination_abi": (C.c_int, []),
+            "ias_pra_illuminate": (
+                C.c_int,
+                [
+                    C.c_void_p,
+                    C.c_void_p,
+                    C.c_int,
+                    C.c_void_p,
+                    C.c_void_p,
+                    C.c_void_p,
+                    C.c_void_p,
+                ],
+            ),
             "ias_pra_segments_visible": (
                 C.c_int,
                 [C.c_void_p, C.c_int, C.c_void_p, C.c_void_p, C.c_void_p],
@@ -71,6 +84,7 @@ class Transport:
         if (
             self.lib.ias_pra_transport_abi() != 1
             or self.lib.ias_pra_visibility_abi() != 1
+            or self.lib.ias_pra_illumination_abi() != 1
             or self.lib.ias_pra_event_size() != C.sizeof(Event)
         ):
             raise RuntimeError("Unsupported PRA diffuse transport ABI.")
@@ -119,3 +133,28 @@ class Transport:
         ):
             raise RuntimeError(self.lib.ias_specular_error().decode())
         return result.astype(bool).reshape(shape)
+
+    def illuminate(self, source, surfaces, points, areas):
+        source, points, areas = (
+            np.ascontiguousarray(v, np.float32) for v in (source, points, areas)
+        )
+        surfaces = np.ascontiguousarray(surfaces, np.int32)
+        if (
+            source.shape != (3,)
+            or points.shape != (len(surfaces), 3)
+            or surfaces.ndim != 1
+            or areas.shape != surfaces.shape
+        ):
+            raise ValueError("Invalid PRA surface quadrature arrays.")
+        energy = np.empty((len(points), len(self.scene.bands.centers)), np.float32)
+        if self.lib.ias_pra_illuminate(
+            self.scene.handle,
+            source.ctypes.data,
+            len(points),
+            surfaces.ctypes.data,
+            points.ctypes.data,
+            areas.ctypes.data,
+            energy.ctypes.data,
+        ):
+            raise RuntimeError(self.lib.ias_specular_error().decode())
+        return energy

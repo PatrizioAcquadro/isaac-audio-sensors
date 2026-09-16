@@ -104,6 +104,44 @@ int ias_pra_segments_visible(void* handle, int count, const float* starts,
         return 0;
     } catch (const std::exception& e) { error = e.what(); return -1; }
 }
+int ias_pra_illumination_abi() { return 1; }
+int ias_pra_illuminate(void* handle, const float* source, int count,
+                       const int* surfaces, const float* points,
+                       const float* areas, float* energy) {
+    try {
+        if (!handle || !source || count < 0 ||
+            (count && (!surfaces || !points || !areas || !energy)))
+            throw std::invalid_argument("Invalid PRA illumination arguments.");
+        const auto& room = *static_cast<Scene*>(handle)->room;
+        std::vector<float> starts(3 * count);
+        std::vector<unsigned char> visible(count);
+        for (int i = 0; i < count; ++i)
+            std::copy_n(source, 3, starts.data() + 3*i);
+        if (ias_pra_segments_visible(handle, count, starts.data(), points, visible.data()))
+            return -1;
+        const Vectorf<3> origin(source);
+        for (int i = 0; i < count; ++i) {
+            if (surfaces[i] < 0 || surfaces[i] >= room.walls.size() ||
+                !std::isfinite(areas[i]) || areas[i] <= 0)
+                throw std::invalid_argument("Invalid PRA surface quadrature.");
+            const auto& wall = room.walls[surfaces[i]];
+            const Vectorf<3> delta = origin - Vectorf<3>(points + 3*i);
+            const float distance = delta.norm();
+            if (distance <= libroom_eps)
+                throw std::invalid_argument("Source touches a surface quadrature node.");
+            // Deterministic first-scatter quadrature of PRA's launch energy 2.
+            // No receiver radius or stochastic branch probability is involved.
+            const float incident = visible[i] * areas[i] *
+                std::abs(delta.dot(wall.normal)) /
+                (2.f * constants::PI * distance * distance * distance);
+            for (int b = 0; b < room.n_bands; ++b)
+                energy[i*room.n_bands+b] = incident *
+                    wall.get_energy_reflection()[b] * wall.scatter[b];
+        }
+        error.clear();
+        return 0;
+    } catch (const std::exception& e) { error = e.what(); return -1; }
+}
 std::int64_t ias_pra_trace(void* handle, const float* source, int microphones,
                          const float* positions, int rays, float horizon,
                          float radius, float energy_threshold, std::uint64_t seed,

@@ -19,6 +19,7 @@ from isaac_audio_sensors.core.microphone_array import microphone_world_positions
 from isaac_audio_sensors.core.types import MicrophoneSignalBlock
 
 from ._convolution import ConvolutionStream
+from ._diffuse import PRADiffuseConfig, SurfaceField
 from ._nlos import NLOSScene, NLOSStream, SteamNLOSConfig
 from ._specular import SpecularScene
 from ._steam_audio import Receiver
@@ -38,8 +39,13 @@ class GeometryAcousticsConfig:
     air_absorption: bool = False
     diagnostics: bool = False
     nlos: SteamNLOSConfig | None = None
+    diffuse: PRADiffuseConfig | None = None
 
     def __post_init__(self):
+        if self.diffuse is not None and not isinstance(self.diffuse, PRADiffuseConfig):
+            raise TypeError("diffuse must be PRADiffuseConfig or None.")
+        if self.diffuse is not None and self.nlos is not None:
+            raise ValueError("Combined NLOS/diffuse qualification belongs to Step 4.")
         if self.nlos is not None and not isinstance(self.nlos, SteamNLOSConfig):
             raise TypeError("nlos must be SteamNLOSConfig or None.")
         if not self.library_path or not self.specular_library_path:
@@ -90,6 +96,7 @@ class GeometryAcoustics:
         self.effects = effects or EffectsConfig()
         self.chain = ChannelEffectsChain(self.effects)
         self.streams = {}
+        self.diffuse_fields = {}
         self.closed = False
         self._reset_notice = False
         self.window_motion = window_motion
@@ -128,6 +135,9 @@ class GeometryAcoustics:
         for stream in self.streams.values():
             self._release(stream)
         self.streams.clear()
+        for field in self.diffuse_fields.values():
+            field.scene.close()
+        self.diffuse_fields.clear()
         if self.nlos:
             self.nlos.close()
             self.nlos = None
@@ -208,12 +218,39 @@ class GeometryAcoustics:
 
         rate = array.sample_rate_hz
         specular = stream["specular"]
+        diffuse = None
+        if self.config.diffuse is not None:
+            diffuse = self.diffuse_fields.get(rate)
+            if diffuse is None:
+                native_scene = SpecularScene(
+                    self.session,
+                    self.config.specular_library_path,
+                    rate,
+                    self.config.reflection_order,
+                    self.speed,
+                    self.config.max_image_candidates,
+                )
+                try:
+                    diffuse = SurfaceField(
+                        native_scene, self.config.diffuse, self.config.max_delay_s
+                    )
+                except Exception:
+                    native_scene.close()
+                    raise
+                self.diffuse_fields[rate] = diffuse
         for receiver, position in zip(stream["receivers"], positions, strict=True):
             receiver.refresh(position, scene.sources)
         for source in scene.sources:
             responses = specular.impulses(
                 source, array, positions, self.config.max_delay_s
             )
+            if diffuse is not None:
+                scattered = diffuse.impulses(source, array, positions)
+                responses = [
+                    np.pad(a, (0, max(0, len(b) - len(a))))
+                    + np.pad(b, (0, max(0, len(a) - len(b))))
+                    for a, b in zip(responses, scattered, strict=True)
+                ]
             for i, (mic, position, receiver) in enumerate(
                 zip(array.microphones, positions, stream["receivers"], strict=True)
             ):
@@ -389,6 +426,15 @@ class GeometryAcoustics:
                         probes=self.nlos.paths.count,
                         bakes=self.nlos.bakes,
                         coverage=stream["nlos"].states,
+                    ),
+                )
+            if self.config.diffuse is not None:
+                diagnostics["geometry"].update(
+                    domain="experimental_direct+specular+diffuse",
+                    diffuse=dict(
+                        qualification="pending",
+                        motion="receiver-clock quasi-static field",
+                        **self.diffuse_fields[rate].diagnostics,
                     ),
                 )
         return MicrophoneSignalBlock(
