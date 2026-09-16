@@ -481,3 +481,26 @@ Five documentation-boundary checks and all internal page/heading links pass.
 Inspected the focused native/Python diff, verified the new evidence and existing
 specular ABI boundary, and checked whitespace. Ignored evidence and raw sources
 remain preserved. C04 confirmation and the broader closeout remain in progress.
+
+## 2026-09-16 — experiment: Targeted diffuse closeout and room boundary
+
+Fresh 96-program C04 translation/yaw confirmations pass all forty decisions on
+the exact arrays at 2.5 ms. Three independent field seeds expose two low-N rate
+signals with opposite signs; separate fixed 96-program confirmations pass all
+budgets, retaining the original FAIL outputs. Added controlled isotropic
+synthesis, exact production radius invariance, thirteen corrected room poses,
+physical static weak direct, 10278 ordinary-motion visibility comparisons and
+an E2 pressure 2/4 s horizon check. Original Office/Hospital proxies complete
+bounded D integration; Hospital's existing memory guard needs an explicit local
+200000-node override. Recorded offline costs, absolute observations and reference
+limits. Updated admission, protocol coverage, R10/08, status and index. Retain
+PRA and the cube's diagnostic role; full moving-room admission remains OPEN.
+
+## 2026-09-16 — lint: Targeted closeout ledger
+
+Five documentation-boundary checks pass, with all forty canonical pages indexed
+and all internal page/heading links resolved. Local harness syntax/undefined-name
+checks and the final evidence audit pass, including fresh independent-program
+allocations, both signed pilot failures, confirmation summaries, closed-door
+energy and the preserved Hospital capacity limit. Inspected canonical changes
+and whitespace. No raw source changes, full-matrix rerun, budget waiver or push.

@@ -50,8 +50,9 @@ Milestone 2 and operating integration remain open.**
   The earlier rotating selected-mixture pass remains historical evidence within
   its scope; its ~0.17 physical statistic is also diagnostic with targeted impact
   evidence.
-  C03/C04 now have an actual-producer diagnostic panel; full motion admission,
-  two-source/room confirmation and later consumers remain open. A targeted
+  C03/C04 now have actual-producer controls and selected maximum-speed
+  confirmations; complete room-motion qualification and later consumers remain
+  open. A targeted
   follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
   while replacing the late response recovers most reference extras. Actual SquadBot
   software replay retains posterior orienting cues. A subsequent bounded geometric
@@ -60,9 +61,9 @@ Milestone 2 and operating integration remain open.**
   retains a measured resumption-time benefit over audio-off. One 100 ms false
   association is recorded; the pooled rate interval fits five points, while the
   raised-only interval remains inconclusive. Direct-only controls expose a separate
-  numerical consumer defect, corrected by the measurement work below. Next, combine
-  movement and observation qualification in a compact evidence set using the actual
-  D producer at microphone positions, reusing passed controls. Full AV/mobile
+  numerical consumer defect, corrected by the measurement work below. The compact
+  joint campaign uses the actual D producer at microphone positions. Its remaining
+  room/reference boundary is recorded below. Full AV/mobile
   usefulness belongs to Steps 5–6; tracking and matched physical transfer are separate unvalidated claims.
   This acceptance revision changes the cube comparison's role, not the operating
   domain or numerical margins. PRA remains retained and diffuse remains opt-in
@@ -87,23 +88,36 @@ Milestone 2 and operating integration remain open.**
   native departure-side check fixes it: actual closed/open/closed D has exact zero
   energy at both closed poses and nonzero open pressure. Fifteen native/field and
   nine producer checks pass. Rebuild the diffuse bridge for the added private
-  capability. This is separate from the cube diagnostic limitation and ongoing
+  capability. This is separate from the cube diagnostic limitation and the
   [[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted closeout]].
 
 - **Joint motion/observation controls:** the actual D producer passes dynamic
   array grouping, source identity, reset, independent-environment and PCM replay
   checks. Dense-plane energy/coherence controls pass on C03/C04 trajectories.
-  The compact RTX diagnostic panel is followed by 96 fresh C03 programs at
-  1.5 m/s and 2.5 ms updates: all relative angular, miss/extra and added-latency
-  budgets pass on both arrays, including the weak-direct ablation. Absolute
-  fastest-source performance is difficult in both models; a separate diagnostic
-  suggests common consumer temporal averaging. Other cell rate intervals remain
-  inconclusive. The bounded two-source room probe has no misses/extras in its
-  twelve eligible updates; screened arrivals remain unresolved. Full room
-  references/conditioning, physical weak-direct moving routes and ordinary moving
-  geometry are still open. Neither a faster source's relative PASS nor the short
-  probes admit general motion, unrestricted 10 ms updates or Step 3 as a whole.
-  [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|Joint evidence and remaining coverage]].
+  Fresh 96-program confirmations at 2.5 ms pass all relative budgets for maximum
+  C03 source motion and C04 translation/yaw on both arrays and gains. These are
+  conditional on field 31001; absolute weak/fast performance remains difficult
+  in both models. Lower-speed cells retain diagnostic coverage, and unrestricted
+  10 ms updates are not admitted. The bounded two-source room probe has no
+  misses/extras in twelve eligible updates; screened arrivals remain unresolved.
+  [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|Joint controls]]
+  and [[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted confirmations]]
+  retain absolute rates, field-seed checks and confidence limits.
+  Three fresh fields expose two low-N signed rate signals; separate 96-program
+  confirmations pass all budgets for both. Original pilot FAIL outputs remain
+  recorded. This completes the finite-seed check, not population equivalence.
+
+- **Representative room boundary:** thirteen corrected key poses, 10278 analytic
+  visibility comparisons, controlled isotropic synthesis and the E2 2/4 s horizon
+  pass their applicable controls. Static physical weak direct measures
+  -11.64/-11.59 dB; four programs have zero misses but 21.43%/42.86% spurious
+  updates on square/raised. Office/Hospital static D integration passes on the
+  original acoustic proxies; Hospital requires a documented 200000-node local
+  capacity override. These are bounded property/integration results. Complete
+  moving-room pressure/observation references, input conditioning and full-D routes
+  remain open. Native preparation costs 24.2–157.3 s per room pose in this panel;
+  it is offline. **Retain PRA; Step 3 remains `not_admitted` because the remaining
+  room gate lacks evidence, not because the diagnostic cube must be matched.**
 
 ## Maintained capabilities and boundaries
 

@@ -93,13 +93,17 @@ matching that late response is no longer a prerequisite for Step 3. The
 follow-up retains the candidate: late-response diagnostics and downstream software
 replay are complete. Bounded geometric head/camera diagnostics now measure task
 consequences; a fresh refined confirmation supports retaining PRA while keeping
-individual-stratum and numerical/consumer limits explicit. Step 3 remains open
-for binding field controls and representative C03/C04, room and two-source
-observations. The later actual-producer joint panel passes controlled-plane and
-dynamic lifecycle checks; a fresh fastest-source C03 confirmation passes relative
-observation budgets on both arrays at 2.5 ms, including weak direct. Other C03/C04
-rate intervals and complete representative-room references/routes remain open;
-bounded room probes do not close them. The numerical correction resolves WPE/peak
+individual-stratum and numerical/consumer limits explicit. The later actual-D
+joint panel passes controlled-plane and dynamic lifecycle checks. Fresh
+96-program confirmations pass relative observation budgets for maximum C03
+source motion and C04 receiver translation/yaw on both arrays/gains at 2.5 ms.
+The targeted closeout adds field-seed checks, controlled isotropic synthesis,
+ordinary door/screen visibility, representative static weak direct, room energy
+and horizon controls, and Office/Hospital integration pilots. A reproduced
+door-jamb projection leak is fixed natively. Step 3 remains open for applicable
+moving-room references/conditioning and complete full-D routes; bounded room
+probes do not close them. Lower-speed C03/C04 coverage remains diagnostic and
+unrestricted 10 ms updates are not admitted. The numerical correction resolves WPE/peak
 instability; the angular bank retains an early-response isolation limit. Use the
 actual producer or qualified sampling for affected comparisons and reuse episodes/PCM
 for field and observation checks. Historical observation intervals retain their

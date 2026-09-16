@@ -954,6 +954,140 @@ where the correction can affect them. Single-scatter C03/C04 response banks
 never enter later-surface projection and remain applicable. This correction
 does not admit Step 3 or change any physical/observation budget.
 
+### Fresh C04 confirmations
+
+**All forty metric decisions pass** on the selected maximum receiver translation
+(1 m/s) and yaw (90 degrees/s): each trajectory has 96 fresh paired source
+programs, both exact arrays and direct gains 1/.1, at 2.5 ms. Field seed 31001
+and unchanged RTX 4090 perception are used throughout. The reference independently
+evaluates retarded Lambertian transport with the checked shared surface synthesis;
+it is valid for this single-scatter plane, not arbitrary room pressure.
+
+Every per-program miss/extra rate and acquisition latency is identical between
+candidate and reference. The retained unseen-discordance guard gives 95% rate
+intervals of +/-3.77 points and latency intervals of +/-79.2 ms. Mean/p95 angular
+differences are numerical-scale; the largest p95 point change is .000733 degrees.
+No source programs from the diagnostic pilot enter either confirmation. Lower
+speeds retain their compact diagnostic coverage; these selected confirmations
+do not establish unrestricted 10 ms updates or all-field population equivalence.
+
+Absolute difficulty remains visible. For yaw with gain .1, square reference and
+candidate both have 10.64% misses and 96.95% spurious updates; raised has 6.92%
+misses and 99.93% spurious updates. Translation/gain 1 has zero misses/extras in
+both treatments on both arrays. Relative agreement does not certify useful
+tracking. The local `RESULTS.md` contains every cell's absolute values and
+intervals; update extras are not false tracks or robot actions.
+
+### Independent field seeds and both signed follow-ups
+
+Three fresh native/pressure seeds (31002–31004) exercise C03 at 1.5 m/s and C04
+yaw at 90 degrees/s, with four new source programs per case/seed and both
+arrays/gains. C04 rate/latency differences are zero throughout. C03 maximum
+absolute mean/p95 point changes are 2.00/3.35 degrees, while miss/extra changes
+reach +/-12.5 points. Two low-N empirical intervals are FAIL: increased misses
+on field 31004/square/gain .1 and reduced extras on field 31002/raised/gain 1.
+Both signs matter; fewer extras cannot inherit the cube diagnostic exception.
+
+Each signal receives a separate, fixed **96-fresh-program confirmation**,
+declared before its new outcomes. Programs 49000–49095 and 50000–50095 do not
+overlap either pilot. **Both confirmations pass all five budgets.** No sample
+is automatically extended and no other completed cell is repeated.
+
+| Field / array / gain | Misses reference → candidate | Miss delta, pp [95% CI] | Extras reference → candidate | Extra delta, pp [95% CI] |
+| --- | --- | --- | --- | --- |
+| 31004 / square / .1 | 73.66% → 72.47% | -1.19 [-3.13, .67] | 100% → 100% | 0 [-3.77, 3.77] |
+| 31002 / raised / 1 | 35.04% → 33.26% | -1.79 [-3.35, -.22] | 43.90% → 42.63% | -1.26 [-2.68, .07] |
+
+For the first row, mean/p95 changes are -.533/.422 degrees; the added-latency
+interval is [-175.0, -7.3] ms. For the second, mean/p95 changes are .042/-.058
+degrees and the latency interval is [-31.3, 13.6] ms. Directional tail occupancy
+remains .2 seconds in both treatments. The two original four-program FAIL
+outputs are preserved; their out-of-budget effects are not reproduced in the
+fresh confirmations. Remaining low-N rate intervals are inconclusive, not
+population evidence. This completes the requested finite-seed diagnostic and
+targeted follow-ups, not a 95% equivalence claim over all possible field seeds.
+
+### Representative properties and room integration
+
+The minimum panel adds thirteen exact corrected D poses across E0_R02, E2_R08,
+four E1 field seeds, a physical weak-direct position and E3 door/E1 screen
+return poses. Nine non-door poses are bitwise identical before and after the
+departure-side correction. Ordinary geometry visibility is tested separately:
+301 door poses and 841 screen poses give **10278 microphone connections with
+zero disagreements** against independent finite-door-plane/box intersection.
+This validates geometry updates and visibility; full diffuse PCM/history over
+those ordinary trajectories remains open.
+
+The initial E1 receiver measured about -14 dB DRR, outside the prescribed -12 to
+-6 dB stratum. That result is retained. A physically repositioned receiver gives
+**-11.64/-11.59 dB** on square/raised without fitted gains. Four independent
+source programs through unchanged RTX perception have zero misses in eligible
+updates, but 21.43%/42.86% spurious updates; conditional mean/p95 errors are
+.92/1.55 and 1.20/2.68 degrees. Directional tail occupancy is .4 seconds. Across
+the four farther E1 fields, misses remain zero while spurious rates vary widely,
+including 5.36–100% on square. These are static absolute diagnostics without a
+matched room-pressure reference or population confidence claim. The 4.1-second
+PCM replay agrees with production convolution below 3.4e-7 relative RMS.
+
+Actual band/microphone pressure T20 ranges are .169–.222 s in E0_R02,
+.486–.619 in E1's in-range weak-direct position, .601–.713 in the original
+screen pose, .807–.916 in E2_R08 and .509–.565 with E3's door open. Some do not
+meet their nominal recipe target tolerance. Those recipes were not independently
+conditioned: these results establish neither matching target decay nor a
+renderer/reference failure. They are pressure measurements, separate from the
+older scalar-energy envelope controls. The unchanged E2 response at 2/4 s has
+maximum omitted band energy fraction **1.02e-14**, below .001, conditional on the
+same declared native energy cutoff.
+
+Controlled isotropic synthesis now passes both arrays, including displacement
+and yaw: maximum spatial complex-coherence error .01181 and cross-pose error
+.02907, below .1. This is an exact independent-mode ensemble using the actual
+fractional-delay/filter synthesis; it does not assert arbitrary-room isotropy.
+Production incident surface capture is exactly invariant for receiver radii
+.05/.1/.2/.4 m with zero native microphone receivers. Finite-radius histogram
+convergence remains a separate reference limitation.
+
+The original bounded Office/Hospital acoustic proxies each complete a static D
+integration pilot with nonempty actual PCM. Hospital initially hits the existing
+100000-node resource guard. An exact count gives 173848 nodes; one explicit local
+`max_nodes=200000` follow-up passes without changing geometry, spacing, rays,
+order, horizon, SDK defaults or accuracy budgets. The original capacity failure
+is retained. Office/Hospital DRRs are -10.21/-10.33 and -8.09/-8.04 dB. These
+approved early-acoustic proxies retain their outside connections and material
+limits; they are not whole-building late-field references or full moving routes.
+
+### Cost and remaining admission boundary
+
+Fresh C04 translation/yaw confirmations take 33.6/29.7 minutes including PCM
+replay, RTX perception and bootstrap. They ran concurrently; these are not
+isolated throughput measurements or additive elapsed times. Corrected native
+room response preparation takes 24.2–157.3 seconds per exact pose in this panel;
+Office/Hospital successful pilots take 27.4/24.5 seconds. Native PRA work is
+CPU-only by implementation. Offline computation is separate from the unchanged
+100 ms simulated added-latency budget. The two targeted field confirmations take
+6.4/8.5 minutes including replay, perception and resampling.
+
+| Property | Current result | Boundary |
+| --- | --- | --- |
+| Shared representation, normalization and causal lifecycle | PASS in retained native/analytic/producer controls | No arbitrary moving-room conclusion from a plane |
+| Controlled isotropic synthesis and Lambertian field | PASS | Property-specific independent moment/transport references |
+| Selected C03/C04 maxima, field 31001 | PASS | 96 paired programs per trajectory, both arrays/gains, 2.5 ms |
+| Three independent field seeds | Diagnostic complete; both adverse-stratum fresh confirmations PASS | Intervals conditional on the selected fields; no population-wide equivalence claim |
+| Closed/open/closed D and ordinary geometry visibility | PASS after the jamb correction | Ordinary-motion full diffuse pressure/history remains OPEN |
+| Production radius invariance and E2 2/4 s horizon | PASS | Declared native capture/cutoff; finite-radius references remain limited |
+| Physical weak direct | Measured in representative static rooms | Complete moving weak-direct reference/observations remain OPEN |
+| E0/E1/E2/E3 and Office/Hospital | Bounded property/integration evidence complete | Not complete conditioned full-room pressure qualification |
+| Representative moving-room approximation impact | OPEN | Property-valid multibounce reference, conditioned input strata and complete full-D routes are missing |
+| Cube late response and earlier selected-mirror mismatch | Diagnostic limitations retained | Original failed evidence remains; no automatic provider replacement |
+| NLOS+D, AV and mobile | Later Steps 4–6 | No new combined-model or complete consumer claim |
+
+**The targeted campaign does not close global Step 3 under the current decision.**
+The remaining room gate requires applicable evidence or an explicit change to its
+admission role. Missing references cannot be relabeled PASS, and the cube
+exception does not extend to other properties. The results do not establish a
+need to replace PRA. Preserve the implemented renderer and the completed controls;
+do not repeat the full matrix to address an absent reference.
+
 ## Evidence and reproduction
 
 All locations are local ignored evidence, not package dependencies. Keep original
@@ -976,6 +1110,7 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_step3_av/` | Historical moving-head/camera diagnostics, 192-episode confirmation, batch control and measured-reference audit |
 | `08_2_step3_measurements/` | README, numerical failure/fix reproduction, same-PCM scalar/CUDA/batch checks, early/cache isolation, targeted AV replay and corrected runtime cost |
 | `08_2_step3_motion/` | Predeclared joint panel, actual-producer exact-pose PCM, analytic/dense-plane references, dynamic lifecycle controls, update refinements, RTX observations and bounded room probes |
+| `08_2_step3_closeout/` | Fresh C04/field-seed confirmations, isotropic and radius controls, E3 correction, representative room pressure/observations, ordinary visibility, horizon and NVIDIA integration/cost pilots; per-property summary and remaining admission gaps |
 | `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].

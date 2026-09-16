@@ -597,6 +597,18 @@ Native PRA diagnostics use its supported CPU path; perception/simulation use RTX
 Unavailable references remain later-step prerequisites; they do not justify removing
 mandatory conditions or interpreting missing sound as physical silence.
 
+**Later Step 3 coverage (2026-09-16):** the
+[[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted closeout]]
+now supplies exact both-array C03/C04 producer/retarded-plane comparisons at
+2.5 ms, controlled isotropic synthesis, a corrected opaque-door pressure check,
+ordinary door/screen analytic visibility, pressure decay and a 2/4 s horizon
+comparison. Physical weak-direct DRR is measured at a static E1 position and in
+the existing NVIDIA proxies. These additions supersede the corresponding
+preparation-only coverage entries above. They do not supply a full moving
+multibounce room reference, independently conditioned room recipes or complete
+full-D trajectories. The field/observation budgets and representative allocation
+are unchanged; no universal pressure-field reference is implied.
+
 ### Machine, GPU recovery and cost envelope
 
 The GPU blocker was resolved after the user's manual reboot: installed/loaded

@@ -194,12 +194,17 @@ The subsequent joint panel uses actual D responses at every sampled microphone
 pose. Dynamic grouping, source identity, reset, environment isolation, exact-pose
 PCM replay and the controlled-plane energy/coherence checks pass. C03/C04 now have
 a compact corrected-RTX panel and targeted update refinement. The fresh
-96-program fastest-source confirmation passes all relative observation budgets
-on both arrays, including weak direct, at 2.5 ms. Absolute consumer performance
-remains difficult in that control. Two bounded room probes and sequential
-two-source replay are complete; other cell rate intervals, full room references,
-conditioning and physically weak-direct moving routes remain open. Native room
-cost is measured before allocation. See
+96-program fastest-source confirmation and subsequent maximum C04 translation/yaw
+confirmations pass all relative observation budgets on both arrays/gains at
+2.5 ms. Absolute consumer performance remains difficult in some controls.
+Independent field-seed diagnostics retain separate targeted confirmations.
+Two bounded room probes, sequential two-source replay, thirteen room key poses,
+ordinary-motion visibility, controlled isotropic synthesis, receiver-radius and
+E2 horizon controls are complete. Static physical weak direct and the original
+Office/Hospital acoustic proxies have actual-D integration evidence; Hospital's
+explicit capacity override leaves accuracy budgets unchanged. Full moving-room
+references, conditioning and complete routes remain open. Costs are offline and
+recorded in the linked targeted closeout. See
 [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|joint motion/observation evidence]]
 for the validated scope, independent-reference boundary and remaining admission.
 

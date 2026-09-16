@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — diagnostic cube/AV evidence, corrected measurements, joint controls, fresh C03 confirmation, bounded room observations and the E3 projection correction; admission limits and replay remain explicit.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — diagnostic cube, corrected measurements, C03/C04 and field-seed confirmations, E3 fix, representative room/NVIDIA evidence, offline cost and remaining admission gaps.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — exact fixtures/matrix, references/scoring and lean allocation, followed by completed preparation and its limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
