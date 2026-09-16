@@ -427,3 +427,19 @@ in the four selected AV programs, evidence directory references and whitespace.
 Kept the failed cache-isolation result, historical interval scope, expensive stable
 runtime and still-open physical admission explicit. Raw and historical evidence
 were not edited; no complete acoustic-matrix or 192-episode rerun is claimed.
+
+## 2026-09-16 — experiment: Actual-producer motion controls
+
+Recorded the predeclared C03/C04 panel, analytic retarded-plane transport and
+independent dense-quadrature checks, dynamic lifecycle and exact-pose replay,
+corrected RTX diagnostic observations and targeted 10/5/2.5 ms refinement.
+Native room cost limits the allocation before full routes without valid moving-
+room references. The fresh confirmation and room closeout remain separate from
+this validated checkpoint; no admission or provider change is claimed.
+
+## 2026-09-16 — lint: Joint-control checkpoint
+
+Five documentation-boundary checks, 40 canonical indexed pages, 247 wikilinks and
+38 heading targets pass. Verified new evidence paths, quantitative control values,
+reference independence boundaries and whitespace. Raw and historical evidence,
+physical budgets and the cube diagnostic decision remain unchanged.

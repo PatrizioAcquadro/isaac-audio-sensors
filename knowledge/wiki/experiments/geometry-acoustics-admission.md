@@ -802,6 +802,75 @@ was repeated for this numerical maintenance. Step 3 remains `not_admitted` pendi
 its binding field and representative motion/room/observation gates. These findings
 do not establish a need to replace PRA.
 
+## Joint motion and observations (2026-09-16)
+
+The new panel starts from `main@e3fee8f` and uses the actual optional D producer
+at microphone positions, followed by the corrected maintained RTX 4090 consumer.
+It does not use the earlier angular cache. Parameters and the compact allocation
+were recorded before scoring in `local/r10/08_2_step3_motion/README.md`.
+
+### Controlled-plane evidence
+
+C03 covers source speeds 0/.1/.5/1.5 m/s; C04 covers receiver translation
+.5/1 m/s and yaw 60/90 degrees/s. Both exact arrays use the protocol plane,
+2.1-second emission/motion and two seconds of retained tail. The gain-.1 direct
+condition is the declared sensitivity ablation, not physical occlusion. Each of
+32 layout/motion/gain cells has four paired independent S0 waveforms. Inference
+is conditional on the prescribed geometry and one persistent field realization;
+it does not establish a random-room or field-seed ensemble result.
+
+The transport reference derives Lambertian weights and retarded source-to-plane-
+to-receiver lengths analytically. It shares the declared persistent quadrature,
+band synthesis and convolution primitives, whose normalization has separate
+controls; this is independent transport validation, not independent software
+validation of the shared synthesis. An independent .05 m surface quadrature
+checks the actual plane at twelve trajectory states. Maximum relative energy
+error is .00169%; spatial/temporal complex-coherence errors are .0000189/.0000151,
+below .1. Initial analytical/native pressure agreement is within .000287% RMS.
+
+Actual-producer replay from the exact-pose responses differs by less than
+2.7e-7 relative RMS, including the checked reuse of the held tail. Dynamic array
+reordering/regrouping, equivalent source IDs, reset and independently owned
+environments preserve the signal exactly. Different PCM partitions differ by
+less than 1e-7 in the dynamic structural control. Plane responses are unchanged
+for 4096/16384/65536 rays and orders 3/5/7: this scene has only explicit first
+scattering. The 2/4-second omitted-energy fraction is below 5e-16. These controls
+do not establish room late-tail, horizon or higher-interaction convergence.
+
+At 10 ms, diagnostic mean/p95 angular intervals fit their budgets in all cells;
+maximum point changes are .613/.950 degrees. Miss/extra point differences reach
+7.14 percentage points for the fastest source, but their four-episode intervals
+are inconclusive. Zero differences also remain inconclusive under the unseen-
+discordance guard. This is not a blanket C03/C04 PASS.
+
+The same four programs refine C03 at 1.5 m/s and C04 yaw at 90 degrees/s to
+5/2.5 ms. From 10 to 5 ms, a conditional angular p95 changes by 7.81 degrees
+and a miss rate by 5.36 points. From 5 to 2.5 ms, maximum point changes across
+the two models are .224 degrees on mean, .515 on p95, 1.79 points on rates and
+25 ms on acquisition. Few-episode rate convergence remains open; neither this
+refinement nor a favorable model comparison admits unrestricted 10 ms updates.
+The predeclared fresh confirmation targets only C03 at 1.5 m/s, both gains and
+arrays, with 96 new waveforms and the 2.5 ms responses.
+
+### Representative-room boundary
+
+The cost preflight measures about .12 seconds per plane pose, 83 seconds in E1
+R05 and 109 seconds in E1 screen R08 at 4096 rays, before parallel-job contention.
+The furnished/screened fields contain 8.67/12.93 million pressure modes. These
+native CPU costs are separate from simulated perceptual latency. The allocation
+therefore includes bounded two-source/receiver-motion and screen-edge/source-
+motion probes, with exact 10 ms poses over a declared 200 ms movement segment.
+They do not replace full A04/A08/M01 routes or their source/material conditions.
+Two sequential furnished/two-source producer poses, including an interrupted
+emission prefix, reproduce the saved responses and PCM exactly.
+
+Full moving multibounce room references and material conditioning remain open.
+NLOS observations must not be scored against hidden-source bearing as though it
+were a validated arrival direction. The room probes can establish integration
+and absolute observations; they cannot by themselves establish approximation
+budgets. The cube's diagnostic exception and Step 3's `not_admitted` status remain
+unchanged. No provider replacement or new multibounce solver is implied.
+
 ## Evidence and reproduction
 
 All locations are local ignored evidence, not package dependencies. Keep original
@@ -823,6 +892,7 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_step3_relevance/` | Cube absolute-rate/persistence, late-response ablations and downstream decision replay |
 | `08_2_step3_av/` | Historical moving-head/camera diagnostics, 192-episode confirmation, batch control and measured-reference audit |
 | `08_2_step3_measurements/` | README, numerical failure/fix reproduction, same-PCM scalar/CUDA/batch checks, early/cache isolation, targeted AV replay and corrected runtime cost |
+| `08_2_step3_motion/` | Predeclared joint panel, actual-producer exact-pose PCM, analytic/dense-plane references, dynamic lifecycle controls, update refinements, RTX observations and bounded room probes |
 | `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].

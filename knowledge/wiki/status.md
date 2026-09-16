@@ -50,7 +50,8 @@ Milestone 2 and operating integration remain open.**
   The earlier rotating selected-mixture pass remains historical evidence within
   its scope; its ~0.17 physical statistic is also diagnostic with targeted impact
   evidence.
-  General C03/C04 motion, two-source/room confirmation and later consumers remain open. A targeted
+  C03/C04 now have an actual-producer diagnostic panel; full motion admission,
+  two-source/room confirmation and later consumers remain open. A targeted
   follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
   while replacing the late response recovers most reference extras. Actual SquadBot
   software replay retains posterior orienting cues. A subsequent bounded geometric
@@ -80,6 +81,15 @@ Milestone 2 and operating integration remain open.**
   16 square/raised copies per 100 ms update in the supplied-PCM check; this is
   offline throughput, not added simulated perceptual latency. Prior interactive
   batch guidance does not apply. Physical admission remains separate.
+
+- **Joint motion/observation controls:** the actual D producer passes dynamic
+  array grouping, source identity, reset, independent-environment and PCM replay
+  checks. Dense-plane energy/coherence controls pass on C03/C04 trajectories.
+  The compact RTX diagnostic panel has small angular differences, while rate
+  intervals remain inconclusive; update refinement prevents extrapolating a
+  favorable comparison to unrestricted 10 ms operation. Furnished/screened room
+  cost and reference limits govern the bounded probes. Step 3 remains open.
+  [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|Joint evidence and remaining coverage]].
 
 ## Maintained capabilities and boundaries
 
