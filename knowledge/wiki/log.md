@@ -311,3 +311,24 @@ Canonical links/index, affected Ruff and whitespace checks pass. Current status,
 R10, Phase 08, diagnostics and the admission record consistently distinguish the
 implemented candidate from failed qualification. Historical evidence is preserved;
 new confidence intervals are explicitly conditional on the frozen scene/field.
+
+## 2026-09-16 — experiment: Step 3 practical significance before alternatives
+
+Reanalyzed absolute extra-update rates and directional persistence, then replayed
+four artificial late-response interventions with unchanged RTX 4090 perception.
+Correcting 1 kHz decay alone has little effect; coherent late substitution recovers
+most reference extras. Actual SquadBot adapter/search replay retains posterior
+orienting cues, but does not measure physical turns or AV/mobile success. Corrected
+the earlier task-easiness wording to distinguish observation impact from robot
+outcomes. Retained failed/open qualification, assessed independent measured-data
+options, and recorded the user-requested practical-impact continuation before any
+provider decision. Historical evidence and the implementation remain unchanged.
+
+## 2026-09-16 — lint: Practical-significance evidence
+
+All five documentation-boundary checks, local diagnostic Ruff/compilation and
+Markdown whitespace checks pass. Saved baseline binary outcomes match the original
+GPU evidence; every intervention preserves the first 80 ms, and both decay changes
+meet the original per-microphone tolerance. Raw/historical inputs are preserved;
+new episode statistics, software decisions and prospective physical/closed-loop
+validation are explicitly separated.

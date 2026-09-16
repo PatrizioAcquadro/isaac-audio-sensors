@@ -164,6 +164,15 @@ below to that new evidence; the earlier rotating-mirror discrepancy is still not
 an automatic rejection by itself. The admission record distinguishes the acoustic
 counterexample from an additional raised-array consumer-parity limit.
 
+On 2026-09-16 the user requested a practical-significance investigation before
+considering alternatives. Retain the implemented renderer and examine absolute
+false-update rates, directional persistence, causal late-response interventions,
+downstream decisions and reference independence. This permits bounded diagnostic
+follow-up, not an automatic budget waiver or a provider evaluation. A failed
+observation budget does not establish failure of robot-task usefulness; conversely,
+usefulness and physical-transfer claims require their own evidence. The admission
+record owns the completed replays and remaining closed-loop/reference gaps.
+
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical
 extensions and requires a repository-owned multibounce engine, stop with working

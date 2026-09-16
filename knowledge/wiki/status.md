@@ -31,7 +31,7 @@ Milestone 2 and operating integration remain open.**
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 is implemented but not qualified; the approved stop rule now applies.**
+- **Step 3 is implemented but not qualified; practical significance is under review before any provider decision.**
   The general persistent field and optional D producer pass 36 native, analytic
   and streaming controls. Closed-partition projection and gain-dependent banded
   specular phase defects are corrected. A conditioned smooth 3 m room still fails
@@ -42,7 +42,12 @@ Milestone 2 and operating integration remain open.**
   count-stability limit is recorded separately; the square comparison is stable.
   The earlier rotating selected-mixture pass remains valid within its scope, and
   its ~0.17 physical statistic is not the new sole blocker. General C03/C04 motion,
-  two-source/room confirmation and later consumers remain open. No domain/budget
+  two-source/room confirmation and later consumers remain open. A targeted
+  follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
+  while replacing the late response recovers most reference extras. Actual SquadBot
+  software replay retains posterior orienting cues; physical turns, tracking and
+  AV/mobile success are still unmeasured. This is neither renderer rejection nor
+  evidence that the limit is harmless. No domain/budget
   change, larger solver, replacement evaluation or push was made.
   [[experiments/geometry-acoustics-admission|Evidence, intervals and next decision]].
 

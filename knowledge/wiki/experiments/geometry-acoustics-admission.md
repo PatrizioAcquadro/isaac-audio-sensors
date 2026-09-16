@@ -529,8 +529,9 @@ Final order-7 / 65536-ray results, candidate minus reference:
 | Raised | -.131 [-.156, -.106] | **-67.43 [-68.48, -66.28] — FAIL** | p95 angle, misses, first/reacquisition latency pass |
 
 Reference/candidate DRR is -8.48/-6.93 dB square and -9.21/-7.60 dB raised.
-The candidate suppresses reflected false detections and makes this task
-artificially easier. Absolute changes, including improvements, remain subject to
+The candidate suppresses additional direction estimates relative to the reference;
+this observation comparison does not measure robot-task success. Absolute changes,
+including improvements, remain subject to
 the approved five-point bound. At 4096 rays/order 3, corresponding changes were
 -99.78 and -78.45 points; at 16384/order 7, -15.73 and -67.93. Increasing rays
 does not resolve this selected failure.
@@ -569,6 +570,114 @@ multibounce solver or replacement evaluation. No replacement provider, threshold
 change, implicit domain reduction or push was performed. Reproduction, exact
 coefficients, PCM, intervals and the compact plot are in
 `local/r10/08_2_step3_general/README.md`, `summary.json` and `summary.png`.
+
+### Practical significance follow-up (2026-09-16)
+
+The user requested practical-impact evidence before considering replacements.
+The existing renderer, invariants and budgets are retained. A failed observation
+budget is not proof that the SDK is unsuitable for robot audition; neither does
+the current evidence justify treating the difference as harmless. The 3 m cube,
+centered source/receiver axis, smooth identical walls and S0 Gaussian stimulus
+are a deliberately controlled condition, not a representative office/speech task.
+Other applicable room/motion controls remain open, not implicitly passed.
+
+**Absolute rates and persistence.** Reanalysis of the same 96 source episodes,
+order 7/65536 rays, frozen scene/field:
+
+| Measurement (% of scored updates) | Square reference | Square candidate | Raised reference | Raised candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Any unmatched estimate | 99.95 | 76.86 | 100.00 | 32.57 |
+| Any bearing >20 degrees from the source | 99.95 | 76.86 | 94.41 | 32.13 |
+| Any bearing >90 degrees from the source | 99.95 | 76.86 | 89.86 | 29.82 |
+| Multiple estimates within 20 degrees of the source | 0.00 | 0.00 | 79.66 | 1.86 |
+
+The last three rows overlap. The original metric counts updates with an extra,
+not the fraction of detections that are false. Mean extras/update are 1.00/0.77
+for square reference/candidate and 3.25/0.58 for raised. Raised multiplicity partly
+reflects nearby duplicates, but large directional disagreements remain after
+excluding those. Square extras lie approximately opposite the source.
+
+Using separate contiguous scored windows (ticks 7–14 and 18–28), the median longest
+run of updates containing an opposite bearing is 1.1/.8 s for square
+reference/candidate and .8/.6 s for raised. Every reference episode has a run of
+at least .5 s; 95/96 square and 85/96 raised candidate episodes do too. These are
+100 ms update-bin spans, censored by the windows, not identified false tracks.
+The estimator reuses 750 ms of context; adjacent updates are not independent.
+The existing first-bearing/reacquisition times also do not establish track or
+camera reacquisition after motion.
+
+**Causal late-response diagnostics.** Four artificial interventions reuse 16 of
+those episodes (2200–2215), both arrays and unchanged actual RTX 4090 perception.
+They preserve direct pressure and the entire candidate response before 80 ms;
+the intervention blends in between 80 and 100 ms. No perception output is used to
+fit a filter, decay or energy weight. This is paired exploratory reuse, not fresh
+confirmation or a physical fix.
+
+| Response | Square extra-update rate | Raised extra-update rate |
+| --- | ---: | ---: |
+| Original candidate, these 16 episodes | 78.62% | 32.24% |
+| Correct 1 kHz decay to mean .5 s | 81.58% | 32.24% |
+| Same decay target, hold projected late-band energy constant | 79.93% | 32.24% |
+| Match projected 1 kHz late-band energy to reference | 84.54% | 33.22% |
+| Substitute coherent reference response after 80–100 ms | 98.03% | 100.00% |
+| Reference, these 16 episodes | 100.00% | 100.00% |
+
+The first two decay interventions achieve per-microphone 1 kHz T20 ranges
+.474–.529 s and .464–.534 s respectively, inside the original tolerance. A common
+delay-compensated FIR projection and temporal envelope act across all nine
+microphones. In the energy-controlled variant the projected-component energy is
+preserved exactly and the full 1 kHz response energy changes by about -0.12%.
+Projected-component energy and full filtered-response energy differ because of
+interference; no claim of exact broadband DRR control is made.
+
+Correcting this one decay descriptor is insufficient in this control. Replacing
+the late response recovers most of the extra-update behavior while retaining early
+pressure, supporting a late-response cause. That replacement changes multiband
+energy and inter-microphone pressure relationships jointly; it does not isolate
+phase, direction, coherence or every band's decay as the sole mechanism. Nor does
+it prove that PRA needs replacement. Preparation took about 14 s; 320 stream
+replays, including repeated controls, took about 37 s on RTX 4090. No new expensive
+native ray generation was required.
+
+**Actual downstream software boundary.** Saved CUDA bearings were replayed through
+the unchanged SquadBot `audio_sensor_frame_to_auditory_cues` adapter and
+`run_all_new_audio_cued_searches` controller. Every bearing produced an
+`orient_to_sector` decision. Updates with a behind-sector decision were
+99.95/76.86% for square reference/candidate and 88.32/29.00% for raised. This is
+evidence that the software path does not simply discard these cues. It is not a
+measured wrong physical turn: the maintained downstream controller records
+decisions without commanding joints. Each update uses a fresh graph to inspect
+that response, with `Unknown` audio classes and no visual objects. Zero resulting
+confirmations is structural, not evidence of robust AV rejection. Persistent
+tracks, camera acquisition and mobile outcomes remain unmeasured.
+
+**Reference independence and next evidence.** The shoebox reference independently
+constructs paths, but shares PRA/geometrical-acoustics assumptions and material
+synthesis with the candidate. Order convergence and early-path agreement validate
+numerics, not a real room. The retained
+[[experiments/physical-signal-comparison|25 ReSpeaker takes]] lack matched weak-direct room RIR/decay calibration and cannot
+adjudicate this discrepancy. Published measured-array resources such as the
+[ACE corpus](https://www.imperial.ac.uk/speech-audio-processing/projects/ace-challenge/)
+and [BUT ReverbDB](https://speech.fit.vut.cz/software/but-speech-fit-reverb-database)
+offer independent measured impulse responses. They were inspected as options,
+not downloaded or validated here. Matching array coordinates, room/source geometry,
+band decay, DRR and transducer limitations is necessary; an unrelated RIR cannot
+determine which response is more realistic for this cube.
+
+The next useful check is a bounded Profile 1 diagnostic with the declared observed
+cue selector, finite head motion, camera delay/visibility and an actual speech or
+device source, including one representative less symmetric weak-direct room.
+Measure selected wrong-cue dwell, false association and acquisition/reacquisition
+against a property-valid matched reference, plus audio-off utility. Replaying a
+fixed-pose RIR while changing the head pose would not qualify that loop. Use the
+approved compact diagnostic allocation and inspect cost before confirmation.
+Seek a suitable measured multichannel RIR in parallel before tuning toward the
+current reference. Preserve the failed physical/observation results; any later
+task-based acceptance revision must be explicit and supported by those outcomes.
+No provider evaluation, domain reduction or acceptance-budget change was made.
+
+Scripts, original-data pointers, full episode summaries and ablated RIRs/PCM are
+separate from previous evidence in `local/r10/08_2_step3_relevance/README.md`.
 
 ## Measured observation impact — earlier evidence
 

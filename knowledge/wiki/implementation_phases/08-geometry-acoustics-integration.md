@@ -87,7 +87,10 @@ and optional D producer, with native visibility, analytic plane/energy and
 producer lifecycle checks. The conditioned smooth-room pressure-decay and RTX
 observation-impact comparison fails after order/ray refinement. Step 3 is not
 admitted; the approved stop rule applies before broader motion/room qualification
-or a larger solver/provider change. Later consumers remain open. The
+or a larger solver/provider change. The 2026-09-16 user-requested practical-impact
+follow-up retains the candidate: late-response diagnostics and downstream software
+replay are complete, while actual closed-loop usefulness and independent physical
+validation remain open. Later consumers remain open. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 
