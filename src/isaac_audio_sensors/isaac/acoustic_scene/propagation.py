@@ -436,7 +436,8 @@ class GeometryAcoustics:
                         qualification="not_admitted",
                         motion="receiver-clock quasi-static field",
                         limits=(
-                            "Smooth-room decay and observation impact fail admission.",
+                            "Cube late-response mismatch is diagnostic; "
+                            "representative admission remains open.",
                             "General moving-room pressure remains unqualified.",
                             "Combined NLOS/diffuse requires Step 4.",
                         ),

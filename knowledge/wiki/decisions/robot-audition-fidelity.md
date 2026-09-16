@@ -1,7 +1,8 @@
 # Robot-Audition Fidelity
 
-Status: approved by the user on 2026-09-11; qualification is pending. This is the
-canonical R10 scope/acceptance decision, not a claim of implemented capability.
+Status: approved by the user on 2026-09-11, with the Step 3 cube diagnostic decision
+below approved on 2026-09-16; qualification is pending. This is the canonical R10
+scope/acceptance decision, not a claim of implemented capability.
 It supersedes historical requirements for complete dynamic acoustic physics.
 
 ## Purpose and profiles
@@ -102,6 +103,10 @@ artificially easier. Keep weak-direct/occluded strata, misses, extras, ambiguity
 collisions and false confirmations visible. Do not treat adjacent frames as
 independent trials or average away a failed mandatory condition.
 
+The Step 3 cube decision below changes the admission role of one recorded
+late-response comparison. It preserves these numerical margins and their
+application to the remaining representative conditions.
+
 References must be valid for the property: use controlled geometry/native or
 analytic references, independent delay/spatial checks and sampling/update
 refinement. Neither another provider nor the intermediate implementation is a
@@ -129,7 +134,69 @@ Keep the maintained localizer. If physics passes but perception/controller limit
 prevent benefit, identify that cause and leave the usefulness gate open; do not
 silently start general perception research.
 
+## Step 3 cube diagnostic decision (2026-09-16)
+
+The user approved retaining the conditioned cube failure as a documented model
+limit and diagnostic, without requiring its correction to continue or close
+Step 3. This supersedes the earlier automatic stop on that result. It does not
+admit the current renderer or establish that its tail is harmless throughout the
+approved domain.
+
+**Scope:** the general D candidate's smooth, symmetric 3 m E0/C02 room, centered
+source/receiver axis, zero scattering, S0 Gaussian stimulus and R05 target. The
+recorded late pressure decay/energy differences and spurious-update differences
+on both arrays remain **FAIL under the original criteria; diagnostic for current
+admission**. Neither the data nor the original thresholds are rewritten. The
+room and its results stay in the evidence inventory; the 3 m domain boundary,
+smooth surfaces and weak direct are not removed from supported-domain coverage.
+
+### What remains binding
+
+| Check | Current admission role |
+| --- | --- |
+| Causal delays/TDOA, visibility, disjoint energy ownership, native/filter normalization, shared microphone field and lifecycle | Binding, including in the cube; useful task behavior cannot excuse a structural defect |
+| Controlled spatial/temporal statistics and representative band energy/decay | Binding under property-valid references; retain the controlled isotropic 0.1 check and the earlier separate rotating-mirror impact decision |
+| Late pressure and extra-update agreement in the recorded cube comparison | Diagnostic; meeting the original tolerances in this comparison is not required for Step 3 admission or PRA retention |
+| Representative motion, rooms, both arrays, one/two sources and weak-direct observations | Binding; retain the mean/p95 angle, separate miss/spurious and added-latency budgets with independent-episode 95% intervals |
+| Combined producer and full AV/mobile utility | Separate Steps 4–6; bounded AV diagnostics do not close these gates or add them to Step 3 |
+
+The pressure-energy difference from a coherent reference is distinct from an
+energy-accounting or synthesis-normalization defect. The latter remains blocking.
+Keep the decay tolerance `max(0.03 s, 15% of target)` when claiming a target and
+retain representative 0.2–0.8 s coverage. Report the cube's actual decay and failed
+target; do not relabel it as a successful 0.5 s room. No global decay/coherence
+tolerance or observation budget is increased.
+
+### Basis and reopening rule
+
+The [[experiments/geometry-acoustics-admission|recorded investigation]] shows that
+correcting 1 kHz decay alone does not recover the reference's extra estimates.
+Replacing the entire late response changes several properties together, so it
+does not isolate a single correction. Refined speech/head-motion evidence in a
+less symmetric room preserves bounded AV benefit and does not reproduce the large
+cube discrepancy. This supports accepting a bounded approximation, not declaring
+the cube reference invalid or claiming physical transfer. The rare false
+association and raised-only inconclusive interval remain visible.
+
+Do not spend open-ended effort matching that late response. Reopen correction
+when a structural defect is demonstrated or the approximation causes a
+reproducible failure of a binding budget in required representative conditions.
+Keep artificially beneficial changes visible as well as harmful ones. New
+failures do not automatically inherit diagnostic status: record scenarios,
+references, scoring and confirmation allocation before their new outcomes, and
+keep failed or inconclusive representative gates open.
+
+Next, resolve evaluation defects that could affect those measurements, then use
+one compact set of shared episodes/PCM for the remaining movement and observation
+checks. Reuse valid structural controls and restrict refinement or confirmation
+to a concrete gap; this decision requires no blanket rerun or new physical capture.
+Step 3 remains `not_admitted` until its other applicable controls pass. A larger
+solver or provider evaluation still requires a separate user decision.
+
 ## Provider stop rule and exclusions
+
+The dated follow-ups below retain their original decision context. The cube
+decision above governs the current admission role of that specific failure.
 
 ### Step 3 targeted impact decision (2026-09-15)
 
@@ -158,11 +225,11 @@ is a bounded continuation decision, not public diffuse admission or proof of
 SquadBot utility. The [[experiments/geometry-acoustics-admission|admission record]]
 owns the results, reference limits and outstanding controls.
 
-The subsequent general D implementation remains unadmitted after a conditioned
-smooth-room pressure-decay and observation-impact failure. Apply the stop rule
-below to that new evidence; the earlier rotating-mirror discrepancy is still not
-an automatic rejection by itself. The admission record distinguishes the acoustic
-counterexample from an additional raised-array consumer-parity limit.
+The subsequent general D implementation was stopped after a conditioned
+smooth-room pressure-decay and observation-impact failure. Its current role is
+governed by the cube decision above; the earlier rotating-mirror discrepancy is
+also not an automatic rejection by itself. The admission record distinguishes
+the acoustic counterexample from an additional raised-array consumer-parity limit.
 
 On 2026-09-16 the user requested a practical-significance investigation before
 considering alternatives. Retain the implemented renderer and examine absolute

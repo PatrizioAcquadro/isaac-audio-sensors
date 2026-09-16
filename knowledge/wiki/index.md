@@ -3,7 +3,7 @@
 Start with [[status|Current Status]]. Read other pages only for the task at hand.
 For Phase 08 implementation: [[implementation_phases/08-geometry-acoustics-integration|sequence]]
 → [[implementation_phases/r10-geometry-acoustics-integration|work/exit gates]] →
-[[decisions/robot-audition-fidelity|approved domain and budgets]]. Native details
+[[decisions/robot-audition-fidelity|approved domain, budgets and diagnostic criteria]]. Native details
 and past experiments are linked from those pages, not required background for every task.
 
 ## Implementation Phases
@@ -45,7 +45,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 ## Key Decisions
 
-- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope, budgets, consumer semantics and provider stop rule.
+- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope, binding budgets/invariants, diagnostic cube exception, consumer semantics and provider stop rule.
 - [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival model, libraries and motion/lifecycle approximations.
 - [[decisions/minimal-maintained-repository-surface|Minimal Maintained Surface]] — consumer-proven implementation/cleanup principle.
 - [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces and exclusions.
@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — native corrections, conditioned-room failure, late-response diagnostics and practical-impact limits. Includes refined bounded AV confirmation, the PRA retention recommendation and independent-reference limits.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — retained cube failure with its current diagnostic role, native corrections, bounded AV evidence supporting PRA retention and remaining reference/impact limits.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — completed bounded simulation preparation, Office/Hospital proxies and lean comparison allocation; later field/reference gates remain explicit.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

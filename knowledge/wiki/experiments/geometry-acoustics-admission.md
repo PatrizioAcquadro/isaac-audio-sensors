@@ -1,6 +1,6 @@
 # Geometry Acoustics Admission Evidence
 
-Recorded experiments: 2026-09-10/11/15. This page preserves decisive measurements,
+Recorded experiments: 2026-09-10/11/15/16. This page preserves decisive measurements,
 reference corrections and replay pointers; it does not repeat the implementation
 plan. [[decisions/robot-audition-fidelity|The approved task-domain decision]] governs
 which failures block admission. [[implementation_phases/r10-geometry-acoustics-integration|R10]]
@@ -12,8 +12,18 @@ owns current implementation work.
 | --- | --- | --- |
 | Steam direct + native PRA specular intermediate | Bounded arrival/gain, reflected visibility, streaming and actual Sim/Lab/Kit; scalar/CUDA agreement on identical PCM | General motion, diffuse pressure and selected-route production integration |
 | Steam selected routes | Step 2 native selected-route transport, producer lifecycle and ordinary-motion controls | Calibrated pressure/diffraction, combined producer and consumer admission |
-| PRA persistent surface pressure | Optional D implementation; native visibility, first-scatter quadrature, shared-field and streaming controls | Conditioned smooth-room pressure decay and observation impact fail; full motion/room/task admission remains open |
+| PRA persistent surface pressure | Optional D implementation; native visibility, first-scatter quadrature, shared-field and streaming controls; bounded AV evidence supports retaining PRA | Cube late-response failure retained as diagnostic; binding field, representative motion/room/observation and later task admission remain open |
 | Closed-loop tasks | Targeted NLOS benefit and diffuse observation sensitivity | Both approved AV/mobile consumer gates |
+
+**Current interpretation — user-approved cube decision, 2026-09-16.** The recorded
+smooth E0/C02/R05 late pressure and spurious-update results remain FAIL under their
+original criteria, but are diagnostic for current Step 3 admission. Their
+correction is no longer a prerequisite for continuing or closing Step 3. The
+[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|canonical decision]]
+defines the scope, binding invariants/budgets and reopening rule. Step 3 remains
+unadmitted for the remaining applicable controls; no new experiment or physical
+correction is claimed. Dated stop statements below describe the decision at the
+time of each run, not a current instruction to halt on the cube alone.
 
 ## Steam reflection reconstruction — rejected mapping
 
@@ -458,8 +468,8 @@ implementation and historical evidence remain unchanged.
 
 ## General D implementation and conditioned-room admission (2026-09-15)
 
-**Result: implemented, not admitted. The general Step 3 qualification stops with
-a material smooth-room decay and observation-impact failure after refinement.**
+**Original result: implemented, not admitted. General Step 3 qualification stopped
+on a smooth-room decay and observation-impact failure after refinement.**
 This is a new bounded result, separate from the retained rotating-mirror statistic
 and its passing selected-mixture follow-up. It does not establish that PRA is
 universally unsuitable, or invalidate the working intermediate.
@@ -531,8 +541,8 @@ Final order-7 / 65536-ray results, candidate minus reference:
 Reference/candidate DRR is -8.48/-6.93 dB square and -9.21/-7.60 dB raised.
 The candidate suppresses additional direction estimates relative to the reference;
 this observation comparison does not measure robot-task success. Absolute changes,
-including improvements, remain subject to
-the approved five-point bound. At 4096 rays/order 3, corresponding changes were
+including improvements, were scored against the original five-point bound.
+At 4096 rays/order 3, corresponding changes were
 -99.78 and -78.45 points; at 16384/order 7, -15.73 and -67.93. Increasing rays
 does not resolve this selected failure.
 
@@ -550,13 +560,13 @@ scored updates across batch sizes; the binary spurious-update outcome remains
 unchanged. Scalar/CUDA count/direction parity also fails on the raised reference
 (50% count agreement on the final selected stream). These are separate consumer
 qualification limits; no localizer parameters were changed. The stable square
-comparison already establishes an observation-impact failure.
+comparison establishes an observation-impact failure under the original criteria.
 
 Full C03/C04 motion, two-source/general-room confirmation, complete isotropic and
 later-scatter moving-mirror controls, ordinary moving-geometry causal admission
-and missing room references remain open. The current run stops before repeating
-that wider matrix because the required static room already fails. Steps 4–6 are
-not started by this result. The original rotating-mirror .17045 diagnostic has
+and missing room references remain open. That run stopped before repeating
+the wider matrix because the static room failed the then-binding criteria.
+Steps 4–6 were not started by this result. The original rotating-mirror .17045 diagnostic has
 not been reclassified as the sole blocker.
 
 Native synthesis is CPU-only: one held nine-channel RIR takes about 77 s at
@@ -564,7 +574,7 @@ Native synthesis is CPU-only: one held nine-channel RIR takes about 77 s at
 million retained modes. RTX inference at batch 32 averages 88 ms, p95 114 ms per
 observation update. These are offline costs, not live or real-time qualification.
 
-Working changes and failed evidence are retained. The approved stop rule requires
+Working changes and failed evidence are retained. The provider stop rule requires
 a decision on the reflection-model/provider boundary before a larger proprietary
 multibounce solver or replacement evaluation. No replacement provider, threshold
 change, implicit domain reduction or push was performed. Reproduction, exact
@@ -574,10 +584,10 @@ coefficients, PCM, intervals and the compact plot are in
 ### Practical significance follow-up (2026-09-16)
 
 The user requested practical-impact evidence before considering replacements.
-The existing renderer, invariants and budgets are retained. A failed observation
-budget is not proof that the SDK is unsuitable for robot audition; neither does
-the current evidence justify treating the difference as harmless. The 3 m cube,
-centered source/receiver axis, smooth identical walls and S0 Gaussian stimulus
+At this stage, the renderer, invariants and budgets were retained. A failed
+observation budget is not proof that the SDK is unsuitable for robot audition;
+neither did the evidence then justify treating the difference as harmless. The
+3 m cube, centered source/receiver axis, smooth identical walls and S0 Gaussian stimulus
 are a deliberately controlled condition, not a representative office/speech task.
 Other applicable room/motion controls remain open, not implicitly passed.
 
@@ -884,10 +894,12 @@ bounded AV behavior despite remaining pressure/statistical mismatches. The evide
 does not show that a new transport engine is necessary, nor that the tail is
 universally harmless. Keep the renderer and reusable native work, address bounded
 representation/consumer issues where measured, and keep qualification distinct
-from the replacement decision. No threshold, domain, observation budget or stop
-rule was changed. Step 3 remains unadmitted: the original cube failure, numerical
-cache/edge limits, missing C03/C04/general motion/two-source room evidence, and
-matched physical-transfer validity are still open. Steps 4–6 remain separate.
+from the replacement decision. This experiment changed no threshold, domain,
+observation budget or stop rule. The subsequent user-approved decision recorded
+at the top of this page changes the cube failure's admission role. Step 3 remains
+unadmitted for binding field controls, numerical/cache/consumer limits and missing
+C03/C04/general motion/two-source room evidence. Matched physical transfer is a
+separate unvalidated claim; Steps 4–6 remain separate.
 
 The refined bank takes about 724 s including reference preparation with eight CPU
 workers; the 192-episode, three-treatment GPU loop takes about 480 s. These are

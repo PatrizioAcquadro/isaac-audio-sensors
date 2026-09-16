@@ -68,7 +68,7 @@ repetition without changing domain/budgets or hiding unresolved difficult strata
 | --- | --- | --- |
 | 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition/metric has concrete inputs, bounded controls and an explicit valid/unavailable reference entry with later qualification ownership; no full-model implementation inside preparation |
 | 2 — Integrate Steam NLOS (selected-route transport complete) | Production selected-route timing, visibility, ordinary motion/door updates, non-duplication and explicit coverage limits | Native delay/geometry, continuous update and actual RTX Isaac controls pass; refinement measured, door pressure remains probe-sensitive and uncalibrated |
-| 3 — Qualify PRA diffuse extension | Shared spatial/temporal statistics, energy partition, normalization, visibility and representative weak-direct motion | Independent physical/statistical controls and approximation-impact comparisons pass; otherwise apply the approved blocker/decision rule |
+| 3 — Qualify PRA diffuse extension | Shared spatial/temporal statistics, energy partition, normalization, visibility and representative weak-direct motion | Binding physical/statistical controls and representative approximation-impact comparisons pass; the recorded cube late-response mismatch is diagnostic under the approved decision |
 | 4 — Qualify the combined producer | Integrate admitted direct/specular/NLOS/diffuse contributions on one clock, retaining source-stop tails, block equivalence, resets and environment isolation | Focused continuous-stream and integration checks pass with unchanged signal/observation contracts |
 | 5 — Demonstrate Profile 1 | Observed audio guides camera search with explicitly simulated reference visual confirmation | Measured audio benefit, approximation budgets and honest missing/false/unconfirmed results under mandatory AV conditions |
 | 6 — Demonstrate Profile 2 | Moving-array/source trials and untrained homing; two-source goal is an audible source without supplied identity | Motion/door cues and matched audio-disabled navigation comparisons pass; collisions, switching and timeouts remain visible |
@@ -85,14 +85,19 @@ also pass, while several rates/p95 bounds remain inconclusive. The physical
 failure is retained. The resumed work now implements the general shared field
 and optional D producer, with native visibility, analytic plane/energy and
 producer lifecycle checks. The conditioned smooth-room pressure-decay and RTX
-observation-impact comparison fails after order/ray refinement. Step 3 is not
-admitted; the approved stop rule applies before broader motion/room qualification
-or a larger solver/provider change. The 2026-09-16 user-requested practical-impact
+observation-impact comparison fails the original criteria after order/ray refinement.
+The user subsequently approved its
+[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|diagnostic role]]:
+matching that late response is no longer a prerequisite for Step 3. The
+2026-09-16 user-requested practical-impact
 follow-up retains the candidate: late-response diagnostics and downstream software
 replay are complete. Bounded geometric head/camera diagnostics now measure task
 consequences; a fresh refined confirmation supports retaining PRA while keeping
-individual-stratum and numerical/consumer limits explicit. Complete profile
-usefulness and matched physical validation remain open. Later consumers remain open. The
+individual-stratum and numerical/consumer limits explicit. Step 3 remains open
+for binding field controls and representative C03/C04, room and two-source
+observations. Address measurement defects before affected comparisons and reuse
+episodes/PCM for field and observation checks. Complete profile usefulness belongs
+to Steps 5–6; matched physical transfer is a separate claim. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 
@@ -103,8 +108,9 @@ pass. Steps 7–8 then close the whole phase.** Reuse still-valid evidence and r
 affected checks when integration changes their boundary.
 
 A Profile 1-only result is an intermediate delivery. A material mandatory-domain
-failure, invalid reference or unresolved task-usefulness gap stays open; do not
-remove the case, change the budget or substitute passing tensor checks. Report
+failure under the current decision, invalid reference or unresolved task-usefulness
+gap stays open; do not remove a mandatory condition, change numerical margins or
+substitute passing tensor checks. Report
 perception/controller failures separately from acoustic failures. A larger PRA
 fork or new provider evaluation requires the specific user decision in R10.
 

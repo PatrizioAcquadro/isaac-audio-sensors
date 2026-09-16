@@ -10,6 +10,10 @@ No candidate comparison or Step 2+ model implementation ran as part of Step 1.
 Subsequent model work is recorded in [[experiments/geometry-acoustics-admission|admission evidence]].
 
 [[decisions/robot-audition-fidelity|Approved domain and budgets]] remain binding.
+The subsequent
+[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|cube decision]]
+changes the admission role of the recorded C02/R05 late-response comparison;
+original FAIL results and the C02 inventory remain retained.
 User choices: generic rigs; building-exploration-relevant indoor scenes and sounds;
 representative camera; simple trajectories plus a composed episode; quiet controls
 plus moderate background; AV success by deadline; mobile source proximity;
@@ -261,7 +265,7 @@ they are never forced along the prescribed path to create a successful result.
 | ID | Scene / positions and changes | Required outcome / reference family |
 | --- | --- | --- |
 | C01 | Free-field R=(0,0); S=(d,0), d=.5/3/10; S0 | Direct delay, gain, TDOA and no duplicated energy; F1 |
-| C02 | Empty E0, R=(1,1.5), S=(2,1.5), R02/R05/R08; smooth walls, S0 | Banded energy/decay, specular delay; F2 |
+| C02 | Empty E0, R=(1,1.5), S=(2,1.5), R02/R05/R08; smooth walls, S0 | Banded energy/decay, specular delay; F2. Recorded R05 late-response mismatch is diagnostic under the cube decision; structural checks remain binding |
 | C03 | Retained finite-plane fixture, source speeds 0/.1/.5/1.5, direct gain 1/.1; S0 | Controlled DRR, source-motion diffuse field; F3 |
 | C04 | C03 with source fixed and receiver translation .5/1 m/s or yaw 60/90 degrees/s | Receiver motion/rotation and spatial coherence; F1/F3 |
 | C05 | E3 R=(2,2.5), S=(6,2.5); opaque leaf vs 20 dB planar leaf vs absent leaf | Visibility, transmission, non-duplication; F1/F2/F4 |
@@ -438,9 +442,11 @@ success-only filtering. Collision contact is a failure, not removed data.
   distribution with whole-episode resampling. Report near/far, stationary/moving,
   weak-direct/NLOS, layout and two-source results separately. No passing pooled
   average removes a failed mandatory condition.
-- Apply all numerical approximation budgets from the canonical decision, in both
-  signs. A missing valid reference, insufficient usable events or an interval that
-  does not fit wholly inside the budget is **inconclusive/open**, never a pass.
+- Apply the canonical decision's numerical budgets and admission roles, in both
+  signs. Keep the cube's original failed decay/extra-update comparison diagnostic;
+  it does not waive representative observation gates. A missing valid reference,
+  insufficient usable events or an inconclusive interval leaves its applicable
+  gate **open**; a demonstrated budget violation remains **FAIL**. Neither is a pass.
 - Utility is a separate test: for each profile, the lower 95% interval for the
   prespecified primary success difference (audio minus disabled) must exceed zero
   on each main task family (AV visible/static, moving/occluded-revealed, two-source;
@@ -452,7 +458,8 @@ success-only filtering. Collision contact is a failure, not removed data.
 ## Lean preparation and execution ownership
 
 The user's follow-up prioritizes sufficient, representative evidence and avoiding
-duplicate checks. Approved domain and numerical budgets are unchanged. The 154-row
+duplicate checks. Approved domain and numerical margins are unchanged; use the
+current decision for the cube comparison's diagnostic role. The 154-row
 inventory remains coverage input; it is not a demand for every Cartesian combination
 or 400 repetitions of every row. All selections below precede candidate outcomes.
 

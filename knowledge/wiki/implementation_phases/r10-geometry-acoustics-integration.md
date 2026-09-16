@@ -83,7 +83,11 @@ Complete the following before closing Milestone 2:
    deterministic ISM order and higher/mixed ray ownership without energy overlap/gaps.
    Derive normalization from native energy and synthesis filters; test ray-count
    convergence and receiver-radius behavior without fitted gains. Exact late-path
-   phase is not mandatory; the approved physical/statistical/task gates are.
+   phase is not mandatory; apply the
+   [[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|current binding and diagnostic criteria]].
+   Matching the recorded cube late response is not an exit gate. Resolve material
+   measurement defects before affected comparisons, then share episodes/PCM across
+   remaining motion and observation checks; reuse still-valid controls.
 4. Combine admitted direct, specular, diffuse and deviation contributions on one
    persistent clock. Retain source-stop tails, block equivalence, reset/partial reset,
    scene lifecycle, directional response and explicit native capability failures.
@@ -129,8 +133,11 @@ object-local pressure field now implement the optional D producer. Thirty-six
 native, field, producer and convolution tests pass, including analytic
 Lambertian covariance/energy, unchanged refresh, array regrouping, emission-stop
 tails and reset. The conditioned smooth-room pressure-decay and RTX observation
-comparison fails after order/ray refinement, including order 7/65536 rays. Step 3
-remains unadmitted; full motion/room qualification remains open. The user requested
+comparison fails the original criteria after order/ray refinement, including
+order 7/65536 rays. The user-approved cube diagnostic decision preserves this
+failure but removes matching that late response as an admission prerequisite.
+Step 3 remains unadmitted because binding field and representative motion/room
+qualification remain open. The user requested
 practical-impact diagnostics before a provider decision. Absolute-rate/persistence
 analysis, artificial late-response interventions and actual downstream software
 replay are complete. A sixteen-episode geometric head/camera loop and targeted
@@ -139,7 +146,8 @@ A fresh 192-episode refined confirmation preserves bounded acquisition and
 resumption benefit, supporting retention of PRA. Raised-only false-association
 precision remains inconclusive. Direct-only controls expose a separate consumer
 limit; MeshRIR replay is auxiliary, not a matched physical reference. Full profile
-usefulness and physical validation remain open. See [[topics/geometry-acoustics|the interface and approximations]] and the
+usefulness belongs to Steps 5–6; physical transfer is a separate unvalidated claim.
+See [[topics/geometry-acoustics|the interface and approximations]] and the
 [[experiments/geometry-acoustics-admission|measured failure and consumer limits]].
 The earlier material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a
@@ -178,7 +186,9 @@ Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,
 separated spacings/frequencies, within-bin directional timing, rotation/translation,
 energy/decay, visibility, unchanged refresh and motion. Use isotropic coherence only
-for controlled isotropic inputs, geometry-appropriate references for rooms.
+for controlled isotropic inputs, geometry-appropriate references for rooms. Keep
+the cube's recorded pressure mismatch distinct from binding energy-accounting and
+normalization checks; representative decay coverage and observation budgets remain.
 
 If a maintainable extension cannot close a material mandatory-domain gap, apply the
 [[decisions/robot-audition-fidelity#Provider stop rule and exclusions|stop rule]]

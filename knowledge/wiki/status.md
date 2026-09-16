@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-15. Package version: `3.0.0`.
+Updated: 2026-09-16. Package version: `3.0.0`.
 
 ## Current work
 
@@ -31,18 +31,24 @@ Milestone 2 and operating integration remain open.**
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 remains unqualified; refined bounded AV evidence supports retaining PRA.**
+- **Step 3 remains unqualified; the cube failure is now diagnostic by user decision.**
   The general persistent field and optional D producer pass 36 native, analytic
   and streaming controls. Closed-partition projection and gain-dependent banded
   specular phase defects are corrected. A conditioned smooth 3 m room still fails
-  pressure decay and actual RTX 4090 observation impact at order 7/65536 rays:
+  the original pressure-decay and RTX 4090 observation criteria at order 7/65536 rays:
   spurious-update changes are -23.08 points on square and -67.43 on raised, with
   95% intervals outside the +/-5-point budget. Main-bearing, miss and added-latency
-  budgets pass in this fixed-scene comparison. A raised-reference scalar/CUDA and
-  count-stability limit is recorded separately; the square comparison is stable.
+  budgets pass in this fixed-scene comparison. These results remain FAIL under the
+  original criteria; matching the cube's late response is no longer required to
+  continue or close Step 3. The
+  [[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|approved decision]]
+  keeps structural invariants, numerical margins and representative observation
+  gates binding. It neither fixes the physics nor admits the candidate.
+  A raised-reference scalar/CUDA and count-stability limit is recorded separately;
+  the square comparison is stable.
   The earlier rotating selected-mixture pass remains valid within its scope, and
-  its ~0.17 physical statistic is not the new sole blocker. General C03/C04 motion,
-  two-source/room confirmation and later consumers remain open. A targeted
+  its ~0.17 physical statistic is also diagnostic with targeted impact evidence.
+  General C03/C04 motion, two-source/room confirmation and later consumers remain open. A targeted
   follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
   while replacing the late response recovers most reference extras. Actual SquadBot
   software replay retains posterior orienting cues. A subsequent bounded geometric
@@ -51,10 +57,13 @@ Milestone 2 and operating integration remain open.**
   retains a measured resumption-time benefit over audio-off. One 100 ms false
   association is recorded; the pooled rate interval fits five points, while the
   raised-only interval remains inconclusive. Direct-only controls expose a separate
-  consumer limit. This supports retaining PRA, not full-domain admission; complete
-  AV/mobile usefulness, tracking and matched physical validation remain open. No domain/budget
-  change, larger solver, replacement evaluation or push was made.
-  [[experiments/geometry-acoustics-admission|Evidence, intervals and next decision]].
+  consumer limit. Next, resolve measurement defects that could affect the remaining
+  comparisons, then combine movement and observation qualification in a compact
+  evidence set, reusing passed controls. Full AV/mobile usefulness belongs to
+  Steps 5–6; tracking and matched physical transfer are separate unvalidated claims.
+  This acceptance revision changes the cube comparison's role, not the operating
+  domain or numerical margins. PRA remains retained and diffuse remains opt-in
+  and `not_admitted`. [[experiments/geometry-acoustics-admission|Evidence and limits]].
 
 ## Maintained capabilities and boundaries
 

@@ -358,3 +358,22 @@ Recommendation: retain PRA; no provider evaluation or budget change.
 Eight documentation/evaluator checks pass. All local study scripts pass Ruff;
 canonical links, evidence paths, index coverage and diff whitespace are checked.
 The Italian result figure was visually inspected; no raw knowledge changed.
+
+## 2026-09-16 — update: Approved diagnostic role for the Step 3 cube failure
+
+Recorded the user's acceptance revision: retain the smooth E0/C02/R05 late-response
+and extra-update FAIL results as diagnostics without requiring their correction
+for Step 3 admission. Structural invariants, representative conditions and
+numerical margins remain binding. Synchronized the decision, protocol, R10/08,
+status, evidence interpretation, index and producer diagnostic wording; diffuse
+remains experimental and not_admitted. No acoustic algorithm or historical data
+changed. The next qualification work addresses material measurement defects before
+shared motion/observation checks, reusing valid evidence.
+
+## 2026-09-16 — lint: Cube diagnostic decision consistency
+
+Five documentation-boundary tests and all 19 wiki heading links pass. Checked
+index coverage, allowed scope/tree, append-only history and diff whitespace.
+Historical measurement tables, domain and numerical-budget tables are unchanged.
+The producer's only code change is diagnostic text, verified by syntax-tree
+comparison, compilation and Ruff; no acoustic qualification was rerun or claimed.
