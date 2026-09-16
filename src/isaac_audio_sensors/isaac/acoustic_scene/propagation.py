@@ -161,7 +161,7 @@ class GeometryAcoustics:
     def _create(self, scene, array, signature, start):
         rate = array.sample_rate_hz
         receivers = []
-        specular = None
+        specular = nlos = None
         try:
             specular = SpecularScene(
                 self.session,
@@ -180,20 +180,13 @@ class GeometryAcoustics:
                         [s.source_id for s in scene.sources],
                     )
                 )
-        except Exception:
-            for receiver in receivers:
-                receiver.close()
-            if specular:
-                specular.close()
-            raise
-        nlos = None
-        try:
             if self.nlos:
                 nlos = NLOSStream(self.nlos, array, self.config, start, self.speed)
         except Exception:
             for receiver in receivers:
                 receiver.close()
-            specular.close()
+            if specular:
+                specular.close()
             raise
         return dict(
             nlos=nlos,
@@ -439,9 +432,11 @@ class GeometryAcoustics:
                             "Cube late-response and selected rotating-mirror "
                             "mismatches remain diagnostic limitations.",
                             "Full-room moving pressure/observation equivalence "
-                            "is not validated; accepted non-blocking Step 3 limitation.",
+                            "is not validated; accepted non-blocking Step 3 "
+                            "limitation.",
                             "Maximum-motion observation evidence uses 2.5 ms "
-                            "updates and a 2 s horizon; unrestricted 10 ms is unqualified.",
+                            "updates and a 2 s horizon; unrestricted 10 ms is "
+                            "unqualified.",
                             "Combined NLOS/diffuse requires Step 4.",
                         ),
                         **self.diffuse_fields[rate].diagnostics,

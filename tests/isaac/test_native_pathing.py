@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from isaac_audio_sensors.isaac.acoustic_scene._path_stream import SegmentQuery
+from isaac_audio_sensors.isaac.acoustic_scene._paths import Route, RouteFilter
 from isaac_audio_sensors.isaac.acoustic_scene.steam import (
     ContextSettings,
     Handle,
@@ -14,8 +16,6 @@ from isaac_audio_sensors.isaac.acoustic_scene.steam import (
     MeshSettings,
     SceneSettings,
 )
-from tools.native.pathing import Route, RouteFilter
-from tools.native.retarded_pathing import SegmentQuery
 
 
 @pytest.fixture

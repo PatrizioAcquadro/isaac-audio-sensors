@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from tools.native.pathing import EmissionConvolution
+from isaac_audio_sensors.isaac.acoustic_scene._paths import EmissionConvolution
 
 pytest.importorskip("scipy")
 

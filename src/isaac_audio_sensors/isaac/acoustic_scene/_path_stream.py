@@ -1,11 +1,6 @@
-"""Retarded transport of selected Steam polylines through held scene snapshots.
+"""Retarded Steam routes through held geometry epochs, with receiver-clock EQ tails.
 
-The timeline is explicit: geometry is constant between committed updates; source
-and receiver positions follow supplied trajectories. This schedules native routes,
-not a new path search or diffraction solver. Route selection is emission-owned.
-It cannot discover a flight that is absent from every instantaneous native route
-selection. This admission failure is documented in R10; do not enable this helper
-as complete GeometryAcoustics pathing.
+Cannot discover flights absent from every instantaneous native route selection.
 """
 
 from __future__ import annotations
