@@ -84,7 +84,7 @@ class SpecularScene:
         self.pra, self.session = pra, session
         self.rate, self.order, self.speed = sample_rate, order, speed
         self.max_candidates = max_candidates
-        self.bands = pra.acoustics.OctaveBandsFactory(fs=sample_rate)
+        self.bands = pra.acoustics.OctaveBandsFactory(fs=sample_rate, keep_dc=True)
         self.handle = None
         self.signature = None
         try:
@@ -224,22 +224,26 @@ class SpecularScene:
             gain = polar(
                 source.directivity, source.orientation_world_quat, directions[mask, m]
             ) * polar(microphone.directivity, orientation, incoming)
-            amplitudes = (
-                damping[mask]
-                * (gain / np.maximum(distances, 1e-6) / (4 * np.pi))[:, None]
-            )
+            material = damping[mask]
+            level = gain / np.maximum(distances, 1e-6) / (4 * np.pi)
             samples = distances / self.speed * self.rate
             integer = np.floor(samples).astype(np.int32)
             fractional = np.ascontiguousarray(samples - integer, dtype=np.float32)
             kernels = np.zeros((len(samples), 81), np.float32)
             self.pra.libroom.fractional_delay(kernels, fractional, 20, 1)
-            if np.allclose(amplitudes, amplitudes[:, :1], rtol=1e-6, atol=0):
-                kernels *= amplitudes[:, :1]
+            if np.allclose(material, material[:, :1], rtol=1e-6, atol=0):
+                kernels *= material[:, :1] * level[:, None]
             else:
-                filters = self.bands.synthesis(amplitudes, min_phase=True)
+                # The log-spectrum floor must not turn scalar attenuation into
+                # material phase. Keep signed directivity outside that conversion.
+                scale = np.max(material, axis=1, keepdims=True)
+                filters = self.bands.synthesis(
+                    material / np.maximum(scale, 1e-30), min_phase=True
+                )
                 kernels = np.ascontiguousarray(
                     multi_convolve(kernels, filters), dtype=np.float32
                 )
+                kernels *= scale * level[:, None]
             rir = np.zeros(int(integer.max()) + kernels.shape[1], np.float32)
             self.pra.libroom.delay_sum(kernels, integer, rir, 1)
             result.append(rir[40:])  # Remove only the native fractional-filter latency.

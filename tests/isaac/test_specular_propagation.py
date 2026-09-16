@@ -232,3 +232,45 @@ def test_reflected_nlos_without_direct_leak(native_scene):
         assert np.max(abs(direct.propagate(snap, "array", window()).samples)) < 1e-7
     finally:
         direct.close()
+
+
+def test_banded_material_phase_is_independent_of_scalar_gain(native_scene):
+    value = stage()
+    mesh = face(
+        value, "Plane", [(0, -10, -10), (0, 10, -10), (0, 10, 10), (0, -10, 10)]
+    )
+    mesh.GetPrim().CreateAttribute(
+        "ias:absorption_bands", Sdf.ValueTypeNames.DoubleArray
+    ).Set([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+    _, engine = native_scene(value)
+    snap = snapshot((2, 0, 1), (3, 0, 1))
+    array = snap.arrays[0]
+    microphones = tuple(
+        replace(m, relative_position_m=(0, 0, 0)) for m in array.microphones[:3]
+    )
+    microphones = (
+        microphones[0],
+        replace(
+            microphones[1],
+            directivity="figure_eight",
+            relative_orientation_quat=(0, 0, 0, 1),
+        ),
+        replace(
+            microphones[2],
+            directivity="cardioid",
+            relative_orientation_quat=(0, 0, 2**-0.5, 2**-0.5),
+        ),
+    )
+    snap = replace(snap, arrays=(replace(array, microphones=microphones),))
+    near = responses(engine, snap)
+    np.testing.assert_allclose(near[1], -near[0], atol=1e-9, rtol=1e-5)
+    np.testing.assert_allclose(near[2], near[0] / 2, atol=1e-9, rtol=1e-5)
+
+    # An extra 3.43 m adds exactly 160 samples at 16 kHz, without changing
+    # the material filter. Only spreading and the physical delay change.
+    far = responses(
+        engine,
+        replace(snap, arrays=(replace(snap.arrays[0], position_world=(6.43, 0, 1)),)),
+    )
+    scaled = far[0][160 : 160 + len(near[0])] * (8.43 / 5)
+    assert np.linalg.norm(scaled - near[0]) / np.linalg.norm(near[0]) < 2e-4

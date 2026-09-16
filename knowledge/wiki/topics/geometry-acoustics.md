@@ -63,7 +63,11 @@ reconstruction is disabled; positive native PRA image orders own specular paths.
 The adapter removes PRA's fixed fractional-filter latency once, retaining physical
 path delays. Gains and signed source-departure/mic-arrival directivity apply once.
 Banded specular material synthesis uses native minimum-phase filters, not measured
-material phase. Steam frequency-dependent EQ renders internally at >=48 kHz and
+material phase. Normalize the material spectrum before that conversion and apply
+its level, geometric spreading and signed directivity afterward: the numerical
+log-spectrum floor must not make material phase depend on distance or erase a
+negative directivity gain. The lowest band extends to DC, consistently with flat
+material synthesis. Steam frequency-dependent EQ renders internally at >=48 kHz and
 resamples with impulse-area preservation to avoid its unstable 16 kHz Nyquist term;
 flat direct/transmission gain uses the native frequency-independent one-tap path.
 

@@ -141,6 +141,11 @@ the failed physical diagnostic remains recorded under the
 General shared pressure and optional producer integration are implemented;
 full energy/reference and weak-direct observation qualification remain open.
 New evidence is separate under `local/r10/08_2_step3_general/`.
+Reference conditioning also exposed a banded specular synthesis defect: including
+scalar path gain inside minimum-phase conversion made phase depend on distance
+and discarded negative directivity. Material normalization and separate signed
+scaling fix it; a native regression checks polarity, half-gain and delay-aligned
+distance scaling. Flat specular synthesis remains unchanged.
 Earlier prototype evidence and reproduction live under
 `local/r10/08_2_step3_diffuse/`; the
 [[experiments/geometry-acoustics-admission|admission record]] owns the result.

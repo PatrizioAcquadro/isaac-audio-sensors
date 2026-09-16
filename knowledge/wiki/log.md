@@ -280,3 +280,16 @@ remain pending. Historical prototypes and new general-field evidence are separat
 
 Canonical wiki links/index, affected Ruff checks and whitespace checks pass.
 The optional implementation is explicitly separated from pending admission.
+
+## 2026-09-15 — update: Scale-invariant banded specular material filters
+
+Independent room-reference conditioning exposed scalar-gain-dependent material
+phase and lost negative directivity in banded specular synthesis. Normalize the
+material spectrum, preserve the low-band DC endpoint and apply signed scalar gain
+after minimum-phase conversion. Native polarity, half-gain and distance-scaling
+regression checks pass; unchanged flat-material behavior retains its controls.
+
+## 2026-09-15 — lint: Banded specular correction
+
+The canonical documentation boundary, affected Ruff checks and whitespace checks
+pass. The banded fix is separate from still-pending diffuse admission.
