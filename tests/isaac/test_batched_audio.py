@@ -65,6 +65,75 @@ def test_wpe_batch_independence_and_silence(cuda):
     assert not mixed[2].any()
 
 
+@pytest.mark.parametrize("positions", LAYOUTS[1:3])
+@pytest.mark.parametrize("bearing", [0, 45, 90, 135])
+def test_symmetric_direct_channels_preserve_wpe_and_direction(positions, bearing, cuda):
+    from isaac_audio_sensors.core.plugins._multisource_sparse import (
+        WpeSparseCovariance,
+        _dereverberate,
+    )
+
+    positions = np.asarray(positions)
+    azimuth = np.radians(bearing)
+    direction = np.array([np.cos(azimuth), np.sin(azimuth), 0])
+    distances = np.linalg.norm(3 * direction - positions, axis=1)
+    emitted = np.random.default_rng(77101).normal(0, 0.1, 16000)
+    samples = np.array(
+        [
+            np.interp(
+                np.arange(12000) + 1000 - distance * 16000 / 343,
+                np.arange(len(emitted)),
+                emitted,
+            )
+            / (4 * np.pi * distance)
+            for distance in distances
+        ],
+        dtype=np.float32,
+    )
+    expected_pcm = _dereverberate(samples, 16000)
+    actual_pcm = (
+        dereverberate(torch.tensor(samples[None], device=cuda))[0].cpu().numpy()
+    )
+    assert np.isfinite(actual_pcm).all()
+    assert (
+        np.linalg.norm(actual_pcm - expected_pcm) / np.linalg.norm(expected_pcm) < 1e-4
+    )
+    expected, _ = WpeSparseCovariance().localize(samples, positions, 16000)
+    model = TorchEventLocalizer(positions, device=cuda)
+    found, mask = model.localize(torch.tensor(samples[None], device=cuda))
+    actual = found[0, mask[0]].cpu().numpy()
+    assert len(actual) == len(expected) == 1
+    assert actual[0] @ direction > np.cos(np.radians(5))
+    assert np.linalg.norm(actual[0] - expected[0]) < 0.002
+
+
+@pytest.mark.parametrize("seed", [2, 10])
+def test_equal_peak_plateaus_preserve_events_across_precision_and_device(seed, cuda):
+    from isaac_audio_sensors.core.plugins._multisource_sparse import (
+        GroupSparseCovariance,
+    )
+
+    positions = np.asarray(LAYOUTS[2])
+    scalar = GroupSparseCovariance()
+    _, (vectors, _, near) = scalar.prepare(np.zeros((5, 12000)), positions, 16000)
+    rng = np.random.default_rng(seed)
+    histogram = np.zeros(len(vectors), dtype=np.float32)
+    # Sparse support creates equal neighborhood sums away from the threshold.
+    histogram[rng.choice(len(vectors), 30, replace=False)] = rng.uniform(
+        0.005, 0.05, 30
+    )
+    expected, _ = scalar.events(vectors, histogram.astype(np.float64), near, {})
+    actual, _ = scalar.events(vectors, histogram, near, {})
+    np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=0)
+    model = TorchEventLocalizer(positions, device=cuda)
+    found, mask = model._events(torch.tensor(histogram[None], device=cuda))
+    actual = found[0, mask[0]].cpu().numpy()
+    assert len(actual) == len(expected)
+    distances = np.linalg.norm(actual[:, None] - expected, axis=-1)
+    assert distances.min(axis=0).max() < 1e-12
+    assert distances.min(axis=1).max() < 1e-12
+
+
 @pytest.mark.parametrize("positions", LAYOUTS)
 def test_cuda_localizer_matches_scalar_mixtures(positions, cuda):
     from isaac_audio_sensors.core.plugins._multisource_sparse import WpeSparseCovariance

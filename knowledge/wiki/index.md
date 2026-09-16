@@ -58,7 +58,7 @@ Read for a specific result/reference; these pages do not add requirements.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — exact fixtures/matrix, references/scoring and lean allocation, followed by completed preparation and its limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
-- [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, precision rejection and practical batch costs.
+- [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, WPE/peak numerical corrections and dated practical batch costs.
 - [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
 
 ## Sources and history

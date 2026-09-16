@@ -1,6 +1,7 @@
 # Lab Perception Runtime
 
-Recorded 07.2/07.3 evidence on RTX 4090 (2026-09-09/10). The maintained reference
+Recorded 07.2/07.3 evidence on RTX 4090 (2026-09-09/10), with later numerical
+maintenance below. The maintained reference
 and CUDA adaptation pass bounded same-PCM agreement; neither general moving-source
 perception nor policy learning is qualified. [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]]
 owns implementation; [[topics/isaac-lab-integration|Lab Integration]] owns contracts.
@@ -75,3 +76,21 @@ Reports: `build/validation/phase07_2/practical/`, `indoor-parity-final.json`,
 07.3 preservation at `build/validation/isaac_audio_sensors/lab_received_parity.json`.
 Local source/recordings and rejected reports remain protected. Historical detailed
 commands/table derivation are recoverable from Phase 07 at `5cfe48d`.
+
+## Measurement reliability correction (2026-09-16)
+
+R10 same-PCM diagnostics isolated unstable WPE normal equations in nearly duplicate
+channels, including exact 45-degree free-field input. Scalar and CUDA could both
+return finite but erroneous events. Weighted QR/pseudoinverse solves the same WPE
+objective without squaring conditioning; float64 peak sums and stable ties address
+a separate equal-neighborhood count discrepancy. No perception threshold, context,
+iteration count or acoustic model was retuned. The
+[[topics/isaac-lab-integration|Lab contract]] owns the implementation details.
+
+The 27 affected tests pass on the actual RTX 4090, including eight symmetric direct
+cases, two equal-score plateau regressions and existing batching/reset/capacity
+controls. The 15 affected scalar localization/event tests also pass. Historical
+tables above describe the preceding solver and are not current throughput promises.
+Fresh same-PCM evidence is stored separately under
+`local/r10/08_2_step3_measurements/`; numerical agreement does not qualify acoustic
+fidelity or general moving-source perception.

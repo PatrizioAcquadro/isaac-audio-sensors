@@ -42,6 +42,17 @@ At 16 copies audio-only p95 is ~64 ms planar/~99 ms raised per 100 ms update;
 rendering and learning add cost. WPE/context/cadence changes remain deferred.
 See [[experiments/lab-perception-runtime|the matched workload and full results]].
 
+#### Later numerical maintenance (2026-09-16)
+
+R10 measurement work exposed finite but unstable WPE solutions on symmetric direct
+channels and precision-dependent peak selection. Scalar and CUDA now use weighted
+QR/pseudoinverse WPE and float64 peak sums/centroids with stable ties. Perception
+parameters and public float32 tensors are unchanged; this was not part of the
+original 07.2 closeout. All 27 affected RTX tests and 15 scalar tests pass, including
+direct symmetry, equal-score plateaus, batch independence and selective reset.
+[[experiments/lab-perception-runtime#Measurement reliability correction (2026-09-16)|Later replay and cost evidence]]
+owns the refreshed measurements; the above throughput describes the earlier solver.
+
 ## Subphase 07.3 — Lab Migration and Cleanup
 
 #### Implementation

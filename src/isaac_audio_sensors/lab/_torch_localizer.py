@@ -9,7 +9,7 @@ import torch
 
 
 def dereverberate(samples: torch.Tensor) -> torch.Tensor:
-    """NARA WPE equations with independent floors and singular-system handling."""
+    """NARA WPE with independent floors and rank-aware weighted least squares."""
     from nara_wpe.torch_wpe import build_y_tilde, hermite
 
     # Float32 WPE creates spurious events for near-degenerate 3D mixtures.
@@ -38,13 +38,13 @@ def dereverberate(samples: torch.Tensor) -> torch.Tensor:
         power = result.abs().square().mean(dim=-2)
         floor = 1e-10 * power.amax(dim=(-2, -1), keepdim=True)
         inverse = torch.where(floor > 0, power.maximum(floor).reciprocal(), 1.0)
-        weighted = delayed * inverse.unsqueeze(-2)
-        covariance = weighted @ hermite(delayed)
-        cross = weighted @ hermite(spectrum)
-        solution, info = torch.linalg.solve_ex(covariance, cross)
-        invalid = (info != 0) | ~torch.isfinite(solution).all(dim=(-2, -1))
-        if invalid.any():
-            solution[invalid] = torch.linalg.pinv(covariance[invalid]) @ cross[invalid]
+        weight = inverse.sqrt().unsqueeze(-1)
+        design = hermite(delayed) * weight
+        observed = hermite(spectrum) * weight
+        # Keep the original design's precision cutoff after reducing its size.
+        tolerance = max(design.shape[-2:]) * torch.finfo(samples.dtype).eps
+        q, r = torch.linalg.qr(design, mode="reduced")
+        solution = torch.linalg.pinv(r, rtol=tolerance) @ (hermite(q) @ observed)
         result = spectrum - hermite(solution) @ delayed
     restored = torch.istft(
         (result * window.sum()).transpose(1, 2).reshape(batch * channels, 129, -1),
@@ -79,7 +79,7 @@ class TorchEventLocalizer:
             np.zeros((len(positions), self.context_samples)), positions, 16000
         )
         self.three_d = np.linalg.matrix_rank(positions - positions[0]) == 3
-        self.vectors = torch.tensor(vectors, dtype=torch.float32, device=device)
+        self.vectors = torch.tensor(vectors, dtype=torch.float64, device=device)
         self.bins = torch.tensor(bins, device=device)
         # Build in reference precision once; runtime fitting uses float32.
         frequencies = np.fft.rfftfreq(1024, 1 / 16000)[bins]
@@ -121,7 +121,7 @@ class TorchEventLocalizer:
             cKDTree(vectors).query_ball_point(vectors, 2 * np.sin(np.radians(8) / 2))
         ):
             near[row, adjacent] = True
-        self.smoothing = torch.tensor(smoothing, device=device)
+        self.smoothing = torch.tensor(smoothing, dtype=torch.float64, device=device)
         self.near = torch.tensor(near, device=device)
         self.centroid = torch.tensor(
             (vectors @ vectors.T >= np.cos(np.radians(10))).astype(np.float32),
@@ -140,7 +140,8 @@ class TorchEventLocalizer:
         with torch.profiler.record_function("audio.sparse"):
             histogram = self._fit(processed)
         with torch.profiler.record_function("audio.peaks"):
-            return self._events(histogram)
+            directions, mask = self._events(histogram)
+            return directions.float(), mask
 
     def _fit(self, samples: torch.Tensor) -> torch.Tensor:
         b, m, _ = samples.shape
@@ -205,11 +206,15 @@ class TorchEventLocalizer:
         return z[:, :, :-2].sum(dim=1) / used.clamp_min(1)[:, None]
 
     def _events(self, histogram: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        smooth = (histogram - histogram.mean(dim=1, keepdim=True)) @ self.smoothing.T
+        histogram = histogram.double()
+        smooth = histogram @ self.smoothing.T
+        smooth -= histogram.mean(dim=1, keepdim=True) * self.smoothing.sum(dim=1)
         maxima = smooth[:, None, :].masked_fill(~self.near, -torch.inf).amax(dim=-1)
         eligible = (smooth >= 0.025) & (smooth >= maxima)
         batch, grid = eligible.shape
-        directions = torch.zeros((batch, grid, 3), device=histogram.device)
+        directions = torch.zeros(
+            (batch, grid, 3), dtype=histogram.dtype, device=histogram.device
+        )
         occupied = torch.zeros_like(eligible)
         slot = 0
         while eligible.any():

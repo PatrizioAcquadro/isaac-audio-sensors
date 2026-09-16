@@ -395,3 +395,17 @@ and the summary wording that now distinguishes intermediate from later NLOS
 qualification. Checked 22 explicit evidence paths, replay directories, headings,
 allowed scope, append-only history and diff whitespace. No runtime qualification
 was rerun or implied by this editorial change.
+
+## 2026-09-16 — update: Stable scalar and CUDA perception measurements
+
+R10 diagnostics isolated ill-conditioned WPE normal equations and equal-score
+peak selection. Documented weighted QR/pseudoinverse and float64 peak arithmetic,
+unchanged perception parameters/public tensors, 27 actual RTX tests and 15 scalar
+tests. Earlier observation intervals and throughput retain their historical solver
+scope; focused replay is recorded separately from physical admission.
+
+## 2026-09-16 — lint: Numerical correction documentation
+
+Five documentation-boundary tests, 42-page index coverage, 240 wikilinks and
+31 heading links pass. Checked whitespace and kept the numerical correction
+separate from historical performance, physical fidelity and Step 3 admission.

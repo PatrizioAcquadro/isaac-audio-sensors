@@ -62,6 +62,19 @@ CUDA perception accepts only mixtures and microphone geometry. Its bounded PCM h
 
 The localizer adapts NARA-WPE primitives and the maintained group-sparse equations with Torch. WPE retains float64 after float32 produced extra events in correlated raised-array mixtures; spatial transforms retain reference precision, fitting remains float32, and geometry-only grids/dictionaries are shared. Power floors and convergence are environment-local. Reference neighborhood boundaries and event order are preserved. Processing chunks of up to 128 environments bound working memory without a source-count cap. No private stems, poses, schedules, identifiers, or expected count enter perception. Score/confidence remain unavailable when the reference provides none. Stereo and other scalar sample rates retain their existing reference roles; CUDA localization requires non-collinear XY-planar or rank-3 geometry, with qualification limited to the maintained four geometries.
 
+The 2026-09-16 measurement correction solves WPE's weighted least squares on the
+original delayed-signal matrix: reduced QR followed by a small pseudoinverse,
+with a cutoff derived from float64 precision and the original matrix dimensions.
+This avoids the squared conditioning of normal equations for nearly identical
+channels. Scalar and CUDA use the same formulation and retain the existing taps,
+delay, iterations, power floor, context and detection thresholds. Peak sums and
+centroids use float64; subtracting the common mean after summation preserves equal
+neighborhood scores, with stable index order for ties. Public CUDA directions and
+observation tensors remain float32. These corrections can change earlier measured
+events; historical confidence intervals are not results for the corrected runtime.
+[[experiments/lab-perception-runtime#Measurement reliability correction (2026-09-16)|Current validation]]
+distinguishes numerical parity from physical accuracy and historical throughput.
+
 An internal `ingest` / `observations` / `reset` boundary separates producer, context, localizer and projection. Replacing the localizer does not require a policy tensor redesign. The scalar reference remains the correctness path. The shared perception component owns neither room simulation nor geometry-derived realism distributions.
 
 ## Reference Binding

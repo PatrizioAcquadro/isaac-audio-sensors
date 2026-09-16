@@ -148,7 +148,10 @@ class GroupSparseCovariance:
         return self.events(vectors, coefficients[:, :-2].mean(axis=0), near, diagnostic)
 
     def events(self, vectors, histogram, near, diagnostics):
-        smooth = np.array([(histogram[n] - histogram.mean()).sum() for n in near])
+        # Float32 reduction order can break ties across the same peak plateau.
+        histogram = np.asarray(histogram, dtype=np.float64)
+        mean = histogram.mean()
+        smooth = np.array([histogram[n].sum() - len(n) * mean for n in near])
         found, strengths = select_peaks(vectors, smooth, self.threshold)
         # A centroid avoids quantization without adding another DOA estimator.
         for i, v in enumerate(found):
@@ -162,11 +165,48 @@ class GroupSparseCovariance:
         )
         # Refinement can bring formerly distinct grid peaks into the same lobe.
         selected = []
-        for index in np.argsort(-np.array(diagnostic["scores"])):
+        for index in np.argsort(-np.array(diagnostic["scores"]), kind="stable"):
             if all(found[index] @ found[j] < np.cos(np.radians(30)) for j in selected):
                 selected.append(index)
         diagnostic["scores"] = [diagnostic["scores"][i] for i in selected]
         return found[selected], diagnostic
+
+
+def _dereverberate(samples, sample_rate, taps=6):
+    from nara_wpe.wpe import build_y_tilde, get_power_inverse, hermite
+    from scipy.signal import istft, stft
+
+    _, _, spectrum = stft(
+        np.asarray(samples, dtype=np.float64),
+        fs=sample_rate,
+        nperseg=256,
+        noverlap=192,
+        boundary="zeros",
+        padded=True,
+    )
+    spectrum = spectrum.transpose(1, 0, 2)
+    delayed = build_y_tilde(spectrum, taps=taps, delay=2)
+    result = spectrum
+    for _ in range(3):
+        weight = np.sqrt(get_power_inverse(result))[..., None]
+        design = hermite(delayed) * weight
+        observed = hermite(spectrum) * weight
+        # Normal equations square conditioning and can miss singular channels.
+        tolerance = max(design.shape[-2:]) * np.finfo(design.real.dtype).eps
+        q, r = np.linalg.qr(design, mode="reduced")
+        solution = np.linalg.pinv(r, rcond=tolerance) @ (hermite(q) @ observed)
+        result = spectrum - hermite(solution) @ delayed
+    _, processed = istft(
+        result.transpose(1, 0, 2),
+        fs=sample_rate,
+        nperseg=256,
+        noverlap=192,
+        boundary=True,
+    )
+    processed = np.ascontiguousarray(processed[:, : samples.shape[-1]])
+    if not np.isfinite(processed).all():
+        raise ValueError("Non-finite dereverberation output")
+    return processed
 
 
 class WpeSparseCovariance:
@@ -177,31 +217,5 @@ class WpeSparseCovariance:
         self.spatial = GroupSparseCovariance(threshold, regularization)
 
     def localize(self, samples, positions, sample_rate):
-        from nara_wpe.wpe import wpe_v7
-        from scipy.signal import istft, stft
-
-        _, _, spectrum = stft(
-            samples,
-            fs=sample_rate,
-            nperseg=256,
-            noverlap=192,
-            boundary="zeros",
-            padded=True,
-        )
-        spectrum = wpe_v7(
-            spectrum.transpose(1, 0, 2),
-            taps=self.taps,
-            delay=2,
-            iterations=3,
-        ).transpose(1, 0, 2)
-        _, processed = istft(
-            spectrum,
-            fs=sample_rate,
-            nperseg=256,
-            noverlap=192,
-            boundary=True,
-        )
-        processed = np.ascontiguousarray(processed[:, : samples.shape[-1]][:, -12000:])
-        if not np.isfinite(processed).all():
-            raise ValueError("Non-finite dereverberation output")
+        processed = _dereverberate(samples, sample_rate, self.taps)[:, -12000:]
         return self.spatial.localize(processed, positions, sample_rate)
