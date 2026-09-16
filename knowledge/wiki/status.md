@@ -31,7 +31,7 @@ Milestone 2 and operating integration remain open.**
   convergence. [[experiments/geometry-acoustics-admission|Admission evidence]]
   distinguishes failures, fixes and stress limits. No replacement evaluation starts
   without the approved decision point.
-- **Step 3 is implemented but not qualified; practical significance is under review before any provider decision.**
+- **Step 3 is implemented but not qualified; bounded AV diagnostics do not justify replacing PRA.**
   The general persistent field and optional D producer pass 36 native, analytic
   and streaming controls. Closed-partition projection and gain-dependent banded
   specular phase defects are corrected. A conditioned smooth 3 m room still fails
@@ -45,9 +45,12 @@ Milestone 2 and operating integration remain open.**
   two-source/room confirmation and later consumers remain open. A targeted
   follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
   while replacing the late response recovers most reference extras. Actual SquadBot
-  software replay retains posterior orienting cues; physical turns, tracking and
-  AV/mobile success are still unmeasured. This is neither renderer rejection nor
-  evidence that the limit is harmless. No domain/budget
+  software replay retains posterior orienting cues. A subsequent bounded geometric
+  head/camera loop completes sixteen episodes on both arrays: all treatments acquire
+  the source, while a coarse false association changes under numerical refinement.
+  Direct-only controls also expose a consumer limitation. Fresh refined confirmation
+  is predeclared; complete AV/mobile usefulness, tracking and matched physical
+  validation remain open. No domain/budget
   change, larger solver, replacement evaluation or push was made.
   [[experiments/geometry-acoustics-admission|Evidence, intervals and next decision]].
 

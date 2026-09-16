@@ -171,7 +171,12 @@ downstream decisions and reference independence. This permits bounded diagnostic
 follow-up, not an automatic budget waiver or a provider evaluation. A failed
 observation budget does not establish failure of robot-task usefulness; conversely,
 usefulness and physical-transfer claims require their own evidence. The admission
-record owns the completed replays and remaining closed-loop/reference gaps.
+record owns the completed replays and remaining closed-loop/reference gaps. The
+user subsequently authorized the bounded head/camera comparison and independent
+reference audit. A coarse false association that changes under refinement, or a
+direct-only consumer failure, does not establish a provider-replacement need.
+Retain the implemented PRA work while separating those causes; all existing
+physical, task-usefulness and transfer limits still require their own evidence.
 
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical

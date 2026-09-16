@@ -133,8 +133,11 @@ comparison fails after order/ray refinement, including order 7/65536 rays. Step 
 remains unadmitted; full motion/room qualification remains open. The user requested
 practical-impact diagnostics before a provider decision. Absolute-rate/persistence
 analysis, artificial late-response interventions and actual downstream software
-replay are complete; closed-loop usefulness and independent physical validation
-remain open. See [[topics/geometry-acoustics|the interface and approximations]] and the
+replay are complete. A sixteen-episode geometric head/camera loop and targeted
+refinements now distinguish acquisition, false association and selected-cue dwell.
+Direct-only controls expose a separate consumer limit; a measured MeshRIR replay
+is auxiliary, not a matched physical reference. Full closed-loop usefulness and
+physical validation remain open. See [[topics/geometry-acoustics|the interface and approximations]] and the
 [[experiments/geometry-acoustics-admission|measured failure and consumer limits]].
 The earlier material-anchored statistical
 candidate improves source-motion and translating-mirror controls but fails a

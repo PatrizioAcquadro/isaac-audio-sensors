@@ -739,3 +739,87 @@ Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
 Provider alternatives: [[experiments/acoustic-provider-evaluation|Provider Evaluation]].
 Historical source detail/chronology: R9/R10 paths at `5cfe48d`. This consolidated
 record preserves outcomes and limits; it does not retroactively mark failures passed.
+
+### Bounded head/camera diagnostics (2026-09-16)
+
+The user's next authorized step measures practical AV consequences before a
+provider decision. `local/r10/08_2_step3_av/PLAN.md` records the prospective design,
+preparation corrections and targeted confirmation. This is the protocol's generic
+AV reference consumer, with a physically moving microphone layout and geometric
+camera observations; it is not a SquadBot hardware, learned-vision or tracking
+qualification. The SDK, localizer parameters and approved budgets are unchanged.
+
+**Matched scene and moving pressure.** The simple 6 x 5 x 3 m room has an off-axis
+source (2.983,2.817,1.213) m and array center (1.2,1.7,1.2) m. Reference-only band
+conditioning precedes task scoring. Across the native receiver ring, reference
+250–4000 Hz T20 is .435–.568 s, within .5 +/- .075 s; reference DRR is -7.61 to
+-6.70 dB and candidate DRR -7.37 to -6.51 dB. The native polygon order-7/shared-tail
+producer is compared with independent shoebox ISM order 100 and audio-disabled
+search. Order-80/100 reference residual energy is below 1e-9 at the checked point.
+One-point 2/4 s candidate checks retain identical native events and differ by less
+than 1.1e-14 in relative band energy. These checks do not admit every room/motion.
+
+The two exact maintained layouts rotate through the shared native pressure field;
+no fixed-head PCM is reused across diverging trajectories. A periodic angular
+cache preserves fractional arrival delays. Controls check causal prefixes,
+partition/query-order invariance, rotation handedness away from the separately
+failing exact diagonal, finite head speed/acceleration/joints, visual delivery,
+three post-onset visible frames, stale cues and ambiguous/invisible targets.
+The camera uses 90-degree HFOV, 30 Hz captures and 100 ms delivery; head limits
+are +/-170 degrees, 60 degrees/s and 180 degrees/s^2. Only observed bearings drive
+selection/association; source truth scores outcomes. Thirty-second S1 speech
+programs include sustained and intermittent emission, natural pauses and tails.
+
+**Diagnostic outcomes, not equivalence.** Sixteen independently seeded source/pose
+programs cover both layouts and schedules, with four fixed 4096-ray field seeds.
+Every candidate, reference and audio-off episode acquires the source within 10 s;
+every scored resumption also succeeds. The deliberate audio-off sweep creates a
+ceiling for first-acquisition success, so equal success alone cannot establish
+usefulness. Mean restricted acquisition times are .813/.597/.478 s for candidate,
+reference/audio-off; resumption times are 1.498/1.352/3.188 s. Resumption concerns
+a stationary visible target, not moving-target identity tracking.
+
+| Diagnostic measurement | Square reference | Square candidate | Raised reference | Raised candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Extra-update rate | 53.89% | 59.81% | 84.34% | 84.66% |
+| Episode with any false visual association | 0/8 | 0/8 | 0/8 | 1/8 |
+| Mean selected wrong-cue dwell | 7.76 s | 7.51 s | 6.38 s | 6.95 s |
+
+An extra update means any unmatched estimate, including near-source duplicates;
+selected wrong-cue dwell is time with a selected bearing more than 20 degrees from
+the source during scheduled emission. Neither is an identified false track.
+Whole-episode rates include natural speech pauses, identically across treatments.
+
+**Why coarse failures do not decide the provider.** The single candidate false
+association disappears on the same four initial episodes with 5/2.5 ms integration
+or 48 instead of 24 angular samples. First-acquisition success is unchanged; finer
+ray sampling changes some other outcomes. Native early polygon paths also differ
+from ideal shoebox paths at a few receiver positions: worst residual energy .1235%,
+with unchanged dominant arrival. The candidate angular-cache error at one held-out
+position is 3.21% RMS at 24 samples and 2.23% at 48; the reference stays below .07%.
+These failed local isolation checks remain explicit. They prevent attributing all
+consumer changes exclusively to the tail or declaring complete numerical admission;
+they are not new physical budgets or grounds by themselves for replacing PRA.
+Targeted 65536-ray, 2.5 ms, fresh-episode confirmation is separately predeclared.
+
+**Consumer and physical-reference controls.** Exact free-field direct propagation
+at a local bearing of 45 degrees triggers large erroneous CUDA estimates on both
+layouts; three off-diagonal controls remain within .59 degrees. A direct-only
+closed-loop ablation on the sixteen episode programs has no false visual
+association and still has about 21.7% extra updates and 5.97 s selected wrong-cue
+dwell. These expose an unchanged consumer limitation independently of the late
+field; replacing a reflection engine cannot correct that direct-only behavior.
+
+Selected [MeshRIR S1-M3969 measured responses](https://zenodo.org/records/10852693)
+provide an auxiliary independent check at exact recorded positions (a different
+four/five-element layout). The [primary dataset description](https://www.sh01.org/MeshRIR/)
+describes sequential robot-positioned microphone measurements, a 7 x 6.4 x 2.7 m
+room and mean .38 s decay. The six selected responses measure .333–.438 s mean
+band T20 at 250–4000 Hz. Unchanged RTX replay of eight speech programs per layout
+shows 0% extra updates for the planar layout and 85.42% for the raised layout at
+one common approximate digital calibration; +/-6 dB sensitivity is retained.
+However, early measured delays imply about 52 degrees versus 36.87 degrees from
+source-coordinate metadata; absolute grid placement/wall materials are also
+unavailable in the inspected primary metadata. No channel-wise delay correction
+or source-coordinate rewrite is applied. This is neither a matched physical twin
+nor evidence that one simulated room response is closer to reality.

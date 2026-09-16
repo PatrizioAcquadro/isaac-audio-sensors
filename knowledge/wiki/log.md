@@ -332,3 +332,15 @@ GPU evidence; every intervention preserves the first 80 ms, and both decay chang
 meet the original per-microphone tolerance. Raw/historical inputs are preserved;
 new episode statistics, software decisions and prospective physical/closed-loop
 validation are explicitly separated.
+
+## 2026-09-16 — experiment: Bounded PRA head/camera diagnostics
+
+Recorded the prospective less symmetric weak-direct comparison, sixteen geometric
+AV episodes, targeted numerical refinements, direct-only consumer controls and
+auxiliary MeshRIR measurements. Retained all failed/open limits; no provider,
+localizer or acceptance-budget change. Refined confirmation is separately declared.
+
+## 2026-09-16 — lint: Bounded AV diagnostic evidence links
+
+Five documentation-boundary tests pass; canonical links, retained local evidence,
+index coverage and diff whitespace checks pass. No raw knowledge material changed.
