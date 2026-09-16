@@ -193,6 +193,20 @@ to a concrete gap; this decision requires no blanket rerun or new physical captu
 Step 3 remains `not_admitted` until its other applicable controls pass. A larger
 solver or provider evaluation still requires a separate user decision.
 
+### Bounded full-room reference instruction (2026-09-16)
+
+After the targeted C04/field-seed closeout, the user explicitly retained the
+current full-room admission criterion. It does not inherit the cube's diagnostic
+exception. Define the minimum practical reference for a few complete existing
+room paths, reusing current code/evidence and without expanding the matrix or
+repeating qualified controls. If reference validity requires disproportionate
+investment or a second complete engine, stop with the precise missing capability
+before implementation; then reconsider the requirement explicitly with the user.
+No other-provider evaluation is authorized. The
+[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|bounded audit]]
+owns the resulting capability inventory and stop finding. That finding does not
+change the domain, budgets, Step 3's OPEN status or PRA retention.
+
 ## Provider stop rule and exclusions
 
 The dated follow-ups below retain their original decision context. The cube

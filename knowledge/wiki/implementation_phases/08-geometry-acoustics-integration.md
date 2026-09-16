@@ -112,6 +112,14 @@ to Steps 5–6; matched physical transfer is a separate claim. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.
 
+The subsequent bounded full-room reference audit stops at the user's requested
+boundary: the retained native transport and controlled references do not yet
+supply an independently justified room-pressure field through complete furnished
+trajectories. No new provider, room campaign or qualified-control rerun was started.
+The full-room gate remains binding and OPEN; the
+[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|precise reference gap]]
+now requires a separate decision before broader reference-model development.
+
 Steps 2 and 3 include focused native checks before wider integration. Carry
 lifecycle checks through development rather than postponing them to Step 8.
 **Steps 1–6 close Milestone 2 only if both profiles and the integrated producer

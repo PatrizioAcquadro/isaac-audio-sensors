@@ -504,3 +504,27 @@ checks and the final evidence audit pass, including fresh independent-program
 allocations, both signed pilot failures, confirmation summaries, closed-door
 energy and the preserved Hospital capacity limit. Inspected canonical changes
 and whitespace. No raw source changes, full-matrix rerun, budget waiver or push.
+
+## 2026-09-16 — experiment: Bounded full-room reference feasibility stop
+
+The user retained the current full-room gate and prohibited provider evaluation,
+matrix expansion and repeated qualified controls. Audited installed PRA 0.10.1,
+the native history/energy export and existing independent references. Defined a
+conditional minimum scope using A04_1, M01_1 and A09_0 with static A08_1, retaining
+both arrays and original cases. A small algebraic saved-energy example explains
+the joint-pressure information gap; saved timings supply labeled cost
+extrapolations. No rendering or inference ran. The reuse-only approach stops:
+an independently justified shared moving-room pressure formulation and its
+qualification are missing. This does not prove that PRA needs replacement or
+that a new geometric engine is necessary. Updated the decision, admission,
+protocol, R10/08, status and index; further reference work requires a separate
+decision and the full-room criterion remains binding and OPEN.
+
+## 2026-09-16 — lint: Bounded reference audit
+
+Five documentation-boundary checks pass; forty canonical pages, 256 wikilinks
+and 47 heading targets resolve. Local audit syntax/undefined-name checks pass.
+Verified source anchors, all eight selected existing array-specific inputs,
+the algebraic diagnostic and the zero-render/provider-change audit scope.
+Inspected whitespace and the documentation-only tracked diff. All production
+code, native builds, prior evidence and raw sources remain unchanged.

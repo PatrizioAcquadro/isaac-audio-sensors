@@ -119,6 +119,18 @@ Milestone 2 and operating integration remain open.**
   it is offline. **Retain PRA; Step 3 remains `not_admitted` because the remaining
   room gate lacks evidence, not because the diagnostic cube must be matched.**
 
+- **Bounded full-room reference audit: stopped at the authorized scope.** The
+  user retained the current gate. Existing shoebox/plane references and native
+  energy/history do not supply an independently justified shared pressure field
+  for the furnished moving-room conditions. The minimum missing work is a second
+  room-field formulation and its validation, while PRA traversal remains reusable;
+  no new geometric engine is proved necessary. Three existing motion paths and
+  one static two-source companion are specified conditionally, with saved cost
+  extrapolations. No room campaign, qualified-control rerun or provider evaluation
+  was launched. Further reference-model work or a requirement revision needs a
+  separate user decision. The full-room gate remains OPEN.
+  [[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|Missing capabilities, reference limits and stop evidence]].
+
 ## Maintained capabilities and boundaries
 
 | Area | Verified state | Important limit / owner |

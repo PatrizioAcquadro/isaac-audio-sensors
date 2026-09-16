@@ -1088,6 +1088,86 @@ exception does not extend to other properties. The results do not establish a
 need to replace PRA. Preserve the implemented renderer and the completed controls;
 do not repeat the full matrix to address an absent reference.
 
+## Bounded full-room reference feasibility (2026-09-16)
+
+**STOP within the authorized reference-reuse scope; representative full-room
+pressure/observation equivalence remains OPEN.** The user retained the current
+gate and requested a bounded feasibility audit before complete room trajectories.
+No acoustic rendering, GPU perception campaign, qualified-control rerun, provider
+evaluation or production change was performed. Evidence is in
+`local/r10/08_2_step3_room_reference/{README.md,audit.py,audit.json,RESULTS.md}`.
+
+The missing capability is an independently justified **joint spatial/temporal
+pressure field** for the existing furnished, scattering rooms. Exact late phase
+throughout the room is not required. A statistical reference remains eligible,
+but it must preserve the geometry-dependent correlations that affect multichannel
+observations and must not reuse the candidate's late projection as its own oracle.
+
+| Reusable component | Valid contribution | Remaining boundary |
+| --- | --- | --- |
+| Saved coherent shoebox ISM/order bases | Specular pressure, independent reference conditioning and retained order convergence | Empty rectangular specular rooms; omitting E1 furniture/scattering changes the prescribed case |
+| Retarded Lambertian plane and selected two-scatter/mirror integrals | Qualified transport/covariance for their declared interaction families | No complete furnished-room sum of mixed/later interactions |
+| Installed PRA 0.10.1 hybrid RIR | Static per-receiver band/directional energy and RIR synthesis | `Room.compute_rir` calls `compute_rt_rir` separately per microphone/source; each generates a Poisson/directional sign sequence without joint microphone coordinates or persistent world-field state |
+| Checked native pre-histogram capture | Reusable surface/local coordinates, directions, lengths, energy and interaction history | Energy samples and capture-local ray IDs do not define a persistent material pressure realization; an independent joint-field mapping remains missing |
+| Candidate with finer sampling, or early-only replacement | Numerical refinement or causal ablation | Does not independently validate the candidate's full-room late-field formulation |
+| Existing measured MeshRIR subset and NVIDIA/D artifacts | Auxiliary physical replay or bounded integration | No matched moving E1/E1-screen room reference |
+
+These implementation findings are grounded in the installed source and recorded
+native interface. The [PRA room documentation](https://pyroomacoustics.readthedocs.io/en/latest/pyroomacoustics.room.html)
+describes specular ISM and hybrid scattering; it does not establish the missing
+shared moving-room reference. A single small algebraic diagnostic using saved E1
+1 kHz energies constructs distinct positive-semidefinite cross-channel matrices
+with the same marginal energy to below 1.6e-16 relative error. It demonstrates why
+energy/decay alone cannot identify joint pressure; it is not a new renderer FAIL,
+a pair of matched physical rooms or an application of the isotropic 0.1 budget.
+Native directions/history contain more information than this marginal example;
+the missing work is their independently justified pressure mapping.
+
+### Minimum conditional path allocation
+
+Keep three existing motion trajectories and one existing static companion, with
+both exact arrays, original source content, materials, emissions and full episode
+durations. Nothing was scheduled or removed from the wider approved domain.
+
+| Existing cases | Scope of the missing reference |
+| --- | --- |
+| A04_1, E1-screen/R08, 30 s | Full 3.4 m source path at 1.5 m/s through shadow/visibility transitions; receiver fixed |
+| M01_1, E1/R05, 64 s | Full 2.5 m receiver path at 1 m/s, .5 m/s² acceleration and prescribed 0→90-degree yaw; source fixed |
+| A09_0, E1-screen/R08, 30 s | Screen +1.6 m and back at .5 m/s with .5 s endpoint dwell; source/receiver fixed |
+| A08_1, E1/R05, 30 s | Existing static S1/S2 two-source mixture, second source -6 dB; no extra trajectory |
+
+Saved source programs and source/screen clocks exist. The prepared episode pack
+does not bake M01's receiver path: its existing motion declaration and trapezoidal
+helper can supply that small adapter. This is separate from reference-model
+validity. No AV/head policy or homing test is introduced. Nominal R05/R08 recipes
+still need reference-side decay/DRR conditioning; the existing NLOS scoring rule
+must not substitute hidden-source bearing for a validated arrival direction.
+
+### Why execution stopped
+
+The smallest missing reference would need an independent statistical coupling of
+late/mixed native transport, persistent multichannel responses through endpoint
+and geometry motion, and evidence validating that formulation before conditioning
+or confidence repetitions. This is a second full-room **pressure-field model and
+its qualification**, beyond a thin adapter to existing validated references.
+PRA's native geometric traversal could still be reused. The audit does not prove
+that another complete ray engine is necessary or that no smaller future approach
+exists; it found no valid bounded reuse path available in this checkout.
+
+Saved per-pose timings also discourage launching brute-force trajectories before
+resolving that validity gap. At 10 ms, a naive serial extrapolation for only the
+moving segment is 11.9–14.0 hours for A04, 11.5–13.9 for M01 and 26.5–31.2 for A09,
+one source/field with nine combined microphones. At 2.5 ms the corresponding
+ranges are 47.5–56.0, 45.9–55.3 and 105.9–124.7 hours. These are not measured route
+costs or lower bounds: receiver-only reuse, caching and parallelism could reduce
+them. They exclude reference development/rendering, conditioning, full-episode
+replay and confirmation. No cadence or budget was changed to fit a cost estimate.
+
+**Retain PRA and stop this reference-construction work.** A separate user
+decision is now needed before reference-model development beyond this audit or
+explicit revision of the full-room requirement. Existing PASS results, the
+cube-only diagnostic exception and the current admission gate are unchanged.
+
 ## Evidence and reproduction
 
 All locations are local ignored evidence, not package dependencies. Keep original
@@ -1111,6 +1191,7 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_step3_measurements/` | README, numerical failure/fix reproduction, same-PCM scalar/CUDA/batch checks, early/cache isolation, targeted AV replay and corrected runtime cost |
 | `08_2_step3_motion/` | Predeclared joint panel, actual-producer exact-pose PCM, analytic/dense-plane references, dynamic lifecycle controls, update refinements, RTX observations and bounded room probes |
 | `08_2_step3_closeout/` | Fresh C04/field-seed confirmations, isotropic and radius controls, E3 correction, representative room pressure/observations, ordinary visibility, horizon and NVIDIA integration/cost pilots; per-property summary and remaining admission gaps |
+| `08_2_step3_room_reference/` | Bounded reuse/capability audit, unchanged three-path/static-companion selection, energy-information diagnostic, saved-cost extrapolation and precise reference-construction stop result |
 | `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].

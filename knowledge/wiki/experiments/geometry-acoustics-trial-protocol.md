@@ -609,6 +609,14 @@ multibounce room reference, independently conditioned room recipes or complete
 full-D trajectories. The field/observation budgets and representative allocation
 are unchanged; no universal pressure-field reference is implied.
 
+The later bounded reuse audit selects A04_1, M01_1 and A09_0 plus static A08_1
+as the minimum conditional full-room reference scope, with both arrays and
+unchanged cases. It stops before execution because no existing reference supplies
+the required independently justified joint room field. See the
+[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|capability ledger and stop result]].
+This selection launches no trials and neither expands the matrix nor changes the
+full-room admission role, which the user explicitly retained.
+
 ### Machine, GPU recovery and cost envelope
 
 The GPU blocker was resolved after the user's manual reboot: installed/loaded
