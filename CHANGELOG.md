@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Breaking (07.2 admission): frame v4 preserves unavailable bearing confidence as null; frame v3 inputs are rejected. Later numerical maintenance stabilizes scalar/CUDA WPE and equal-score peak selection without changing thresholds.
+
 - Qualified identical-sample signal/recording parity across maintained mono, stereo, and planar-array roles, including clipping, discontinuities, and resets. The public two-microphone example now shows the maintained estimator's direction candidates. Physical comparison and capture tooling remain downstream; SDK APIs and serialized schemas are unchanged by Subphase 06.3.
 
 - Breaking (Subphase 05.3): migrated to manifest v4 and removed unused episode poses, episode labels, visual-sync references/assets, `ManifestPose`, and corresponding statistics/JSON fields. Manifest v1–v3 and removed fields are rejected without compatibility readers; per-frame truth and annotations remain separate from observations.
@@ -43,7 +45,7 @@
 - Standardized nominal `gain_db` as amplitude gain `10 ** (gain_db / 20)`. Source gain is applied once to generated or original-amplitude WAV assets before propagation; microphone gain is applied once after propagation in every frame and Lab path.
 - Preserved L0/L1 analytical `1/d` with the existing distance floor and L2 PyRoom RIR distance/reflection behavior without a second manual `1/d`. L2 waveform directivity remains signed while RMS uses magnitude.
 - Retained channel-response gain, TDOA gain mismatch, and occlusion as separately ordered and diagnosed deltas. Calibration-profile gain remains data-only and is never applied automatically.
-- Dataset manifests use v4 and frame records use v2; frames use `ias.audio_sensor_frame.v3` and calibration retains `ias.audio_calibration_profile.v1`.
+- Dataset manifests use v4 and frame records use v2; frames use `ias.audio_sensor_frame.v4` and calibration retains `ias.audio_calibration_profile.v1`.
 
 ## 2.0.0 - 2026-08-21
 

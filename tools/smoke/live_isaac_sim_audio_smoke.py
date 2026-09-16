@@ -444,7 +444,7 @@ def _augment_live_frame(
                 reference_frame=reference_frame,
             ),
             "writer": {
-                "format": "AudioSensorFrame v3 JSONL",
+                "format": "AudioSensorFrame v4 JSONL",
                 "jsonl_path": str(frame_trace_path),
                 "config_path": str(config_path),
                 "record_index": record_index,

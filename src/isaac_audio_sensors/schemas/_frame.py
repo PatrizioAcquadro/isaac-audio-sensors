@@ -20,7 +20,7 @@ from isaac_audio_sensors.core.constants import (
 
 
 def audio_sensor_frame_json_schema() -> dict[str, Any]:
-    """Return the v3 ``AudioSensorFrame`` JSON Schema."""
+    """Return the ``AudioSensorFrame`` JSON Schema."""
 
     pose_schema: dict[str, Any] = {
         "type": "object",
@@ -66,9 +66,9 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
         "$id": (
             "https://isaac-audio-sensors.dev/schemas/audio_sensor_frame.v4.schema.json"
         ),
-        "title": "Isaac Audio Sensors AudioSensorFrame v3",
+        "title": "Isaac Audio Sensors AudioSensorFrame v4",
         "description": (
-            "Observed-only AudioSensorFrame v3 contract. timestamp_ms is derived from "
+            "Observed-only AudioSensorFrame v4 contract. timestamp_ms is derived from "
             "start_time_s, sample_rate_hz records the selected array rate, and "
             "max_observations limits only the perception output."
         ),
@@ -77,7 +77,7 @@ def audio_sensor_frame_json_schema() -> dict[str, Any]:
         "required": list(FRAME_TOP_LEVEL_FIELDS),
         "properties": {
             "schema_version": {
-                "description": "Frame schema id for the breaking v3 contract.",
+                "description": "Frame schema id for the v4 contract.",
                 "const": FRAME_SCHEMA_VERSION,
             },
             "frame_id": {
