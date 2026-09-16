@@ -409,3 +409,21 @@ scope; focused replay is recorded separately from physical admission.
 Five documentation-boundary tests, 42-page index coverage, 240 wikilinks and
 31 heading links pass. Checked whitespace and kept the numerical correction
 separate from historical performance, physical fidelity and Step 3 admission.
+
+## 2026-09-16 — experiment: R10 measurement reliability
+
+Recorded the corrected scalar/CUDA direct and cube replay, maintained same-PCM
+parity, targeted angular-cache/early-response isolation and focused AV replay.
+The cache's full-pressure isolation check remains failed; actual producer positions
+or separately qualified sampling govern future motion comparisons. Historical
+observation intervals retain the preceding consumer. Updated R10/08, current status,
+Lab runtime and the replay index without changing physical budgets or cube status.
+
+## 2026-09-16 — lint: Measurement evidence and current limitations
+
+Five documentation-boundary tests, all 42 indexed pages, 245 wikilinks and
+36 heading links pass. Verified final replay/cost artifacts, unchanged task metrics
+in the four selected AV programs, evidence directory references and whitespace.
+Kept the failed cache-isolation result, historical interval scope, expensive stable
+runtime and still-open physical admission explicit. Raw and historical evidence
+were not edited; no complete acoustic-matrix or 192-episode rerun is claimed.

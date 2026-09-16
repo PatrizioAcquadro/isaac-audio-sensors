@@ -35,7 +35,8 @@ Milestone 2 and operating integration remain open.**
   The general persistent field and optional D producer pass 36 native, analytic
   and streaming controls. Closed-partition projection and gain-dependent banded
   specular phase defects are corrected. A conditioned smooth 3 m room still fails
-  the original pressure-decay and RTX 4090 observation criteria at order 7/65536 rays:
+  the original pressure-decay criterion. The preceding numerical consumer at
+  order 7/65536 rays recorded the following RTX 4090 observation failures:
   spurious-update changes are -23.08 points on square and -67.43 on raised, with
   95% intervals outside the +/-5-point budget. Main-bearing, miss and added-latency
   budgets pass in this fixed-scene comparison. These results remain FAIL under the
@@ -44,10 +45,11 @@ Milestone 2 and operating integration remain open.**
   [[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|approved decision]]
   keeps structural invariants, numerical margins and representative observation
   gates binding. It neither fixes the physics nor admits the candidate.
-  A raised-reference scalar/CUDA and count-stability limit is recorded separately;
-  the square comparison is stable.
-  The earlier rotating selected-mixture pass remains valid within its scope, and
-  its ~0.17 physical statistic is also diagnostic with targeted impact evidence.
+  The reproduced raised-reference scalar/CUDA and batch-count defect is now
+  corrected; the historical intervals have not been rerun with the corrected consumer.
+  The earlier rotating selected-mixture pass remains historical evidence within
+  its scope; its ~0.17 physical statistic is also diagnostic with targeted impact
+  evidence.
   General C03/C04 motion, two-source/room confirmation and later consumers remain open. A targeted
   follow-up shows that correcting 1 kHz decay alone barely changes the discrepancy,
   while replacing the late response recovers most reference extras. Actual SquadBot
@@ -57,13 +59,27 @@ Milestone 2 and operating integration remain open.**
   retains a measured resumption-time benefit over audio-off. One 100 ms false
   association is recorded; the pooled rate interval fits five points, while the
   raised-only interval remains inconclusive. Direct-only controls expose a separate
-  consumer limit. Next, resolve measurement defects that could affect the remaining
-  comparisons, then combine movement and observation qualification in a compact
-  evidence set, reusing passed controls. Full AV/mobile usefulness belongs to
-  Steps 5–6; tracking and matched physical transfer are separate unvalidated claims.
+  numerical consumer defect, corrected by the measurement work below. Next, combine
+  movement and observation qualification in a compact evidence set using the actual
+  D producer at microphone positions, reusing passed controls. Full AV/mobile
+  usefulness belongs to Steps 5–6; tracking and matched physical transfer are separate unvalidated claims.
   This acceptance revision changes the cube comparison's role, not the operating
   domain or numerical margins. PRA remains retained and diffuse remains opt-in
   and `not_admitted`. [[experiments/geometry-acoustics-admission|Evidence and limits]].
+- **Measurement reliability:** weighted QR/pseudoinverse WPE and stable float64
+  peak arithmetic correct direct-symmetry and scalar/CUDA count defects without
+  retuning perception. The 27 affected RTX tests and 15 scalar tests pass; four
+  problematic cube streams preserve all 128 activity/count updates, including
+  32-environment reorder/loud-neighbor/reset controls. The angular-cache error is
+  isolated mainly to native early specular paths; its full-pressure isolation
+  check remains failed. It cannot support unrestricted motion or tail-only causal
+  claims. Historical observation intervals remain tied to the preceding solver.
+  [[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|Corrected measurements and evaluator limits]]
+  records the targeted replay: four AV episode outcomes are preserved, including
+  the known false association. The stable computation costs p95 ~.99/1.66 s for
+  16 square/raised copies per 100 ms update in the supplied-PCM check; this is
+  offline throughput, not added simulated perceptual latency. Prior interactive
+  batch guidance does not apply. Physical admission remains separate.
 
 ## Maintained capabilities and boundaries
 

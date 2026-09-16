@@ -95,8 +95,11 @@ replay are complete. Bounded geometric head/camera diagnostics now measure task
 consequences; a fresh refined confirmation supports retaining PRA while keeping
 individual-stratum and numerical/consumer limits explicit. Step 3 remains open
 for binding field controls and representative C03/C04, room and two-source
-observations. Address measurement defects before affected comparisons and reuse
-episodes/PCM for field and observation checks. Complete profile usefulness belongs
+observations. The later numerical correction resolves reproduced WPE/peak
+instability; the angular bank retains an early-response isolation limit. Use the
+actual producer or qualified sampling for affected comparisons and reuse episodes/PCM
+for field and observation checks. Historical observation intervals retain their
+preceding consumer version. Complete profile usefulness belongs
 to Steps 5–6; matched physical transfer is a separate claim. The
 [[experiments/geometry-acoustics-admission|admission record]] records the measured
 boundary and reusable native changes.

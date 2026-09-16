@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — result tables, corrected failures, diagnostic cube/AV evidence and replay index; admission limits remain explicit.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — result tables, corrected failures, diagnostic cube/AV evidence, corrected measurements and replay index; admission limits remain explicit.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — exact fixtures/matrix, references/scoring and lean allocation, followed by completed preparation and its limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

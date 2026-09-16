@@ -94,3 +94,33 @@ tables above describe the preceding solver and are not current throughput promis
 Fresh same-PCM evidence is stored separately under
 `local/r10/08_2_step3_measurements/`; numerical agreement does not qualify acoustic
 fidelity or general moving-source perception.
+
+The corrected implementation passes a fresh replay of the same 36 recordings and
+1,440 updates: 100% activity/count agreement on all four layouts; worst
+scalar/CUDA direction-difference p95 is .000175 degrees. Four previously problematic
+cube streams also preserve all 128 activity/count updates and 32-environment
+reorder/loud-neighbor/reset comparisons. These resolve the reproduced numerical
+failure rather than requiring a looser count or angular tolerance. The
+[[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|R10 measurement record]]
+owns the cube, angular-cache and targeted AV interpretation.
+
+A separate synchronized cost check uses repeated received cube contexts, 16 kHz,
+100 ms updates, three warmups and ten measured updates on RTX 4090. It includes
+PCM ingestion, activity, localization and projection, excluding native rendering,
+physics, learning and initialization. These descriptive timings are not the same
+workload as the historical free-field table and do not measure added simulated
+acoustic/perceptual latency.
+
+| Copies | Square mean/p95 ms | Raised mean/p95 ms | Peak Torch GiB square/raised |
+| --- | --- | --- | --- |
+| 1 | 91 / 94 | 153 / 157 | .06 / .16 |
+| 16 | 966 / 990 | 1628 / 1658 | .72 / .99 |
+| 32 | 1890 / 1942 | 3202 / 3260 | 1.42 / 1.87 |
+
+The stable solve is expensive: these 16/32-copy workloads do not run in real time.
+The earlier interactive/batch guidance cannot be carried forward to this solver.
+Offline, causally clocked Step 3 comparisons remain possible under the approved
+scope; practical throughput is an explicit remaining runtime limitation, not a
+reason to loosen numerical precision or silently change the perceptual model.
+Reports: `maintained_parity_final.json`, `stream_parity_final.json` and `cost.json`
+under `local/r10/08_2_step3_measurements/`.

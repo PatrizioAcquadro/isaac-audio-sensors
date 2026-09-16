@@ -170,6 +170,17 @@ Earlier prototype evidence and reproduction live under
 [[experiments/geometry-acoustics-admission|admission record]] owns the result.
 No larger pressure-transport solver or replacement evaluation was started.
 
+Later measurement maintenance corrects WPE conditioning and peak ties in the common
+scalar/CUDA consumer with unchanged perception parameters. Direct-symmetry and
+recorded cube parity/batch controls now pass. The angular-bank discrepancy is
+mainly early specular visibility; full-pressure isolation remains failed and
+future general-motion comparisons must use the actual producer at microphone
+positions or independently qualified sampling. Historical rate intervals retain
+the preceding consumer, rather than becoming fresh evidence after the fix.
+[[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|Measurement reliability]]
+owns the targeted effects and remaining reference limits. This maintenance changes
+neither the cube diagnostic decision nor the remaining Step 3 gates.
+
 The earlier targeted follow-up supplies actual RTX 4090 observation evidence under
 `local/r10/08_2_step3_impact/`. Analytic scalar synthesis/reference, persistence and
 CUDA independence checks pass. Fresh source-motion trials meet mean/p95 angular

@@ -29,6 +29,7 @@ Key results:
 [[experiments/geometry-acoustics-admission#General D implementation and conditioned-room admission (2026-09-15)|general D / cube]] ·
 [[experiments/geometry-acoustics-admission#Practical significance follow-up (2026-09-16)|cube impact]] ·
 [[experiments/geometry-acoustics-admission#Bounded head/camera diagnostics (2026-09-16)|AV evidence]] ·
+[[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|corrected measurements]] ·
 [[experiments/geometry-acoustics-admission#Evidence and reproduction|reproduction]].
 
 ## Steam reflection reconstruction — rejected mapping
@@ -729,6 +730,78 @@ plot are in `local/r10/08_2_step3_av/confirmation192/summary_final.json`,
 `task_impact.png` and `README.md`. No new physical capture, provider installation,
 proprietary multibounce solver or push was performed.
 
+## Measurement reliability (2026-09-16)
+
+**The reproduced numerical perception defects are corrected.** Baseline
+`2f9b27b` could return finite but unstable WPE solutions for nearly duplicate
+channels. Both scalar and CUDA now solve weighted least squares with reduced QR
+and a rank-aware pseudoinverse; float64 peak sums and stable ties correct a
+separate equal-neighborhood count discrepancy. Thresholds, context, solver
+iterations, acoustic model and public tensors are unchanged. This changes
+numerical observations, not the cube's physical response or diagnostic role.
+[[experiments/lab-perception-runtime#Measurement reliability correction (2026-09-16)|Lab replay and runtime evidence]]
+owns the maintained-consumer checks and cost.
+
+The same direct 45-degree input now yields one event: square 45.00 degrees,
+raised 45.14 degrees, agreeing with the scalar solution. Across the twelve direct
+and cube-window reproductions, WPE scalar/CUDA relative RMS difference is at most
+4.13e-7. Four complete saved cube streams (128 updates) have 100% activity/count
+agreement, with maximum matched direction difference .000366 degrees. Solo versus
+32-environment checks also pass, including reversed IDs, a 100x louder neighbor
+and selective neighbor reset; maximum difference is .000009 degrees. This resolves
+the reproduced raised-reference numerical limit, not general perception accuracy.
+
+### Sampling and early-response attribution
+
+The existing angular bank's full-response interpolation error is dominated by
+native early specular paths. Three order-6/7 image paths are absent at each of two
+ring positions near corner intersections; there are no duplicate paths. Narrow
+visibility discrepancies spread around the ring through periodic interpolation.
+Native opaque-door tolerances were not relaxed. Using the existing held-out points,
+300–6000 Hz RMS normalized to the total indirect response gives:
+
+| Existing bank | Full indirect error, maximum | Late-component error, maximum |
+| --- | ---: | ---: |
+| 4096 rays, 24 angles | 3.214% | .0801% |
+| 4096 rays, 48 angles | 2.234% | .00671% |
+| 65536 rays, 24 angles | 3.211% | .0784% |
+
+A targeted 36-case observation control uses both layouts, three saved speech
+clips and six head poses, including either side of the affected early-path
+transition. Cached full D versus exact native early/direct plus the same cached
+late field produces no count disagreement; maximum matched angular difference is
+.305 degrees. Replacing only native early response with the independent shoebox
+early response changes one count (square, -30-degree yaw, clip 2: two events versus
+one); maximum matched angular difference is .497 degrees. This intervention
+identifies a separate early-model contribution to observations. It does not
+establish a population rate bound or prove that all consumer differences are due
+to the late tail. The saved PCM permits reuse without another ray campaign.
+
+The full-cache 1% pressure-isolation control remains failed. Small late-component
+error does not establish full-response interpolation accuracy. General-motion
+admission must evaluate the actual D producer at the microphone positions, or
+qualify the evaluator's sampling on the affected trajectories. Tail-only causal
+claims require matched early components or an explicit early-response intervention;
+do not replace production native paths with ideal-shoebox paths to force agreement.
+
+### Focused AV preservation
+
+Four previously selected episode programs (21000, 21002, 21004, 21191), covering
+both layouts and emission schedules, were replayed with the same saved field and
+candidate/reference/audio-off treatments. All acquisition/resumption outcomes,
+miss/extra rates, wrong-cue dwell and false-association metrics are unchanged.
+Only angular summaries change, by at most .00153 degrees. Episode 21191 retains
+its 100 ms false association and delayed resumption; correcting WPE does not erase
+that consumer counterexample. This is targeted numerical preservation on the
+existing angular bank, not renewed confidence intervals or general-motion admission.
+
+Earlier cube/AV/direct-only/measured-replay rate tables and confidence intervals
+retain the preceding numerical runtime. They are historical evidence, not fresh
+qualification of the corrected consumer. No acoustic matrix or 192-episode campaign
+was repeated for this numerical maintenance. Step 3 remains `not_admitted` pending
+its binding field and representative motion/room/observation gates. These findings
+do not establish a need to replace PRA.
+
 ## Evidence and reproduction
 
 All locations are local ignored evidence, not package dependencies. Keep original
@@ -748,7 +821,8 @@ reports/builds unchanged; use new output directories for reruns.
 | `08_2_step3_impact/` | Earlier selected-mixture observation impact, retained physical discrepancy and bounded continuation evidence |
 | `08_step2_nlos/` | Native preparation, corrected coverage, refinement and final selected-route closeout |
 | `08_2_step3_relevance/` | Cube absolute-rate/persistence, late-response ablations and downstream decision replay |
-| `08_2_step3_av/` | Moving-head/camera diagnostics, 192-episode confirmation, batch control and measured-reference audit |
+| `08_2_step3_av/` | Historical moving-head/camera diagnostics, 192-episode confirmation, batch control and measured-reference audit |
+| `08_2_step3_measurements/` | README, numerical failure/fix reproduction, same-PCM scalar/CUDA/batch checks, early/cache isolation, targeted AV replay and corrected runtime cost |
 | `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
 
 Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
