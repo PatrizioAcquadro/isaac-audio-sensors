@@ -36,6 +36,11 @@ class Transport:
             "ias_pra_transport_abi": (C.c_int, []),
             "ias_pra_event_size": (C.c_int, []),
             "ias_pra_visibility_abi": (C.c_int, []),
+            "ias_pra_projection_abi": (C.c_int, []),
+            "ias_pra_departure_visible": (
+                C.c_int,
+                [C.c_void_p, C.c_int, C.c_void_p, C.c_void_p, C.c_void_p, C.c_void_p],
+            ),
             "ias_pra_illumination_abi": (C.c_int, []),
             "ias_pra_illuminate": (
                 C.c_int,
@@ -84,6 +89,7 @@ class Transport:
         if (
             self.lib.ias_pra_transport_abi() != 1
             or self.lib.ias_pra_visibility_abi() != 1
+            or self.lib.ias_pra_projection_abi() != 1
             or self.lib.ias_pra_illumination_abi() != 1
             or self.lib.ias_pra_event_size() != C.sizeof(Event)
         ):
@@ -129,6 +135,29 @@ class Transport:
             len(starts),
             starts.ctypes.data,
             ends.ctypes.data,
+            result.ctypes.data,
+        ):
+            raise RuntimeError(self.lib.ias_specular_error().decode())
+        return result.astype(bool).reshape(shape)
+
+    def departure_visible(self, surfaces, directions, points):
+        """Keep projected flights on their native previous reflector's exit side."""
+        directions, points = np.broadcast_arrays(directions, points)
+        if points.ndim < 1 or points.shape[-1] != 3:
+            raise ValueError("Departure connections must be xyz points.")
+        shape = points.shape[:-1]
+        surfaces = np.ascontiguousarray(np.broadcast_to(surfaces, shape), np.int32)
+        directions, points = (
+            np.ascontiguousarray(v, np.float32).reshape(-1, 3)
+            for v in (directions, points)
+        )
+        result = np.empty(len(points), np.uint8)
+        if self.lib.ias_pra_departure_visible(
+            self.scene.handle,
+            len(points),
+            surfaces.ctypes.data,
+            directions.ctypes.data,
+            points.ctypes.data,
             result.ctypes.data,
         ):
             raise RuntimeError(self.lib.ias_specular_error().decode())

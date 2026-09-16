@@ -181,6 +181,15 @@ the preceding consumer, rather than becoming fresh evidence after the fix.
 owns the targeted effects and remaining reference limits. This maintenance changes
 neither the cube diagnostic decision nor the remaining Step 3 gates.
 
+A later E3 door probe corrected a sub-epsilon jamb projection leak. Native
+parent-surface departure-side checks now prevent interpolation behind the prior
+reflector even when generic segment visibility permits endpoint contact. The
+actual closed/open/closed D response returns to exact zero when closed; fifteen
+native/field and nine producer checks pass. The additional private projection
+ABI requires a native rebuild and leaves specular-only behavior unchanged.
+[[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|Targeted closeout]]
+owns the reproduction and remaining admission limits.
+
 The subsequent joint panel uses actual D responses at every sampled microphone
 pose. Dynamic grouping, source identity, reset, environment isolation, exact-pose
 PCM replay and the controlled-plane energy/coherence checks pass. C03/C04 now have

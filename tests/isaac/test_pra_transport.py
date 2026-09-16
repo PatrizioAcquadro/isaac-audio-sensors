@@ -144,6 +144,28 @@ def test_native_surface_connections_do_not_cross_closed_partition(transport):
             native.visible([np.nan, 0, 0], [1, 0, 0])
 
 
+def test_projection_preserves_departure_side_at_sub_epsilon_jamb(transport):
+    wall = np.array([[0, -2, -2], [0, 2, -2], [0, 2, 2], [0, -2, 2]])
+    engine = transport([wall])
+    native = SurfaceTransport(SimpleNamespace(lib=engine.lib, handle=engine.handle))
+    # A short flight from a door to its jamb can lie within endpoint tolerance.
+    # Ordinary visibility alone therefore permits interpolation behind the door.
+    hit = [5e-6, 0.01, 0]
+    targets = np.array([[-0.03, 0.02, 0], [0.03, 0.02, 0], [0, 0.02, 0]])
+    assert native.visible(hit, targets[0])
+    for surface in (0, 1):
+        np.testing.assert_array_equal(
+            native.departure_visible(surface, hit, targets), [False, True, True]
+        )
+        np.testing.assert_array_equal(
+            native.departure_visible(surface, -np.array(hit), targets),
+            [True, False, True],
+        )
+    np.testing.assert_array_equal(native.departure_visible(-1, hit, targets), True)
+    with pytest.raises(RuntimeError, match="Invalid PRA departure surface"):
+        native.departure_visible(2, hit, targets)
+
+
 def test_borrowed_transport_matches_native_energy_capture(transport):
     engine = transport(absorption=[0.2, 0.4], scattering=[0.3, 0.8])
     native = SurfaceTransport(

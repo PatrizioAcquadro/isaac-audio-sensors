@@ -928,6 +928,32 @@ replay and both consumers, excluding native bank preparation; this is an offline
 campaign time, not an isolated throughput benchmark. No provider replacement or
 new multibounce solver is implied by these results.
 
+## Targeted closeout and projection correction (2026-09-16)
+
+A fresh E3 closed/open/closed probe exposed a small opaque-door leak in the
+persistent projection: summed closed-door reflected RIR energy was 1.2041e-8,
+about 5.94e-7 of the open response. The native flight left the door and reached
+its jamb only 4.8 micrometers away in the door-normal direction. Segment endpoint
+tolerance then allowed interpolation onto a surface element behind that door.
+This was a structural defect, independent of the diagnostic cube mismatch.
+
+The corrected native connection check preserves the previous reflector's exit
+side using its recorded surface and outgoing flight direction. Transport remains
+native; no received gain or energy threshold masks the residual. Actual D now
+has exactly zero direct and reflected pressure energy on all nine microphones
+at both closed poses, nonzero open pressure, and an exactly identical returned
+response. Open reflected energy is .0202555 summed over the nine microphones.
+Fifteen native/field regressions and nine actual-producer tests pass. The added
+private projection capability requires rebuilding the bridge; specular-only
+compatibility and installed PRA remain unchanged.
+
+Fresh evidence and predeclared C04/seed/room allocation are in
+`local/r10/08_2_step3_closeout/README.md`. Original room responses and the prior
+native library are retained there. Room projection checks are repeated only
+where the correction can affect them. Single-scatter C03/C04 response banks
+never enter later-surface projection and remain applicable. This correction
+does not admit Step 3 or change any physical/observation budget.
+
 ## Evidence and reproduction
 
 All locations are local ignored evidence, not package dependencies. Keep original

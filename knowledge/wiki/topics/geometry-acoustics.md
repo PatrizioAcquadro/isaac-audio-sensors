@@ -126,8 +126,14 @@ PRA polygon intersections for paired segments. Endpoint surface contact is allow
 intervening opaque faces block from either side, including a partition crossed
 while interpolating on a floor. `ias_pra_illumination_abi=1` / `ias_pra_illuminate`
 integrates direct illumination at surface quadrature nodes using those same
-native visibility, absorption and scattering coefficients. `_pra.Transport`
-checks the private ABIs and event layout before borrowing a scene handle.
+native visibility, absorption and scattering coefficients. The additional
+`ias_pra_projection_abi=1` / `ias_pra_departure_visible` interface constrains each
+projected connection to the previous native reflector's outgoing side. Endpoint
+contact tolerance must not let a short door-to-jamb flight project through the
+back of the door. The check uses the native parent surface and flight direction;
+IAS does not reconstruct geometric paths. `_pra.Transport` checks all private
+ABIs and the event layout before borrowing a scene handle. Rebuild the bridge for
+this added diffuse capability; the specular ABI and installed PRA are unchanged.
 
 Capture uses an unbiased specular/Lambertian branch with per-band importance
 weights and the incident hemisphere, with no additional `scat_ray` deposit.

@@ -464,3 +464,20 @@ assertions pass, including all twenty targeted confidence decisions and 42 room
 poses. Reviewed the diagnostic figure and coverage tables, preserved raw outputs,
 and checked whitespace. This closes the bounded campaign, not Step 3 or the
 remaining representative-room, consumer and runtime gates.
+
+## 2026-09-16 — update: Preserve native departure side at door jambs
+
+A targeted E3 probe reproduced tiny closed-door energy caused by surface
+projection across the previous reflector within endpoint-contact tolerance.
+Added a checked native departure-side constraint, preserving transport ownership
+and specular compatibility. Actual closed/open/closed pressure now has exactly
+zero closed energy and exact return invariance; fifteen native/field and nine
+producer checks pass. Updated the native contract, R10, admission record, status
+and index. Existing cube diagnostic and broader admission decisions are unchanged.
+
+## 2026-09-16 — lint: Departure-side correction
+
+Five documentation-boundary checks and all internal page/heading links pass.
+Inspected the focused native/Python diff, verified the new evidence and existing
+specular ABI boundary, and checked whitespace. Ignored evidence and raw sources
+remain preserved. C04 confirmation and the broader closeout remain in progress.

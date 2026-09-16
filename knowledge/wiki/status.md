@@ -82,6 +82,14 @@ Milestone 2 and operating integration remain open.**
   offline throughput, not added simulated perceptual latency. Prior interactive
   batch guidance does not apply. Physical admission remains separate.
 
+- **Closed-door projection correction:** a newly reproduced E3 jamb connection
+  could project behind the previous reflector within endpoint tolerance. The
+  native departure-side check fixes it: actual closed/open/closed D has exact zero
+  energy at both closed poses and nonzero open pressure. Fifteen native/field and
+  nine producer checks pass. Rebuild the diffuse bridge for the added private
+  capability. This is separate from the cube diagnostic limitation and ongoing
+  [[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted closeout]].
+
 - **Joint motion/observation controls:** the actual D producer passes dynamic
   array grouping, source identity, reset, independent-environment and PCM replay
   checks. Dense-plane energy/coherence controls pass on C03/C04 trajectories.

@@ -77,6 +77,36 @@ void ias_specular_outputs(void* handle, float* images, float* damping, float* di
 int ias_pra_transport_abi() { return 1; }
 int ias_pra_event_size() { return sizeof(IASPraEvent); }
 int ias_pra_visibility_abi() { return 1; }
+int ias_pra_projection_abi() { return 1; }
+int ias_pra_departure_visible(void* handle, int count, const int* surfaces,
+                              const float* directions, const float* points,
+                              unsigned char* visible) {
+    try {
+        if (!handle || count < 0 ||
+            (count && (!surfaces || !directions || !points || !visible)))
+            throw std::invalid_argument("Invalid PRA departure arguments.");
+        const auto& walls = static_cast<Scene*>(handle)->room->walls;
+        for (int i = 0; i < count; ++i) {
+            const Vectorf<3> direction(directions + 3*i), point(points + 3*i);
+            if (!direction.allFinite() || !point.allFinite())
+                throw std::invalid_argument("Nonfinite PRA departure connection.");
+            const int surface = surfaces[i];
+            if (surface < -1 || surface >= static_cast<int>(walls.size()))
+                throw std::invalid_argument("Invalid PRA departure surface.");
+            visible[i] = 1;
+            if (surface == -1) continue;  // Direct source flight.
+            const auto& wall = walls[surface];
+            const float outgoing = direction.dot(wall.normal);
+            const float side = (point - wall.origin).dot(wall.normal);
+            // Endpoint contact must not let projection depart through the back
+            // of the previous reflector, including sub-epsilon jamb flights.
+            if ((outgoing > 0.f && side < -libroom_eps) ||
+                (outgoing < 0.f && side > libroom_eps)) visible[i] = 0;
+        }
+        error.clear();
+        return 0;
+    } catch (const std::exception& e) { error = e.what(); return -1; }
+}
 int ias_pra_segments_visible(void* handle, int count, const float* starts,
                              const float* ends, unsigned char* visible) {
     try {

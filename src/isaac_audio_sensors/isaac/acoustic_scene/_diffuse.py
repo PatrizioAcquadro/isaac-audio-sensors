@@ -228,6 +228,8 @@ class SurfaceField:
         parent = events["parent"]
         previous = np.broadcast_to(origin, events["position"].shape).copy()
         previous[parent >= 0] = events["position"][parent[parent >= 0]]
+        previous_surface = np.full(len(events), -1, np.int32)
+        previous_surface[parent >= 0] = events["surface"][parent[parent >= 0]]
         # First-order path-length change under object displacement. Its role is
         # mode persistence, not replacement of the native geometric delay.
         displacement = np.zeros((len(events), 3))
@@ -277,6 +279,7 @@ class SurfaceField:
                     e[valid],
                     amount[valid],
                     prev[valid],
+                    previous_surface[mask][valid],
                     origin,
                     cumulative[mask][valid],
                     family,
@@ -332,7 +335,15 @@ class SurfaceField:
         return fields
 
     def _project_surface(
-        self, surface, events, energy, previous, origin, correction, family
+        self,
+        surface,
+        events,
+        energy,
+        previous,
+        previous_surface,
+        origin,
+        correction,
+        family,
     ):
         count = min(4, len(surface["world"]))
         distance, neighbors = surface["tree"].query(events["position"], k=count)
@@ -341,6 +352,9 @@ class SurfaceField:
         points = surface["world"][neighbors]
         weights *= self.transport.visible(previous[:, None], points)
         weights *= self.transport.visible(events["position"][:, None], points)
+        weights *= self.transport.departure_visible(
+            previous_surface[:, None], events["incoming"][:, None], points
+        )
         # Project only onto the illuminated side. Native connection visibility
         # prevents interpolation across a partition or a closed door.
         side = np.where(
