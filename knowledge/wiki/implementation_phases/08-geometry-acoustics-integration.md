@@ -95,7 +95,11 @@ replay are complete. Bounded geometric head/camera diagnostics now measure task
 consequences; a fresh refined confirmation supports retaining PRA while keeping
 individual-stratum and numerical/consumer limits explicit. Step 3 remains open
 for binding field controls and representative C03/C04, room and two-source
-observations. The later numerical correction resolves reproduced WPE/peak
+observations. The later actual-producer joint panel passes controlled-plane and
+dynamic lifecycle checks; a fresh fastest-source C03 confirmation passes relative
+observation budgets on both arrays at 2.5 ms, including weak direct. Other C03/C04
+rate intervals and complete representative-room references/routes remain open;
+bounded room probes do not close them. The numerical correction resolves WPE/peak
 instability; the angular bank retains an early-response isolation limit. Use the
 actual producer or qualified sampling for affected comparisons and reuse episodes/PCM
 for field and observation checks. Historical observation intervals retain their

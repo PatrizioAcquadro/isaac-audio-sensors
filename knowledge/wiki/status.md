@@ -85,10 +85,16 @@ Milestone 2 and operating integration remain open.**
 - **Joint motion/observation controls:** the actual D producer passes dynamic
   array grouping, source identity, reset, independent-environment and PCM replay
   checks. Dense-plane energy/coherence controls pass on C03/C04 trajectories.
-  The compact RTX diagnostic panel has small angular differences, while rate
-  intervals remain inconclusive; update refinement prevents extrapolating a
-  favorable comparison to unrestricted 10 ms operation. Furnished/screened room
-  cost and reference limits govern the bounded probes. Step 3 remains open.
+  The compact RTX diagnostic panel is followed by 96 fresh C03 programs at
+  1.5 m/s and 2.5 ms updates: all relative angular, miss/extra and added-latency
+  budgets pass on both arrays, including the weak-direct ablation. Absolute
+  fastest-source performance is difficult in both models; a separate diagnostic
+  suggests common consumer temporal averaging. Other cell rate intervals remain
+  inconclusive. The bounded two-source room probe has no misses/extras in its
+  twelve eligible updates; screened arrivals remain unresolved. Full room
+  references/conditioning, physical weak-direct moving routes and ordinary moving
+  geometry are still open. Neither a faster source's relative PASS nor the short
+  probes admit general motion, unrestricted 10 ms updates or Step 3 as a whole.
   [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|Joint evidence and remaining coverage]].
 
 ## Maintained capabilities and boundaries

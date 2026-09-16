@@ -184,9 +184,13 @@ neither the cube diagnostic decision nor the remaining Step 3 gates.
 The subsequent joint panel uses actual D responses at every sampled microphone
 pose. Dynamic grouping, source identity, reset, environment isolation, exact-pose
 PCM replay and the controlled-plane energy/coherence checks pass. C03/C04 now have
-a compact corrected-RTX observation panel and targeted update refinement; small
-sample rate intervals and full representative-room references remain open. Native
-room cost is measured before allocation. See
+a compact corrected-RTX panel and targeted update refinement. The fresh
+96-program fastest-source confirmation passes all relative observation budgets
+on both arrays, including weak direct, at 2.5 ms. Absolute consumer performance
+remains difficult in that control. Two bounded room probes and sequential
+two-source replay are complete; other cell rate intervals, full room references,
+conditioning and physically weak-direct moving routes remain open. Native room
+cost is measured before allocation. See
 [[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|joint motion/observation evidence]]
 for the validated scope, independent-reference boundary and remaining admission.
 

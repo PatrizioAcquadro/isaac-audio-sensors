@@ -443,3 +443,24 @@ Five documentation-boundary checks, 40 canonical indexed pages, 247 wikilinks an
 38 heading targets pass. Verified new evidence paths, quantitative control values,
 reference independence boundaries and whitespace. Raw and historical evidence,
 physical budgets and the cube diagnostic decision remain unchanged.
+
+## 2026-09-16 — experiment: Targeted C03 confirmation and room limits
+
+Recorded 96 fresh fastest-source programs at 2.5 ms: both arrays and direct gains
+pass all relative angular, miss/extra and added-latency budgets. Absolute rates
+and conditional angular coverage remain explicit; the scoring audit retains empty
+episodes as misses without inventing angular errors. A fixed-context diagnostic
+suggests common consumer temporal averaging, without changing timestamps or scoring.
+Completed two bounded room probes, exact sequential two-source replay and banded
+DRR reporting. Their limited routes, unconditioned materials and missing moving-
+room reference leave broader qualification open. Updated R10/08, status and index;
+PRA, physical budgets and the cube diagnostic decision remain unchanged.
+
+## 2026-09-16 — lint: Motion confirmation closeout
+
+Five documentation-boundary tests, 40 canonical indexed pages, 247 wikilinks and
+38 heading targets pass. Local harness syntax/undefined-name checks and evidence
+assertions pass, including all twenty targeted confidence decisions and 42 room
+poses. Reviewed the diagnostic figure and coverage tables, preserved raw outputs,
+and checked whitespace. This closes the bounded campaign, not Step 3 or the
+remaining representative-room, consumer and runtime gates.

@@ -849,8 +849,46 @@ and a miss rate by 5.36 points. From 5 to 2.5 ms, maximum point changes across
 the two models are .224 degrees on mean, .515 on p95, 1.79 points on rates and
 25 ms on acquisition. Few-episode rate convergence remains open; neither this
 refinement nor a favorable model comparison admits unrestricted 10 ms updates.
-The predeclared fresh confirmation targets only C03 at 1.5 m/s, both gains and
-arrays, with 96 new waveforms and the 2.5 ms responses.
+
+### Fresh fastest-source confirmation
+
+**All five approximation-impact budgets pass** for C03 at 1.5 m/s, both arrays
+and gains, using 96 fresh paired waveforms per cell and 2.5 ms responses. The
+95% intervals use whole-episode resampling; the gain-.1 extra-rate zero-discordance
+bound is +/-3.77 points. Absolute rates and paired changes are:
+
+| Array / direct gain | Misses: reference → candidate | Extras: reference → candidate | Miss change, pp [95% CI] | Extra change, pp [95% CI] |
+| --- | --- | --- | --- | --- |
+| Square / 1 | 35.27% → 33.48% | 35.27% → 33.48% | -1.79 [-3.20, -.44] | -1.79 [-3.20, -.44] |
+| Raised / 1 | 36.38% → 34.97% | 45.24% → 44.12% | -1.41 [-2.98, .15] | -1.12 [-2.53, .22] |
+| Square / .1 | 88.84% → 85.79% | 100% → 100% | -3.05 [-4.84, -1.26] | 0 [-3.77, 3.77] |
+| Raised / .1 | 53.42% → 51.34% | 100% → 100% | -2.08 [-3.27, -.89] | 0 [-3.77, 3.77] |
+
+Maximum mean/p95 point changes are .445/.384 degrees; every angular interval
+fits the 5/10-degree budgets. The largest upper endpoint for added acquisition
+latency is 19.8 ms, below 100 ms. The weak-direct PCM ratio is about -8.5 dB.
+Directional occupancy in the retained tail averages .2 seconds in both treatments;
+these are update events, not false tracks or robot actions.
+
+Angular quality is conditional on matched observations, with coverage retained.
+In square/gain-.1, reference and candidate match 150/191 of 1344 eligible events,
+from 82/92 of 96 episodes. Empty episodes contribute full misses and no angular
+error mass; they are not zero-angle successes. The final `qualification.json`
+corrects the first summarizer's unnecessary rule that any empty episode makes
+the entire angular estimate undefined. Whole-episode bootstrap samples with no
+usable angular observations remain undefined. Raw PCM, observations, eligibility,
+thresholds and budgets are unchanged; diagnostic summaries are preserved to
+numerical precision. `RESULTS.md` provides all absolute values, intervals and coverage.
+
+This is a **relative-fidelity PASS**, conditional on one persistent field, not a
+claim of good absolute tracking at this speed. Both treatments have substantial
+misses/extras. A fixed, unfitted context-midpoint diagnostic on the four earlier
+gain-1 programs reduces nearest-direction error from 18.9–20.4 degrees against
+instantaneous truth to 4.3–6.6 degrees against the 375 ms midpoint of the 750 ms
+consumer window. This suggests a shared temporal-averaging contribution. No
+timestamp is backdated and admission scoring is unchanged. The other C03/C04
+rate confirmations, field-seed generalization and unrestricted update-rate
+qualification remain open; this result does not admit the full movement domain.
 
 ### Representative-room boundary
 
@@ -864,12 +902,31 @@ They do not replace full A04/A08/M01 routes or their source/material conditions.
 Two sequential furnished/two-source producer poses, including an interrupted
 emission prefix, reproduce the saved responses and PCM exactly.
 
+Both bounded probes complete 21 exact motion poses and a 4.1-second PCM program
+per layout. E1 two-source/receiver motion has no missed/extra events in twelve
+eligible LOS updates on either array; mean/p95 errors are 4.24/12.72 degrees on
+square and 4.70/13.55 on raised. Tail directional occupancy is .4 seconds.
+The screen-edge probe has 17/12 directional updates on square/raised out of 41,
+with .5 seconds of tail occupancy. Its arrivals remain directionally unresolved
+for qualification. These are one-program absolute results without rate intervals.
+
+The room probes do not cover the prescribed physical weak-direct range: E1
+two-source layout DRR spans about -5.93 to -3.92 dB; the screen probe begins at
+-20.84 dB on square with only one directly illuminated microphone, then has no
+direct energy. Raised is fully occluded throughout. Band/source/microphone/pose
+energies are retained in `rooms/observations.json`; zero direct energy is explicit,
+not a finite logarithmic-floor measurement. Full weak-direct moving routes,
+ordinary moving geometry, room conditioning and matched references remain open.
+
 Full moving multibounce room references and material conditioning remain open.
 NLOS observations must not be scored against hidden-source bearing as though it
 were a validated arrival direction. The room probes can establish integration
 and absolute observations; they cannot by themselves establish approximation
 budgets. The cube's diagnostic exception and Step 3's `not_admitted` status remain
-unchanged. No provider replacement or new multibounce solver is implied.
+unchanged. The 96-program confirmation takes about 20.5 minutes including PCM
+replay and both consumers, excluding native bank preparation; this is an offline
+campaign time, not an isolated throughput benchmark. No provider replacement or
+new multibounce solver is implied by these results.
 
 ## Evidence and reproduction
 
