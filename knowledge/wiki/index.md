@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — native corrections, conditioned-room failure, late-response diagnostics and practical-impact limits. Includes bounded AV consequences and independent-reference limits.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — native corrections, conditioned-room failure, late-response diagnostics and practical-impact limits. Includes refined bounded AV confirmation, the PRA retention recommendation and independent-reference limits.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — completed bounded simulation preparation, Office/Hospital proxies and lean comparison allocation; later field/reference gates remain explicit.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

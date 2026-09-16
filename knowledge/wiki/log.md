@@ -344,3 +344,17 @@ localizer or acceptance-budget change. Refined confirmation is separately declar
 
 Five documentation-boundary tests pass; canonical links, retained local evidence,
 index coverage and diff whitespace checks pass. No raw knowledge material changed.
+
+## 2026-09-16 — experiment: Refined AV confirmation supports retaining PRA
+
+Recorded 192 fresh independent episodes on one refined native field, actual RTX
+perception, whole-episode intervals, rare-event batch reproduction and measured
+resumption benefit. Preserved the raised-only inconclusive interval, original
+physical/observation counterexample and remaining domain/reference limits.
+Recommendation: retain PRA; no provider evaluation or budget change.
+
+## 2026-09-16 — lint: Refined AV confirmation closeout
+
+Eight documentation/evaluator checks pass. All local study scripts pass Ruff;
+canonical links, evidence paths, index coverage and diff whitespace are checked.
+The Italian result figure was visually inspected; no raw knowledge changed.

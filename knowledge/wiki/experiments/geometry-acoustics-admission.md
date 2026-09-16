@@ -823,3 +823,77 @@ source-coordinate metadata; absolute grid placement/wall materials are also
 unavailable in the inspected primary metadata. No channel-wise delay correction
 or source-coordinate rewrite is applied. This is neither a matched physical twin
 nor evidence that one simulated room response is closer to reality.
+
+#### Refined conditional confirmation and recommendation
+
+The prospectively fixed 192 fresh episodes (21000–21191) completed on the RTX 4090
+with 65536 rays, 2.5 ms head integration and the already selected field seed 17001.
+Independent uniform layout/schedule draws produced 92 square and 100 raised episodes;
+100 episodes were intermittent. This confirms the **fixed room/field/task recipe**,
+not a population of rooms or every field realization. It retains the four-field
+coarse diagnostic and every failed historical control.
+
+| Confirmed measurement | Square reference | Square candidate | Raised reference | Raised candidate |
+| --- | ---: | ---: | ---: | ---: |
+| First visual acquisition within 10 s | 92/92 | 92/92 | 100/100 | 100/100 |
+| Extra-update rate | 53.36% | 50.44% | 84.23% | 84.09% |
+| Episode with any false visual association | 0/92 | 0/92 | 0/100 | 1/100 |
+| Mean selected wrong-cue dwell | 7.87 s | 6.39 s | 5.32 s | 5.37 s |
+| Mean visual resumption time | 1.499 s | 1.419 s | 1.339 s | 1.387 s |
+
+Pooled candidate-minus-reference acquisition success is 0 points, conservative
+95% interval [-2.26,+2.26]. The false-association difference is +.52 points,
+interval [-2.25,+3.28]. Using the same five-point rate margin as a conservative
+AV diagnostic, this pooled interval fits; it does not redefine the existing
+observation-rate gate. The **raised-only false-association interval remains
+inconclusive**, [-4.27,+6.21] points. Pooling does not admit that individual stratum.
+The square interval is [-4.65,+4.65]. All 100 intermittent episodes acquire the
+object after both resumptions; treating the whole episode as the independent
+binary unit gives a pooled difference interval [-4.29,+4.29] points.
+
+The extra-update difference is -2.92 points on square, interval [-4.35,-1.51], and
+-.14 on raised, interval [-.71,+.44]. Thus the original large cube discrepancy
+is **not reproduced in this different, less symmetric speech/head-motion case**.
+That does not erase the valid original counterexample or admit missing scenarios.
+The measured MeshRIR raised extras are also all duplicates within the same source
+azimuth sector: no >20-degree or opposite-sector estimate occurs in the selected
+steady-state replay. High multiplicity alone cannot establish wrong robot turns.
+
+There is a bounded timing benefit. Mean first acquisition is .446/.483/.672 s for
+candidate/reference/audio-off. Candidate minus audio-off is -.226 s, interval
+[-.329,-.134]. Mean resumption times are 1.402/1.414/3.126 s; candidate retains a
+1.724 s advantage over audio-off, interval [1.522,1.917] s. Candidate minus reference
+resumption time is -.012 s, interval [-.139,+.114]. These are head/camera reaction
+times, not the 100 ms added acoustic/perceptual-latency gate. First-acquisition
+success itself has an audio-off ceiling, so this does not close the complete
+profile's primary usefulness gate or prove moving-target tracking.
+
+The lone false association is retained: raised intermittent episode 21191 has
+three consecutive 30 Hz false-association frames (100 ms), with first resumption
+acquisition 3.682 s versus 1.048 s for the reference. A short false-association
+span therefore does not imply negligible episode cost. The association does not
+command the head; both effects occur in the divergent audio-guided trajectory.
+Replaying this episode plus three other condition representatives in a much
+smaller GPU batch preserves all task outcomes, rates and dwell; only tiny angle
+summaries change. This focused check does not remove the broader existing
+raised-array scalar/CUDA qualification limit.
+
+**Decision supported by these results: retain PRA; do not evaluate replacements
+on the basis of this discrepancy.** The current implementation preserves useful
+bounded AV behavior despite remaining pressure/statistical mismatches. The evidence
+does not show that a new transport engine is necessary, nor that the tail is
+universally harmless. Keep the renderer and reusable native work, address bounded
+representation/consumer issues where measured, and keep qualification distinct
+from the replacement decision. No threshold, domain, observation budget or stop
+rule was changed. Step 3 remains unadmitted: the original cube failure, numerical
+cache/edge limits, missing C03/C04/general motion/two-source room evidence, and
+matched physical-transfer validity are still open. Steps 4–6 remain separate.
+
+The refined bank takes about 724 s including reference preparation with eight CPU
+workers; the 192-episode, three-treatment GPU loop takes about 480 s. These are
+observed offline evaluation costs, not live producer capacity. Exact endpoints,
+whole-episode intervals, source/pose programs, full traces and the inspected compact
+plot are in `local/r10/08_2_step3_av/confirmation192/summary_final.json`,
+`confirmation192/episodes.json`, `confirmation_batch_control/result.json`,
+`task_impact.png` and `README.md`. No new physical capture, provider installation,
+proprietary multibounce solver or push was performed.

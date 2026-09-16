@@ -177,6 +177,11 @@ reference audit. A coarse false association that changes under refinement, or a
 direct-only consumer failure, does not establish a provider-replacement need.
 Retain the implemented PRA work while separating those causes; all existing
 physical, task-usefulness and transfer limits still require their own evidence.
+The completed refined confirmation supports retaining PRA for bounded AV work:
+acquisition and resumption benefit survive, while a rare false association and
+raised-only precision limit remain recorded. This is an evidence-based retention
+recommendation, not public diffuse admission, a budget waiver or proof that every
+mandatory-domain failure is harmless.
 
 Extend Steam/PRA first with the smallest general maintainable changes. If a
 material mandatory-domain gap cannot be closed with simpler native/statistical
