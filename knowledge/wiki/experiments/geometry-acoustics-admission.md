@@ -1,29 +1,35 @@
 # Geometry Acoustics Admission Evidence
 
-Recorded experiments: 2026-09-10/11/15/16. This page preserves decisive measurements,
-reference corrections and replay pointers; it does not repeat the implementation
-plan. [[decisions/robot-audition-fidelity|The approved task-domain decision]] governs
-which failures block admission. [[implementation_phases/r10-geometry-acoustics-integration|R10]]
-owns current implementation work.
+Experiments: 2026-09-10/11/15/16. This page owns decisive results, reference
+corrections and replay pointers. [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]]
+owns admission criteria; [[implementation_phases/r10-geometry-acoustics-integration|R10]]
+owns current work; [[topics/geometry-acoustics|Geometry Acoustics]] owns implementation
+contracts/builds. Historical milestones below retain their original scope and verdicts.
 
 ## Admission summary
 
 | Contribution | Established | Still unqualified |
 | --- | --- | --- |
-| Steam direct + native PRA specular intermediate | Bounded arrival/gain, reflected visibility, streaming and actual Sim/Lab/Kit; scalar/CUDA agreement on identical PCM | General motion, diffuse pressure and selected-route production integration |
+| Steam direct + native PRA specular intermediate | Bounded arrival/gain, reflected visibility, streaming and actual Sim/Lab/Kit; scalar/CUDA agreement on identical PCM | General retarded motion and the full diffuse/combined field; selected-route integration is qualified separately below |
 | Steam selected routes | Step 2 native selected-route transport, producer lifecycle and ordinary-motion controls | Calibrated pressure/diffraction, combined producer and consumer admission |
 | PRA persistent surface pressure | Optional D implementation; native visibility, first-scatter quadrature, shared-field and streaming controls; bounded AV evidence supports retaining PRA | Cube late-response failure retained as diagnostic; binding field, representative motion/room/observation and later task admission remain open |
 | Closed-loop tasks | Targeted NLOS benefit and diffuse observation sensitivity | Both approved AV/mobile consumer gates |
 
-**Current interpretation — user-approved cube decision, 2026-09-16.** The recorded
-smooth E0/C02/R05 late pressure and spurious-update results remain FAIL under their
-original criteria, but are diagnostic for current Step 3 admission. Their
-correction is no longer a prerequisite for continuing or closing Step 3. The
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|canonical decision]]
-defines the scope, binding invariants/budgets and reopening rule. Step 3 remains
-unadmitted for the remaining applicable controls; no new experiment or physical
-correction is claimed. Dated stop statements below describe the decision at the
-time of each run, not a current instruction to halt on the cube alone.
+**Current decision (2026-09-16): retain PRA; Step 3 remains unadmitted.** The
+smooth E0/C02/R05 late-pressure and spurious-update comparisons remain **FAIL under
+the original criteria, diagnostic for current admission**. Their correction is
+not required to continue/close Step 3; other binding field, representative-motion
+and observation gates remain open. The
+[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|approved decision]]
+owns invariants, budgets and reopening rules. Dated stops below are historical,
+not instructions to halt on the cube alone.
+
+Key results:
+[[experiments/geometry-acoustics-admission#Step 2 selected-route transport closeout|NLOS closeout]] ·
+[[experiments/geometry-acoustics-admission#General D implementation and conditioned-room admission (2026-09-15)|general D / cube]] ·
+[[experiments/geometry-acoustics-admission#Practical significance follow-up (2026-09-16)|cube impact]] ·
+[[experiments/geometry-acoustics-admission#Bounded head/camera diagnostics (2026-09-16)|AV evidence]] ·
+[[experiments/geometry-acoustics-admission#Evidence and reproduction|reproduction]].
 
 ## Steam reflection reconstruction — rejected mapping
 
@@ -119,99 +125,37 @@ EQ/weight/delay. The screen fixture has two routes per microphone. All 44 native
 arrival cases pass (max error 0.6252 samples against route delay plus native filter
 peak); geometric lower bounds also pass. Later filter controls at 5.706/9.494 m
 pass one-sample timing, <0.1% gain error and independent filter state.
-Probe coverage, duplicate representation weighting, rebake identity and full
-production directivity/lifecycle still need qualification.
+At that milestone, probe coverage, duplicate weighting, rebake identity and
+production directivity/lifecycle were unqualified; Step 2 below records their closeout.
 
 ## Step 2 native preparation — 2026-09-15
 
-The maintained private bridge now uses Steam UniformFloor generation, bounded
-probe capacity, native baking and alternate search. All visible source-probe
-weights participate in exported routes. LOS is excluded; uncovered endpoints,
-missing floor and native preparation failures are explicit errors. Equivalent
-geometric/EQ contributions sum interpolation weights; duplicate native records
-fail. Native meshes can be retained with immutable instance transforms.
+Steam UniformFloor generation, bounded probes, native baking/alternate search and
+pre-aggregation route export were integrated through checked private ABIs. LOS is
+excluded; missing floor, uncovered endpoints, capacity/preparation errors and duplicate
+native records fail explicitly. Equivalent geometric/EQ representations sum weights.
+Immutable instance transforms preserve meshes; the baker receives its required callback.
 
-Ten focused native/stream checks pass: automatic probe generation, screen detour
-lower bounds and per-route one-sample timing, closure/restoration, LOS exclusion,
-coverage/capacity failure and the prior filter/visibility/transport controls.
-The SDK baker needs a non-null progress callback; the bridge supplies one.
-This is component validation, not ordinary-motion or producer admission.
+### Corrected failures and retained evidence
 
-### Producer integration and surface-endpoint correction
+| Failure | Correction | Decisive check |
+| --- | --- | --- |
+| Surface/corner probes let E4 take 8.23 m versus a 9.22 m detour bound; coarse E3 leaked through a closed door | Native probe clearance and inclusive endpoint bounds; ABI 2 retains interpolation-pair identity through simplification | Both layouts respect E4 bounds and E3 closure at 1/.5 m spacing; screen and Office/Hospital bounded endpoint coverage pass (Hospital .5 m: 2399 probes, ~24 s preparation) |
+| Lattice alignment reduced captured interpolation weight to .00031 instead of 1; corner filtering alone shifted the failure | Center the grid; use identical inclusive segment bounds in baking, validation and export, without renormalizing missing paths | Nine microphone positions at 1/.5/.25 m spacing: weight 1 within 2e-6, independent detour bounds pass |
+| Native tree traversal cutoff omitted one side of a symmetric screen | Query the full neighborhood, select nearest eight visible probes, retain native weights | Both alternatives restored; producer regressions cover 1.5/1 m/s endpoints, rebake identity and directivity at route nodes |
+| Scene diagonal incorrectly bounded total bent-route length; E4 source (7,6.45) retained weight .883 | Bound total baking by a finite simple path through the graph; keep producer travel-time horizon explicit | 567 E4 pose/channel/grid checks pass visibility/detour bounds and weight 1 within 2e-6 |
+| Ordinary opening must reconsider emitted sound with no assigned route | Recover only `no_selected_route` history; test segments at passage time, exclude prior LOS/assigned intervals | 1 ms emission behind gate plus NLOS screen: opening at 2 ms matches already-open arrival; opening at 6 ms blocks. Stop/rebake/fragmented-epoch regressions pass |
 
-The optional producer path passes static/moving read partitioning, source-stop,
-reset and source/array independence tests. Whole-host checks pass 662 unit/contract,
-336 integration and 58 release tests. A live RTX 4090 / CUDA Physics run passes
-four simulated seconds, 180 native door updates, selected/LOS/selected transitions
-and reset; it measured about 228 seconds including application startup/shutdown.
-This is bounded integration evidence, not a real-time claim.
+E4 source/receiver/yaw refinement changes weighted length/direction by at most
+.6214 m/3.53° for 1→.5 m grids and .00754 m/1.45° for .5→.25 m. These are numerical
+sensitivities, not diffraction error bounds; default 1 m spacing is coarse.
 
-Step 1 E4 revealed probes exactly on wall planes: native endpoint exclusion allowed
-an impossible 8.23 m path versus a 9.22 m detour bound. E3 also leaked through its
-closed planar door on the coarse grid. Native probe clearance and inclusive route
-validation remove these shortcuts. ABI 2 preserves interpolation-pair identity
-through simplification, fixing false duplicate detection on the denser grid.
-Both 1 m and 0.5 m grids now respect E4 bounds across both layouts; E3 closed yields
-no selected route on both grids. Screen paths and bounded Office/Hospital coverage
-complete on both grids (Hospital 0.5 m: 2399 probes, about 24 seconds preparation).
-Initial failures remain in `local/r10/08_step2_nlos/coverage_initial.json`; corrected
-coverage and live results are in that directory. Ordinary door/motion refinement
-runs are still in progress; no task-utility or diffuse admission follows from these checks.
-
-### Corridor refinement correction
-
-The subsequent refinement control exposed near-total weight loss when an endpoint
-aligned with the old lattice: captured weight could fall to 0.00031 instead of 1.
-Filtering corner probes alone moved the failure to other grid spacings. The repair
-centers the native lattice and uses identical inclusive segment bounds during
-native graph baking, alternate validation and route export. It does not renormalize
-missing paths. The maintained L-corridor regression passes all nine microphone
-positions at 1, 0.5 and 0.25 m spacing: total interpolation weight is 1 within 2e-6,
-and every route respects the independent detour bound.
-
-The corrected native binary rebuilds byte-identically (`b9954dc6…`); seven native
-controls, eleven filter/transport controls and fourteen producer regressions pass.
-The repeated actual RTX 4090 / CUDA Physics control passes four simulated seconds,
-180 geometry updates and reset (about 44 seconds including startup/shutdown).
-Final-build evidence is in `local/r10/08_step2_nlos/final/`; earlier failed refinement
-evidence remains in `dynamics_before_clearance.json`. Ordinary refinement is still
-being assessed; these repairs alone do not close Step 2.
-
-The explicit two-alternative screen test then exposed the native tree's
-traversal-order neighborhood cutoff. Querying the full native neighborhood and
-retaining the nearest visible eight restores both alternatives while preserving
-native interpolation weights. The checked `d8d442dc…` build passes 21 native and
-producer tests and repeats the CUDA Physics smoke (about 46 seconds). Evidence
-for this subsequent build is in `local/r10/08_step2_nlos/qualified/`; earlier
-directories remain historical. New transport regressions cover the declared
-1.5/1 m/s endpoint speeds, rebuilt probe identity without duplicate arrivals and
-directivity when a moving endpoint meets a route node.
-
-### Accumulated length and ordinary opening controls
-
-The pose sweep exposed a separate preparation error: the scene diagonal had also
-limited total baked path length. A bent route can exceed that diagonal; at E4
-source (7,6.45), the coarse grid retained only 0.883 of the interpolation weight.
-The native bake now admits the finite simple-path bound of the graph, while the
-producer enforces its explicit travel-time horizon before history can expire.
-The final native artifact is `74f3d78b381afd84ff98e20b000705cf3128a831735c888ca60a13ebf77604ba`.
-
-Across 567 E4 pose/channel/grid checks (both layouts, source motion, receiver motion
-and yaw), all selected paths respect the independent corridor detour bound and
-native segment visibility; interpolation sums remain 1 within 2e-6. Refining
-1 to 0.5 m spacing changes weighted path length by at most 0.6214 m and direction
-by 3.53 degrees. Refining 0.5 to 0.25 m reduces these differences to 0.00754 m and
-1.45 degrees. These are numerical refinement differences, not calibrated
-diffraction-error bounds; the default 1 m grid is deliberately coarse.
-
-An ordinary opening must also reconsider previously emitted, unassigned sound.
-Native producer controls emit a 1 ms signal behind a gate and a second, persistent
-NLOS screen: opening at 2 ms preserves the same arrival as the already-open
-reference; opening at 6 ms blocks it. Geometry is checked at passage time. Only
-previously `no_selected_route` intervals are reconsidered; previous LOS and assigned
-routes are excluded. Source stop, structural rebaking before arrival, and fixed
-geometry epochs under fragmented PCM reads have independent producer regressions.
-The asynchronous two-gate stress exclusion below remains unchanged.
+`local/r10/08_step2_nlos/` retains `coverage_initial.json`,
+`dynamics_before_clearance.json`, intermediate `final/` and `qualified/` builds,
+and final `closeout/`/`validation/` evidence. Earlier test/smoke results are
+superseded by the closeout below, not additional admission claims. The final native
+artifact is `74f3d78b381afd84ff98e20b000705cf3128a831735c888ca60a13ebf77604ba`;
+repeat-build identity was checked during correction.
 
 ### Step 2 selected-route transport closeout
 
@@ -289,122 +233,90 @@ Against a fixed-surface Lambertian reference, coherence errors are ~0.117/0.227/
 0.687 at 500/1000/4000 Hz; 4 kHz error persists at 4096–65536 rays. More rays and
 stable seeds do not fix phase attachment to moving ray hits.
 
-The minimum anchoring prototype fixes first-scatter positions using surface area
-and Lambertian cosines, native ISM incidence and ISM/RT suffixes. Twelve plane
-controls pass (max complex error 8.21e-6, relative energy difference <=1e-5), without
-fitted gain. But a 1 cm moving mirror shifts second-scatter locations 2 cm on a
-stationary floor: errors ~0.151/0.300/1.031 at 500/1000/4000 Hz remain across
-4096–65536 rays. Fixed first anchors do not solve general multibounce persistence;
-finite specular prefixes also remain incomplete. Under the approved scope these
-are diagnostics; task-relevant statistical impact decides further work.
+First-scatter anchoring using surface area/Lambertian cosines and native ISM/RT
+prefixes/suffixes passes twelve plane controls (complex error ≤8.21e-6, relative
+energy difference ≤1e-5, no fitted gain). A 1 cm mirror translation still moves
+second-scatter hits 2 cm on a stationary floor: errors ~.151/.300/1.031 at
+500/1000/4000 Hz persist at 4096–65536 rays. First anchors and finite specular
+prefixes do not solve multibounce persistence; these diagnostic discrepancies
+require task-relevant statistical-impact evidence.
 
 ## Step 3 shared statistical extension — not admitted (2026-09-15)
 
-New work under `local/r10/08_2_step3_diffuse/` preserves prior prototypes and the
-working producer. The checked native PRA extension captures incident surface and
-received band energy before histogramming, including parent interactions and
-directions. Disjoint ISM/RT receiver ownership, two-sided closed/open/closed
-containment, band branching, reproducibility and independent handles pass five
-native checks. Seventeen existing specular/Geometry tests pass against the new
-library using the Isaac interpreter. This is CPU-native evidence, not live diffuse
-PCM, CUDA perception or overall Phase 08 qualification.
+The preserved experimental extension captures pre-histogram incident/received
+band energy, parent interactions and directions. Five native checks pass disjoint
+ISM/RT ownership, two-sided containment, branching, reproducibility and handle
+isolation; seventeen existing specular/Geometry tests pass with the Isaac interpreter.
+This is CPU-native component evidence, not live diffuse/CUDA admission.
 
-The statistical candidate uses fixed material surface nodes and shared delay/
-directional modes. Mean native path lengths remain unstable under source motion.
-A directional source phase gauge repairs the controlled one/two-scatter case:
-at 65536 rays, 0.5 m nodes, 4 ms modes and 64 directions, maximum temporal errors
-are 0.05586/0.04768, spatial errors 0.00471/0.01088 and energy ratios
-0.99693/1.00344. These bounded scalar-plane results do not establish full banded
-normalization, radius behavior, high-order ownership or a converged room tail.
-Near-surface refinement needs smaller nodes and more samples; increasing to
-262144/1048576 rays reduces its two-scatter temporal error to 0.06343/0.05648.
+| Statistical control | Result | Limit |
+| --- | --- | --- |
+| Fixed material nodes with directional source phase gauge; 65536 rays, .5 m nodes, 4 ms modes, 64 directions | One/two-scatter temporal errors .05586/.04768; spatial .00471/.01088; energy ratios .99693/1.00344 | Scalar planes only; full bands/radius/high-order/room-tail qualification absent |
+| Near-surface two-scatter refinement | Temporal error .06343/.05648 at 262144/1048576 rays | Requires finer nodes/more samples |
+| Translating mirror between diffuse surfaces, native interaction derivatives | Maximum error .02002 at 65536 rays | First-order rotation still biased |
 
-Native interaction derivatives also correct a translating mirror between diffuse
-surfaces (bounded maximum error 0.02002 at 65536 rays), but the corresponding
-first-order rotation correction retains bias. In the independent two-Lambertian-
-surface control, a smooth mirror rotates 5 degrees around a fixed pivot; that
-change can occur in 100 ms at 50 degrees/s. This is a controlled transfer-statistics
-test, not an asynchronous-flight stress scenario or a furnished-room reference.
+Independent two-Lambertian-surface rotation control: mirror turns 5° about a fixed
+pivot (100 ms at 50°/s). This tests ordinary transfer statistics, not asynchronous
+flight or a furnished room.
 
 | Native rays; 12 sampler realizations each | Mean complex temporal-coherence error at 500 Hz | 95% interval for the mean |
 | --- | --- | --- |
 | 262144 | 0.16404 | [0.15981, 0.16807] |
 | 1048576 | 0.17045 | [0.16783, 0.17321] |
 
-All realizations exceed the controlled 0.1 bound; 1000/4000 Hz controls pass.
-Independent exact image-distance quadrature changes only ~0.000406 between
-0.25/0.125 m discretizations at 500 Hz. Native selected path lengths agree with
-that geometry within 4.155e-6 m. The reference and sample refinements therefore
-do not explain away this candidate's bias. Final confirmation uses fresh native
-seeds 100–111 after diagnostic seeds 0–11; confidence intervals resample whole
-native realizations, not frames or robot episodes. Scripts, inputs, variants,
-derivations and commands are in the local README; `summary.json` owns the numbers.
+All realizations exceed the controlled .1 bound; 1000/4000 Hz pass. Independent
+image-distance quadrature changes ~.000406 at 500 Hz for .25→.125 m discretization;
+native path-length error is ≤4.155e-6 m. Reference/sampler refinement does not
+explain the bias. Fresh seeds 100–111 follow diagnostic seeds 0–11; intervals
+resample native realizations, not frames/robot episodes.
 
-**Step 3 is not qualified.** The initial stop preceded a larger pressure-transport
-redesign. The user subsequently authorized a targeted PCM/observation comparison
-of this candidate before deciding on the provider; see
-[[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|the revised diagnostic role]].
-The failed 0.1 control remains unchanged. No diffuse configuration is enabled; complete
-energy/decay/radius qualification, causal integration, full-room reference validity
-and weak-direct observation comparisons remain open. No new CUDA/consumer result
-is inferred from these controls. The failed candidate does not prove all PRA or
-statistical extensions impossible; replacement evaluation has not started.
+**Historical stop:** Step 3 was unqualified before a larger pressure redesign.
+The subsequent [[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|targeted-impact decision]]
+authorized the observation comparison below, retaining the failed .1 statistic.
+No public diffuse option was enabled at this milestone. Full energy/decay/radius,
+causal, room-reference and weak-direct qualification remained open; this candidate
+failure did not establish PRA impossibility or authorize replacement evaluation.
+Reproduction/variants: `local/r10/08_2_step3_diffuse/README.md`; values: `summary.json`.
 
 ## Earlier candidate: targeted observation impact (2026-09-15)
 
-The user authorized this follow-up after the physical stop. The preserved native
-transport and `surface_field.project` candidate were not changed. A separate
-experimental PCM harness compares them with fixed-surface Lambertian quadrature
-and exact mirror-image reference geometry. The 0.17045 temporal-coherence failure
-remains recorded; its relevance to observations is measured rather than assumed.
-Evidence and reproduction: `local/r10/08_2_step3_impact/README.md`; compact values
-in `summary.json`, confidence-interval plot in `impact.png`.
+The unchanged `surface_field.project` candidate was compared against fixed-surface
+Lambertian quadrature and exact mirror-image geometry after the physical stop.
+The .17045 temporal-coherence failure remains; its observation impact is measured.
 
-**Result: the rotating-mirror selected-mixture observation comparison passes on
-both arrays, including weak direct. Overall Step 3 remains open.** Other cases
-retain inconclusive rate/p95 intervals. No fresh confirmation interval establishes
-an impact outside its budget; this does not turn inconclusive intervals into passes.
-The results support retaining PRA and pursuing the missing qualification, rather
-than inferring provider inadequacy from the failed field statistic alone.
+**Result:** rotating-mirror selected-mixture budgets pass on both arrays, including
+weak direct; other cases retain inconclusive intervals. No fresh interval establishes
+an over-budget impact. This supports retaining PRA, not full Step 3 admission.
+Reproduction: `local/r10/08_2_step3_impact/README.md`, `summary.json`, `impact.png`.
 
 ### Method and essential controls
 
-- Exact maintained square/raised arrays; 16 kHz, 3.2 s episodes with an interruption
-  and final source stop. Pilot: four independent signal/field-phase episodes per
-  case; static, source/receiver translation, receiver rotation, one/two sources,
-  and the rotating family. Both direct gains 1 and 0.1 are sensitivity axes;
-  attenuation does not represent a physical door. No gain is fitted to the field.
-- Refine 4096/16384/65536 native rays and 10/5/2.5 ms updates on selected source/
-  mirror episodes. Fresh confirmation: 24 episodes for moving source/two sources
-  at 65536 rays/10 ms, and 96 for isolated/mixed, rotating/held mirror controls at
-  65536 rays/2.5 ms. Arrays and hard conditions remain separate. These refinements
-  do not provide an independent model reference or prove full numerical convergence.
-- Native scalar energy and the synthesis kernel are checked analytically. Plane
-  expected energy differs from reference by at most 0.313%; the fractional kernel's
-  passband power is 0.99528–1.000002 and its phase-delay error is <0.000352 samples.
-  Whole-Nyquist kernel energy is included explicitly in the random-RIR expectation.
-  Co-located/reordered/split microphone, refresh, equivalent source-coordinate,
-  partition, stop-tail, reset and independent-state checks pass in this harness.
-- Source/receiver/yaw reference quadrature .25→.0625 m changes temporal coherence
-  by <0.000097 over the actual episode lags. Mirror energy/coherence refinement
-  changes are <0.137%/<0.00425 in the center-microphone control. Refining actual
-  reference importance sampling 8192→65536 at .25 m changes joint temporal/
-  cross-microphone covariance by at most 0.01740. These are independent analytic
-  statistical controls with quantified approximation limits.
-- Actual RTX 4090 `TorchPerception`, unchanged thresholds/parameters, observed PCM
-  and microphone positions only. Scalar parity on eight selected streams preserves
-  every count/activity decision; maximum angular difference is 1.246 degrees.
-  Solo/reordered/loud-neighbor/partial-reset CUDA controls also preserve counts
-  and activity, with maximum angle difference <0.000016 degrees.
+- Exact square/raised arrays, 16 kHz, 3.2 s with interruption/final stop. Pilot:
+  four independent signal/field-phase episodes per static, moving-source/receiver,
+  yaw, one/two-source and rotating case. Direct gains 1/.1 are sensitivity axes,
+  not physical-door attenuation; no fitted field gain.
+- Selected refinement: 4096/16384/65536 rays, 10/5/2.5 ms. Fresh confirmation:
+  24 moving-source/two-source episodes at 65536 rays/10 ms; 96 isolated/mixed,
+  rotating/held-mirror episodes at 65536/2.5 ms. Keep layouts/hard conditions separate.
+- Analytic energy/kernel controls: expected plane-energy error ≤.313%; fractional
+  passband power .99528–1.000002, phase-delay error <.000352 samples. Whole-Nyquist
+  kernel energy enters the random-RIR expectation. Colocation/order/grouping,
+  refresh/source-coordinate equivalence, partition/tails/reset/state isolation pass.
+- Reference quadrature .25→.0625 m changes source/receiver/yaw temporal coherence
+  <.000097; mirror energy/coherence changes <.137%/<.00425. Importance sampling
+  8192→65536 at .25 m changes joint temporal/cross-mic covariance ≤.01740.
+- Unchanged RTX 4090 `TorchPerception`, observed PCM/positions only: eight-stream
+  scalar count/activity parity passes, max angle difference 1.246°. CUDA solo,
+  reordered, loud-neighbor and partial-reset controls retain counts/activity,
+  max angle difference <.000016°.
 
-Bootstrap 10000 paired whole episodes, never frames. Mean and pooled p95 angular
-errors use emitted estimates, with misses reported separately. A spurious rate
-is the fraction of scored updates containing an unmatched estimate; extras/update
-and penalized assignment error remain in raw results. Score first acquisition and
-reacquisition separately, retaining timeout deadlines. When every paired episode
-difference is zero, supplement the degenerate bootstrap with the exact upper
-probability of unseen discordance: `1 - 0.025**(1/n)`, scaled by the metric range.
-At 24 episodes, identical observed rates therefore do not prove a five-point bound.
+Use 10,000 paired whole-episode bootstrap samples. Mean/pooled-p95 angles use emitted
+estimates with separate misses; spurious rate counts updates with an unmatched
+estimate. Raw results retain extras/update and penalized assignment error.
+First/reacquisition keep timeout deadlines. All-zero paired differences additionally
+use unseen-discordance bound `1 - 0.025**(1/n)` times metric range: 24 identical
+observed episodes cannot prove a five-point bound. Numerical refinement does not
+itself provide independent reference validity or full convergence.
 
 ### Fresh weak-direct effects
 
@@ -437,67 +349,52 @@ also remain inconclusive for the isolated square and mixed raised cases.
 
 ### Interpretation and limits
 
-Preserving this candidate's field statistic exactly to 0.1 is not established as
-necessary for the measured observation budgets. A relevant weak-direct mixture
-passes despite that statistic's failure. The isolated-family spurious discrepancy
-and remaining interval widths still warrant attention; neither is waived.
+The passing selected mixture shows that this failed .1 statistic alone does not
+establish an observation-budget violation. Isolated-family spurious differences
+and inconclusive intervals remain. Absolute behavior is poor in some controls:
+weak two-source reference misses ~59.5–69.6%; selected-mixture extras occur in
+~87–89% of updates in both variants. Approximation agreement is not robot utility.
 
-Passing approximation-impact budgets is not useful robot behavior by itself.
-The weak two-source reference already misses about 59.5–69.6% of targets in these
-noise-signal controls. Selected-mixture spurious-update rates are about 87–89% in
-both variants. These limitations cannot be assigned to the PRA approximation
-alone, and no perception parameters or controller were changed to improve scores.
+References are controlled scalar statistical geometry, not measured/moving-boundary
+rooms. The mixed case omits other paths, including direct mirror reflection;
+geometry is held per emission update and emitted tails drain. Full D, band/decay/
+radius/order/horizon, arbitrary-surface persistence, general causal motion,
+C03/C04/room and AV/mobile/learning qualification remained open at this milestone.
+No public option or perception/controller change came from this follow-up.
 
-The renderer holds geometry per emission update and drains emitted responses;
-general interaction-time visibility/retarded motion is not solved here. References
-are controlled scalar statistical geometric acoustics, not measured rooms or
-moving-boundary wave solutions. The mixed case omits other paths, including the
-mirror's direct specular reflection. It does not implement the complete D branch.
-Full band/decay/radius/order/horizon qualification, arbitrary-surface persistence,
-C03/C04 room representatives, general causal integration and AV/mobile/learning
-utility remained open at that milestone. No public diffuse configuration was
-enabled by that earlier follow-up.
-
-There are 2304 retained multichannel streams, not 2304 independent episodes per
-condition. Fresh motion generation/inference-plus-analysis took 345/41 s; mirror
-confirmation took 643/143 s. CUDA batches of 32 have about 88 ms mean and 124 ms
-p95 inference per observation update. Generation shares geometry/RIR work across
-episodes; these are offline experiment costs, not live producer or real-time
-qualification. Local synthesis/scoring checks and Ruff pass; the maintained SDK
-implementation and historical evidence remain unchanged.
+Retained: 2304 multichannel streams, not independent episodes per condition.
+Offline generation/inference-plus-analysis: 345/41 s for motion, 643/143 s for
+mirror; CUDA batch 32 inference mean/p95 88/124 ms per update. Shared RIR work
+precludes live-throughput claims. Local synthesis/scoring/Ruff checks passed.
 
 ## General D implementation and conditioned-room admission (2026-09-15)
 
-**Original result: implemented, not admitted. General Step 3 qualification stopped
-on a smooth-room decay and observation-impact failure after refinement.**
-This is a new bounded result, separate from the retained rotating-mirror statistic
-and its passing selected-mixture follow-up. It does not establish that PRA is
-universally unsuitable, or invalidate the working intermediate.
+**Original result: implemented, not admitted.** The general candidate failed
+conditioned smooth-room decay and observation criteria after refinement, causing
+the then-required stop. The later cube decision makes this comparison diagnostic;
+it neither erases the failure nor admits the remaining field/motion gates.
 
 ### Implemented and verified boundary
 
-`GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` enables an experimental D
-producer; `None` remains the default. Native PRA owns flights, multibounce band
-energy, surface quadrature and visibility. Persistent object-local elements own
-pressure realization, independent of ray/microphone/source identifiers. First
-scattering is explicit; subsequent scattering and higher/mixed specular energy
-enter the statistical representation with disjoint ownership. The interface and
-normalization are documented in [[topics/geometry-acoustics|Geometry Acoustics]].
+`GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` is experimental opt-in;
+default `None` is unchanged. Native PRA owns geometric transport; object-local
+pressure elements preserve disjoint first/later-scattering and higher-specular
+ownership. [[topics/geometry-acoustics|The technical contract]] owns synthesis details.
 
-Thirty-six native, field, producer and convolution controls pass. They cover
-two-sided closed/open/closed visibility, an initially discovered and corrected
-surface-projection leak across a partition, analytic Lambertian energy/covariance,
-colocation/reordering/regrouping, unchanged refresh, equivalent source identity,
-object motion/return, late-joining arrays, filter power, delay, source-stop tails
-and reset. A separate banded specular defect was corrected: minimum-phase material
-conversion no longer absorbs geometric level or signed directivity.
+Thirty-six native/field/producer/convolution controls pass: two-sided containment,
+corrected partition-crossing surface-projection leak, analytic Lambertian energy/
+covariance, colocation/reordering/regrouping, refresh/source-identity invariance,
+object motion/return, late arrays, filter power/delay, stop tails and reset.
+Banded specular minimum-phase conversion was corrected to exclude geometric
+level and signed directivity from material phase construction.
 
-The banded 6x6x3 m energy-envelope control has targets .2/.2/.35/.5/.65/.8/.8 s
-and candidate T20 values .226/.226/.374/.522/.671/.821/.821 s, within the approved
-tolerance. Native 2/4 s captures agree at the stated 1e-7 ray cutoff. A fully diffuse
-late-field .05 m source-shift control gives complex covariance differences
-.0781/.0698/.0164 at 500/1000/4000 Hz against reciprocal receiver motion. These
-bounded controls do not establish full moving-room pressure qualification.
+| Bounded control | Result |
+| --- | --- |
+| 6×6×3 m banded energy envelope, targets .2/.2/.35/.5/.65/.8/.8 s | T20 .226/.226/.374/.522/.671/.821/.821 s, within tolerance |
+| Native horizon, 2/4 s | Captures agree at 1e-7 ray cutoff |
+| Fully diffuse late field, .05 m source shift vs reciprocal receiver motion | Covariance differences .0781/.0698/.0164 at 500/1000/4000 Hz |
+
+These controls do not qualify the complete moving-room field.
 
 ### Reference conditioning and validity
 
@@ -554,42 +451,31 @@ not a failure of the independently checked scalar-energy bookkeeping.
 
 ### Consumer limits and stop boundary
 
-CUDA solo/batch/reorder/loud-neighbor/reset checks pass for both candidate streams
-and the square reference. One raised reference changes its count at one of 19
-scored updates across batch sizes; the binary spurious-update outcome remains
-unchanged. Scalar/CUDA count/direction parity also fails on the raised reference
-(50% count agreement on the final selected stream). These are separate consumer
-qualification limits; no localizer parameters were changed. The stable square
-comparison establishes an observation-impact failure under the original criteria.
+CUDA solo/batch/reorder/loud-neighbor/reset controls pass for candidates and square
+reference. One raised reference changes count at one of 19 updates across batch
+sizes (binary spurious outcome unchanged); final selected raised scalar/CUDA count
+agreement is only 50%. These are separate consumer limits. The stable square
+comparison establishes the original observation FAIL; no localizer tuning was used.
 
-Full C03/C04 motion, two-source/general-room confirmation, complete isotropic and
-later-scatter moving-mirror controls, ordinary moving-geometry causal admission
-and missing room references remain open. That run stopped before repeating
-the wider matrix because the static room failed the then-binding criteria.
-Steps 4–6 were not started by this result. The original rotating-mirror .17045 diagnostic has
-not been reclassified as the sole blocker.
+At this milestone, C03/C04, two-source/general rooms, full isotropic/later-scatter
+mirror controls, moving-geometry causality and room references were open. The static
+failure stopped the wider matrix under the then-binding criteria; Steps 4–6 had
+not begun. The older rotating-mirror diagnostic was not the sole blocker.
 
-Native synthesis is CPU-only: one held nine-channel RIR takes about 77 s at
-4096 rays/order 3, 210 s at 16384/order 7 and 493 s at 65536/order 7, with 7.45–32.44
-million retained modes. RTX inference at batch 32 averages 88 ms, p95 114 ms per
-observation update. These are offline costs, not live or real-time qualification.
-
-Working changes and failed evidence are retained. The provider stop rule requires
-a decision on the reflection-model/provider boundary before a larger proprietary
-multibounce solver or replacement evaluation. No replacement provider, threshold
-change, implicit domain reduction or push was performed. Reproduction, exact
-coefficients, PCM, intervals and the compact plot are in
-`local/r10/08_2_step3_general/README.md`, `summary.json` and `summary.png`.
+CPU-only synthesis of one held nine-channel RIR costs ~77/210/493 s for
+4096 rays/order 3, 16384/order 7 and 65536/order 7, retaining 7.45–32.44 million
+modes. RTX batch-32 inference mean/p95: 88/114 ms per update. These are offline costs.
+Reproduction, coefficients, PCM, intervals and plot:
+`local/r10/08_2_step3_general/README.md`, `summary.json`, `summary.png`.
+Working code/failures were retained; no replacement, domain/budget change or
+larger repository-owned solver was introduced.
 
 ### Practical significance follow-up (2026-09-16)
 
-The user requested practical-impact evidence before considering replacements.
-At this stage, the renderer, invariants and budgets were retained. A failed
-observation budget is not proof that the SDK is unsuitable for robot audition;
-neither did the evidence then justify treating the difference as harmless. The
-3 m cube, centered source/receiver axis, smooth identical walls and S0 Gaussian stimulus
-are a deliberately controlled condition, not a representative office/speech task.
-Other applicable room/motion controls remain open, not implicitly passed.
+This follow-up retained the renderer/invariants/budgets to investigate practical
+impact before considering replacements. The symmetric 3 m cube, centered axis,
+smooth identical walls and S0 Gaussian input are a controlled case, not an office/
+speech task; neither an SDK-unsuitability nor a harmlessness claim follows.
 
 **Absolute rates and persistence.** Reanalysis of the same 96 source episodes,
 order 7/65536 rays, frozen scene/field:
@@ -601,20 +487,16 @@ order 7/65536 rays, frozen scene/field:
 | Any bearing >90 degrees from the source | 99.95 | 76.86 | 89.86 | 29.82 |
 | Multiple estimates within 20 degrees of the source | 0.00 | 0.00 | 79.66 | 1.86 |
 
-The last three rows overlap. The original metric counts updates with an extra,
-not the fraction of detections that are false. Mean extras/update are 1.00/0.77
-for square reference/candidate and 3.25/0.58 for raised. Raised multiplicity partly
-reflects nearby duplicates, but large directional disagreements remain after
-excluding those. Square extras lie approximately opposite the source.
+Rows overlap. The metric is the fraction of updates with extras, not false detections
+among all detections. Mean extras/update: square reference/candidate 1.00/.77,
+raised 3.25/.58. Nearby duplicates explain some raised multiplicity, but large
+angular errors remain; square extras are approximately opposite the source.
 
-Using separate contiguous scored windows (ticks 7–14 and 18–28), the median longest
-run of updates containing an opposite bearing is 1.1/.8 s for square
-reference/candidate and .8/.6 s for raised. Every reference episode has a run of
-at least .5 s; 95/96 square and 85/96 raised candidate episodes do too. These are
-100 ms update-bin spans, censored by the windows, not identified false tracks.
-The estimator reuses 750 ms of context; adjacent updates are not independent.
-The existing first-bearing/reacquisition times also do not establish track or
-camera reacquisition after motion.
+In windows at ticks 7–14 and 18–28, median longest opposite-bearing runs are
+1.1/.8 s square and .8/.6 s raised. Every reference episode and 95/96 square,
+85/96 raised candidate episodes have ≥.5 s runs. These censored 100 ms update-bin
+spans are not tracks; 750 ms reused context makes adjacent updates dependent.
+First-bearing timing likewise does not establish moving camera/track reacquisition.
 
 **Causal late-response diagnostics.** Four artificial interventions reuse 16 of
 those episodes (2200–2215), both arrays and unchanged actual RTX 4090 perception.
@@ -632,62 +514,39 @@ confirmation or a physical fix.
 | Substitute coherent reference response after 80–100 ms | 98.03% | 100.00% |
 | Reference, these 16 episodes | 100.00% | 100.00% |
 
-The first two decay interventions achieve per-microphone 1 kHz T20 ranges
-.474–.529 s and .464–.534 s respectively, inside the original tolerance. A common
-delay-compensated FIR projection and temporal envelope act across all nine
-microphones. In the energy-controlled variant the projected-component energy is
-preserved exactly and the full 1 kHz response energy changes by about -0.12%.
-Projected-component energy and full filtered-response energy differ because of
-interference; no claim of exact broadband DRR control is made.
+Decay interventions reach 1 kHz T20 .474–.529 s and .464–.534 s, inside the original
+tolerance. A common delay-compensated FIR/envelope spans all nine microphones.
+The energy-controlled variant preserves projected-component energy exactly while
+full 1 kHz response energy changes ~−.12%; interference prevents equating these
+or claiming exact broadband DRR control.
 
-Correcting this one decay descriptor is insufficient in this control. Replacing
-the late response recovers most of the extra-update behavior while retaining early
-pressure, supporting a late-response cause. That replacement changes multiband
-energy and inter-microphone pressure relationships jointly; it does not isolate
-phase, direction, coherence or every band's decay as the sole mechanism. Nor does
-it prove that PRA needs replacement. Preparation took about 14 s; 320 stream
-replays, including repeated controls, took about 37 s on RTX 4090. No new expensive
-native ray generation was required.
+**Inference:** correcting this one decay descriptor is insufficient. Substituting
+the reference tail recovers most extras, implicating late response jointly; it
+changes multiband energy and inter-mic pressure together and isolates neither
+phase, direction, coherence nor every band's decay. It does not establish a need
+to replace PRA. Preparation ~14 s; 320 RTX replays ~37 s, no new native ray generation.
 
-**Actual downstream software boundary.** Saved CUDA bearings were replayed through
-the unchanged SquadBot `audio_sensor_frame_to_auditory_cues` adapter and
-`run_all_new_audio_cued_searches` controller. Every bearing produced an
-`orient_to_sector` decision. Updates with a behind-sector decision were
-99.95/76.86% for square reference/candidate and 88.32/29.00% for raised. This is
-evidence that the software path does not simply discard these cues. It is not a
-measured wrong physical turn: the maintained downstream controller records
-decisions without commanding joints. Each update uses a fresh graph to inspect
-that response, with `Unknown` audio classes and no visual objects. Zero resulting
-confirmations is structural, not evidence of robust AV rejection. Persistent
-tracks, camera acquisition and mobile outcomes remain unmeasured.
+**Downstream replay:** unchanged SquadBot `audio_sensor_frame_to_auditory_cues` and
+`run_all_new_audio_cued_searches` produce `orient_to_sector` for every bearing.
+Behind-sector updates: square reference/candidate 99.95/76.86%, raised 88.32/29.00%.
+Thus cues are not discarded, but the controller records decisions without commanding
+joints. Fresh graphs, `Unknown` classes and no visual objects make zero confirmation
+structural, not AV rejection evidence. Tracks and physical/mobile actions were unmeasured.
 
-**Reference independence and next evidence.** The shoebox reference independently
-constructs paths, but shares PRA/geometrical-acoustics assumptions and material
-synthesis with the candidate. Order convergence and early-path agreement validate
-numerics, not a real room. The retained
-[[experiments/physical-signal-comparison|25 ReSpeaker takes]] lack matched weak-direct room RIR/decay calibration and cannot
-adjudicate this discrepancy. Published measured-array resources such as the
-[ACE corpus](https://www.imperial.ac.uk/speech-audio-processing/projects/ace-challenge/)
-and [BUT ReverbDB](https://speech.fit.vut.cz/software/but-speech-fit-reverb-database)
-offer independent measured impulse responses. They were inspected as options,
-not downloaded or validated here. Matching array coordinates, room/source geometry,
-band decay, DRR and transducer limitations is necessary; an unrelated RIR cannot
-determine which response is more realistic for this cube.
+**Reference boundary:** independent shoebox paths share PRA/geometrical-acoustics
+and material assumptions; convergence validates numerics, not physical fidelity.
+[[experiments/physical-signal-comparison|The 25 ReSpeaker takes]] lack matched
+weak-direct room RIR/decay calibration.
+[ACE](https://www.imperial.ac.uk/speech-audio-processing/projects/ace-challenge/) and
+[BUT ReverbDB](https://speech.fit.vut.cz/software/but-speech-fit-reverb-database)
+were inspected, not downloaded/validated. Independent RIR evidence must match
+array/room/source geometry, decay, DRR and transducer limits; an unrelated room
+cannot adjudicate this cube.
 
-The next useful check is a bounded Profile 1 diagnostic with the declared observed
-cue selector, finite head motion, camera delay/visibility and an actual speech or
-device source, including one representative less symmetric weak-direct room.
-Measure selected wrong-cue dwell, false association and acquisition/reacquisition
-against a property-valid matched reference, plus audio-off utility. Replaying a
-fixed-pose RIR while changing the head pose would not qualify that loop. Use the
-approved compact diagnostic allocation and inspect cost before confirmation.
-Seek a suitable measured multichannel RIR in parallel before tuning toward the
-current reference. Preserve the failed physical/observation results; any later
-task-based acceptance revision must be explicit and supported by those outcomes.
-No provider evaluation, domain reduction or acceptance-budget change was made.
-
-Scripts, original-data pointers, full episode summaries and ablated RIRs/PCM are
-separate from previous evidence in `local/r10/08_2_step3_relevance/README.md`.
+The recommended moving-head/camera, less-symmetric speech comparison was subsequently
+executed below. A fixed-head RIR replay cannot qualify diverging head trajectories.
+Full summaries, ablated RIRs/PCM and scripts:
+`local/r10/08_2_step3_relevance/README.md`.
 
 ## Measured observation impact — earlier evidence
 
@@ -726,68 +585,34 @@ existing actual-Isaac intermediate smoke passed. Neither validates a live USD
 experimental branch. No new physical recordings, policy training or replacement
 engine were introduced.
 
-## Evidence and reproduction
+## Bounded head/camera diagnostics (2026-09-16)
 
-All locations are local ignored evidence, not package dependencies. Keep original
-reports/builds unchanged; use new output directories for reruns.
+This bounded Profile 1 diagnostic uses a physically moving microphone layout and
+geometric camera observations, with unchanged SDK/localizer/budgets. It does not
+qualify SquadBot hardware, learned vision or tracking. Prospective design and
+corrections: `local/r10/08_2_step3_av/PLAN.md`.
 
-| Directory under `local/r10/` | Contents |
-| --- | --- |
-| `08_2_gate/` | Initial failed candidate patch, native probes, PCM/logs; isolated replay at `5d96078` |
-| `08_2_timing_recheck/` | Corrected time-origin controls, PRA reference, full-channel crash backtrace and runner |
-| `08_2_architecture/` | Initial hybrid/PRA visibility and co-location audit; native component controls |
-| `08_2_intermediate/` | README recipes, final physical/stream/Isaac/parity reports, PCM and profiles |
-| `08_2_complete_coverage/` | README, diffuse/pathing/visibility gates, archived R9 replays and TASCAR component |
-| `08_2_extensions/` | README, native route/shared-event prototypes and Python/Isaac result equivalence |
-| `08_2_usefulness/` | README, paired observations, sensitivity figure, configurations and replay |
-| `08_2_dynamics/` | README, selected-flight history and anchored/later-scatter native controls |
-| `08_2_step3_diffuse/` | Checked native transport, persistent statistical candidates, independent rotating-mirror reference/refinement, fresh sampler confirmation and the Step 3 stop result |
-| `08_2_step3_impact/` | Earlier selected-mixture observation impact, retained physical discrepancy and bounded continuation evidence |
-| `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
+**Matched scene and pressure:** 6×5×3 m room, source (2.983,2.817,1.213), array
+center (1.2,1.7,1.2) m. Reference-only conditioning precedes scoring. Across the
+receiver ring, reference 250–4000 Hz T20 is .435–.568 s (within .5±.075 s);
+reference/candidate DRR is −7.61…−6.70 / −7.37…−6.51 dB. Native polygon order 7
+plus shared tail is compared to independent shoebox order 100 and audio-off search.
+Order-80/100 residual energy is <1e-9 at the checked point; one-point candidate
+2/4 s checks retain identical events and <1.1e-14 relative band-energy difference.
 
-Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
-Provider alternatives: [[experiments/acoustic-provider-evaluation|Provider Evaluation]].
-Historical source detail/chronology: R9/R10 paths at `5cfe48d`. This consolidated
-record preserves outcomes and limits; it does not retroactively mark failures passed.
+Both exact layouts rotate through the field using a periodic angular cache with
+fractional delays; divergent trajectories never reuse fixed-head PCM. Controls
+cover causal prefixes, partition/query order, off-diagonal handedness, finite
+head limits, visual delivery, post-onset three-frame confirmation, stale/ambiguous/
+invisible cues. Camera: 90° HFOV, 30 Hz, 100 ms delivery. Head: ±170°, 60°/s,
+180°/s². Observed bearings alone drive selection/association; truth scores outcomes.
+Thirty-second sustained/intermittent S1 programs retain natural pauses/tails.
 
-### Bounded head/camera diagnostics (2026-09-16)
-
-The user's next authorized step measures practical AV consequences before a
-provider decision. `local/r10/08_2_step3_av/PLAN.md` records the prospective design,
-preparation corrections and targeted confirmation. This is the protocol's generic
-AV reference consumer, with a physically moving microphone layout and geometric
-camera observations; it is not a SquadBot hardware, learned-vision or tracking
-qualification. The SDK, localizer parameters and approved budgets are unchanged.
-
-**Matched scene and moving pressure.** The simple 6 x 5 x 3 m room has an off-axis
-source (2.983,2.817,1.213) m and array center (1.2,1.7,1.2) m. Reference-only band
-conditioning precedes task scoring. Across the native receiver ring, reference
-250–4000 Hz T20 is .435–.568 s, within .5 +/- .075 s; reference DRR is -7.61 to
--6.70 dB and candidate DRR -7.37 to -6.51 dB. The native polygon order-7/shared-tail
-producer is compared with independent shoebox ISM order 100 and audio-disabled
-search. Order-80/100 reference residual energy is below 1e-9 at the checked point.
-One-point 2/4 s candidate checks retain identical native events and differ by less
-than 1.1e-14 in relative band energy. These checks do not admit every room/motion.
-
-The two exact maintained layouts rotate through the shared native pressure field;
-no fixed-head PCM is reused across diverging trajectories. A periodic angular
-cache preserves fractional arrival delays. Controls check causal prefixes,
-partition/query-order invariance, rotation handedness away from the separately
-failing exact diagonal, finite head speed/acceleration/joints, visual delivery,
-three post-onset visible frames, stale cues and ambiguous/invisible targets.
-The camera uses 90-degree HFOV, 30 Hz captures and 100 ms delivery; head limits
-are +/-170 degrees, 60 degrees/s and 180 degrees/s^2. Only observed bearings drive
-selection/association; source truth scores outcomes. Thirty-second S1 speech
-programs include sustained and intermittent emission, natural pauses and tails.
-
-**Diagnostic outcomes, not equivalence.** Sixteen independently seeded source/pose
-programs cover both layouts and schedules, with four fixed 4096-ray field seeds.
-Every candidate, reference and audio-off episode acquires the source within 10 s;
-every scored resumption also succeeds. The deliberate audio-off sweep creates a
-ceiling for first-acquisition success, so equal success alone cannot establish
-usefulness. Mean restricted acquisition times are .813/.597/.478 s for candidate,
-reference/audio-off; resumption times are 1.498/1.352/3.188 s. Resumption concerns
-a stationary visible target, not moving-target identity tracking.
+**Coarse diagnostic:** 16 independent source/pose programs, both layouts/schedules,
+four fixed 4096-ray field seeds. Candidate/reference/audio-off all acquire within
+10 s and at every scored resumption. The audio-off sweep creates a first-success
+ceiling. Mean acquisition times are .813/.597/.478 s; resumption 1.498/1.352/3.188 s.
+Resumption concerns a stationary target, not moving-target identity tracking.
 
 | Diagnostic measurement | Square reference | Square candidate | Raised reference | Raised candidate |
 | --- | ---: | ---: | ---: | ---: |
@@ -795,22 +620,19 @@ a stationary visible target, not moving-target identity tracking.
 | Episode with any false visual association | 0/8 | 0/8 | 0/8 | 1/8 |
 | Mean selected wrong-cue dwell | 7.76 s | 7.51 s | 6.38 s | 6.95 s |
 
-An extra update means any unmatched estimate, including near-source duplicates;
-selected wrong-cue dwell is time with a selected bearing more than 20 degrees from
-the source during scheduled emission. Neither is an identified false track.
-Whole-episode rates include natural speech pauses, identically across treatments.
+Extra updates include near-source duplicates. Wrong-cue dwell is time with selected
+bearing >20° from truth during scheduled emission, not an identified false track.
+Whole-episode rates retain natural pauses across treatments.
 
-**Why coarse failures do not decide the provider.** The single candidate false
-association disappears on the same four initial episodes with 5/2.5 ms integration
-or 48 instead of 24 angular samples. First-acquisition success is unchanged; finer
-ray sampling changes some other outcomes. Native early polygon paths also differ
-from ideal shoebox paths at a few receiver positions: worst residual energy .1235%,
-with unchanged dominant arrival. The candidate angular-cache error at one held-out
-position is 3.21% RMS at 24 samples and 2.23% at 48; the reference stays below .07%.
-These failed local isolation checks remain explicit. They prevent attributing all
-consumer changes exclusively to the tail or declaring complete numerical admission;
-they are not new physical budgets or grounds by themselves for replacing PRA.
-Targeted 65536-ray, 2.5 ms, fresh-episode confirmation is separately predeclared.
+**Numerical limits:** the single candidate false association disappears on the same
+four initial episodes at 5/2.5 ms integration or 48 instead of 24 angular samples;
+first-acquisition success stays unchanged, while ray refinement affects other outcomes.
+Native polygon/ideal-shoebox early paths differ at a few positions (worst residual
+energy .1235%, dominant arrival unchanged). Held-out candidate cache RMS error:
+3.21% at 24 samples, 2.23% at 48; reference <.07%. These failed isolation controls
+prevent attributing every consumer change to the tail or claiming full numerical
+admission. They add no physical budget and do not establish replacement necessity.
+Fresh 65536-ray/2.5 ms confirmation was separately predeclared.
 
 **Consumer and physical-reference controls.** Exact free-field direct propagation
 at a local bearing of 45 degrees triggers large erroneous CUDA estimates on both
@@ -834,14 +656,13 @@ unavailable in the inspected primary metadata. No channel-wise delay correction
 or source-coordinate rewrite is applied. This is neither a matched physical twin
 nor evidence that one simulated room response is closer to reality.
 
-#### Refined conditional confirmation and recommendation
+### Refined conditional confirmation and recommendation
 
-The prospectively fixed 192 fresh episodes (21000–21191) completed on the RTX 4090
-with 65536 rays, 2.5 ms head integration and the already selected field seed 17001.
-Independent uniform layout/schedule draws produced 92 square and 100 raised episodes;
-100 episodes were intermittent. This confirms the **fixed room/field/task recipe**,
-not a population of rooms or every field realization. It retains the four-field
-coarse diagnostic and every failed historical control.
+The predeclared **192 fresh episodes (21000–21191)** completed on RTX 4090 at
+65536 rays, 2.5 ms integration and fixed field seed 17001. Independent uniform
+layout/schedule draws gave 92 square, 100 raised, 100 intermittent episodes.
+Inference concerns this fixed room/field/task recipe, not room/field populations;
+the four-field coarse diagnostic and failed controls remain retained.
 
 | Confirmed measurement | Square reference | Square candidate | Raised reference | Raised candidate |
 | --- | ---: | ---: | ---: | ---: |
@@ -888,18 +709,16 @@ smaller GPU batch preserves all task outcomes, rates and dwell; only tiny angle
 summaries change. This focused check does not remove the broader existing
 raised-array scalar/CUDA qualification limit.
 
-**Decision supported by these results: retain PRA; do not evaluate replacements
-on the basis of this discrepancy.** The current implementation preserves useful
-bounded AV behavior despite remaining pressure/statistical mismatches. The evidence
-does not show that a new transport engine is necessary, nor that the tail is
-universally harmless. Keep the renderer and reusable native work, address bounded
-representation/consumer issues where measured, and keep qualification distinct
-from the replacement decision. This experiment changed no threshold, domain,
-observation budget or stop rule. The subsequent user-approved decision recorded
-at the top of this page changes the cube failure's admission role. Step 3 remains
-unadmitted for binding field controls, numerical/cache/consumer limits and missing
-C03/C04/general motion/two-source room evidence. Matched physical transfer is a
-separate unvalidated claim; Steps 4–6 remain separate.
+**Interpretation: retain PRA.** The less-symmetric speech/head-motion case preserves
+bounded AV benefit without reproducing the cube discrepancy. It neither erases the
+cube counterexample nor proves universal harmlessness, physical transfer or full
+profile usefulness. This experiment changed no threshold/domain/budget; the later
+user-approved cube decision changed that comparison's admission role.
+
+Step 3 remains unadmitted for binding field controls, numerical/cache/consumer
+limits and missing C03/C04/general-motion/two-source room evidence. Combined producer
+and full AV/mobile utility remain Steps 4–6. Address measured representation/consumer
+issues; these results do not establish a need for a new transport engine.
 
 The refined bank takes about 724 s including reference preparation with eight CPU
 workers; the 192-episode, three-treatment GPU loop takes about 480 s. These are
@@ -909,3 +728,30 @@ plot are in `local/r10/08_2_step3_av/confirmation192/summary_final.json`,
 `confirmation192/episodes.json`, `confirmation_batch_control/result.json`,
 `task_impact.png` and `README.md`. No new physical capture, provider installation,
 proprietary multibounce solver or push was performed.
+
+## Evidence and reproduction
+
+All locations are local ignored evidence, not package dependencies. Keep original
+reports/builds unchanged; use new output directories for reruns.
+
+| Directory under `local/r10/` | Contents |
+| --- | --- |
+| `08_2_gate/` | Initial failed candidate patch, native probes, PCM/logs; isolated replay at `5d96078` |
+| `08_2_timing_recheck/` | Corrected time-origin controls, PRA reference, full-channel crash backtrace and runner |
+| `08_2_architecture/` | Initial hybrid/PRA visibility and co-location audit; native component controls |
+| `08_2_intermediate/` | README recipes, final physical/stream/Isaac/parity reports, PCM and profiles |
+| `08_2_complete_coverage/` | README, diffuse/pathing/visibility gates, archived R9 replays and TASCAR component |
+| `08_2_extensions/` | README, native route/shared-event prototypes and Python/Isaac result equivalence |
+| `08_2_usefulness/` | README, paired observations, sensitivity figure, configurations and replay |
+| `08_2_dynamics/` | README, selected-flight history and anchored/later-scatter native controls |
+| `08_2_step3_diffuse/` | Checked native transport, persistent statistical candidates, independent rotating-mirror reference/refinement, fresh sampler confirmation and the Step 3 stop result |
+| `08_2_step3_impact/` | Earlier selected-mixture observation impact, retained physical discrepancy and bounded continuation evidence |
+| `08_step2_nlos/` | Native preparation, corrected coverage, refinement and final selected-route closeout |
+| `08_2_step3_relevance/` | Cube absolute-rate/persistence, late-response ablations and downstream decision replay |
+| `08_2_step3_av/` | Moving-head/camera diagnostics, 192-episode confirmation, batch control and measured-reference audit |
+| `08_2_step3_general/` | General optional D implementation, physical/reference corrections, conditioned-room decay and RTX observation-impact failure after refinement |
+
+Production/build interface: [[topics/geometry-acoustics|Geometry Acoustics]].
+Provider alternatives: [[experiments/acoustic-provider-evaluation|Provider Evaluation]].
+Historical source detail/chronology: R9/R10 paths at `5cfe48d`. This consolidated
+record preserves outcomes and limits; it does not retroactively mark failures passed.

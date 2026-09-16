@@ -377,3 +377,21 @@ index coverage, allowed scope/tree, append-only history and diff whitespace.
 Historical measurement tables, domain and numerical-budget tables are unchanged.
 The producer's only code change is diagnostic text, verified by syntax-tree
 comparison, compilation and Ruff; no acoustic qualification was rerun or claimed.
+
+## 2026-09-16 — update: Compact Geometry Acoustics experiment pages
+
+Condensed the trial protocol and admission record without changing scenarios,
+acceptance criteria or measured outcomes. Added section navigation, consolidated
+correction/preparation prose into tables, distinguished historical milestones from
+current admission, and moved the replay index to the end. Superseded per-cell cost
+expansions remain in the saved pilot report. Updated index descriptions; contracts,
+phase plans, SDK code and original evidence are unchanged.
+
+## 2026-09-16 — lint: Geometry editorial preservation checks
+
+All 42 wiki pages, 237 wikilinks, 29 heading links and index coverage pass checks.
+Preserved all original scenario/result tables except the superseded cost expansion
+and the summary wording that now distinguishes intermediate from later NLOS
+qualification. Checked 22 explicit evidence paths, replay directories, headings,
+allowed scope, append-only history and diff whitespace. No runtime qualification
+was rerun or implied by this editorial change.

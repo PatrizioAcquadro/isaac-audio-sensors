@@ -1,51 +1,51 @@
 # Geometry Acoustics Trial Protocol
 
 Status: **Step 1 preparation complete within the clarified scope (2026-09-15).**
-Concrete inputs, bounded Office/Hospital acoustic representations, essential fixture
-checks and the RTX cost pilot are saved. Reference gaps still block affected later
-comparisons; this is not admission of the full acoustic field or an executable
-qualified campaign. User steering replaces blanket per-row repetition and assigns
-model-specific conditioning/qualification once to the later 08.2 steps.
-No candidate comparison or Step 2+ model implementation ran as part of Step 1.
-Subsequent model work is recorded in [[experiments/geometry-acoustics-admission|admission evidence]].
+Saved inputs, bounded Office/Hospital acoustic fixtures, reference ledger, endpoint
+scorers and RTX cost pilot are ready for later model-specific work. All cases remain
+`score_ready=false`: preparation did not implement Step 2+ or run candidate/task
+comparisons. Later results belong to [[experiments/geometry-acoustics-admission|Admission Evidence]].
 
-[[decisions/robot-audition-fidelity|Approved domain and budgets]] remain binding.
-The subsequent
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|cube decision]]
-changes the admission role of the recorded C02/R05 late-response comparison;
-original FAIL results and the C02 inventory remain retained.
-User choices: generic rigs; building-exploration-relevant indoor scenes and sounds;
-representative camera; simple trajectories plus a composed episode; quiet controls
-plus moderate background; AV success by deadline; mobile source proximity;
-engineering-selected limits; cost estimate first; no beyond-domain stress campaign.
+This page owns exact fixtures, consumers, scoring and the lean sample plan.
+[[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] owns the approved domain,
+budgets and stop rule, including the later
+[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|C02/R05 diagnostic exception]].
+[[implementation_phases/08-geometry-acoustics-integration|Phase 08]] owns sequencing;
+[[implementation_phases/r10-geometry-acoustics-integration|R10]] owns implementation.
+
+Scope: simulation on this machine, generic rigs, building-exploration scenes/sounds,
+quiet and moderate-noise controls, simple and composed motion, AV acquisition and
+mobile proximity. Reuse existing assets; no new recordings, purchases, physical
+hardware work or beyond-domain stress campaign. Reference gaps block affected
+comparisons, not unrelated preparation.
+
+Reading order:
+[[experiments/geometry-acoustics-trial-protocol#Trajectories and trial matrix|trial matrix]] →
+[[experiments/geometry-acoustics-trial-protocol#Reference validity and comparisons|references]] /
+[[experiments/geometry-acoustics-trial-protocol#Consumers and scoring|scoring]] →
+[[experiments/geometry-acoustics-trial-protocol#Trials and cost-first execution|lean execution plan]].
+[[experiments/geometry-acoustics-trial-protocol#Saved preparation and measured limits — 2026-09-15|Saved preparation]]
+records completed checks and their limits.
 
 ## Relevance and camera decision
 
-Primary sources checked on 2026-09-15:
+Sources checked on 2026-09-15: the
+[IHMC SquadBot program](https://www.ihmc.us/ihmc-receives-grant-to-continue-squadbot-research-program/)
+and [Luigi Penco page](https://www.ihmc.us/groups/luigi-penco/) identify building
+exploration, including entry and obstacles. The rooms, acoustic classes, camera
+and acceptance values below are engineering choices, not IHMC specifications.
 
-- [IHMC SquadBot program](https://www.ihmc.us/ihmc-receives-grant-to-continue-squadbot-research-program/)
-  describes building exploration, entering structures and moving obstacles.
-  [IHMC's Luigi Penco page](https://www.ihmc.us/groups/luigi-penco/) also identifies
-  building exploration as a SquadBot objective. Rooms, entrances and corridors
-  below are engineering interpretations, not measured IHMC facilities. Neither
-  page specifies acoustic classes, camera parameters or audition acceptance values.
-- [RealSense camera comparison](https://www.realsenseai.com/compare-depth-cameras/):
-  RGB horizontal FOV is 69 degrees for D435/D435i and 90 degrees for D455/D455f;
-  their depth FOV is a different specification.
-- [Luxonis OAK-D](https://docs.luxonis.com/hardware/products/OAK-D): color HFOV 69
-  degrees. [Luxonis model comparison](https://docs.luxonis.com/hardware/platform/comparison/vs-realsense)
-  lists color HFOV 66/109 degrees for OAK-D Pro/Pro W.
-- [Stereolabs ZED 2i](https://store.stereolabs.com/products/zed-2i): the 2.1 mm lens
-  has a maximum 110-degree horizontal FOV. Rectification, lens and image mode can
-  change effective coverage; a maximum specification is not a calibrated image FOV.
+| Camera example | Published horizontal FOV | Source |
+| --- | --- | --- |
+| RealSense D435/D435i; D455/D455f | RGB 69°; 90° (depth differs) | [Comparison](https://www.realsenseai.com/compare-depth-cameras/) |
+| OAK-D; OAK-D Pro/Pro W | Color 69°; 66°/109° | [OAK-D](https://docs.luxonis.com/hardware/products/OAK-D), [comparison](https://docs.luxonis.com/hardware/platform/comparison/vs-realsense) |
+| ZED 2i, 2.1 mm lens | Maximum 110°; effective coverage depends on lens/mode/rectification | [Specification](https://store.stereolabs.com/products/zed-2i) |
 
-Select **90 degrees horizontal**, with paired **70/110-degree sensitivity cases**.
-This spans conventional and wide-angle examples without claiming a market mode,
-market-share-weighted mean, or applicability to most installed cameras. Keeping
-only 65 degrees would disproportionately represent the narrow end of this sample.
-Use a rectilinear 1280x720 camera at 30 Hz: vertical FOV is
-`2*atan(tan(HFOV/2)*9/16)`, respectively 43.00/58.72/77.55 degrees for 70/90/110.
-These are generic pinhole parameters, not replicas of the cited devices.
+Use **90° HFOV**, paired **70°/110° sensitivities**, rectilinear 1280×720 at 30 Hz.
+Vertical FOV is `2*atan(tan(HFOV/2)*9/16)`: 43.00°/58.72°/77.55° for 70°/90°/110°.
+These generic pinhole choices span conventional/wide-angle examples; they are not
+device replicas, calibrated FOVs or a market-weighted estimate. The former 65°
+choice represented only the narrow end.
 
 ## Common rig, clocks and limits
 
@@ -85,40 +85,24 @@ These are generic pinhole parameters, not replicas of the cited devices.
 
 ## Scene reuse and representative environments
 
-**Simulation only, on this machine.** No real measurements, new physical recordings,
-purchases or physical hardware work. Use generic camera/microphone supports for both
-profiles; the ONR robot, historical camera FOV and tuned audio thresholds are not
-inherited. Primary endpoints remain 10 s visual acquisition and collision-free
-0.75 m / 1 s arrival within 60 s; either audible source qualifies in two-source homing.
-
-Start with the existing full NVIDIA Office, then evaluate Hospital for connected
-rooms and corridors. The local assets under
-`/home/pacquadr/Desktop/SquadBot_ONR_Assets/nvidia/Isaac/Environments/` are the same
-asset pool used by the ONR evidence. `local/onr/office.py` references the complete
-Office; `local/onr/catalog/scene_build.py` selects Office/Hospital props into authored
-sets and disables their original colliders. That catalog is visual reuse evidence,
-not proof that its geometry or acoustics qualify the new trials. Do not inherit its
-acoustic omissions. Include relevant walls, ceilings and furniture, with explicitly
-justified polygon proxies where needed. Preserve all original assets and deliveries.
+Reuse the full NVIDIA Office, then Hospital, from
+`/home/pacquadr/Desktop/SquadBot_ONR_Assets/nvidia/Isaac/Environments/`.
+`local/onr/office.py` references Office; `local/onr/catalog/scene_build.py` selects
+props and disables original colliders. That is visual reuse, not acoustic validity.
+Preserve original assets/deliveries; include relevant walls, ceilings and furniture
+with justified proxies. Do not inherit ONR robot settings, FOV, thresholds or
+acoustic omissions, crop routes, or add hidden closures. Keep E0–E4 for exact controls.
 
 | Representative | Prepared entry point | Required inspection / trials |
 | --- | --- | --- |
 | Office O01/O02 | Full `Office/office.usd`; initial rig XY (-23.08,13.25) from Video 1; door `/Root/BP_DoorMrSmith_3041` | Static speech, intermittent phone, continuous device; single/two-source mobile search. Corrected generic source poses and bounded continuous approach checks are recorded below; historical robot settings are not inherited |
 | Hospital H01/H02 | Full `Hospital/hospital.usd`; inspect doorway `/Root/SM_Door_01b_2`, rig XY (-17.4,10.8) | Connected room and corridor selected with verified initial center rays and bounded approach routes; bounded acoustic boundary representation and its limits are recorded below |
 
-These are prepared representative inputs with bounded checks; they are not
-qualified full-room acoustic references or substitutes for E0–E4. Keep the simple
-environments below for exact,
-controlled comparisons. Reuse NVIDIA environments for representative building
-exploration instead of constructing another furnished building. Do not truncate an
-acoustic route or add hidden walls to make an extracted region convenient.
-
+These are bounded representative inputs, not full-room references.
 [MolmoSpaces](https://github.com/allenai/molmospaces) and its
-[official scene dataset](https://huggingface.co/datasets/allenai/molmospaces) were
-reviewed on 2026-09-15. Their scene diversity and occupancy metadata could help a
-larger navigation study. No concrete benefit over the already-local Office/Hospital
-has been established for this bounded preparation; no MolmoSpaces assets were
-imported or downloaded. This is a reuse decision, not an acoustic evaluation.
+[scene dataset](https://huggingface.co/datasets/allenai/molmospaces) were reviewed
+on 2026-09-15 for diversity/occupancy metadata. No benefit over local Office/Hospital
+was established for this preparation; nothing was imported or downloaded.
 
 ## Controlled scenes
 
@@ -192,9 +176,8 @@ bands through the maintained mapping. Report actual converted coefficients.
 
 ## Sources, levels and schedules
 
-These signals represent people, entry events and devices in building exploration;
-this mapping is ours, not an IHMC sound requirement. No classifier, semantic target
-selection or identity tracker is introduced.
+Sources represent people, entry events and devices; this is an engineering mapping,
+not an IHMC requirement or a classifier/identity-tracking claim.
 
 | ID | Content / concrete input | Use |
 | --- | --- | --- |
@@ -205,11 +188,9 @@ selection or identity tracker is introduced.
 | S5 | Procedural stationary device: independent Gaussian input through fixed 4th-order 300–3000 Hz Butterworth bandpass | Sustained broadband device surrogate; explicitly synthetic, not a recording of a specific machine |
 | S0 | Exact silence, unit impulse, 2 s log sweep 100–7000 Hz, independent 300–6000 Hz band-limited Gaussian signals | Negative controls and delay/energy/spatial references |
 
-Recorded inputs already exist and have been inspected for rate/channel count and
-length. Copy/convert into a new ignored preparation directory when realizing the
-suite; preserve originals and historical evidence. S1 provenance is documented in
-its existing README; keep its source attribution with any later redistributed
-clips. No new recording/download is required for this protocol.
+Existing recordings were checked for rate, channels and duration. Preserve originals;
+convert copies into ignored preparation storage and retain S1 README attribution
+with redistributed clips. No new recording/download is needed.
 
 Mix to mono, resample once to 16 kHz with the existing polyphase resampler and
 record its delay handling. Add 10 ms endpoint fades. Speech programs concatenate
@@ -340,15 +321,11 @@ supported; inability to run or convergence failure remains visible. Use the last
 converged pair; max-order failure does not authorize truncation or fitted gains.
 Convergence alone cannot retire the known structural diffuse-motion error.
 
-**Unresolved reference gate:** the retained plane and route controls do not yet
-supply a validated full-room, moving multibounce diffuse reference for A04/A09/M06
-and other diffuse-dominated room strata. The same concern can apply to NLOS route
-coverage/amplitude. These rows have required checks assigned, but their reference
-validity remains pending. Step 1 must expose a property-by-property reference
-ledger with bounded valid controls and unavailable comparisons; it must not implement
-the whole Step 2/3 models to erase a reference gap. Do not mark an impact budget
-passed or the full matrix executable merely because this protocol exists. Preserve the approved stop rule;
-no new provider evaluation or repository-owned general solver is authorized here.
+**Open reference gate:** A04/A09/M06 and other diffuse-dominated room strata lack
+a validated moving multibounce pressure reference; NLOS amplitude/coverage can
+also remain unavailable. The Step 1 ledger records bounded controls and missing
+comparisons without implementing later models. Neither this protocol nor numerical
+convergence admits those rows or authorizes a new provider/general solver.
 
 ## Consumers and scoring
 
@@ -457,20 +434,14 @@ success-only filtering. Collision contact is a failure, not removed data.
 
 ## Lean preparation and execution ownership
 
-The user's follow-up prioritizes sufficient, representative evidence and avoiding
-duplicate checks. Approved domain and numerical margins are unchanged; use the
-current decision for the cube comparison's diagnostic role. The 154-row
-inventory remains coverage input; it is not a demand for every Cartesian combination
-or 400 repetitions of every row. All selections below precede candidate outcomes.
+The 154-row inventory defines coverage, not every Cartesian combination or 400
+repetitions per row. The clarified allocation below retains the approved domain,
+numerical margins and cube diagnostic role. Select cases before candidate outcomes.
 
-**08.1 versus scene preparation:** 08.1 already supports explicit acoustic proxies,
-materials, grouping and transforms. A proxy describes the sound-relevant surfaces
-of an existing asset, while original visual/collision geometry remains available.
-Preparing Office/Hospital proxies uses that API; the whole visual-mesh complexity
-does not establish an 08.1 defect. The missing
-USD root-layer units/up-axis found in preparation overlays were authoring errors
-in these local generators; they are corrected without changing the SDK. Automatic
-room reconstruction is not required.
+08.1 already supplies proxies, materials, grouping and transforms. Office/Hospital
+preparation uses that API while retaining visual/collision assets; visual-mesh cost
+is not an SDK defect. Missing units/up-axis were local generator errors, now fixed.
+Automatic room reconstruction and full-robot/gait validation are outside scope.
 
 | Work | Do now in Step 1 | Do once later, at its owning step |
 | --- | --- | --- |
@@ -481,103 +452,72 @@ room reconstruction is not required.
 | AV/mobile | Inputs, clocks, endpoint scorer and plausible generic routes | Actual closed-loop consumers and benefit/approximation comparisons in Steps 5/6 |
 | Runtime | Reuse the completed 24-run RTX pilot | Measure only changed representation/model/consumer costs before extended execution; operating/packaging checks remain Steps 7/8 |
 
-The generic footprint is sufficient: do not introduce full-robot body, gait or
-hardware validation. Do not repeat a valid invariant because another downstream
-consumer uses its result. Rerun it only when its geometry, algorithm, materials,
-clock or supported interface changed in a way relevant to that invariant.
+Reuse each invariant unless a relevant geometry, algorithm, material, clock or
+interface changes. The generic footprint is sufficient; downstream reuse alone
+requires no repeated qualification.
 
-### Useful acoustic coverage
+Cover approximately **0.2–0.8 s across selected fixtures**, using simple-room boundary
+controls and representative interior conditions. Do not force all three targets
+into every furnished/connected/NVIDIA scene. E1_screen's ~0.61 s scalar diagnostic
+is useful interior evidence, not accepted 0.8 s conditioning or joint moving PCM.
+Preserve failed targets. Exact-target claims still require the declared band tolerance.
 
-Cover approximately 0.2–0.8 s decay **across the selected fixtures**. Do not force
-all three exact values into every furnished, connected or NVIDIA scene. Keep the
-simple-room boundary controls and use measured interior cases in representative
-rooms. For example, the static scalar diagnostic near 0.61 s in E1_screen is useful
-as an interior decay estimate; it is not a successful 0.8 s calibration and not a
-qualified moving microphone field. Retain the original failed target measurement.
-
-Weak-direct motion, occlusion, NLOS, source/receiver motion, two sources and ordinary
-doors remain mandatory. A difficult case is not removed because the current model
-fails it. Exact room recipes and valid DRR strata must be recorded before scoring
-that comparison, but absent full-room reference validity must not turn Step 1 into
-implementation of Steps 2/3. No physical accuracy claim follows from merely labeling
-a scene. Keep the declared per-band conditioning tolerance when claiming an exact
-target; choose representative labels honestly before inspecting model outcomes.
+Weak-direct motion, occlusion/NLOS, source/receiver motion, two sources and ordinary
+doors remain mandatory. Record exact recipes and valid DRR strata before scoring;
+choose representative labels before outcomes. Missing references keep affected
+comparisons open and never justify dropping a difficult condition.
 
 ## Trials and cost-first execution
 
-`local/r10/08_step1_preparation/lean/comparison_plan.json` fixes the selected cases,
-array allocation and two levels of evidence. It supersedes the previous blanket
-400-pair-per-expanded-row workload. Those historical costs remain below for context.
+`local/r10/08_step1_preparation/lean/comparison_plan.json` owns the selected cases
+and array allocation, replacing blanket 400-pair-per-expanded-row repetition.
 
-1. **Reuse preparation evidence.** The 24-run intermediate RTX pilot is complete.
-   Physical deterministic checks enumerate distinct geometric cases; stochastic
-   field checks use only the realizations/refinement needed by their owning metric.
-   There is no default 400-realization physical-control campaign.
-2. **First diagnostic comparison, when relevant models/references exist:** 16
-   independent episode pairs in each of seven families: AV static, AV moving/occluded,
-   AV two-source, mobile room, mobile connected/NLOS, mobile moving, mobile two-source.
-   Balance selected scenes and both arrays, with equal condition/layout analysis
-   weights. Arrays consume this family allocation; they do not double it again.
-   Pair source/input/initial-condition seeds across treatments; separate draws are
-   independent episodes. Publish all condition results and mandatory difficult strata.
-   This is a diagnostic panel, **not proof of +/-5 percentage-point equivalence**.
-3. **Only three primary treatments:** C, a property-valid matched reference, and C
-   with acoustic observations disabled. Reuse the identical C episode in both paired
-   contrasts. I/N/D component ablations run on selected mechanism-specific cases,
-   not every task/FOV/content combination. Do not compare an absent mechanism as if
-   it differed, or reuse PCM across diverging closed-loop microphone trajectories.
-4. **Confirmation, separately declared before its new outcomes:** planned ceiling
-   400 fresh independent pairs per family, not per expanded cell. Independently draw
-   the condition/layout uniformly from the fixed family panel and then a fresh
-   episode seed; record the realized counts. Equal population weights come from
-   this sampling design, not a post-hoc reweighting or fixed cell quota. This changes
-   the inference unit to the
-   declared representative family. It does not establish a 5-point bound for every
-   individual inventory cell. Report per-condition uncertainty and keep any failed
-   or unresolved mandatory stratum open; pooling cannot manufacture admission.
-   Existing numerical budgets and usefulness gates still apply. If local precision
-   is necessary but inadequate, report that gap and prespecify the targeted follow-up;
-   no automatic sample extension or favorable-condition selection.
-5. **Execution and storage:** keep a scene process warm across seeds where reset
-   validity is established; reuse deterministic inputs and identical acoustic work.
-   FOV-only replay can reuse PCM only with exactly the same prescribed microphone/
-   source trajectory. Save all metrics/seeds/conditions and required failure evidence;
-   retain full PCM selectively. No extended comparison is started in Step 1.
+| Stage | Allocation and purpose |
+| --- | --- |
+| Preparation | Reuse the completed 24-run intermediate RTX pilot. Enumerate distinct deterministic geometry; use only realizations/refinement justified by each field metric |
+| Diagnostic | 16 independent paired episodes in each of seven families: AV static, AV moving/occluded, AV two-source, mobile room, mobile connected/NLOS, mobile moving, mobile two-source. Balance selected scenes and both arrays with equal analysis weights; arrays share the allocation. This cannot prove ±5-point equivalence |
+| Confirmation | Predeclare up to 400 **fresh pairs per family**, not per cell. Draw condition/layout independently and uniformly from the fixed panel, then a fresh episode seed; record realized counts. This estimates the representative family, not every inventory cell |
 
-For confirmation under the uniform independent family draws, use paired binary
-discordant categories p+ and p-, separate
-97.5% two-sided Clopper–Pearson intervals and [L+ - U-, U+ - L-] as previously
-specified. This estimates the fixed uniform family mixture; per-cell results are
-reported separately. Do not apply that binomial inference to the deliberately
-balanced diagnostic panel. Continuous/rate family summaries resample whole paired
-episodes within each family, with 10,000 bootstrap samples and seed 8152026.
-At low N, broad/degenerate intervals
-remain inconclusive. The 400-pair ceiling is not a guarantee of adequate precision;
-no confidence interval or acceptance rule is weakened to shorten execution.
+Use three primary treatments: C, a property-valid matched reference, and C with
+audio disabled. Match source/input/initial-condition seeds; reuse each C episode
+in both contrasts. I/N/D ablations belong only to mechanism-specific cases.
+Publish every condition and difficult stratum: pooled results cannot admit a failed
+or inconclusive cell. Any targeted precision follow-up must be prespecified;
+no automatic sample extension or selection after favorable outcomes.
+
+Confirmation binary differences use discordant probabilities p+/p−, separate
+97.5% two-sided Clopper–Pearson intervals, and `[L+ - U-, U+ - L-]` for the paired
+95% difference interval. This applies to independent uniform family draws, not the
+balanced diagnostic panel. Continuous/rate summaries bootstrap whole paired episodes
+within family, 10,000 samples, seed 8152026. Low-N, broad or degenerate intervals
+remain inconclusive; the ceiling does not guarantee precision or relax any gate.
+
+Keep processes warm only after reset independence is established. Reuse identical
+acoustic work; FOV replay may reuse PCM only for identical prescribed source/microphone
+trajectories, never diverging closed loops. Save all seeds, conditions, metrics and
+failure evidence; retain full PCM selectively. No extended comparison ran in Step 1.
 
 ### Revised resource envelope
 
-These are **workload reductions, not newly measured final-model speedups**. They
-reserve three full treatments even for audio-off; timing extrapolates the existing
-simple-fixture intermediate range and excludes setup, new-model/reference costs,
-NVIDIA proxy costs and selected additional physical/ablation checks.
+Estimates reserve three full treatments, including audio-off, at measured
+simple-fixture intermediate rates. They exclude setup, final-model/reference and
+NVIDIA-proxy costs, plus additional physical/ablation work; these are workload
+reductions, not measured final-model speedups.
 
 | Panel | Independent episode draws paired across treatments | Executions | Simulated hours | Intermediate-rate wall extrapolation | All FLOAT PCM |
 | --- | --- | --- | --- | --- | --- |
 | First diagnostic, 16 per family | 112 | 336 | 4.66 | 3.5–8.5 h | 4.50 GiB |
 | Confirmation if all seven families use 400 | 2,800 | 8,400 | 116.5 | 86–212 h | 112.49 GiB |
 
-The confirmation panel is a prospective ceiling allocation, not work launched now.
-An unresolved reference blocks its affected comparison, not unrelated preparation.
-Time the changed model/proxy on a small valid fixture before using these figures as
-an execution budget. The previous 723–1,775 h estimate priced a different, much
-larger per-cell campaign; it is no longer the active sample plan.
+The confirmation ceiling is prospective. Time each changed model/proxy on a small
+valid fixture before budgeting execution; unresolved references block only their
+affected comparisons. The former 723–1,775 h per-cell estimate is superseded.
 
 ## Saved preparation and measured limits — 2026-09-15
 
-Local replay instructions and exact outputs: `local/r10/08_step1_preparation/README.md`.
-This ignored experimental workspace is intentionally outside the public SDK. No
-historical evidence, original NVIDIA asset or `knowledge/raw/` was modified.
+Replay and exact outputs: `local/r10/08_step1_preparation/README.md` (ignored,
+outside the SDK). Historical evidence, original assets and `knowledge/raw/` are unchanged.
+The results below are the Step 1 snapshot; later corrections are in the admission record.
 
 | Item | Checked result | Remaining limit |
 | --- | --- | --- |
@@ -590,112 +530,60 @@ historical evidence, original NVIDIA asset or `knowledge/raw/` was modified.
 
 ### Representative scene findings
 
-Office starts at (-23.08,13.25,1.2), with measured floor near Z=0 and ceiling Z=3.
-Final generic source centers are speech (-20.58,11.5,1.2), historical phone
-(-20.05,12.8,1.2), and device (-22.83,11.5,1.2). All have a clear initial source-center
-ray. The first proposed speech approach collided with a chair; the first device
-position was hidden behind a cabinet. Those negative checks are preserved in
-`route_runtime_checks.json`; final inputs use the corrected coordinates.
+| Scene | Corrected inputs, all at Z=1.2 m | Bounded approach results |
+| --- | --- | --- |
+| Office | Rig (-23.08,13.25); speech (-20.58,11.5), phone (-20.05,12.8), device (-22.83,11.5); floor ~0, ceiling 3 m | Clear initial center rays; routes 4.25/8.25/1.25 m, terminal distances .707/.722/.559 m |
+| Hospital | Rig (-17.4,10.8); corridor source (-13.4,10.8), H01 room source (-17.9,14.3); floor ~0, ceiling 2.9905 m | Corridor route 3.75 m, terminal .559 m. `representative/Hospital_open.usda` rotates two original hinges −90°: room route 3.0 m, terminal .707 m; both rays clear |
 
-`refined_routes.json` computes routes using **continuous 0.35 m sphere sweeps at
-Z=0.4**, including overlap checks, floor checks and a clear terminal source ray.
-Office routes to eligible approach points are 4.25/8.25/1.25 m for speech/phone/device,
-ending 0.707/0.722/0.559 m from their source centers. These are evaluator/preflight
-routes, never hidden maps or source targets supplied to an audition controller.
-The 0.35 m radius includes the nominal 0.25 m footprint plus 0.10 m planned margin;
-the swept sphere at one height is not full-body or moving-obstacle qualification.
+`refined_routes.json` uses continuous 0.35 m sphere sweeps at Z=.4, overlap/floor
+checks and a clear terminal source ray. Radius includes the .25 m footprint plus
+.10 m margin. These evaluator-only routes do not supply a hidden controller map
+or qualify a full body/moving-door sweep. Positive overlap/floor controls verify
+query availability. `route_runtime_checks.json` retains failed Office chair/cabinet
+inputs and Hospital bed/door-frame grid routes; original closed Hospital doors block
+room access. Recognition and closed-loop avoidance remain consumer work.
 
-Hospital starts at (-17.4,10.8,1.2), with floor near Z=0 and ceiling Z=2.9905.
-The corridor source (-13.4,10.8,1.2) has a corrected 3.75 m approach route ending
-0.559 m away. Original closed doors block the selected room routes.
-`representative/Hospital_open.usda` references the full original scene and rotates
-two original door hinges by -90 degrees. The H01 room source (-17.9,14.3,1.2) then
-has a corrected 3.0 m approach route ending 0.707 m away. Both initial center rays
-are clear. First grid routes that clipped a bed/door frame are retained as failed
-preflight results; final routes use the continuous query. Floor and sphere-overlap
-positive controls ensure query availability, rather than interpreting absent queries
-as empty space. Visual recognition and closed-loop collision avoidance remain later
-consumer work; moving-door swept clearance is still unqualified.
+Full visual meshes are unsuitable: Office has five unsupported deformables,
+Hospital three degenerate polygons, and nominal order-3 expansion exceeds budget.
+`lean/prepare_proxy.py` instead authors **62 Office / 106 Hospital surfaces** via
+08.1. `proxy_inventory.json` maps originals, proxies and omissions: structural
+planes retain openings and whole intersecting structures; large furniture uses
+envelopes, tables use tops, minor chair/trim detail is omitted. Door/glazing sheets
+are nominal opaque proxies on original hinges; absorption/scattering .2 is not
+calibration. Original visuals/colliders remain referenced.
 
-Passing the full visual mesh wholesale remains inappropriate: Office has 5
-unsupported deformable meshes and Hospital 3 degenerate polygons; nominal order-3
-candidate counts exceed the existing budget by many orders of magnitude.
+These are **bounded early-acoustic fixtures**, not whole-building late-field references.
+External connections remain open; omitted/outside paths need model-specific checks.
+Independent segments confirm all three Office links, its ceiling reflection,
+Hospital corridor LOS and closed/open room-door blocking/LOS; all three imports
+report no geometry issues.
 
-`lean/prepare_proxy.py` now authors **62 Office and 106 Hospital acoustic surfaces**
-using the existing 08.1 API. Original rendered/collision assets stay referenced.
-Selected local structural planes retain their openings; intersecting structures
-are kept whole, without artificial exterior closures. Large furniture uses declared
-simple envelopes, tables use tops, and minor chair/trim detail is acoustically
-omitted. Door leaves, including glazing, are nominal opaque sheets attached to the
-original hinges; this is an explicit acoustic assumption, not material calibration.
-`proxy_inventory.json` records each original/proxy mapping and omissions. Nominal
-absorption/scattering are 0.2; no room-decay claim follows from those values.
+The generators now author 1 meter/unit and Z-up: 116 case + 12 reference + 3 acoustic
+layers (**131 overlays**) reopen correctly, and every proxy vertex matches independent
+USD-to-SDK transforms. NVIDIA case overlays use the corrected acoustic layers.
+Earlier proxy timings are invalid. The 24-run pilot and original rendered-route
+checks used correct base layers and need no repetition.
 
-These are **bounded early-acoustic fixtures**, not whole-building late-reverberation
-references. Connections outside the selected region remain open; outside paths
-and omitted detail remain limits to model-specific qualification. Independent
-segments verify the three Office source links, Hospital corridor LOS, closed-door
-blocking and open-door room LOS. The Office ceiling reflection segments are clear.
-All three acoustic imports have no reported geometry issues.
+| Corrected order-3 static query, both layouts | Office | Hospital |
+| --- | ---: | ---: |
+| Native CPU time | 1.96 s | 14.11 s |
+| Visible direct/reflected paths per mic | 45–46 | 16–20 |
+| Explicit image-candidate budget | 3 million | 12 million |
+| Peak process RSS | ~248 MiB | ~230 MiB |
 
-An authoring error was found and fixed in the preparation generators: 116 case
-and 12 reference overlays lacked explicit stage units/up-axis. USD root layers now
-state 1 meter/unit and Z-up; all **131 overlays**, including three new acoustic
-layers, reopen correctly. Every proxy vertex also matches independently transformed
-USD coordinates in the SDK convention. NVIDIA case overlays now reference the
-prepared acoustic layers. The earlier 24-run pilot used correctly configured base
-control layers, and the original rendered route checks used correctly configured
-NVIDIA layers; neither requires repetition. Preliminary proxy timings obtained
-before this correction are invalid and are not cost evidence.
-
-A single corrected static order-3 query covering both array layouts took **1.96 s
-in Office and 14.11 s in Hospital**, returning 45–46 and 16–20 visible paths per
-microphone respectively, including direct and reflected paths. Existing candidate
-budgets were explicitly raised to 3 million/12 million for these fixtures. The
-timed query retains order 3 on the declared proxy geometry, with the omissions
-and coverage limits above. Peak process
-RSS was about 248/230 MiB. These are native CPU path queries, not episode timings,
-PCM generation, moving-scene throughput or final model qualification. They establish
-that the bounded representations are consumable and warn against applying the
-simple-room pilot rate to Hospital without a later affected cost measurement.
+These measurements establish fixture consumption, not PCM, moving-episode throughput
+or qualification. Hospital needs its own later cost measurement.
 
 ### Measured acoustic conditions and reference ledger
 
-The CPU-native PRA reference diagnostics use the existing engine's supported CPU
-path; GPU perception/simulation use the RTX. The original 12 E0 ISM runs (orders
-0/3/5/7) took about 1.92 s and order-7 T20 estimates were only 0.057–0.114 s.
-Higher orders and bounded bandwise coefficient searches are retained in
-`references_refined/` and `conditioning_e0_endpoint/`; none accepted an entire
-0.2/0.5/0.8 s banded recipe. Constant endpoint coefficients fix PRA band extrapolation
-in the final attempt. No fitted source gain or tolerance change was used.
-Finite-order specular decay is not the full room's acoustic truth. Padding a short
-RIR with zeros is not tail convergence; PRA's 40-sample filter latency is separate
-from physical propagation time.
+Native PRA diagnostics use its supported CPU path; perception/simulation use RTX.
 
-An independent bounded native **scalar energy** probe (`scalar_energy/`) traces
-4096/16384/65536 rays through the prepared polygons. At 65536 rays, E0 scalar T20
-is 0.209/0.509/0.800 s for the three target seeds. This supports the plausibility
-of the target recipes but supplies neither joint microphone pressure nor calibrated
-DRR. It uses scattering 0.2, so it is not C02's smooth-wall pressure reference.
-E1 at target 0.8 gives 0.689 s, E1_screen 0.607 s and E4 0.658 s. These are
-useful interior scalar estimates, not successful 0.8 s calibration. Preserve that
-failed target result and do not require every furnished scene to hit every target.
-E3's closed-door probe yields unexpected reflected energy across the partition;
-its nominal 0.930 s decay is **inadmissible for that condition** until the visibility
-failure is resolved. No apparent scalar convergence repairs this structural limit.
-
-A four-case, 16,384-ray diagnostic in `lean/scalar_visibility.json` took 5.18 s.
-Closed-door energy is zero at scattering 0 and unexpectedly nonzero at 0.2; both
-open-door controls receive energy. This narrows the issue to behavior involving
-scattering without establishing its code-level cause. Resolving/qualifying that
-field belongs to Step 3; the reference remains rejected for the blocked property.
-
-The compact `lean/direct_checks.json` covers both arrays at 0.5/3/10 m. After
-separating the known 40-sample interpolation latency, peak delay errors are below
-0.49 sample; raw DC pressure-gain discrepancies are at most 0.145% (measured, not a
-new gain acceptance budget). PRA 0.10.1 enables a 10 Hz RIR high-pass by default;
-it is explicitly disabled in this reference process for the DC diagnostic. No
-fitted gain is used. This is static direct evidence, not moving-field qualification.
+| Check / saved location | Measurement | Interpretation |
+| --- | --- | --- |
+| Initial E0 ISM; `references_refined/`, `conditioning_e0_endpoint/` | Twelve order-0/3/5/7 runs: ~1.92 s; order-7 T20 .057–.114 s. Higher-order bandwise searches, including corrected constant endpoint extrapolation, accepted no complete .2/.5/.8 s banded recipe | Finite-order decay is not room truth; zero-padding is not tail convergence; PRA's 40-sample filter latency is separate from travel time. No fitted gain/tolerance change |
+| `scalar_energy/`, 4096/16384/65536 rays | At 65536: E0 T20 .209/.509/.800 s for the three seeds; E1/E1_screen/E4 .8 s targets give .689/.607/.658 s | Scalar recipe plausibility only, no joint PCM or DRR. Scattering .2 differs from smooth C02. Furnished-scene .8 s targets failed; retain useful interior measurements |
+| E3 scalar containment; `lean/scalar_visibility.json` | Unexpected closed-door reflected energy; .930 s decay inadmissible. Four cases at 16384 rays take 5.18 s: closed/scattering 0 is zero, closed/.2 nonzero, both open controls nonzero | Scattering-related visibility failure unresolved in Step 1; scalar convergence cannot repair it. Step 3 owns correction/qualification |
+| `lean/direct_checks.json`, both arrays at .5/3/10 m | Peak delay error <.49 sample after separating filter latency; raw DC gain discrepancy ≤.145% | Static direct evidence only. PRA 0.10.1's default 10 Hz RIR high-pass is disabled for this DC check; no fitted gain or new acceptance budget |
 
 | Property / rows | Saved reference or check | Admitted boundary / unavailable comparison |
 | --- | --- | --- |
@@ -706,28 +594,22 @@ fitted gain is used. This is static direct evidence, not moving-field qualificat
 | Weak-direct moving rooms, A04/A09/M06 and affected NVIDIA strata | Assigned F1/F3/F4 controls, exact inputs and explicit unavailable entries | Full-room moving multibounce pressure reference and valid DRR strata remain unavailable; mandatory rows retained and later comparisons blocked |
 | AV/mobile endpoints | Evaluator-only scorer checks and saved inputs | No closed-loop success, perception accuracy, controller usefulness or approximation-budget claim |
 
-Step 1 exposes these limitations. Implementing new NLOS/diffuse synthesis or
-qualifying later models to fill them is outside this preparation request. A reference
-failure does not authorize deleting a mandatory condition or treating missing sound
-as physically correct silence.
+Unavailable references remain later-step prerequisites; they do not justify removing
+mandatory conditions or interpreting missing sound as physical silence.
 
 ### Machine, GPU recovery and cost envelope
 
-After the user's manual reboot, loaded and installed NVIDIA versions both report
-**580.178.04**. Actual RTX 4090 CUDA allocation/calculation, Isaac rendering and
-PhysX queries pass. Host resources: i9-14900KF (32 logical CPUs), about 62 GiB RAM,
-24 GiB-class VRAM, and about 3.2 TiB free disk. A sandbox-only NVML access failure
-was bypassed by the authorized host runtime; it was not treated as unavailable GPU.
-The first new-driver Office shader warmup exceeded its 120 s preflight cap; the
-retry and later rendered checks succeeded. No driver packages, desktop modules or
-user applications were changed. The GPU blocker is resolved.
+The GPU blocker was resolved after the user's manual reboot: installed/loaded
+NVIDIA **580.178.04**, actual RTX 4090 CUDA computation, Isaac rendering and PhysX
+queries passed. Host: i9-14900KF, 32 logical CPUs, ~62 GiB RAM, 24 GiB-class VRAM,
+~3.2 TiB free disk at measurement time. Authorized host execution resolved sandbox
+NVML access. Initial Office shader warmup exceeded 120 s; retry passed. No driver
+packages or applications were changed.
 
-The **24-run technical pilot completed**: 1,128 simulated seconds, all four
-representatives on both arrays with three repetitions, actual CUDA perception and
-nonempty 1280x720 rendered frames. `pilot_summary.json` records per-stage timing.
-These are intermediate-only prescribed cost trajectories, not trained/closed-loop
-consumers, calibrated acoustics or success trials. They do not qualify motion-control
-limits; later consumer trajectories and producers need affected cost remeasurement.
+The **24-run pilot completed**: 1,128 simulated seconds, four cases × two arrays ×
+three repeats, CUDA perception and nonempty 1280×720 frames. `pilot_summary.json`
+owns stage timings. These prescribed intermediate trajectories measure cost,
+not closed-loop success, calibrated acoustics or motion-control admission.
 
 | Case | Observed wall/sim range | Median native update | Median CUDA observation |
 | --- | --- | --- | --- |
@@ -736,59 +618,25 @@ limits; later consumer trajectories and producers need affected cost remeasureme
 | M03 | 1.34–1.37 | 6.39 ms | 22.95 ms |
 | M06 | 1.60–1.79 | 9.85 ms | 22.17 ms |
 
-Total timed episode loops: **26.9 minutes**, excluding isolated-process
-startup/warmup (5.3–6.2 s each). Peak process RSS was 7.67 GiB.
-End-of-episode device occupancy was 6.15–6.48 GiB, including the desktop;
-this is **not peak process VRAM**. No OOM occurred. New-driver shader compilation
-and initial NVIDIA scene cooking are additional cold-start costs. Repeated-process
-setup is measured; in-process reset independence is not established by this pilot.
+Total timed loops: **26.9 min**, excluding 5.3–6.2 s process startup/warmup each.
+Peak RSS: 7.67 GiB; final device occupancy: 6.15–6.48 GiB including desktop, **not
+peak process VRAM**. No OOM. Shader compilation/initial scene cooking add cold-start
+cost. Repeated-process setup does not establish in-process reset independence.
+Changed models and consumer trajectories need affected cost measurements.
 
-**Historical sizing, superseded by the lean plan above:** the former 400-pair-per-cell plan gave these allocation envelopes:
+The superseded per-cell workload reserved 54,400 pairs (108,800 streams),
+975.8 simulated hours and 942.2 GiB FLOAT PCM, extrapolated at 723–1,775 wall hours.
+Larger I/N/D/C and prescribed-replay estimates remain in `pilot_summary.json`;
+they are not the active plan. No broad campaign was started.
 
-| Allocation | Streams | Simulated hours | FLOAT PCM GiB | Intermediate-rate extrapolation, wall hours |
-| --- | --- | --- | --- | --- |
-| One matched comparison per statistical row | 108,800 | 975.8 | 942.2 | 723–1,775 |
-| I/N/D/C/reference/audio-off task slots + paired plane controls | 275,200 | 2,869.2 | 2,770.4 | 2,126–5,219 |
-| Previous allocation + five-mode prescribed replay for every mobile row | 339,200 | 4,015.8 | 3,877.7 | 2,976–7,304 |
+## Step 1 completion and handoff
 
-The first row is 54,400 pairs; the later rows reserve the distinct model/control
-streams explicitly rather than pricing the entire campaign as one comparison.
-Six task slots are a conservative allocation across 104 task condition/layout rows;
-32 statistical plane rows reserve candidate/reference pairs. Refinements or different
-property references can add more. I/N/D/C differences remain component ablations,
-not automatic approximation errors; a shared C stream may support both reference
-and audio-off comparisons when inputs/consumer/settings are identical.
+Completed: exact scenes/arrays/programs/clocks, both profiles and HFOV variants,
+evaluator-only endpoint checks, RTX rendering/queries, bounded proxies, reference
+ledger, 24-run cost pilot and lean allocation. Each model-specific refinement is
+assigned once to its owning step; reuse still-valid controls.
 
-**Wall-hour ranges extrapolate only measured simple-fixture intermediate rates.**
-They are not predictions for Office/Hospital acoustic proxies, unavailable C/reference
-implementations or closed-loop consumers. Isolated setup adds hundreds of hours at
-this stream count; deterministic controls, refinements, extra tails and rendered-frame
-storage are excluded. Selective PCM retention is necessary before long execution;
-retain seeds, conditions, metrics and required failure evidence. These historical
-envelopes are not the current sample plan. Final-model cost remains
-provisional until the affected components can be timed; no broad campaign was started.
-
-## Step 1 preparation completion checklist
-
-- [x] Preserve approved domain/tolerances, both profiles, scene/content matrix and HFOV variants.
-- [x] Save scenes, exact arrays, source programs, motion clocks and initial pose construction.
-- [x] Verify RTX CUDA/rendering, original NVIDIA scene queries and generic control imports.
-- [x] Prepare evaluator-only primary endpoint checks and explicit trial/mode allocation.
-- [x] Complete the 24-run intermediate cost pilot and record measured resource envelopes.
-- [x] Record property-specific diagnostics and unavailable references without dropping mandatory conditions.
-- [x] Prepare bounded representative acoustic geometry, verify units/axes, essential visibility and the declared generic footprint; record model-specific coverage limits.
-- [x] Assign bounded scene measurements now and full-field conditioning/DRR before affected later comparisons, with mandatory coverage retained.
-- [x] Save both-layout inputs and assign each model-specific refinement once to Step 2/3; retain unavailable room-motion references.
-
-Step 1 is **complete as fixture/reference preparation under the clarified scope**.
-The GPU blocker is resolved. No outstanding ordinary input-preparation task requires
-user action. Full-field banded conditioning, DRR, scattering visibility and moving
-reference qualification remain explicit prerequisites to their affected later
-comparisons, with Step 2/3 ownership; score-ready flags therefore remain false.
-This does not close 08.2 or admit any candidate. Reuse the saved bounded controls;
-do not implement later models or new providers to hide an unavailable reference.
-No acoustic candidate/task comparison was run. No production producer, perception
-or SDK implementation was changed. [[experiments/geometry-acoustics-admission|Existing evidence]]
-remains unchanged; [[implementation_phases/08-geometry-acoustics-integration|Phase 08]]
-owns execution sequence and [[implementation_phases/r10-geometry-acoustics-integration|R10]]
-owns implementation and stop rules.
+Full-field banded conditioning/DRR, scattering visibility and moving references
+remain prerequisites to affected Step 2/3 comparisons, so `score_ready=false`
+is intentional. Step 1 requires no further ordinary input preparation or user action.
+It did not admit a candidate, close 08.2, run a task comparison or change the SDK.
