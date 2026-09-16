@@ -75,59 +75,9 @@ repetition without changing domain/budgets or hiding unresolved difficult strata
 | 5 — Demonstrate Profile 1 | Observed audio guides camera search with explicitly simulated reference visual confirmation | Measured audio benefit, approximation budgets and honest missing/false/unconfirmed results under mandatory AV conditions |
 | 6 — Demonstrate Profile 2 | Moving-array/source trials and untrained homing; two-source goal is an audible source without supplied identity | Motion/door cues and matched audio-disabled navigation comparisons pass; collisions, switching and timeouts remain visible |
 | 7 — Complete 08.3 operation | Existing Python/Kit configuration, actionable diagnostics, capability failures and consumer-safe consolidation | Usable geometry-backed sensor-to-instrument chain; provider truth stays separate from observations |
-| 8 — Close Phase 08 | Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks; measure one/few-environment runtime and memory | Supported domain, failures and runtime limits documented; checks pass; local validated commits, no push |
+| 8 — Close Phase 08 | Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks; measure one/few-environment runtime and memory | Supported domain, failures and runtime limits documented; checks pass with a clean validated source tree |
 
-Step 3 was attempted on 2026-09-15: native transport preparation passes, but the
-shared statistical candidate fails controlled temporal coherence during mirror
-rotation after independent reference and ray-count refinement. The user then
-authorized targeted observation comparisons before a provider decision. Those
-comparisons now pass all observation-impact budgets for a controlled rotating
-selected mixture on both arrays with weak direct; source-motion angular budgets
-also pass, while several rates/p95 bounds remain inconclusive. The physical
-failure is retained. The resumed work now implements the general shared field
-and optional D producer, with native visibility, analytic plane/energy and
-producer lifecycle checks. The conditioned smooth-room pressure-decay and RTX
-observation-impact comparison fails the original criteria after order/ray refinement.
-The user subsequently approved its
-[[decisions/robot-audition-fidelity#Step 3 cube diagnostic decision (2026-09-16)|diagnostic role]]:
-matching that late response is no longer a prerequisite for Step 3. The
-2026-09-16 user-requested practical-impact
-follow-up retains the candidate: late-response diagnostics and downstream software
-replay are complete. Bounded geometric head/camera diagnostics now measure task
-consequences; a fresh refined confirmation supports retaining PRA while keeping
-individual-stratum and numerical/consumer limits explicit. The later actual-D
-joint panel passes controlled-plane and dynamic lifecycle checks. Fresh
-96-program confirmations pass relative observation budgets for maximum C03
-source motion and C04 receiver translation/yaw on both arrays/gains at 2.5 ms.
-The targeted closeout adds field-seed checks, controlled isotropic synthesis,
-ordinary door/screen visibility, representative static weak direct, room energy
-and horizon controls, and Office/Hospital integration pilots. A reproduced
-door-jamb projection leak is fixed natively. Moving-room references/conditioning
-and complete matched full-D routes remain unvalidated; bounded room probes do
-not close them. Lower-speed C03/C04 coverage remains diagnostic and
-unrestricted 10 ms updates are not admitted. The numerical correction resolves WPE/peak
-instability; the angular bank retains an early-response isolation limit. Use the
-actual producer or qualified sampling for affected comparisons and reuse episodes/PCM
-for field and observation checks. Historical observation intervals retain their
-preceding consumer version. Complete profile usefulness belongs
-to Steps 5–6; matched physical transfer is a separate claim. The
-[[experiments/geometry-acoustics-admission|admission record]] records the measured
-boundary and reusable native changes.
-
-The subsequent bounded full-room reference audit stops at the user's requested
-boundary: the retained native transport and controlled references do not yet
-supply an independently justified room-pressure field through complete furnished
-trajectories. No new provider, room campaign or qualified-control rerun was started.
-The
-[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|precise reference gap]]
-prompted a separate user decision: do not develop a new independent reference;
-treat full-room moving pressure/observation equivalence as an explicitly
-non-blocking known limitation, never PASS. Under the
-[[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|revised criteria]],
-the [[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|saved-evidence review]]
-finds no other Step 3 blocker and closes **Step 3 as PASS with documented limits**.
-No new tests, reference runs or provider evaluations accompany that closure.
-Proceed next to Step 4; no later-step gate is closed by this decision.
+Step 3 is PASS under the explicitly revised criteria: full-room moving equivalence remains NOT VALIDATED and non-blocking; cube/mirror diagnostic limits remain recorded. The [[experiments/geometry-acoustics-admission|admission record]] owns measurements and failures. Maximum-motion confirmation uses 2.5 ms responses and the corrected consumer. No later-step gate is closed by these results.
 
 Steps 2 and 3 include focused native checks before wider integration. Carry
 lifecycle checks through development rather than postponing them to Step 8.

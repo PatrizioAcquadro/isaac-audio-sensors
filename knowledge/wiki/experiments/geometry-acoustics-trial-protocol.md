@@ -27,7 +27,7 @@ Reading order:
 [[experiments/geometry-acoustics-trial-protocol#Reference validity and comparisons|references]] /
 [[experiments/geometry-acoustics-trial-protocol#Consumers and scoring|scoring]] →
 [[experiments/geometry-acoustics-trial-protocol#Trials and cost-first execution|lean execution plan]].
-[[experiments/geometry-acoustics-trial-protocol#Saved preparation and measured limits — 2026-09-15|Saved preparation]]
+[[experiments/geometry-acoustics-trial-protocol#Prepared inputs and measured boundaries|Saved preparation]]
 records completed checks and their limits.
 
 ## Relevance and camera decision
@@ -187,7 +187,7 @@ not an IHMC requirement or a classifier/identity-tracking claim.
 | S1 | Six existing `cmu_arctic_us_{aew,axb}_a000*.wav` files in `evidence/qualification/multisource/assets/`: aew a0001–a0003, axb a0004–a0006 | Speech / two independent talkers; existing development content, not a new speaker-generalization holdout |
 | S2 | `local/onr/data/video1/audio/phone_audition.wav`, full 7 s | Intermittent phone/device alert; original provenance in `evidence/onr_video1_final/audio_sources.json` |
 | S3 | `local/onr/data/video1/audio/door_audition.wav`, full 2.078 s | Door movement/latch event, attached to leaf center at Z=1.2 |
-| S4 | `local/r10/08_2_complete_coverage/tascar/examples/footsteps.wav`, full 3.830 s; adjacent `.license` identifies CC0, Giso Grimm | Moving footsteps at Z=.15; secondary realism/control condition, azimuth scoring only |
+| S4 | `local/r10/assets/footsteps.wav`, full 3.830 s; adjacent `.license` identifies CC0, Giso Grimm | Moving footsteps at Z=.15; secondary realism/control condition, azimuth scoring only |
 | S5 | Procedural stationary device: independent Gaussian input through fixed 4th-order 300–3000 Hz Butterworth bandpass | Sustained broadband device surrogate; explicitly synthetic, not a recording of a specific machine |
 | S0 | Exact silence, unit impulse, 2 s log sweep 100–7000 Hz, independent 300–6000 Hz band-limited Gaussian signals | Negative controls and delay/energy/spatial references |
 
@@ -235,7 +235,7 @@ b before continuing to c; no instantaneous velocity reversal. Door angles use
 `theta=90*(3*u²-2*u³)` over the listed interval, then hold; closing reverses it.
 Positions and maximum speeds, not arbitrary audiovisual keyframes, own motion.
 C03/C04 retain the plane x=0, y=[-6,6], z=[-5,7], source initial (2,-1,1.2),
-receiver initial (3,.1,1.2), from `local/r10/08_2_usefulness/README.md`. For these
+receiver initial (3,.1,1.2), as retained in `local/r10/checks/fixtures.py`. For these
 controls only, translation is constant +X over [0,2.1] s at the listed speed and
 emission stops at 2.1 s; retain 2 s of tail. Rotation is constant at the listed
 rate over the same interval. Each run has either source or receiver motion.
@@ -475,7 +475,7 @@ comparisons open and never justify dropping a difficult condition.
 
 ## Trials and cost-first execution
 
-`local/r10/08_step1_preparation/lean/comparison_plan.json` owns the selected cases
+`local/r10/preparation/proxies/comparison_plan.json` owns the selected cases
 and array allocation, replacing blanket 400-pair-per-expanded-row repetition.
 
 | Stage | Allocation and purpose |
@@ -519,157 +519,28 @@ The confirmation ceiling is prospective. Time each changed model/proxy on a smal
 valid fixture before budgeting execution; unresolved references block only their
 affected comparisons. The former 723–1,775 h per-cell estimate is superseded.
 
-## Saved preparation and measured limits — 2026-09-15
+## Prepared inputs and measured boundaries
 
-Replay and exact outputs: `local/r10/08_step1_preparation/README.md` (ignored,
-outside the SDK). Historical evidence, original assets and `knowledge/raw/` are unchanged.
-The results below are the Step 1 snapshot; later corrections are in the admission record.
+Step 1 completed on 2026-09-15. Ignored `local/r10/preparation/` contains 154 definitions, 116 initial-pose overlays, 18 controlled material layers, 104 episode definitions with 11 shared source programs, and 50 reference-control definitions including exact 2.5 ms motion clocks. `score_ready=false` intentionally distinguishes prepared input from qualified comparison. Its README owns maintenance commands.
 
-| Item | Checked result | Remaining limit |
-| --- | --- | --- |
-| NVIDIA inventory and runtime | Office: 21,182 prims / 3,785 meshes; Hospital: 13,389 / 2,058, including instance proxies; no USD composition errors. Actual RTX rendering at four head yaws, floor/ceiling rays and local clearance grids saved in `gpu/` | Whole-asset bounds include exterior geometry. Rendering/collision checks do not qualify acoustic geometry; Office has dark viewing directions |
-| Controlled geometry | Eight original preparation layers plus 18 E0/E1/E1_screen/E2/E3/E4 target-material layers in `controls/`; inner-shell acoustic proxies, furniture, dynamic screen and an animated single-partition door; both exact arrays and camera convention | Material values are initial recipes, not accepted decay/DRR conditioning. Proxies preserve the declared simple room interiors, not NVIDIA room geometry |
-| Concrete cases | `cases.json`: 154 definitions; `case_layers/`: 116 initial-pose overlays with generic source markers and requested FOV; `episodes/8152026/`: 104 source/door/screen clocks and 11 shared source programs | Overlays are initial poses only; mobile receiver remains consumer-driven. All cases retain `score_ready=false`; 50 physical controls additionally have 32 exact motion clocks and 12 smooth-room/door overlays, with six analytical direct cases |
-| Stimuli and background | Ten normalized float32 mono 16 kHz source files; matched speech phases, event schedules, device signal and 32-direction independent plane-wave background sampler; source programs are finite and fixed-base ranges remain within 0.5–10 m | Source-file amplitudes can exceed 1 under the 1/(4*pi*r) convention; preserve float32. Background level, co-location and block-independent reads checked; moving-field and angular convergence remain unqualified |
-| Scoring preparation | `scoring.py`: evaluator-only AV deadline/three-frame checks and mobile per-source continuous dwell, either-source eligibility, collision and through-wall exclusions; focused synthetic cases pass | Scoring does not implement or qualify the later closed-loop consumers, camera object association or valid acoustic audibility reference |
-| Workload enumeration | `workloads.json`: 154 condition/layout entries, 18 deterministic and 136 statistical; both profiles, arrays, S5 and seven NVIDIA variants retained | No statistical/model-comparison campaign is authorized by preparation; every entry remains not ready for campaign |
+| Preparation result | Essential boundary |
+| --- | --- |
+| Office/Hospital originals compose; actual RTX views and PhysX queries passed | Visual/collision success is not acoustic qualification; Office includes dark views |
+| 62 Office / 106 Hospital acoustic proxy surfaces | Preserve openings, whole intersecting structures and original hinges; furniture envelopes/table tops, omitted trim/chairs, nominal .2 absorption/scattering; open outside connections remain |
+| 131 case/reference/proxy overlays reopen at 1 meter/unit, Z-up | Earlier local metadata errors were fixed without an SDK change; full meshes still contain unsupported/degenerate cases and exceed path budgets |
+| Both arrays and ten FLOAT 16 kHz source files, plus shared background sampler | Source values can exceed 1 under 1/(4*pi*r); no clipping or integer conversion without received-mixture checks |
+| Static direct controls .5/3/10 m | Peak timing error <.49 sample; DC discrepancy ≤.145%; only native 40-sample filter latency removed |
+| E0 scalar decay .209/.509/.800 s; furnished .8 s recipes .689/.607/.658 | Scalar energy is not joint pressure, DRR or independently conditioned room truth |
+| Initial closed-door scattering reference leaked; finite-order ISM accepted no complete banded recipe | Those references were unavailable for the affected claims; subsequent native corrections and current limits are in the admission record |
 
-### Representative scene findings
+Office initial rig is (-23.08,13.25,1.2), sources (-20.58,11.5), (-20.05,12.8), (-22.83,11.5) at Z=1.2. Hospital rig is (-17.4,10.8,1.2), corridor source (-13.4,10.8,1.2), connected-room source (-17.9,14.3,1.2). Open-Hospital input rotates two original hinges -90°. Retained routes use continuous .35 m sphere sweeps at Z=.4 with floor/overlap and terminal-ray checks, not full-body qualification or a hidden controller map.
 
-| Scene | Corrected inputs, all at Z=1.2 m | Bounded approach results |
-| --- | --- | --- |
-| Office | Rig (-23.08,13.25); speech (-20.58,11.5), phone (-20.05,12.8), device (-22.83,11.5); floor ~0, ceiling 3 m | Clear initial center rays; routes 4.25/8.25/1.25 m, terminal distances .707/.722/.559 m |
-| Hospital | Rig (-17.4,10.8); corridor source (-13.4,10.8), H01 room source (-17.9,14.3); floor ~0, ceiling 2.9905 m | Corridor route 3.75 m, terminal .559 m. `representative/Hospital_open.usda` rotates two original hinges −90°: room route 3.0 m, terminal .707 m; both rays clear |
+Corrected static order-3 queries took 1.96/14.11 s for Office/Hospital, with 45–46/16–20 visible paths per microphone and explicit candidate limits 3/12 million. These are fixture-consumption costs, not PCM throughput. Later Hospital diffuse integration requires a local 200000-node override; SDK defaults remain unchanged.
 
-`refined_routes.json` uses continuous 0.35 m sphere sweeps at Z=.4, overlap/floor
-checks and a clear terminal source ray. Radius includes the .25 m footprint plus
-.10 m margin. These evaluator-only routes do not supply a hidden controller map
-or qualify a full body/moving-door sweep. Positive overlap/floor controls verify
-query availability. `route_runtime_checks.json` retains failed Office chair/cabinet
-inputs and Hospital bed/door-frame grid routes; original closed Hospital doors block
-room access. Recognition and closed-loop avoidance remain consumer work.
+The 24-run intermediate RTX pilot completed 1128 simulated seconds: four cases, both arrays, three repeats, 300 Hz physics, 100 Hz geometry/audio and 30 Hz nonempty RGB. Timed loops totaled 26.9 minutes, excluding 5.3–6.2 s startup each; peak RSS 7.67 GiB. Wall/sim ranges were .74–.79 A01, 1.57–1.82 A04, 1.34–1.37 M03, 1.60–1.79 M06. Invalid camera/path attempts were excluded. These prescribed trajectories are not closed-loop success, and timings precede the stable WPE correction.
 
-Full visual meshes are unsuitable: Office has five unsupported deformables,
-Hospital three degenerate polygons, and nominal order-3 expansion exceeds budget.
-`lean/prepare_proxy.py` instead authors **62 Office / 106 Hospital surfaces** via
-08.1. `proxy_inventory.json` maps originals, proxies and omissions: structural
-planes retain openings and whole intersecting structures; large furniture uses
-envelopes, tables use tops, minor chair/trim detail is omitted. Door/glazing sheets
-are nominal opaque proxies on original hinges; absorption/scattering .2 is not
-calibration. Original visuals/colliders remain referenced.
+## Handoff and retention
 
-These are **bounded early-acoustic fixtures**, not whole-building late-field references.
-External connections remain open; omitted/outside paths need model-specific checks.
-Independent segments confirm all three Office links, its ceiling reflection,
-Hospital corridor LOS and closed/open room-door blocking/LOS; all three imports
-report no geometry issues.
+Retain concrete inputs and reuse unaffected controls; repeat only checks whose geometry, model, clock or consumer changed. Full-field and task qualification belongs to its owning step, not repeated Step 1 preparation. The [[experiments/geometry-acoustics-admission|admission record]] owns Steps 2/3 outcomes and the accepted, NOT VALIDATED full-room limitation. Other binding controls and budgets remain unchanged.
 
-The generators now author 1 meter/unit and Z-up: 116 case + 12 reference + 3 acoustic
-layers (**131 overlays**) reopen correctly, and every proxy vertex matches independent
-USD-to-SDK transforms. NVIDIA case overlays use the corrected acoustic layers.
-Earlier proxy timings are invalid. The 24-run pilot and original rendered-route
-checks used correct base layers and need no repetition.
-
-| Corrected order-3 static query, both layouts | Office | Hospital |
-| --- | ---: | ---: |
-| Native CPU time | 1.96 s | 14.11 s |
-| Visible direct/reflected paths per mic | 45–46 | 16–20 |
-| Explicit image-candidate budget | 3 million | 12 million |
-| Peak process RSS | ~248 MiB | ~230 MiB |
-
-These measurements establish fixture consumption, not PCM, moving-episode throughput
-or qualification. Hospital needs its own later cost measurement.
-
-### Measured acoustic conditions and reference ledger
-
-Native PRA diagnostics use its supported CPU path; perception/simulation use RTX.
-
-| Check / saved location | Measurement | Interpretation |
-| --- | --- | --- |
-| Initial E0 ISM; `references_refined/`, `conditioning_e0_endpoint/` | Twelve order-0/3/5/7 runs: ~1.92 s; order-7 T20 .057–.114 s. Higher-order bandwise searches, including corrected constant endpoint extrapolation, accepted no complete .2/.5/.8 s banded recipe | Finite-order decay is not room truth; zero-padding is not tail convergence; PRA's 40-sample filter latency is separate from travel time. No fitted gain/tolerance change |
-| `scalar_energy/`, 4096/16384/65536 rays | At 65536: E0 T20 .209/.509/.800 s for the three seeds; E1/E1_screen/E4 .8 s targets give .689/.607/.658 s | Scalar recipe plausibility only, no joint PCM or DRR. Scattering .2 differs from smooth C02. Furnished-scene .8 s targets failed; retain useful interior measurements |
-| E3 scalar containment; `lean/scalar_visibility.json` | Unexpected closed-door reflected energy; .930 s decay inadmissible. Four cases at 16384 rays take 5.18 s: closed/scattering 0 is zero, closed/.2 nonzero, both open controls nonzero | Scattering-related visibility failure unresolved in Step 1; scalar convergence cannot repair it. Step 3 owns correction/qualification |
-| `lean/direct_checks.json`, both arrays at .5/3/10 m | Peak delay error <.49 sample after separating filter latency; raw DC gain discrepancy ≤.145% | Static direct evidence only. PRA 0.10.1's default 10 Hz RIR high-pass is disabled for this DC check; no fitted gain or new acceptance budget |
-
-| Property / rows | Saved reference or check | Admitted boundary / unavailable comparison |
-| --- | --- | --- |
-| Direct geometry, C01/LOS | `geometry_references.json`: independent exact per-microphone distances, 1/(4*pi*r), delays and TDOAs at 0.5/3/10 m for both arrays | Both-array static impulse timing checked and DC gain measured with explicit filter convention; moving retarded timing remains a Step 2/3 check |
-| Static specular and decay, C02/rooms | E0 finite-order ISM and bandwise search; independent native scalar-energy diagnostic above | Scalar decay only for bounded static geometry; no accepted complete banded pressure/tail recipe, DRR normalization or joint-PCM reference |
-| Controlled diffuse motion, C03/C04 | Preserved `local/r10/08_2_usefulness/diffuse.py` plane control and evidence | Single plane only; historical 8 cm square / 20 ms differs from this protocol. Exact both-array 2.5 ms inputs are saved; affected 10/5/2.5 ms refinement belongs once to Step 3; no room-motion oracle |
-| Visibility and NLOS bounds, A04/A06/A07/M02/M03 | Independent triangle-segment intersections: moving-screen source path crosses clear/shadow intervals; E3 closed blocks/open clears. E4 detour via (6,2) is 9.222 m versus 7.810 m straight-line distance, arrival lower bound about 26.9 ms | Geometry and causal lower bounds only; no diffraction amplitude or complete route coverage. Initial M06 intermediate PCM is silent with the closed door and nonzero after opening; this is not NLOS admission |
-| Weak-direct moving rooms, A04/A09/M06 and affected NVIDIA strata | Assigned F1/F3/F4 controls, exact inputs and explicit unavailable entries | Full-room moving multibounce pressure reference and valid DRR strata remain unavailable; mandatory rows retained and later comparisons blocked |
-| AV/mobile endpoints | Evaluator-only scorer checks and saved inputs | No closed-loop success, perception accuracy, controller usefulness or approximation-budget claim |
-
-The table records the Step 1 preparation boundary. Unavailable references do not
-justify removing conditions or interpreting missing sound as physical silence;
-their current Step 3 admission role follows the explicit revision above.
-
-**Later Step 3 coverage (2026-09-16):** the
-[[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|targeted closeout]]
-now supplies exact both-array C03/C04 producer/retarded-plane comparisons at
-2.5 ms, controlled isotropic synthesis, a corrected opaque-door pressure check,
-ordinary door/screen analytic visibility, pressure decay and a 2/4 s horizon
-comparison. Physical weak-direct DRR is measured at a static E1 position and in
-the existing NVIDIA proxies. These additions supersede the corresponding
-preparation-only coverage entries above. They do not supply a full moving
-multibounce room reference, independently conditioned room recipes or complete
-full-D trajectories. The field/observation budgets and representative allocation
-are unchanged; no universal pressure-field reference is implied.
-
-The later bounded reuse audit selects A04_1, M01_1 and A09_0 plus static A08_1
-as the minimum conditional full-room reference scope, with both arrays and
-unchanged cases. It stops before execution because no existing reference supplies
-the required independently justified joint room field. See the
-[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|capability ledger and stop result]].
-That selection launched no trials and did not expand the matrix. The user then
-explicitly declined a new independent reference and changed full-room moving
-equivalence to a non-blocking known limitation. It remains NOT VALIDATED, including
-the dependent conditioning and complete matched routes. The
-[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|formal Step 3 closeout]]
-reuses the retained evidence; no further reference or test campaign is scheduled
-by this protocol update. Other binding controls and material representative errors
-retain their admission role and budgets.
-
-### Machine, GPU recovery and cost envelope
-
-The GPU blocker was resolved after the user's manual reboot: installed/loaded
-NVIDIA **580.178.04**, actual RTX 4090 CUDA computation, Isaac rendering and PhysX
-queries passed. Host: i9-14900KF, 32 logical CPUs, ~62 GiB RAM, 24 GiB-class VRAM,
-~3.2 TiB free disk at measurement time. Authorized host execution resolved sandbox
-NVML access. Initial Office shader warmup exceeded 120 s; retry passed. No driver
-packages or applications were changed.
-
-The **24-run pilot completed**: 1,128 simulated seconds, four cases × two arrays ×
-three repeats, CUDA perception and nonempty 1280×720 frames. `pilot_summary.json`
-owns stage timings. These prescribed intermediate trajectories measure cost,
-not closed-loop success, calibrated acoustics or motion-control admission.
-
-| Case | Observed wall/sim range | Median native update | Median CUDA observation |
-| --- | --- | --- | --- |
-| A01 | 0.74–0.79 | 0.67 ms | 23.02 ms |
-| A04 | 1.57–1.82 | 9.73 ms | 21.93 ms |
-| M03 | 1.34–1.37 | 6.39 ms | 22.95 ms |
-| M06 | 1.60–1.79 | 9.85 ms | 22.17 ms |
-
-Total timed loops: **26.9 min**, excluding 5.3–6.2 s process startup/warmup each.
-Peak RSS: 7.67 GiB; final device occupancy: 6.15–6.48 GiB including desktop, **not
-peak process VRAM**. No OOM. Shader compilation/initial scene cooking add cold-start
-cost. Repeated-process setup does not establish in-process reset independence.
-Changed models and consumer trajectories need affected cost measurements.
-
-The superseded per-cell workload reserved 54,400 pairs (108,800 streams),
-975.8 simulated hours and 942.2 GiB FLOAT PCM, extrapolated at 723–1,775 wall hours.
-Larger I/N/D/C and prescribed-replay estimates remain in `pilot_summary.json`;
-they are not the active plan. No broad campaign was started.
-
-## Step 1 completion and handoff
-
-Completed: exact scenes/arrays/programs/clocks, both profiles and HFOV variants,
-evaluator-only endpoint checks, RTX rendering/queries, bounded proxies, reference
-ledger, 24-run cost pilot and lean allocation. Each model-specific refinement is
-assigned once to its owning step; reuse still-valid controls.
-
-Full-field banded conditioning/DRR, scattering visibility and moving references
-remain prerequisites to affected Step 2/3 comparisons, so `score_ready=false`
-is intentional. Step 1 requires no further ordinary input preparation or user action.
-It did not admit a candidate, close 08.2, run a task comparison or change the SDK.
+Concluded preparation reports, pilot PCM and obsolete reference executors were removed after consolidating these findings. Retained scenes, source programs, material/proxy mappings, comparison allocation and scoring support Steps 4–8. They do not imply a ready qualified campaign or historical raw-output reproducibility.

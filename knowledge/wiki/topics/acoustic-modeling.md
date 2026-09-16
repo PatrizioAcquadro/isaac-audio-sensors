@@ -30,7 +30,7 @@ The optional `geometry_acoustics` intermediate uses a prepared USD acoustic scen
 instead of Analytic's environment solver. Steam owns direct/planar transmission,
 PRA native image sources own specular paths, and common receiver-clock convolution
 produces the final mixture. Diffuse field and complete final pathing remain open;
-see [[experiments/geometry-acoustics-admission#Operational intermediate — admitted within bounds|the intermediate admission record]]
+see [[experiments/geometry-acoustics-admission#Operational intermediate|the intermediate admission record]]
 for authoritative bounds and validation. It rejects precomputed `SourceOcclusion`.
 
 ## Entity Directivity

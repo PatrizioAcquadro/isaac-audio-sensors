@@ -1,7 +1,7 @@
 # Lab Perception Runtime
 
-Recorded 07.2/07.3 evidence on RTX 4090 (2026-09-09/10), with later numerical
-maintenance below. The maintained reference
+Recorded 07.2/07.3 evidence on RTX 4090 (2026-09-09/10), with the current numerical correction and measured cost below.
+The preceding-solver timings are historical and must not guide current sizing. The maintained reference
 and CUDA adaptation pass bounded same-PCM agreement; neither general moving-source
 perception nor policy learning is qualified. [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]]
 owns implementation; [[topics/isaac-lab-integration|Lab Integration]] owns contracts.
@@ -26,7 +26,7 @@ direction-difference p95 <0.00018 degrees across triangle/square/raised/tetrahed
 Misses/extras remain the scalar reference's errors. Per-environment floors,
 convergence and normalized bearing ordering prevent batch/selection artifacts.
 
-## Practical batches
+## Historical practical batches
 
 | Copies | Planar mean/p95 ms | Raised mean/p95 ms | Peak Torch GiB planar/raised |
 | --- | --- | --- | --- |
@@ -44,13 +44,8 @@ criterion passed; both results remain visible. Nominal raised complete sets rang
 92.19–100%; scalar reproduces extra events. Partial reset costs 2.8–4.0 ms plus
 subsequent normal warm-up. Memory includes resident fixtures, not total driver VRAM.
 
-16 copies are a measured interactive starting point, with little raised-array
-real-time headroom for other work. At 128 copies, aggregate throughput is near
-256-copy throughput while each environment advances faster. Ten simulated minutes
-per copy extrapolate to ~25/47 wall minutes planar/raised for audio alone, not a
-completed training run or an independent-sample/learning-success claim.
 
-## Exploratory large batches and limits
+## Historical large batches and remaining limits
 
 Initial 4096-copy active runs measured ~6.64 s planar/12.98 s raised per 100 ms
 update (simulated/wall ratios 0.0151/0.0077). Raised complete sets reached 96.48%,
@@ -71,11 +66,9 @@ Maintained `tools/smoke/live_isaac_lab_audio_smoke.py` supports `--perf-envs`,
 Use the supported Isaac launcher, actual GPU and isolated optional dependencies;
 [[topics/validation-and-release|Validation and Release]] owns runtime setup.
 
-Reports: `build/validation/phase07_2/practical/`, `indoor-parity-final.json`,
-`double-{256,1024,4096}.json`, `double-raised-4096.json` under `phase07_2/`;
-07.3 preservation at `build/validation/isaac_audio_sensors/lab_received_parity.json`.
-Local source/recordings and rejected reports remain protected. Historical detailed
-commands/table derivation are recoverable from Phase 07 at `5cfe48d`.
+`tools/validation/lab_perception.py` replays the retained 36 recordings in
+`local/lab/received_stationary/`. Historical reports are retired; their decisive
+results are recorded here. Earlier detailed commands are in Git at `5cfe48d`.
 
 ## Measurement reliability correction (2026-09-16)
 
@@ -91,9 +84,8 @@ The 27 affected tests pass on the actual RTX 4090, including eight symmetric dir
 cases, two equal-score plateau regressions and existing batching/reset/capacity
 controls. The 15 affected scalar localization/event tests also pass. Historical
 tables above describe the preceding solver and are not current throughput promises.
-Fresh same-PCM evidence is stored separately under
-`local/r10/08_2_step3_measurements/`; numerical agreement does not qualify acoustic
-fidelity or general moving-source perception.
+Numerical agreement does not qualify acoustic fidelity or general moving-source
+perception.
 
 The corrected implementation passes a fresh replay of the same 36 recordings and
 1,440 updates: 100% activity/count agreement on all four layouts; worst
@@ -101,7 +93,7 @@ scalar/CUDA direction-difference p95 is .000175 degrees. Four previously problem
 cube streams also preserve all 128 activity/count updates and 32-environment
 reorder/loud-neighbor/reset comparisons. These resolve the reproduced numerical
 failure rather than requiring a looser count or angular tolerance. The
-[[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|R10 measurement record]]
+[[experiments/geometry-acoustics-admission#Measurement reliability|R10 measurement record]]
 owns the cube, angular-cache and targeted AV interpretation.
 
 A separate synchronized cost check uses repeated received cube contexts, 16 kHz,
@@ -122,5 +114,4 @@ The earlier interactive/batch guidance cannot be carried forward to this solver.
 Offline, causally clocked Step 3 comparisons remain possible under the approved
 scope; practical throughput is an explicit remaining runtime limitation, not a
 reason to loosen numerical precision or silently change the perceptual model.
-Reports: `maintained_parity_final.json`, `stream_parity_final.json` and `cost.json`
-under `local/r10/08_2_step3_measurements/`.
+The completed parity and cost reports were condensed here before local deletion.

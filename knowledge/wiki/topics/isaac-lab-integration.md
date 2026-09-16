@@ -53,7 +53,7 @@ the same stage is rejected. Geometry produces per-environment CPU PCM and
 transfers only the received mixture into the same CUDA perception. Counts govern
 padding; per-environment reset and producer discontinuities reset the matching
 perceptual context. Current entity effects remain disabled. This is the
-[[experiments/geometry-acoustics-admission#Operational intermediate — admitted within bounds|08.2 intermediate domain]],
+[[experiments/geometry-acoustics-admission#Operational intermediate|08.2 intermediate domain]],
 not completion of general geometric acoustic coverage.
 
 Every `update(dt)` acquires elapsed microphone PCM, including when observation reads are deferred. Static fractional delays, signed polar gains, distance attenuation, emission schedules and file loops agree with Core. For moving geometry, receiver-time distances and gains interpolate between observed physics poses; this is a quasi-static approximation, not Core's retarded-source trajectory solver. A physics interval longer than 100 ms lacks the required pose history: it clears acoustic context, advances the acquisition cursor without fabricating the missing audio, and exposes a discontinuity. Subsequent contiguous updates warm up again. Physics intervals at or below 100 ms and observation cadence are separate settings.

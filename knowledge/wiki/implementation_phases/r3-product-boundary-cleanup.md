@@ -40,4 +40,4 @@ Clean archives do not establish acoustic or task validity.
 
 ## Files
 
-`tools/release/content_policy.py`, `tools/release/`, `src/isaac_audio_sensors/isaac/microphone_rig_profiles.py`.
+`tools/release/content_policy.py`, `tools/release/`, `src/isaac_audio_sensors/kit/microphone_rig_profiles.py`.

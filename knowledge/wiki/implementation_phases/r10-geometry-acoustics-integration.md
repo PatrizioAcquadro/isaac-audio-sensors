@@ -111,136 +111,13 @@ Complete the following before closing Milestone 2:
 
 #### Problems / Limitations
 
-Selected-route NLOS is integrated as an explicit optional configuration. Step 2
-transport controls pass for both maintained arrays, ordinary motion/doors,
-probe/update refinement and actual RTX Isaac updates. The default remains the
-intermediate. Shared diffuse pressure is now a separate experimental opt-in;
-joint NLOS/diffuse admission is still Step 4. Automatic probe coverage,
-causal route timing, immutable visibility snapshots and producer lifecycle have
-maintained native tests. Door pressure remains probe-sensitive: refinement has
-not established pressure convergence or calibrated diffraction accuracy. See
-[[experiments/geometry-acoustics-admission|the measured limits and closeout]].
-This does not close Milestone 2 or unavailable full-field/reference comparisons.
-Historical PRA moving-ray phases biased weak-direct observations; a fixed
-first-scatter anchor passed one plane but failed later-scatter persistence. Neither
-proves all PRA extensions impossible. The two-gate asynchronous failure is a stress limit;
-representative weak-direct bias cannot be waived.
+Step 2 selected-route NLOS is integrated and passes bounded transport/lifecycle controls. Door pressure remains probe-sensitive and diffraction is uncalibrated. The two-gate asynchronous route-discovery case remains a stress limit.
 
-Step 3 native preparation now exposes checked pre-histogram, multiband incident
-and received energy capture through the existing PRA build. Disjoint ISM/RT
-receiver ownership, two-sided visibility, band branching, unchanged calls and
-independent native handles have focused tests. The resumed general-field work
-adds a checked native segment-visibility interface, including surface projection
-across partition boundaries. Native first-scatter quadrature and a general
-object-local pressure field now implement the optional D producer. Thirty-six
-native, field, producer and convolution tests pass, including analytic
-Lambertian covariance/energy, unchanged refresh, array regrouping, emission-stop
-tails and reset. The conditioned smooth-room pressure-decay and RTX observation
-comparison fails the original criteria after order/ray refinement, including
-order 7/65536 rays. The user-approved cube diagnostic decision preserves this
-failure but removes matching that late response as an admission prerequisite.
-Step 3 then remained unadmitted pending binding field and representative
-motion/room qualification. The user requested
-practical-impact diagnostics before a provider decision. Absolute-rate/persistence
-analysis, artificial late-response interventions and actual downstream software
-replay are complete. A sixteen-episode geometric head/camera loop and targeted
-refinements now distinguish acquisition, false association and selected-cue dwell.
-A fresh 192-episode refined confirmation preserves bounded acquisition and
-resumption benefit, supporting retention of PRA. Raised-only false-association
-precision remains inconclusive. Direct-only controls expose a separate consumer
-limit; MeshRIR replay is auxiliary, not a matched physical reference. Full profile
-usefulness belongs to Steps 5–6; physical transfer is a separate unvalidated claim.
-See [[topics/geometry-acoustics|the interface and approximations]] and the
-[[experiments/geometry-acoustics-admission|measured failure and consumer limits]].
-The earlier material-anchored statistical
-candidate improves source-motion and translating-mirror controls but fails a
-5-degree rotating-mirror temporal-coherence control: mean error 0.17045 at 500 Hz
-with 1048576 rays, 95% interval [0.16783, 0.17321], above the controlled 0.1 bound.
-Independent reference refinement passes. **Step 3 was not qualified at that stage.** The
-user authorized a targeted PCM/observation follow-up before a provider decision;
-the failed physical diagnostic remains recorded under the
-[[decisions/robot-audition-fidelity#Step 3 targeted impact decision (2026-09-15)|revised decision]].
-General shared pressure and optional producer integration followed;
-full energy/reference and weak-direct observation qualification were then open.
-That evidence is separate under `local/r10/08_2_step3_general/`.
-Reference conditioning also exposed a banded specular synthesis defect: including
-scalar path gain inside minimum-phase conversion made phase depend on distance
-and discarded negative directivity. Material normalization and separate signed
-scaling fix it; a native regression checks polarity, half-gain and delay-aligned
-distance scaling. Flat specular synthesis remains unchanged.
-Earlier prototype evidence and reproduction live under
-`local/r10/08_2_step3_diffuse/`; the
-[[experiments/geometry-acoustics-admission|admission record]] owns the result.
-No larger pressure-transport solver or replacement evaluation was started.
+Step 3 is PASS under the revised criteria, with `diffuse=None` still the default. The native shared field passes binding energy, persistence, visibility, lifecycle and selected C03/C04 relative-impact controls. Full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking; the cube and selected-mirror mismatches remain diagnostic. Joint NLOS/diffuse admission is still Step 4.
 
-Later measurement maintenance corrects WPE conditioning and peak ties in the common
-scalar/CUDA consumer with unchanged perception parameters. Direct-symmetry and
-recorded cube parity/batch controls now pass. The angular-bank discrepancy is
-mainly early specular visibility; full-pressure isolation remains failed and
-future general-motion comparisons must use the actual producer at microphone
-positions or independently qualified sampling. Historical rate intervals retain
-the preceding consumer, rather than becoming fresh evidence after the fix.
-[[experiments/geometry-acoustics-admission#Measurement reliability (2026-09-16)|Measurement reliability]]
-owns the targeted effects and remaining reference limits. This maintenance changed
-neither the cube diagnostic decision nor the Step 3 gates then in force.
+Material-phase separation, stable scalar/CUDA WPE and the native jamb departure-side correction resolve demonstrated defects. Historical observation intervals retain their original consumer version. The failed full-pressure angular cache cannot support unrestricted motion claims; use actual microphone-position responses or separately qualified sampling.
 
-A later E3 door probe corrected a sub-epsilon jamb projection leak. Native
-parent-surface departure-side checks now prevent interpolation behind the prior
-reflector even when generic segment visibility permits endpoint contact. The
-actual closed/open/closed D response returns to exact zero when closed; fifteen
-native/field and nine producer checks pass. The additional private projection
-ABI requires a native rebuild and leaves specular-only behavior unchanged.
-[[experiments/geometry-acoustics-admission#Targeted closeout and projection correction (2026-09-16)|Targeted closeout]]
-owns the reproduction and remaining admission limits.
-
-The subsequent joint panel uses actual D responses at every sampled microphone
-pose. Dynamic grouping, source identity, reset, environment isolation, exact-pose
-PCM replay and the controlled-plane energy/coherence checks pass. C03/C04 now have
-a compact corrected-RTX panel and targeted update refinement. The fresh
-96-program fastest-source confirmation and subsequent maximum C04 translation/yaw
-confirmations pass all relative observation budgets on both arrays/gains at
-2.5 ms. Absolute consumer performance remains difficult in some controls.
-Independent field-seed diagnostics retain separate targeted confirmations.
-Two bounded room probes, sequential two-source replay, thirteen room key poses,
-ordinary-motion visibility, controlled isotropic synthesis, receiver-radius and
-E2 horizon controls are complete. Static physical weak direct and the original
-Office/Hospital acoustic proxies have actual-D integration evidence; Hospital's
-explicit capacity override leaves accuracy budgets unchanged. Full moving-room
-references, conditioning and complete routes remain open. Costs are offline and
-recorded in the linked targeted closeout. See
-[[experiments/geometry-acoustics-admission#Joint motion and observations (2026-09-16)|joint motion/observation evidence]]
-for the validated scope and independent-reference boundary.
-
-The user then retained the full-room gate and authorized only a bounded reference
-feasibility task. Its
-[[experiments/geometry-acoustics-admission#Bounded full-room reference feasibility (2026-09-16)|reuse audit]]
-stops before trajectory rendering: existing components do not provide an
-independently justified shared moving-room pressure model. The identified missing
-work is a separate room-field formulation and qualification, not a demonstrated
-need to replace native PRA traversal. The subsequent explicit user decision
-declines new independent reference development and accepts full-room moving
-pressure/observation equivalence as a **non-blocking known limitation, NOT VALIDATED**.
-Review of the saved evidence finds no other binding Step 3 blocker. **Step 3 is
-formally PASS under the revised criteria**, with unchanged numerical budgets,
-perception parameters and opt-in defaults. The
-[[experiments/geometry-acoustics-admission#Step 3 formal admission (2026-09-16)|formal closeout]]
-separates passed controls, cube/mirror diagnostic failures, unvalidated full-room
-properties and later-step work. Runtime diagnostics report `step3_pass_with_limits`.
-Only admission documentation and diagnostic labels change at closure; no new
-tests, reference runs or provider evaluations are performed. Combined NLOS+D,
-AV/mobile utility and Milestone 2 remain open.
-
-The earlier targeted follow-up supplies actual RTX 4090 observation evidence under
-`local/r10/08_2_step3_impact/`. Analytic scalar synthesis/reference, persistence and
-CUDA independence checks pass. Fresh source-motion trials meet mean/p95 angular
-budgets on both arrays; rates remain partly inconclusive. The rotating selected
-mixture meets every observation-impact budget on both arrays at measured DRR
-about -15.7 dB (96 independent episodes per condition, 65536 rays, 2.5 ms updates).
-The isolated rotating family's spurious-rate bounds remain inconclusive. These
-are controlled statistical PCM comparisons, not a complete D producer or room
-qualification. The unchanged 0.17045 field discrepancy alone does not justify
-provider replacement. The [[experiments/geometry-acoustics-admission|admission record]]
-owns the intervals, reference validity, consumer limits and remaining work.
+The [[experiments/geometry-acoustics-admission|admission record]] owns measured refinements, finite-seed confirmations, representative-room results, accepted limitations and costs. The bounded head/camera result supports retaining PRA but does not close full AV/mobile usefulness or physical transfer. The full-room reference audit stopped before a separate field formulation; no replacement provider is planned.
 
 Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,
@@ -272,7 +149,7 @@ catalog or advanced analysis GUI is required here.
 
 Consolidate one production binding and remove superseded experimental runtime paths
 only after consumer/evidence review. Keep pinned native patches/build recipes and
-version/ABI failures reproducible; preserve installed providers and historical builds.
+version/ABI failures reproducible; preserve installed providers and required current native builds.
 
 #### Key Decisions
 
@@ -286,13 +163,11 @@ version/ABI failures reproducible; preserve installed providers and historical b
 Isaac Sim/Lab/Kit and CUDA perception, same-PCM scalar agreement, source-stop and
 reset/isolation tests, `make check`, packaging and documentation checks pass.
 Measure one/few-environment runtime/memory after Milestone 2; slower-than-real-time
-is acceptable with coherent simulated clocks and explicit limits. No new recordings,
-training, publication or push are required.
+is acceptable with coherent simulated clocks and explicit limits. No new recordings or training are required.
 
 ## Artifacts
 
-[[experiments/geometry-acoustics-admission|Admission evidence]] owns replay locations,
-key measurements and failed controls. Historical scope changes and detailed run
+[[experiments/geometry-acoustics-admission|Admission evidence]] owns key measurements, failed controls and current evidence-retention boundaries. Historical scope changes and detailed run
 chronology are recoverable from this path at commit `5cfe48d`; they are not current
 gates. Maintenance through `523695c` passed host/native and actual RTX Sim/Lab/Kit
 plus clean-source distribution checks, preserving the intermediate rather than

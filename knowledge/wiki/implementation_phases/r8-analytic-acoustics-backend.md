@@ -81,7 +81,8 @@ Kit finalizes an active recording as incomplete, never emits an unoccluded fallb
 Actual RTX/PhysX controls pass solid primitives/meshes, 1 mm–50 cm boxes, sequential
 solids, selective 20 dB pair attenuation and recovery. Maximum recomposition error
 <1.9e-9; actual Kit shows independent observed confidence and geometric path counts.
-Evidence: `local/pre72/live_one/`, `live_two/`, `live_final/`. Sub-window moving edges,
+Historical live evidence is summarized here; raw trial outputs were retired.
+Sub-window moving edges,
 arbitrary instancing, reflected obstruction and robot-housing acoustics remain
 unqualified. General perceptual misses/extras are not solved by correct attenuation.
 

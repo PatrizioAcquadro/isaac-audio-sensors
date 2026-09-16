@@ -20,7 +20,7 @@ native direct/transmission and specular reflection PCM; source state remains
 upstream of common perception. Lab selects the producer through the Core registry,
 without importing the Isaac subsystem at module load. The same CUDA perception,
 context and projection are reused. See
-[[experiments/geometry-acoustics-admission#Operational intermediate — admitted within bounds|R10]]
+[[experiments/geometry-acoustics-admission#Operational intermediate|R10]]
 for the bounded domain and unresolved final coverage.
 
 Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; activity-detector plugins own streaming activity and event state; DOA owns the numerical least-squares solver, GCC-PHAT, PyRoom SRP-PHAT adaptation, physical ambiguity, and sector mapping. The DOA plugin boundary receives only valid rows of the final mixture, matching array-local geometry, and sample rate; it receives no scene or source-conditioned state. Standard activation is default-off with no silent fallback. At 16 kHz, planar/rank-3 arrays use the maintained multisource localizer; stereo and other planar rates retain their qualified single-event roles. [[topics/acoustic-modeling|Acoustic Modeling]] owns exact routing and limits. Internal SRP is removed. `ActivityDecision` fixes an optional `[0, 1]` acoustic-activity probability while detector-specific energy values remain diagnostics. `AuditokActivityDetector` is the qualified generic implementation and the maintained consumer separately owns the trailing DOA context and temporal abstention state. Fundamental data contracts remain centralized in `core.types`.

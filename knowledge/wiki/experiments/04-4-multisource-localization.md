@@ -277,7 +277,10 @@ Reports retain exact count, matched precision/recall, complete sets, angular err
 
 The historical protocol separated development from two conditional fresh confirmation blocks with independent speakers, utterances, signal seeds and trajectories, 12 episodes per content/layout/block and paired episode uncertainty analysis. No confirmation assets were selected or consumed after the nominal screen failed. Intermediate/harder conditions, three sources, brief impulses, higher reverberation, full acoustic shadow and a new physical-data comparison were not expanded in this iteration. Sparse development episodes cannot establish confidence intervals for the requested domain. No independently qualified temporal operating domain is delivered.
 
-Subphase 07.3 retains `local/pre72/summary.json` and the live occlusion evidence directories; it removes the frontend prototypes, screening scripts, redundant per-update reports and generated control caches. The summary and findings above preserve the tested methods, decisive regressions and reasons for rejection. `knowledge/raw/` and protected qualification evidence remain unchanged.
+The cleanup removes the concluded `pre72` and occlusion trial outputs. The findings
+above preserve the tested methods, decisive regressions and reasons for rejection;
+R8 records the separate PhysX correction. `knowledge/raw/` and qualification
+assets remain unchanged.
 
 The maintained localizer and propagation source remain unchanged from `ba65cf3`. The separately completed confidence and native occlusion changes are owned by [[topics/public-contracts-and-recording|the observed contract]] and [[implementation_phases/r8-analytic-acoustics-backend|R8]]. Their host/runtime/package checks do not close this perceptual gate. The failed candidates do not authorize perceptual claims; the later user decision below separately governs 07.2 admission. Full GUI consolidation remains 07.3, advanced geometry remains 08 and realism distributions remain 09.
 

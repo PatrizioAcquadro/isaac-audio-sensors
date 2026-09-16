@@ -271,12 +271,12 @@ supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negativ
 delay is explicitly unqualified for this causal component; the intermediate keeps
 its existing response support. Full combined-producer qualification remains Step 4.
 
-Production bindings live in the package; `tools/native/pathing.py` and
-`retarded_pathing.py` retain lightweight import compatibility for historical replay
-consumers. `tools/native/steam_paths.patch`, `steam_probes.cpp`,
-`steam_visibility.cpp` and the private header/build recipe remain maintained.
+Production bindings live in the package. `tools/native/steam_paths.patch`,
+`steam_probes.cpp`, `steam_visibility.cpp` and the private header/build recipe remain
+maintained. Historical tool re-exports have been removed; consumers import the
+package implementations.
 
-Exact local replay recipes: `local/r10/08_2_intermediate/README.md`,
-`local/r10/08_2_extensions/README.md`, `local/r10/08_2_dynamics/README.md`.
-[[experiments/geometry-acoustics-admission|The admission record]] owns results;
-source/tests remain authoritative for executable behavior.
+Future trial inputs, fixtures and bounded checks are described in
+`local/r10/README.md`. Historical trial outputs are no longer retained.
+[[experiments/geometry-acoustics-admission|The admission record]] owns their results
+and limitations; source/tests remain authoritative for executable behavior.
