@@ -292,3 +292,22 @@ original deliveries remain intact. Previous revision copies are retained locally
 
 Updated the existing production page without adding pages or links. Local Python
 checks and Markdown whitespace checks pass.
+
+## 2026-09-19 — update: Shared ONR legend and source-reference continuity
+
+Documented exact legend wording for direct-path and occlusion examples, typography,
+measured width, padding, placement and omission in first-person views. Revised
+compositors share one legend helper. Added a separate 1440p Video 4 copy using the
+common layout, preserving its occlusion colors and original AAC stream.
+Video 1 now follows the complete source events in external shots: all 273 active
+external frames contain the path; first-person views omit it. The observed compass,
+activity indicator and RMS are unchanged. Full media checks pass for all four
+revision copies, with original movies and audio preserved and no new 1080p files.
+
+## 2026-09-19 — lint: Verify common legend documentation
+
+Updated the canonical production page and its existing index entry; no pages or
+links were added. The index target exists and Markdown whitespace checks pass.
+Focused Python checks pass; Video 4's pre-existing long lines were excluded from
+its style check. Native dimensions and representative external/POV frames were
+verified against the delivered files.
