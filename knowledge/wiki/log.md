@@ -237,3 +237,18 @@ All 42 wiki pages remain indexed and internal page/heading links resolve.
 Claims match the 600-window capture, checked GPU pose replay, final media reports
 and complete playback. Local production scripts pass Ruff; Markdown whitespace
 checks pass. Immutable raw material and approved deliveries are unchanged.
+
+## 2026-09-19 — update: Stabilize ONR Video 4 activity and standardize camera FOV
+
+Documented the 2.5 s activity release requested during user review and the mandatory
+head-camera FOV for every new or revised video. Video 4 was recomposed from the
+existing recording and renders: display transitions fall from 53 to one; all 900
+RMS and direction states remain unchanged. Compass styling stays independent of
+known door geometry. Master, 1080p movie, preview and delivery notes were updated
+locally; recordings, approved Videos 1–3 and the public SDK remain unchanged.
+
+## 2026-09-19 — lint: Verify ONR activity refinement documentation
+
+All 42 wiki pages are indexed and internal links resolve. Ruff and Markdown
+whitespace checks pass. The documented 2.5 s hold matches all 900 display states;
+RMS/direction parity, silence-tail expiry, full media decode and AAC checks pass.
