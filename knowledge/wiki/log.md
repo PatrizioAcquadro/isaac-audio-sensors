@@ -203,3 +203,20 @@ suite also passes after rerunning the CUDA cases with host GPU access.
 Checked current reports against the canonical measurements and retained limits.
 No new wiki page or link target was introduced. Updated smoke sources pass lint,
 whitespace checks and the full host check suite; raw evidence is unchanged.
+
+## 2026-09-19 — update: Close bounded Phase 08
+
+08.3 and Phase 08 close after passing host/native/CUDA and actual Sim/Lab/Kit
+operating gates. Clean-source sdist, derived wheel and Kit audits pass; the
+extracted Kit archive passes dependency-origin, Extension Manager, combined
+Geometry and shutdown checks. Updated phase, R10, status and release guidance,
+including preservation of native builds instead of whole-build cleanup. Existing
+acoustic admission limits and downstream media gates are unchanged. No push or
+publication was performed.
+
+## 2026-09-19 — lint: Verify Phase 08 closure
+
+All 42 wiki pages are indexed; page and heading links resolve. Closure claims
+match host/native/runtime reports and artifact audits, and raw inputs remain
+unchanged. Ruff, whitespace and all 58 release tests pass. Historical acoustic
+limits remain separate from operating and distribution completion.

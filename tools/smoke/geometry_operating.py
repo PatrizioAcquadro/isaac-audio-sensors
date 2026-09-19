@@ -137,7 +137,7 @@ def run_geometry_operating(controller, library, specular_library, output):
     view._set_section_collapsed("Live Monitor", True)
     view._set_section_collapsed("Advanced Tools", False)
     for title, subsection in view._subsection_frames.items():
-        subsection.collapsed = title != "Sensor Settings & Debug"
+        subsection.collapsed = title not in {"Sensor Settings & Debug", "Geometry"}
     screenshot = _capture_app_screenshot(output.with_suffix(".geometry.png"))
     producer = sensor._propagation_backend
     controller.close_sensor()

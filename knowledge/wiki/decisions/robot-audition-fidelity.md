@@ -3,7 +3,7 @@
 Status: **08.2 is complete within its documented acoustic and integration bounds.**
 This is the canonical R10 scope/acceptance decision; the
 [[experiments/geometry-acoustics-admission|admission record]] owns implementation evidence.
-08.3 owns remaining operating integration and runtime/distribution closeout.
+08.3 completed operating integration and bounded runtime/distribution closeout; acoustic acceptance limits below are unchanged.
 
 ## Purpose and ownership
 

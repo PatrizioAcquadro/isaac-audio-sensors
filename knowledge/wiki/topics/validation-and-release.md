@@ -10,7 +10,7 @@
 
 `make test-release` remains the focused release content, versioning, Python sdist/wheel, Kit, and repository-boundary lane.
 
-`make test-isaac` runs the deterministic Isaac lane through the configured Isaac Lab interpreter without requiring a GPU.
+`make test-isaac` runs the deterministic Isaac lane through the configured Isaac Lab interpreter. The complete lane includes CUDA parity/isolation cases and requires GPU access; USD/native-only cases can run on CPU.
 
 ## Focused Checks
 
@@ -18,7 +18,7 @@
 
 `make lint` runs Ruff. The complete `make check` gate also rejects whitespace and conflict-marker damage.
 
-`make clean` removes only regenerable build, distribution, coverage, Python metadata, and tool-cache files. It does not touch the virtual environment, local evidence, agent instructions, or the local implementation checklist.
+`make clean` removes `build/`, including locally installed native Geometry providers and validation outputs. Do not use it when preserving those inputs. `make release` clears only packaging outputs (`dist/`, `build/lib`, `build/bdist.*` and package metadata), preserving the native builds.
 
 Use focused tests during iteration, then run the complete relevant lane before committing a coherent milestone.
 
@@ -58,7 +58,7 @@ The shared policy rejects first-party tests, tools, scripts, local datasets, evi
 
 ## Release Checklist
 
-Run `make clean`, `make check`, and `make release WHEELHOUSE=<path>`. Add the runtime gates appropriate to changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect all three artifacts before publication.
+Run `make check` and `make release WHEELHOUSE=<path>`. Add the runtime gates appropriate to changed behavior, regenerate schemas when contracts change, update `CHANGELOG.md`, and inspect all three artifacts before publication. Preserve installed native providers and local evidence; a whole-build cleanup is unnecessary.
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
@@ -97,3 +97,26 @@ PyTorch authoritative; do not add the entire host virtual environment to its pat
 The gate compares native exported coordinates, exercises PhysX poses without
 USD writes, tests shared Kit edits and Undo/Redo, and captures the actual panel.
 It does not qualify propagation PCM or perceptual accuracy.
+
+## Geometry operating gate
+
+The optional native libraries are external dependencies of both Python and Kit
+artifacts. Building a Kit ZIP does not bundle or qualify them. Keep the pinned
+recipes and ABI checks in [[topics/geometry-acoustics|Geometry Acoustics]].
+
+Pass `--geometry-library <qualified-libias_pathing.so>` and
+`--specular-library <qualified-libias_specular.so>` to the maintained Sim and Kit
+smokes. The Kit gate additionally exercises prepared scene → configured sensor →
+observed instruments, combined NLOS/diffuse, closed/open/closed screen motion,
+source-stop/tail, widget recreation, configuration failure and stage replacement.
+Use `--require-screenshot` for the actual UI gate. The same options apply when
+running from the extracted archive; package/dependency origin checks must pass.
+
+For bounded Lab cost, use the same library arguments with `--geometry-screen`
+(base) or `--geometry-combined`, `--perf-envs 1` or `2`,
+`--perf-steps 30 --perf-sources 1 --perf-reference-check --perf-reference-steps 2`.
+GPU access is required. Acquisition/perception timing is separate from lazy native
+warm-up, preparation and reset; host RSS and CUDA allocator peaks have distinct
+scopes. [[experiments/geometry-acoustics-admission#08.3 operating runtime and cost (2026-09-19)|The operating results]]
+own measured costs and limitations. There is no real-time threshold or inference
+to complex rooms, large batches or physical transfer.

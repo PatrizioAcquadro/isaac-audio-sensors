@@ -1,8 +1,7 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: **08.1 and 08.2 are complete within their documented bounds.**
-08.3 operating integration is implemented; runtime/distribution closeout is in progress.
-Phase 08 remains open until those checks pass.
+Status: **08.1–08.3 and Phase 08 are complete within their documented bounds.**
+Operating, runtime and clean-source distribution gates passed on 2026-09-19.
 
 ## Objective
 
@@ -69,9 +68,20 @@ material/path/coverage diagnostics. Binding import/export retains native setting
 without handles; window teardown preserves the scene and stage changes close
 borrowing producers first. Historical NLOS coverage is now captured per block.
 
-Closeout in progress: bounded sensor-to-instrument runtime validation, native
-consumer/build consolidation review, one/two-environment measurements and affected
-native, scalar/CUDA, actual Sim/Lab/Kit and clean-source packaging checks.
+Completed the bounded sensor-to-instrument gate on actual RTX Kit, including
+closed/open/closed screen motion with NLOS and diffuse together, source-stop/tail,
+window recreation, failure recovery and stage replacement. Actual Sim, the shared
+preparation panel and CUDA Lab pass. Base/combined one/two-environment measurements
+cover preparation, warm-up, reset, mean/p95, host/GPU memory and simulated/wall time;
+the [[experiments/geometry-acoustics-admission#08.3 operating runtime and cost (2026-09-19)|admission record]]
+owns values and interpretation.
+
+Host checks pass: 677 unit/contract, 336 integration and 58 release tests.
+Affected native/stream and CUDA parity/isolation checks pass. Consumer/build review
+confirmed one maintained production binding per capability; native patches,
+installed providers and retained inputs remain intact. Clean committed source
+produced audited sdist, its derived wheel and Kit ZIP. The extracted Kit archive
+passes the actual GPU smoke, including bundled dependency origins and Geometry.
 
 #### Key Decisions
 
@@ -81,8 +91,9 @@ capture campaign is required. Use actual GPU execution for supported Isaac/CUDA 
 
 #### Problems / Limitations
 
-08.3 closeout is in progress. Phase 08 closes only after its operating and distribution
-checks pass. [[topics/onr-video-production#Remaining ONR deliveries|ONR deliveries]]
+No remaining 08.3 gate is blocked. Full-room fidelity, calibrated diffraction,
+large-batch scaling and real-time performance remain outside this bounded closure.
+[[topics/onr-video-production#Remaining ONR deliveries|ONR deliveries]]
 retain their own scenario/media gates; SDK completion does not approve a video.
 
 ## Artifacts

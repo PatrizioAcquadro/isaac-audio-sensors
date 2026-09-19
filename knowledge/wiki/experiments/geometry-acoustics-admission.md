@@ -15,8 +15,8 @@ Decisive results from 2026-09-10–19. [[decisions/robot-audition-fidelity|Robot
 | Robot consumers | Bounded head/camera diagnostic benefit | No general application-performance or physical-transfer claim |
 
 **08.2 (Milestone 2) is complete within the bounds above.** Step 4 passes combined
-streaming and integration. 08.3 operating/runtime checks below pass; clean-source
-distribution closeout is in progress.
+streaming and integration. **08.3 and Phase 08 are complete within these bounds:**
+operating/runtime checks and clean-source distribution closeout pass.
 
 ## 08.3 operating runtime and cost (2026-09-19)
 
@@ -75,6 +75,15 @@ arguments, `--geometry-screen` (base) or `--geometry-combined`, `--perf-envs 1` 
 `tools/smoke/live_omniverse_extension_ux.py` accepts both library arguments for
 the operating scenario. Local reports/PCM/screenshots are under
 `build/validation/r10/operating/`; no historical physical claim is expanded.
+
+Clean-source `make release WHEELHOUSE=local/onr/wheels` at `5fc36b9` passed
+sdist, wheel-from-sdist and exact Kit archive audits. The extracted archive passed
+`live_omniverse_extension_ux.py --extension-path <extracted-root>` with both external
+native libraries, `--require-screenshot`, `PIP_NO_INDEX=1`, a precreated output root
+and only the extracted extension plus smoke helpers on `PYTHONPATH`. First-party
+and bundled dependency origins, Extension Manager enable/disable, FLAC, the
+combined Geometry scenario and shutdown pass. Providers were preserved and remain
+external; no publication or registry-discovery claim is made.
 
 ## Step 4 combined producer controls (2026-09-19)
 
@@ -305,4 +314,4 @@ Historical trial executors, reports, PCM banks and obsolete provider copies were
 
 Ignored `local/r10/` retains preparation inputs/generators, licensed assets, reusable producer controls and bounded head/scoring diagnostic helpers. Its README owns commands. Current runtime regression tests remain under `tests/`; native builds remain under `tools/native/`. Existing ONR production and the 36 Lab parity inputs are retained separately.
 
-08.3 must preserve the admission boundaries above and reuse unaffected controls while completing the operating workflow and bounded runtime/distribution checks. No new reference campaign, acoustic solver, physical capture or provider evaluation is implied by cleanup.
+08.3 preserves these admission boundaries and reuses unaffected controls. The operating workflow and bounded runtime/distribution checks pass; no new reference campaign, acoustic solver, physical capture or provider evaluation was introduced.

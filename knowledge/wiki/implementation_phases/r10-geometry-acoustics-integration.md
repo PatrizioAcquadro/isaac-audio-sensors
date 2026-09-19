@@ -1,7 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
 Status: **08.1 and 08.2 (Milestone 2) are complete within their documented bounds.**
-08.3 operating integration is implemented; runtime/distribution closeout remains open.
+08.3 operating integration and bounded runtime/distribution closeout are complete.
 
 ## Objective
 
@@ -121,14 +121,15 @@ capability/error reporting, controller-owned scene lifecycle and actionable
 path/material/coverage diagnostics. Keep simulation facts separate from activity, events, direction,
 confidence and RMS. A blocked path is not an inferred unreliable event.
 
-Finish the geometry-backed sensor-to-instrument chain for a bounded occlusion
-scene. [[topics/onr-video-production|ONR videos]] retain separate scene/media gates.
+Completed the geometry-backed sensor-to-instrument chain for a bounded moving-screen
+scene, including combined providers, tail, lifecycle and actual packaged Kit.
+[[topics/onr-video-production|ONR videos]] retain separate scene/media gates.
 Consumer-justified geometry summaries may support Phase 09; no generic distribution
 catalog or advanced analysis GUI is required here.
 
-Consolidate one production binding and remove superseded experimental runtime paths
-only after consumer/evidence review. Keep pinned native patches/build recipes and
-version/ABI failures reproducible; preserve installed providers and required current native builds.
+Consumer/evidence review confirmed one production binding per maintained capability;
+no further runtime deletion was necessary. Pinned native patches/build recipes,
+version/ABI checks, installed providers and required native builds are preserved.
 
 #### Key Decisions
 
@@ -138,11 +139,12 @@ version/ABI failures reproducible; preserve installed providers and required cur
 
 #### Problems / Limitations
 
-08.3 runtime/distribution closeout is in progress. Close only after affected native/stream checks, actual
-Isaac Sim/Lab/Kit and CUDA perception, same-PCM scalar agreement, source-stop and
-reset/isolation tests, `make check`, packaging and documentation checks pass.
-Measure one/few-environment runtime/memory during 08.3; slower-than-real-time
-is acceptable with coherent simulated clocks and explicit limits. No new recordings or training are required.
+08.3 closes after passing native/stream checks, actual RTX Isaac Sim/Lab/Kit,
+same-PCM scalar/CUDA agreement, source-stop and reset/isolation, `make check`,
+clean-source sdist/wheel/Kit audits and the extracted-archive smoke. One/two-environment
+base/combined costs are recorded in the admission evidence. These bounded CPU-native
+costs do not qualify real-time operation, complex rooms or large batches. No physical
+recording, training or acoustic GPU port was introduced.
 
 ## Artifacts
 
@@ -156,5 +158,5 @@ qualifying new physics.
 
 - `src/isaac_audio_sensors/isaac/acoustic_scene/` — prepared scene/native producer.
 - `src/isaac_audio_sensors/kit/acoustic_scene.py` — shared authoring workflow.
-- `tools/native/` — reproducible native bridges and experimental route interfaces.
+- `tools/native/` — reproducible optional native bridges and qualified route interfaces.
 - `tests/isaac/`, `tests/unit/`, `tools/smoke/` — native/stream and actual consumers.
