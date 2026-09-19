@@ -15,7 +15,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Datasets]] — independent truth, learning inputs and splits.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Signal Parity]] — common semantics, physical integration and comparison.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Lab/GUI]] — observed tensors, CUDA reference preservation and consumer closeout.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — eight remaining execution steps.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — 08.1/08.2 complete within declared bounds; 08.3 operation and closeout next.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Realism]] — planned consumer-justified variation.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 Product Closeout]] — planned complete supported-system validation.
 - [[implementation_phases/11-future-semantic-perception|11 Specialized Perception]] — deferred classification/tracking/separation.
@@ -54,8 +54,8 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — Steps 3–4 PASS within their bounds, combined native/RTX stream evidence, retained motion/room controls and full-room moving equivalence explicitly NOT VALIDATED.
-- [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — future fixtures, references, scoring and preparation limits.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — 08.2 completion evidence, combined native/RTX stream checks, retained motion/room controls and full-room moving equivalence explicitly NOT VALIDATED.
+- [[experiments/geometry-acoustics-trial-protocol|Geometry Simulation Fixtures]] — prepared simulation inputs, controlled references and measured preparation limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
 - [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, WPE/peak numerical corrections and dated practical batch costs.

@@ -1,20 +1,20 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: 08.1, the 08.2 intermediate and Steps 3–4 are complete within their
-documented bounds. Milestone 2 and 08.3 remain open. Step 5 is next.
+Status: **08.1 and 08.2 (Milestone 2) are complete within their documented bounds.**
+08.3 operating integration and Phase 08 closeout remain open.
 
 ## Objective
 
-Deliver Geometry Acoustics for scientifically useful robot audition. Implement
-[[decisions/robot-audition-fidelity|the approved indoor domain, both profiles, physical invariants, numerical budgets and stop rule]]. AV attention/search is
-first; mobile audition is complementary and still required. The scope is not
-absolute dynamic acoustic completeness. Approval did not admit experimental code.
+Deliver a reusable geometry-backed multichannel signal producer for robot audition
+and learning in Isaac Sim/Lab. The [[decisions/robot-audition-fidelity|acoustic and interface criteria]]
+define the indoor domain, invariants, numerical budgets and provider stop rule.
+Robot policies, visual search, navigation and hardware acceptance stay downstream.
 
 Read this plan and the decision to implement. Consult
 [[topics/geometry-acoustics|the technical contract/build instructions]] as needed;
 [[experiments/geometry-acoustics-admission|the admission record]] preserves decisive
 positive and negative results. [[implementation_phases/08-geometry-acoustics-integration|Phase 08]]
-owns the eight-step sequence; do not duplicate acceptance criteria there.
+owns completed stages and remaining execution order.
 
 ## Subphase R10.1 — USD Acoustic Scene
 
@@ -53,54 +53,30 @@ available. Common scalar/CUDA perception sees only the final mixture. Native eng
 own traversal, image paths, scattering and route search; IAS owns interface mapping,
 stream timing and justified pressure synthesis. No second geometry attenuation stage.
 
-Complete the following before closing Milestone 2:
+Milestone 2 is complete through four verified stages:
 
-1. Instantiate the [[experiments/geometry-acoustics-trial-protocol|declared trial matrix]],
-   scoring and property-specific references. **Step 1 preparation is complete under
-   the clarified scope**: inputs, bounded NVIDIA acoustic proxies, essential geometry
-   checks, direct/scalar reference diagnostics and RTX cost evidence are saved.
-   No 08.1 SDK correction was needed; local overlay units/up-axis were corrected.
-   Banded full-field decay/DRR, scattering visibility and unavailable moving-room
-   references were assigned to affected Step 2/3 comparisons; current results and
-   the explicitly revised full-room admission role are recorded below.
-   Do not treat this preparation closeout as model admission. Use the lean family
-   allocation and reuse still-valid evidence; no blanket 400 repetitions per row.
-
-2. Integrate the selected-route Steam extension before SH/EQ aggregation. Export
-   topology, full source–mic length, departure/arrival direction, weight, native
-   filtering and validity through a checked private ABI. Preserve native probe
-   generation/search, endpoint/internal visibility, alternate routing and explicit
-   coverage/rebake handling. Render each route at its own delay; distinguish physical
-   alternatives from duplicate probe representations. Exclude native LOS already
-   owned by direct rendering. Preserve identity where topology survives, continuous
-   arrival evolution, invalidation and causally valid in-flight sound under the
-   approved bounded dynamic model. Visualization callbacks/global delay shifts are
-   not production substitutes.
-3. Extend PRA before histogram reduction, retaining shared scattering events,
-   positions, travel length, directions, energy, interaction history and visibility.
-   Construct receiver-specific pressure delays/amplitudes/directionality from a
-   shared realization, stable under unchanged refresh, motion and array regrouping.
-   Equivalent source configurations must yield equivalent transfer behavior;
-   independent environments remain isolated. Audit absorption/scattering partition,
-   deterministic ISM order and higher/mixed ray ownership without energy overlap/gaps.
-   Derive normalization from native energy and synthesis filters; test ray-count
-   convergence and receiver-radius behavior without fitted gains. Exact late-path
-   phase is not mandatory; apply the
-   [[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|current binding controls and accepted limitations]].
-   Full-room moving equivalence is NOT VALIDATED and explicitly non-blocking;
-   cube/mirror diagnostic limits remain separate. Resolve material
-   measurement defects before affected comparisons, then share episodes/PCM across
-   remaining motion and observation checks; reuse still-valid controls.
-4. **Step 4 is complete**: admitted direct, specular, diffuse and deviation
-   contributions share one persistent sample clock. Native and actual RTX Sim/Lab
-   controls pass source-stop tails, block equivalence, reset/partial reset, scene
-   lifecycle, directional response, explicit capability failures and environment
-   isolation. Failed rendering discards partially advanced environment state.
-   Intermediate defaults and public PCM/observation/recording/Lab schemas remain.
-   The admission record owns measurements; this does not close task usefulness.
-5. Compare intermediate, NLOS-only, diffuse-only and combined configurations using
-   matched sources/trajectories. Demonstrate Profile 1 then Profile 2 with the
-   approved reference consumers. Paths/truth are diagnostic/scoring inputs only.
+1. Prepared [[experiments/geometry-acoustics-trial-protocol|simulation fixtures]],
+   bounded NVIDIA acoustic proxies, direct/scalar reference diagnostics and an RTX
+   cost pilot. Local overlay units/up-axis were corrected. Preparation and model
+   admission remain distinct.
+2. Integrated the native selected-route Steam extension before SH/EQ aggregation.
+   Native topology, length, directions, weights, filtering and validity feed
+   causal route-specific rendering. Probe generation/search, visibility, alternate
+   routing and coverage/rebake handling remain native. Direct LOS is excluded to
+   prevent duplication. Bounded motion/door and in-flight arrival controls pass.
+3. Integrated persistent shared PRA surface pressure with receiver-specific
+   delays, amplitudes and directivity. Binding energy/normalization, persistence,
+   visibility, lifecycle and selected C03/C04 motion/observation controls pass.
+   The [[decisions/robot-audition-fidelity#Step 3 full-room limitation and admission decision (2026-09-16)|full-room and diagnostic limits]]
+   remain explicit; native tracing and shared synthesis do not establish complete
+   moving-room pressure equivalence.
+4. Qualified direct, specular, diffuse and deviation contributions on one persistent
+   sample clock. Native and actual RTX Sim/Lab controls pass source-stop tails,
+   block equivalence, reset/partial reset, scene lifecycle, directional response,
+   explicit capability failures and environment isolation. Failed rendering
+   discards partially advanced environment state. Public PCM, observation,
+   recording and Lab schemas are unchanged; scalar/CUDA perception receives only
+   the final mixture. The admission record owns measurements and test counts.
 
 #### Key Decisions
 
@@ -109,18 +85,18 @@ Complete the following before closing Milestone 2:
 - Native geometry/delay checks and joint microphone physics are essential even when
   a downstream metric improves. Independent scalar/CUDA agreement is not fidelity.
 - Keep finite-order/statistical/material/geometric-acoustics approximations visible.
-- Final bounded runtime measurement follows Milestone 2; large-batch/GPU-port work
+- 08.3 owns final bounded runtime measurement; large-batch/GPU-port work
   and a real-time requirement are excluded by the approved decision.
 
 #### Problems / Limitations
 
 Step 2 selected-route NLOS is integrated and passes bounded transport/lifecycle controls. Door pressure remains probe-sensitive and diffraction is uncalibrated. The two-gate asynchronous route-discovery case remains a stress limit.
 
-Step 3 is PASS under the revised criteria, with `diffuse=None` still the default. The native shared field passes binding energy, persistence, visibility, lifecycle and selected C03/C04 relative-impact controls. Full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking; the cube and selected-mirror mismatches remain diagnostic. Joint NLOS/diffuse streaming now passes Step 4; AV/mobile usefulness remains open.
+Step 3 is PASS under the revised criteria, with `diffuse=None` still the default. The native shared field passes binding energy, persistence, visibility, lifecycle and selected C03/C04 relative-impact controls. Full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking; the cube and selected-mirror mismatches remain diagnostic. Joint NLOS/diffuse streaming passes Step 4, completing bounded 08.2 propagation and integration.
 
 Material-phase separation, stable scalar/CUDA WPE and the native jamb departure-side correction resolve demonstrated defects. Historical observation intervals retain their original consumer version. The failed full-pressure angular cache cannot support unrestricted motion claims; use actual microphone-position responses or separately qualified sampling.
 
-The [[experiments/geometry-acoustics-admission|admission record]] owns measured refinements, finite-seed confirmations, representative-room results, accepted limitations and costs. The bounded head/camera result supports retaining PRA but does not close full AV/mobile usefulness or physical transfer. The full-room reference audit stopped before a separate field formulation; no replacement provider is planned.
+The [[experiments/geometry-acoustics-admission|admission record]] owns measured refinements, finite-seed confirmations, representative-room results, accepted limitations and costs. The bounded head/camera diagnostic supports retaining PRA; it does not establish general application performance or physical transfer. The full-room reference audit stopped before a separate field formulation; no replacement provider is planned.
 
 Admission must retain multi-arrival/LOS non-duplication, corridor detour bounds,
 closed/open/closed and ordinary motion checks. Diffuse controls include co-location,
@@ -132,9 +108,9 @@ normalization checks; representative decay coverage and observation budgets rema
 
 If a maintainable extension cannot close a material mandatory-domain gap, apply the
 [[decisions/robot-audition-fidelity#Provider stop rule and exclusions|stop rule]]
-before a larger proprietary solver or another-provider evaluation. If physics passes
-but perception fails, leave the task gate open and identify the owner; no automatic
-localizer research. Preserve failed evidence and do not change budgets to pass.
+before a larger proprietary solver or another-provider evaluation. Distinguish
+acoustic defects from perception limits; SDK closeout does not establish absolute
+tracking accuracy. Preserve failed evidence and do not change budgets to pass.
 
 ## Subphase R10.3 — Operating Integration and Cleanup
 
@@ -165,7 +141,7 @@ version/ABI failures reproducible; preserve installed providers and required cur
 08.3 is not implemented. Close only after affected native/stream checks, actual
 Isaac Sim/Lab/Kit and CUDA perception, same-PCM scalar agreement, source-stop and
 reset/isolation tests, `make check`, packaging and documentation checks pass.
-Measure one/few-environment runtime/memory after Milestone 2; slower-than-real-time
+Measure one/few-environment runtime/memory during 08.3; slower-than-real-time
 is acceptable with coherent simulated clocks and explicit limits. No new recordings or training are required.
 
 ## Artifacts

@@ -114,7 +114,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 
 For each revision: [ ] agree the task and setting; [ ] apply shared standards; [ ] review a short excerpt; [ ] validate behavior and media; [ ] deliver the approved video. Each future video gets its own decisions; this page does not prescribe nine identical scenes or storyboards.
 
-## Remaining ONR deliveries after the R10 profile decision
+## Remaining ONR deliveries
 
 Readiness checked on 2026-09-11 against the maintained generator, final files and
 saved validation reports. The original nine-video catalog exists; “remaining”
@@ -124,10 +124,8 @@ respective delivery directories. Video 3's current method records the approved
 robot-focused pass and RMS behavior. This audit does not re-run decoding or
 playback, regenerate media or reopen those approved deliveries.
 
-The user confirms R10 Profile 1 AV attention/search as the priority and Profile 2
-mobile audition as its complement. The series therefore demonstrates task-useful
-sensing, not exact dynamic-acoustic completeness. This does not change approved
-recordings: Video 3's 8 m/s outdoor direct-path case is a separately qualified
+The series demonstrates sensing in individually qualified scenarios. Existing
+recordings retain their own scope: Video 3's 8 m/s outdoor direct-path case is a separately qualified
 bounded demonstration, not proof of an equivalent indoor Geometry domain.
 The approved Alex V2 production assembly/pointing is not physical Alex003 mounting
 or partner acceptance evidence.
@@ -137,7 +135,7 @@ or partner acceptance evidence.
 | 4 — Occlusion | Agree the scene; prove audible received-signal change, causal instruments and honest availability; then review an excerpt and produce the revised delivery | A bounded direct-path version can use the maintained occlusion model after its scene gate. Full geometry, meaningful indirect routes and provider diagnostics target admitted 08.2 contributions plus 08.3 operation. No exact asynchronous path-history requirement |
 | 5 — Multiple sources/background | Choose distinguishable simultaneous events and relevant interference; qualify actual observed count/direction, missing/extra events and audibility in that scene | The bounded 04.4/07 runtime exists, but does not qualify arbitrary moving/reverberant mixtures. Phase 08 is needed only for geometric/diffuse claims actually shown; Phase 09 for additional evidence-backed noise/variation claims |
 | 6 — Materials/acoustic spaces | Agree which physical change is demonstrated and validate its effect on received PCM and instruments; replace any implication that decorative furniture drives the old shoebox | A bounded declared shoebox experiment is possible independently. Geometry-authored material/space claims need the relevant 08.2 qualification and 08.3 workflow; richer randomization or physical-transfer claims belong to 09/separate validation |
-| 7 — Audio–vision link | Demonstrate hear → orient → see → link with visible failure/unconfirmed cases; verify the actual consumer chain and distinguish authored/annotated visuals from learned recognition | Highest alignment with Profile 1. It does not require full Phase 08 for a bounded analytic scene, nor automatic completion of Phase 11. Geometry claims require their own admitted domain; no unseen-source truth or visual oracle may silently become an audio estimate |
+| 7 — Audio–vision link | Demonstrate hear → orient → see → link with visible failure/unconfirmed cases; verify the actual consumer chain and distinguish authored/annotated visuals from learned recognition | This application demonstration does not require full Phase 08 for a bounded analytic scene, nor automatic completion of Phase 11. Geometry claims require their own admitted domain; no unseen-source truth or visual oracle may silently become an audio estimate |
 | 8 — Dataset | Agree a clearer recording/replay/observations-versus-truth story and validate the exact recorded data path; produce the revised media | Existing recording/dataset capability is available. Depends on the producer shown, not all of Phase 08 or completion of policy training |
 | 9 — Simulation/real microphones | Agree a defensible comparison using the existing physical evidence, align the compared quantities, and keep known mismatches visible | Requires a suitable bounded physical/sim comparison, not merely a completed Phase 08. Existing recordings do not establish general transfer; no new capture campaign is authorized by this readiness audit |
 

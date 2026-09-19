@@ -3,7 +3,7 @@
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
 transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
 NLOS and shared PRA diffuse pressure are explicit options, separately or together.
-The combined stream passes Step 4 native and actual RTX Sim/Lab controls. The
+08.2 is complete within its declared bounds, including combined native and actual RTX Sim/Lab controls. The
 diffuse conditioned-cube late-response failure remains diagnostic under the approved decision. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
@@ -274,7 +274,8 @@ coverage states; they are not observations. The NLOS microphone response current
 supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negative
 delay is explicitly unqualified for this causal component; the intermediate keeps
 its existing response support. Combined native and actual Sim/Lab controls pass
-Step 4; AV/mobile task qualification remains separate.
+Step 4, completing bounded 08.2 propagation/integration. Operating configuration
+and diagnostics remain 08.3 work.
 PCM subdivision equivalence assumes identical geometry epochs and timestamped
 motion inputs. Repeating a start pose at a new timestamp without a motion plan
 supplies a different trajectory, not merely another read of the same motion.
@@ -284,7 +285,7 @@ Production bindings live in the package. `tools/native/steam_paths.patch`,
 maintained. Historical tool re-exports have been removed; consumers import the
 package implementations.
 
-Future trial inputs, fixtures and bounded checks are described in
+Retained development inputs, fixtures and bounded checks are described in
 `local/r10/README.md`. Historical trial outputs are no longer retained.
 [[experiments/geometry-acoustics-admission|The admission record]] owns their results
 and limitations; source/tests remain authoritative for executable behavior.

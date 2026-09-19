@@ -9,14 +9,14 @@ Decisive results from 2026-09-10–19. [[decisions/robot-audition-fidelity|Robot
 | Contribution | Established | Boundary |
 | --- | --- | --- |
 | Steam direct + native PRA specular | Bounded arrival/gain, reflected visibility, continuous PCM and actual Sim/Lab/Kit integration | Receiver-clock quasi-static RIRs; no general dynamic-field claim |
-| Steam selected routes | Step 2 transport, ordinary motion/doors, coverage and lifecycle | Probe-sensitive pressure; uncalibrated diffraction; task usefulness remains open |
+| Steam selected routes | Step 2 transport, ordinary motion/doors, coverage and lifecycle | Probe-sensitive pressure; uncalibrated diffraction |
 | PRA persistent surface pressure | Step 3 shared-field, energy, visibility, lifecycle and selected motion/observation controls | Full-room moving equivalence unvalidated; cube/mirror limits below |
 | Combined stream | Step 4 continuous PCM, lifecycle/isolation and actual RTX Sim/Lab compatibility | Component approximations retained; no new full-room or task-fidelity claim |
-| Robot consumers | Bounded head/camera diagnostic benefit | Complete AV/mobile usefulness and physical transfer remain separate |
+| Robot consumers | Bounded head/camera diagnostic benefit | No general application-performance or physical-transfer claim |
 
-**Step 4 is PASS within its stream/integration scope.** Steps 5–8 remain open.
-The next step is AV usefulness; no provider replacement or repeated reference
-campaign is implied.
+**08.2 (Milestone 2) is complete within the bounds above.** Step 4 passes combined
+streaming and integration. Next is 08.3: operating workflow, diagnostics,
+consolidation and bounded runtime/distribution checks.
 
 ## Step 4 combined producer controls (2026-09-19)
 
@@ -58,7 +58,7 @@ These are structural/consumer-compatibility checks, not full-room physical or ta
 qualification. The square scene's nearest-source direction diagnostic p95 is
 34.09 degrees (raised: 34.85 degrees, including one three-event result for two
 sources); indirect arrival direction is not necessarily source bearing.
-Neither parity nor finite PCM closes AV/mobile usefulness. Source-stop means
+Neither parity nor finite PCM establishes application performance. Source-stop means
 silence in the retained source schedule; source-list reconfiguration intentionally
 starts a discontinuous stream. Identical dynamic subdivision comparisons require
 identical geometry epochs and timestamped motion, not reinterpreted start poses.
@@ -163,7 +163,7 @@ The 192 fresh episodes used 65,536 rays, 2.5 ms integration and fixed field seed
 | Mean wrong-cue dwell | 7.87/6.39 s | 5.32/5.37 s |
 | Mean visual resumption | 1.499/1.419 s | 1.339/1.387 s |
 
-Pooled false-association difference was +.52 points [-2.25,3.28]; the raised-only interval [-4.27,6.21] remained inconclusive. Candidate/reference/audio-off mean acquisition was .446/.483/.672 s; resumption 1.402/1.414/3.126 s. The audio-off success ceiling and stationary target prevent a complete profile-usefulness or tracking claim.
+Pooled false-association difference was +.52 points [-2.25,3.28]; the raised-only interval [-4.27,6.21] remained inconclusive. Candidate/reference/audio-off mean acquisition was .446/.483/.672 s; resumption 1.402/1.414/3.126 s. The audio-off success ceiling and stationary target prevent a general application-usefulness or tracking claim.
 
 Episode 21191 retained three false-association frames (100 ms) and resumption 3.682 s versus 1.048 s reference. Replaying it plus three representatives after the numerical correction preserved outcomes, rates and dwell. Small-batch replay also preserved outcomes. These targeted checks do not renew the complete campaign's intervals.
 
@@ -245,6 +245,6 @@ The user declined separate reference-model development and explicitly accepted t
 
 Historical trial executors, reports, PCM banks and obsolete provider copies were removed during the user-authorized cleanup after consolidating results here. They are no longer promised as replayable archives. Earlier tracked narrative and implementation are recoverable at `9395b1c`; ignored raw outputs are not in Git.
 
-Ignored `local/r10/` retains only preparation inputs/generators, licensed assets, reusable producer controls and head/scoring helpers for Steps 5–8. Its README owns commands. Current runtime regression tests remain under `tests/`; native builds remain under `tools/native/`. Existing ONR production and the 36 Lab parity inputs are retained separately.
+Ignored `local/r10/` retains preparation inputs/generators, licensed assets, reusable producer controls and bounded head/scoring diagnostic helpers. Its README owns commands. Current runtime regression tests remain under `tests/`; native builds remain under `tools/native/`. Existing ONR production and the 36 Lab parity inputs are retained separately.
 
-Future work must preserve the admission boundaries above, reuse unaffected controls, and measure actual AV/mobile consumer behavior using the combined producer. No new reference campaign, acoustic solver, physical capture or provider evaluation is implied by cleanup.
+08.3 must preserve the admission boundaries above and reuse unaffected controls while completing the operating workflow and bounded runtime/distribution checks. No new reference campaign, acoustic solver, physical capture or provider evaluation is implied by cleanup.

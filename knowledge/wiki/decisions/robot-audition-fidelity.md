@@ -1,28 +1,25 @@
 # Robot-Audition Fidelity
 
-Status: approved by the user on 2026-09-11, with explicit Step 3 admission revisions
-on 2026-09-16. Step 3 is PASS under the current decision below; the combined
-producer passes Step 4. AV/mobile qualification remains pending. This is the canonical R10
-scope/acceptance decision; the admission record owns implementation evidence.
-It supersedes historical requirements for complete dynamic acoustic physics.
+Status: **08.2 is complete within its documented acoustic and integration bounds.**
+This is the canonical R10 scope/acceptance decision; the
+[[experiments/geometry-acoustics-admission|admission record]] owns implementation evidence.
+08.3 owns remaining operating integration and runtime/distribution closeout.
 
-## Purpose and profiles
+## Purpose and ownership
 
-Qualify a scientifically useful robot-audition signal producer for localization,
-AV perception and robot learning. Both profiles are required, in this order:
+Qualify a reusable simulated microphone-array signal producer for robot audition
+and robot learning. The SDK owns multichannel acoustic behavior, observed-only
+perception contracts and Isaac Sim/Lab integration. Correct timing, microphone
+coherence, motion/obstacle response and independent environment lifecycle are
+required regardless of the robot using the sensor.
 
-| Profile | Required consumer evidence |
-| --- | --- |
-| 1 — AV attention/search | Fixed base, rotating head/array, stationary/moving and intermittent sources, distractors: useful search direction, camera acquisition, false/unconfirmed association and reacquisition |
-| 2 — Mobile audition | Translating/rotating receiver, moving sources, connected rooms, corridors and ordinary doors: cue quality and untrained audio-guided homing/navigation |
+Robot policies, audio-guided visual search, navigation and device-specific hardware
+acceptance belong to downstream applications. Physical-recording comparisons have
+separate evidence and calibration limits. The 08.2 native/RTX checks execute the
+simulated sensor; they are not measurements from physical microphones.
 
-They use one acoustic implementation. Profile 1 alone is an intermediate result.
-SquadBot's fixed-Alex003 scope motivates priority 1; robot adapters, graph semantics
-and hardware acceptance remain downstream. The approved downstream source is
-[Alex003 Purdue/IHMC scope](https://github.com/PatrizioAcquadro/squadbot-av/blob/0de1e40aa50a1781bc61b4be4deb6bc04c55b8e8/implementation_phases/_program/alex003_purdue_ihmc_integration_scope.md).
-Out-of-FOV and physically hidden are
-different: turning need not reveal a source behind a wall. NLOS arrival direction
-may point toward an opening; score it separately from hidden-source bearing.
+NLOS arrival direction may point toward an opening rather than the hidden source.
+References must distinguish arrival direction from source bearing.
 
 ## Approved operating domain
 
@@ -31,7 +28,7 @@ may point toward an opening; score it separately from hidden-source bearing.
 | Geometry | Rooms with characteristic sizes around 3–10 m; connected rooms/corridors | Arbitrary large/complex spaces |
 | Source–array distance | Approximately 0.5–10 m; indirect paths may be longer | Near-contact and longer-range extensions |
 | Source speed | Stationary through 1.5 m/s | Faster motion |
-| Receiver motion | Fixed/rotating in Profile 1; translation through 1 m/s in Profile 2; rotation through 90 degrees/s | Faster motion |
+| Receiver motion | Fixed, translating through 1 m/s and rotating through 90 degrees/s | Faster motion |
 | Doors/obstacles | Ordinary moving obstacles; opening/closing over roughly 0.5–3 s | Extreme asynchronous openings during sound flight |
 | Sources | One and two, sustained/intermittent, including distractors | Three sources |
 | Reverberation | Target banded decay around 0.2–0.8 s | Around 1.2 s |
@@ -42,23 +39,15 @@ These are approved engineering test bounds, not partner specifications or measur
 capabilities. Use a compact matrix with interior/boundary cases and meaningful
 interactions, not every Cartesian combination. Before candidate comparisons,
 record exact geometry/trajectories, DRR, banded decay, source content/levels, array
-spacing, perception bands, camera FOV/joint limits, scoring, reference validity and
+spacing, perception bands, scoring, reference validity and
 independent trial counts. Routine choices inside this scope need no new approval.
 Changing the domain or budget requires the user; never tune them after a failure.
 
-The [[experiments/geometry-acoustics-trial-protocol|2026-09-15 trial protocol]]
-instantiates the user's scene/rig/content preferences and representative operating
-values within this scope. It owns exact scenarios, camera selection, scoring and
-sample planning; these choices do not change the budgets below or admit a provider.
-The current preparation is simulation-only on the local machine, reuses existing
-NVIDIA Office/Hospital before considering new environments, and requires no physical
-measurement, new recording, purchase or hardware work. Reference gaps stay explicit;
-trial preparation does not authorize subsequent model implementation/qualification.
-The user's lean follow-up assigns bounded fixture checks to Step 1 and full-field
-qualification once to its later owning step. The protocol now uses representative
-family comparisons, retaining difficult strata and explicit per-cell uncertainty;
-family pooling does not claim every cell meets a 5-point bound. Numerical budgets
-and domain stay unchanged, and unavailable references still block affected claims.
+The [[experiments/geometry-acoustics-trial-protocol|simulation fixture record]]
+owns prepared scenes, source/array settings, bounded references and preparation
+results. The admission record distinguishes measured representative properties
+from unavailable full-room references. Use compact representative controls and
+reuse unaffected evidence; a prepared recipe or target is not a measured capability.
 
 ## Physical and interface invariants
 
@@ -71,7 +60,7 @@ and domain stay unchanged, and unavailable references still block affected claim
   physical energy normalization and convergence. No independent-mic noise followed
   by covariance repair, fitted gain, or smoothing that hides incorrect timing.
 - Finite PCM, source-stop tails, block continuity, unchanged refresh reproducibility,
-  reset/partial reset and independent environments; coherent AV timestamps.
+  reset/partial reset and independent environments; coherent simulation timestamps.
 - Public PCM, observations, recordings and Lab schemas stay unchanged. Provider
   paths, source IDs, schedules and hidden bearings remain diagnostic/scoring-only.
 - Explicit material, coverage and numerical limits; unavailable requested features
@@ -81,7 +70,7 @@ Quasi-static geometry, finite reflection order and statistical late reverb are
 eligible approximations, not automatic passes. Exact late phase and full moving-
 boundary wave physics are unnecessary if the relevant cues/statistics survive.
 One-sample exported-route timing and 0.1 controlled isotropic complex-coherence
-checks keep their specific meanings. Neither alone certifies task fidelity;
+checks keep their specific meanings. Neither alone certifies full-room fidelity;
 arbitrary rooms must not be forced to have isotropic covariance.
 
 ## Approved approximation-impact budgets
@@ -91,17 +80,14 @@ arbitrary rooms must not be forced to have isotropic covariance.
 | Mean direction error | Within 5 degrees |
 | 95th-percentile direction error | Within 10 degrees |
 | Missing and spurious observation rates, separately | Within 5 percentage points |
-| Visual-acquisition success | Within 5 percentage points |
 | Added acoustic/perceptual latency | At most one observation update; about 100 ms at the maintained 10 Hz |
-| Navigation success | Within 5 percentage points |
-| Navigation time and path length | Within 10 percent |
 
-These are approximation effects, not absolute DOA or total reaction-time promises.
-Use paired independent trials, 95% confidence intervals and predeclared latency/
-timeout handling. Negligible-impact intervals must fit the budget; inconclusive
-precision is not a pass. Inspect both signs of change: an artifact can make a task
-artificially easier. Keep weak-direct/occluded strata, misses, extras, ambiguity,
-collisions and false confirmations visible. Do not treat adjacent frames as
+These are approximation effects, not absolute DOA or application reaction-time promises.
+Use paired independent trials, 95% confidence intervals and predeclared
+latency and missing-observation handling. Negligible-impact intervals must fit the budget; inconclusive
+precision is not a pass. Inspect both signs of change: an artifact can make observations
+artificially easier. Keep weak-direct/occluded strata, misses, extras and ambiguity
+visible. Do not treat adjacent frames as
 independent trials or average away a failed mandatory condition.
 
 The Step 3 cube decision below changes the admission role of one recorded
@@ -113,27 +99,9 @@ analytic references, independent delay/spatial checks and sampling/update
 refinement. Neither another provider nor the intermediate implementation is a
 universal room oracle. Missing reference validity remains an evidence gap.
 
-Task utility is a separate gate: predeclare a primary endpoint, compare the same
-consumer with/without audio, report benefit magnitude, uncertainty and tradeoffs.
-There is no universal absolute success percentage; two equally failing variants
-do not prove usefulness. Greater realism need not improve every localization score.
-
-## Reference consumers
-
-Profile 1 uses observed audio to orient, then a clearly labeled simulated visual
-reference constrained by FOV, visibility and declared latency. Visual annotations
-cannot guide acoustic search or become audio estimates. No learned recognizer,
-semantic tracker or complete SquadBot graph is required.
-
-Profile 2 uses an untrained scripted direction follower, geometric collision
-avoidance and exploration when cues are absent. Start with single-source homing;
-with two sources, reach an audible source without supplied semantic identity.
-Score switching/indecision as well as success, collisions, timeouts and efficiency.
-The audio-disabled control has the same non-audio information and constraints.
-
-Keep the maintained localizer. If physics passes but perception/controller limits
-prevent benefit, identify that cause and leave the usefulness gate open; do not
-silently start general perception research.
+Absolute perception accuracy and downstream task benefit require their own
+evidence. Passing relative observation budgets or scalar/CUDA parity preserves
+only the tested reference behavior, including its limitations.
 
 ## Step 3 full-room limitation and admission decision (2026-09-16)
 
@@ -146,7 +114,8 @@ The user declined separate independent room-reference development after the boun
 | Full-room moving equivalence | Known unvalidated limitation, non-blocking for Step 3 |
 | Recorded cube and selected rotating-mirror mismatches | Separate diagnostic limitations; preserve original failures |
 | New material representative errors | Binding; no inherited exception |
-| Combined producer, AV/mobile usefulness and physical transfer | Separate gates |
+| Combined producer | Step 4 native and actual RTX Sim/Lab controls pass |
+| Physical transfer | Not established by simulated-sensor qualification |
 
 Retain controlled complex error .1, decay tolerance `max(0.03 s, 15% of target)`, omitted energy below .1%, and the independent-episode 95% budgets above. An unconditioned recipe does not establish its nominal target. Diffuse remains opt-in.
 
@@ -177,7 +146,7 @@ changes and reproducible failures. Ask whether to evaluate a replacement for the
 whole reflection subsystem or revise the domain. Do not automatically add a third
 provider or begin replacement evaluation. One failed prototype is not proof of
 universal impossibility. [[experiments/geometry-acoustics-admission|Prior failures]]
-remain evidence under this task-domain interpretation.
+remain evidence within the declared acoustic domain.
 
 Retain Analytic and the working intermediate. Defer exact asynchronous path-history
 search, a general wave solver, exact material twins, new perception/tracking,
@@ -188,7 +157,7 @@ Complete the existing Python/Kit workflow and actionable diagnostics, not an
 advanced analysis GUI. Consumer-justified randomization distributions belong to
 [[implementation_phases/09-practical-realism-and-randomization|Phase 09]].
 
-After Milestone 2, measure one/few actual Isaac environments: wall-time mean/p95,
+During 08.3, measure one/few actual Isaac environments: wall-time mean/p95,
 memory, warm-up/reset and simulated/wall ratio. Slower-than-real-time is allowed
 with coherent simulated clocks and explicit limits. This does not qualify live
 real-time use or mass-parallel learning. Acoustic GPU porting and 32–256 scaling
@@ -199,4 +168,3 @@ CPU-only engines remain on CPU. No real-time threshold closes Phase 08.
 
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] owns implementation;
 [[implementation_phases/08-geometry-acoustics-integration|Phase 08]] owns sequence.
-Approved numerical scope: local commit `5cfe48d`; no new qualification accompanied it.

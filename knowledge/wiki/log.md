@@ -159,3 +159,18 @@ references resolve. Raw material is unchanged. `make check` passes (668/336/58),
 61 affected native tests and 14 targeted stream/route tests pass, and actual RTX
 Sim plus square/raised Lab gates pass. Documentation preserves component limits
 and leaves Steps 5–8 open; whitespace and repository lint checks pass.
+
+## 2026-09-19 — update: Complete 08.2 sensor propagation and integration
+
+08.2 is complete within its documented acoustic and integration bounds. Current
+status, phase plans, SDK criteria, fixture documentation and README agree on the
+implemented producer, recorded native/RTX evidence and remaining limitations.
+08.3 operating workflow, diagnostics and runtime/distribution closeout are next.
+
+## 2026-09-19 — lint: Verify 08.2 documentation closeout
+
+All 42 wiki pages are indexed; internal links/anchors and affected source references
+resolve. Active documentation consistently identifies 08.3 as the next phase of
+work. Existing Step 4 native, Sim/Lab and host-check records were inspected; no
+runtime tests were rerun for these documentation-only changes. Raw material and
+runtime code are unchanged; whitespace checks pass.

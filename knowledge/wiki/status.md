@@ -4,15 +4,15 @@ Updated: 2026-09-19. Package version: `3.0.0`.
 
 ## Current work
 
-**Phase 08: scene preparation, the Geometry intermediate and Steps 1–4 are complete within their declared bounds. Steps 3 and 4 are PASS within their documented limits. Milestone 2 and 08.3 remain open.**
+**08.1 and 08.2 (Milestone 2) are complete within their documented bounds. Phase 08 remains open; 08.3 is next.**
 
 - Production Geometry combines Steam direct/planar transmission with native PRA specular reflections. Selected-route NLOS and shared diffuse pressure can be enabled separately or together. The combined stream passes native and actual RTX Sim/Lab lifecycle and isolation controls; defaults and Analytic remain maintained.
-- **Next: Step 5, AV usefulness**, followed by mobile usefulness, operating integration and bounded runtime/packaging closeout. Follow [[implementation_phases/08-geometry-acoustics-integration|the execution sequence]] and [[decisions/robot-audition-fidelity|the approved domain and budgets]].
+- **Next: 08.3 operating integration**, including Python/Kit configuration, actionable diagnostics, consolidation and bounded runtime/packaging closeout. Follow [[implementation_phases/08-geometry-acoustics-integration|the execution sequence]] and [[decisions/robot-audition-fidelity|the approved domain and budgets]].
 - Full-room moving pressure/observation equivalence is **NOT VALIDATED**, explicitly accepted as non-blocking for Step 3. Cube late-response and selected-mirror mismatches remain diagnostic limits. New structural or material representative failures still reopen affected qualification.
 - Selected maximum source/receiver/yaw confirmations pass relative budgets on both arrays at 2.5 ms. Unrestricted 10 ms updates, population-wide field equivalence and useful absolute tracking are not established. Door NLOS pressure remains probe-sensitive and uncalibrated.
 - WPE conditioning/peak ties and the native door-jamb projection defect are corrected. The stable WPE solve is expensive: measured 16-copy supplied-PCM p95 is about .99/1.66 s for square/raised per 100 ms update. This is offline cost, not added simulated latency. Full-pressure angular-cache isolation remains failed.
 
-[[experiments/geometry-acoustics-admission|Admission evidence]] owns the decisive results and limitations. [[experiments/geometry-acoustics-trial-protocol|Trial protocol]] owns future scenarios/scoring; [[topics/geometry-acoustics|Geometry Acoustics]] owns interfaces/builds. Read those pages only as needed for the current step.
+[[experiments/geometry-acoustics-admission|Admission evidence]] owns the decisive results and limitations. [[experiments/geometry-acoustics-trial-protocol|Simulation fixtures]] owns prepared inputs and verified preparation limits; [[topics/geometry-acoustics|Geometry Acoustics]] owns interfaces/builds. Read those pages only as needed for the current step.
 
 ## Maintained capabilities
 
