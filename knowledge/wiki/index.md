@@ -15,7 +15,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/05-ground-truth-and-learning-datasets|05 Datasets]] — independent truth, learning inputs and splits.
 - [[implementation_phases/06-simulated-and-real-signal-parity|06 Signal Parity]] — common semantics, physical integration and comparison.
 - [[implementation_phases/07-isaac-lab-observation-integration|07 Lab/GUI]] — observed tensors, CUDA reference preservation and consumer closeout.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — 08.1/08.2 complete within declared bounds; 08.3 operation and closeout next.
+- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — 08.1/08.2 complete within declared bounds; 08.3 operation implemented; runtime/distribution closeout in progress.
 - [[implementation_phases/09-practical-realism-and-randomization|09 Realism]] — planned consumer-justified variation.
 - [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 Product Closeout]] — planned complete supported-system validation.
 - [[implementation_phases/11-future-semantic-perception|11 Specialized Perception]] — deferred classification/tracking/separation.

@@ -210,8 +210,9 @@ def discover_capabilities() -> CapabilityReport:
                 origin="external",
                 missing_dependencies=(),
                 actionable_message=(
-                    "Use the prepared-session Python API with qualified "
-                    "Steam and specular libraries; full R10 remains open."
+                    "Prepare a USD scene in Python or Kit and configure qualified "
+                    "Steam/PRA libraries. Optional NLOS/diffuse require their "
+                    "native extensions; availability is checked per session."
                 ),
             ),
             analytic_closed_rooms,

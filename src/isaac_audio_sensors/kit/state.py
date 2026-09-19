@@ -30,6 +30,7 @@ from .constants import (
     DEFAULT_REPLICATOR_DIRNAME,
     DEFAULT_TRACE_FILENAME,
 )
+from .geometry_settings import GeometrySettings
 
 
 class ExtensionActionError(RuntimeError):
@@ -64,7 +65,7 @@ class AuthoredMetadataSummary:
 
 
 @dataclass(slots=True)
-class ExtensionUiState:
+class ExtensionUiState(GeometrySettings):
     """Pure-Python state backing the reference extension UX."""
 
     guided_mode_enabled: bool = True
@@ -200,6 +201,7 @@ class ExtensionUiState:
 
     sensor_running: bool = False
     latest_frame: AudioSensorFrame | None = None
+    latest_geometry_diagnostics: dict[str, Any] = field(default_factory=dict)
     latest_occlusion_summary: str = "Not captured"
     latest_array_prim_path: str | None = None
     latest_array_position_m: tuple[float, float, float] | None = None

@@ -36,6 +36,7 @@ from isaac_audio_sensors.kit.sound_profiles import (
 )
 
 from ._service import ControllerService, _raise_first
+from .geometry_settings import geometry_settings, parse_geometry_settings
 from .paths import _resolve_gui_output_path
 from .stage_context import (
     _normalize_paths,
@@ -106,7 +107,7 @@ class ConfigurationService(ControllerService):
                 )
             )
             self._preflight_config_summary(payload)
-            self._host.close_sensor()
+            self._host._geometry.close()
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = (
@@ -147,6 +148,7 @@ class ConfigurationService(ControllerService):
             {
                 "schema_version": "ias.omni_extension_binding.v7",
                 "backend": state.backend,
+                "geometry_acoustics": geometry_settings(state),
                 "activity_detection": {
                     "detector_id": "auditok",
                     "energy_threshold_dbfs": state.energy_threshold_dbfs,
@@ -432,6 +434,9 @@ class ConfigurationService(ControllerService):
             )
         )
 
+        geometry = parse_geometry_settings(payload.get("geometry_acoustics", {}))
+        for name, value in geometry_settings(geometry).items():
+            setattr(self.state, "geometry_" + name, value)
         self.state.backend = str(payload.get("backend", self.state.backend))
         self.state.energy_threshold_dbfs = float(
             activity_detection["energy_threshold_dbfs"]
@@ -753,6 +758,7 @@ class ConfigurationService(ControllerService):
 
         if not isinstance(payload, Mapping):
             raise ValueError("Config summary must be a JSON object.")
+        parse_geometry_settings(payload.get("geometry_acoustics", {}))
         lifecycle = payload.get("lifecycle", {})
         if not isinstance(lifecycle, Mapping):
             raise ValueError("lifecycle must be a JSON object.")

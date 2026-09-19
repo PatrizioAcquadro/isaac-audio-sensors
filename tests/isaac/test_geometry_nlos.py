@@ -108,6 +108,8 @@ def test_closed_open_closed_and_retained_native_snapshot(prepared_nlos):
     assert set(closed.diagnostics["geometry"]["nlos"]["coverage"]["tone"]) == {
         "selected"
     }
+    # Later captures must not rewrite retained frame diagnostics.
+    assert set(opened.diagnostics["geometry"]["nlos"]["coverage"]["tone"]) == {"los"}
     assert backend.nlos.bakes == 1
 
 

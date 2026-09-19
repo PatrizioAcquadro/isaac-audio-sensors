@@ -7,8 +7,7 @@ from pathlib import Path
 
 from isaac_audio_sensors.core.directivity import DirectivityPattern
 
-# Prepared-session Geometry controls belong to 08.3.
-BACKEND_CHOICES = ("analytic_acoustics",)
+BACKEND_CHOICES = ("analytic_acoustics", "geometry_acoustics")
 DIRECTIVITY_CHOICES = tuple(pattern.value for pattern in DirectivityPattern)
 LAYOUT_CHOICES = (
     "quad_front",

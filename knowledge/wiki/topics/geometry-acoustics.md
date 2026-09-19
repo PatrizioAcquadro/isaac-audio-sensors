@@ -50,14 +50,15 @@ construction transmission and the rejected paired-face proxy are not supported.
 
 Python and Kit share USD edits, current edit target, coefficient-family precedence,
 proxies, mixed values, persisted defaults and Undo/Redo. Preparation/native verification
-states are not evidence of propagated PCM. Operating controls remain 08.3 work.
+states are not evidence of propagated PCM. Kit operating controls share this prepared scene.
 
 ## Signal producer
 
 `GeometryAcoustics` receives a prepared session and `GeometryAcousticsConfig`,
 returns one `MicrophoneSignalBlock`, and feeds unchanged perception. The session
 is caller-owned. Native dependencies load lazily and are not bundled/downloaded.
-Static TOML/Kit selection is rejected until the prepared-session workflow is supported.
+Static TOML selection remains rejected because it cannot supply a live prepared stage.
+Kit supports the same prepared-session workflow described below.
 
 Geometry owns occlusion and rejects precomputed `SourceOcclusion`. Steam reflection
 reconstruction is disabled; positive native PRA image orders own specular paths.
@@ -80,6 +81,42 @@ cursors remain independent. A failed render discards all stream/native-field sta
 in that producer environment; the next successful read reports discontinuity.
 Other environment producers and caller-owned sessions remain independent. Channel response is included in complete responses.
 No observation, recording or Lab schema contains provider paths.
+
+## Python and Kit operating workflow
+
+Python callers retain the existing `AcousticSceneSession` plus
+`GeometryAcousticsConfig` APIs and own their session. In Kit, import the current
+stage or selected roots under **Acoustic Scene**, retaining material/proxy edits.
+Under **Advanced Tools / Sensor Settings & Debug**, select `geometry_acoustics`,
+enter the qualified Steam/PRA library paths and enable NLOS/diffuse only when needed.
+**Geometry Advanced** exposes the existing native resource, timing and sampling
+settings. Defaults match Python; air absorption remains unsupported. The existing
+explicit environment metadata selection remains required. Geometry itself owns
+propagation; Analytic solver/occlusion controls are disabled and are not applied.
+
+**Configure** applies pending settings and resets the previous sensor. It verifies
+scene preparation, the selected libraries, specular ABI and enabled NLOS/diffuse
+extensions before Start. Missing capabilities fail with recovery guidance, never
+an Analytic fallback. Endpoint coverage is checked at capture time. **Start**
+rejects unapplied backend/Geometry changes. The controller owns the shared session:
+widget teardown preserves it, sensor close releases its borrowing producer, and
+stage replacement/shutdown close the producer before its scene. Authoring edits
+and Undo/Redo invalidate old presentation without introducing a second scene.
+The sensor refreshes geometry at its simulation boundaries; panel polling does
+not independently refresh an active sensor's geometry clock.
+
+Binding v7 adds optional `geometry_acoustics` operating settings and roots.
+Older v7 files load native defaults with NLOS/diffuse disabled. Native handles and
+verified state are never serialized; import closes the old session and requires
+configuration against the current stage. Invalid geometry settings fail preflight.
+
+Simulation diagnostics show preparation/provider/PCM state, material defaults and
+issues, active components, native probe counts/rebakes and per-source/channel
+coverage. NLOS coverage is copied into each block so later captures cannot rewrite
+historical diagnostics. Material details and affected prims remain in Acoustic
+Scene. `no_selected_route` does not establish physical silence or perceptual
+unreliability. Received RMS, events, bearings and confidence retain the common
+observed-signal path; provider geometry never enters observation fields.
 
 ## Native build and reproduction
 
@@ -274,8 +311,7 @@ coverage states; they are not observations. The NLOS microphone response current
 supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negative
 delay is explicitly unqualified for this causal component; the intermediate keeps
 its existing response support. Combined native and actual Sim/Lab controls pass
-Step 4, completing bounded 08.2 propagation/integration. Operating configuration
-and diagnostics remain 08.3 work.
+Step 4, completing bounded 08.2 propagation/integration. Kit exposes operating configuration and separate simulation diagnostics.
 PCM subdivision equivalence assumes identical geometry epochs and timestamped
 motion inputs. Repeating a start pose at a new timestamp without a motion plan
 supplies a different trajectory, not merely another read of the same motion.

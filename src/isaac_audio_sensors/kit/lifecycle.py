@@ -76,7 +76,7 @@ class LifecycleService(ControllerService):
             ("audition", self._host.stop_audition),
             ("Replicator", self._host.stop_replicator),
             ("USD debug", self._host.clear_usd_debug_geometry),
-            ("sensor", self._host.close_sensor),
+            ("geometry and sensor", self._host._geometry.close),
             ("reset callback", self._unregister_simulation_reset_callback),
             ("stage subscription", self._unregister_stage_event_subscription),
             ("update subscription", self._stop_controller_update_subscription),
@@ -452,6 +452,7 @@ class LifecycleService(ControllerService):
                 event_type = int(getattr(event, "type", -1))
                 stage_change = stage_change_types.get(event_type)
                 if stage_change is not None:
+                    self._host._geometry.close()
                     self._host.cleanup_kit_audio(reason=f"USD stage {stage_change}")
                     self._validation.invalidate()
                     return
@@ -565,9 +566,7 @@ class LifecycleService(ControllerService):
         except Exception:
             return False
         position = tuple(float(value) for value in pose.position_world)
-        if _vec_close(
-            self._host._authoring._source_position_from_state(), position
-        ):
+        if _vec_close(self._host._authoring._source_position_from_state(), position):
             return False
         self._host._authoring._set_source_position_state(position)
         return True

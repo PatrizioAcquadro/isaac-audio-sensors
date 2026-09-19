@@ -421,7 +421,7 @@ class GeometryAcoustics:
                     nlos=dict(
                         probes=self.nlos.paths.count,
                         bakes=self.nlos.bakes,
-                        coverage=stream["nlos"].states,
+                        coverage=dict(stream["nlos"].states),
                     ),
                 )
             if self.config.diffuse is not None:

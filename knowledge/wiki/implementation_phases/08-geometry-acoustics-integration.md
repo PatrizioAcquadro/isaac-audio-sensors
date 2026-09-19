@@ -1,7 +1,8 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
 Status: **08.1 and 08.2 are complete within their documented bounds.**
-08.3 is next; Phase 08 remains open until operating integration and closeout pass.
+08.3 operating integration is implemented; runtime/distribution closeout is in progress.
+Phase 08 remains open until those checks pass.
 
 ## Objective
 
@@ -62,14 +63,15 @@ transfer or learning performance.
 
 #### Implementation
 
-Remaining work, in order:
+Implemented the shared Python/Kit configuration workflow, controller-owned prepared
+scene, optional advanced native controls, capability failures and separate
+material/path/coverage diagnostics. Binding import/export retains native settings
+without handles; window teardown preserves the scene and stage changes close
+borrowing producers first. Historical NLOS coverage is now captured per block.
 
-1. Complete the existing Python/Kit configuration workflow, capability failures and
-   actionable material/path/coverage diagnostics. Validate a bounded geometry-backed
-   sensor-to-instrument scene, keeping provider truth separate from observations.
-2. Consolidate production code and native builds after consumer/evidence review.
-3. Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks. Measure
-   one/few-environment runtime and memory; document supported operation and limits.
+Closeout in progress: bounded sensor-to-instrument runtime validation, native
+consumer/build consolidation review, one/two-environment measurements and affected
+native, scalar/CUDA, actual Sim/Lab/Kit and clean-source packaging checks.
 
 #### Key Decisions
 
@@ -79,7 +81,7 @@ capture campaign is required. Use actual GPU execution for supported Isaac/CUDA 
 
 #### Problems / Limitations
 
-08.3 is not implemented. Phase 08 closes only after its operating and distribution
+08.3 closeout is in progress. Phase 08 closes only after its operating and distribution
 checks pass. [[topics/onr-video-production#Remaining ONR deliveries|ONR deliveries]]
 retain their own scenario/media gates; SDK completion does not approve a video.
 

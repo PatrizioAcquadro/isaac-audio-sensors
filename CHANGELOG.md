@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Added prepared-scene Geometry controls in Kit, shared scene/sensor lifecycle, saved native settings and separate actionable simulation diagnostics. Preserved optional NLOS/diffuse defaults and observation contracts; historical NLOS coverage no longer changes after later captures.
+
 - Breaking (07.2 admission): frame v4 preserves unavailable bearing confidence as null; frame v3 inputs are rejected. Later numerical maintenance stabilizes scalar/CUDA WPE and equal-score peak selection without changing thresholds.
 
 - Qualified identical-sample signal/recording parity across maintained mono, stereo, and planar-array roles, including clipping, discontinuities, and resets. The public two-microphone example now shows the maintained estimator's direction candidates. Physical comparison and capture tooling remain downstream; SDK APIs and serialized schemas are unchanged by Subphase 06.3.

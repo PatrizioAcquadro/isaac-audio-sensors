@@ -7,6 +7,7 @@ from typing import Any
 
 from .authoring import AuthoringService
 from .configuration import ConfigurationService
+from .geometry_service import GeometryService
 from .kit_audio import KitAudioService
 from .lifecycle import LifecycleService
 from .recording_workflow import RecordingWorkflow
@@ -33,6 +34,7 @@ class ExtensionController:
         self._lifecycle = LifecycleService(self)
         self._authoring = AuthoringService(self)
         self._sensor_session = SensorSession(self)
+        self._geometry = GeometryService(self)
         self._configuration = ConfigurationService(self)
         self._replicator = ReplicatorService(self)
 

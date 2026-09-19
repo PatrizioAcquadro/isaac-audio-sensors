@@ -174,3 +174,18 @@ resolve. Active documentation consistently identifies 08.3 as the next phase of
 work. Existing Step 4 native, Sim/Lab and host-check records were inspected; no
 runtime tests were rerun for these documentation-only changes. Raw material and
 runtime code are unchanged; whitespace checks pass.
+
+
+## 2026-09-19 — update: Implement Geometry operating integration
+
+Documented controller-owned prepared scenes, Python/Kit native configuration,
+capability checks, settings persistence and separate simulation diagnostics.
+NLOS coverage now preserves the historical block snapshot. Runtime, cost and
+clean-source distribution closeout remain explicitly in progress.
+
+## 2026-09-19 — lint: Check operating integration documentation
+
+All canonical pages remain indexed and internal wikilink targets resolve. Updated
+source/API references exist; raw material is unchanged. Host checks pass
+(677 unit/contract, 336 integration, 58 release); the focused controller/native
+checks preserve configuration, session lifetime and historical diagnostics.

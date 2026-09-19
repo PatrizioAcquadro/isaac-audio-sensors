@@ -83,9 +83,9 @@ def edit_with_undo(session, paths, values):
 class AcousticScenePanel:
     """Stage selection is the authoring target; edits remain pending until Apply."""
 
-    def __init__(self, ui):
+    def __init__(self, ui, service):
         self.ui = ui
-        self.session = None
+        self.service = service
         self.closed = False
         self._subscription = self._selection_subscription = None
         self._elapsed = 0.0
@@ -96,6 +96,10 @@ class AcousticScenePanel:
         self._proxy_targets = ()
         self.section_frames = {}
         self.last_error = None
+
+    @property
+    def session(self):
+        return self.service.session
 
     def _section(self, title, collapsed=True):
         from contextlib import contextmanager
@@ -136,6 +140,7 @@ class AcousticScenePanel:
             with self._section("Scene", collapsed=False):
                 self.scene_label = ui.Label("", word_wrap=True, height=0)
                 self.roots = self._field("Roots (blank = all)")
+                self.roots.set_value(self.service.state.geometry_roots)
                 with ui.HStack(height=26, spacing=4):
                     ui.Button(
                         "Use selection as roots", clicked_fn=self.use_selection_roots
@@ -308,10 +313,11 @@ class AcousticScenePanel:
             with self._section("Issues and provider"):
                 self.issues_frame = ui.Frame()
                 self.library = self._field("Steam library")
+                self.library.set_value(self.service.state.geometry_library_path)
                 ui.Button("Verify native scene", height=26, clicked_fn=self.verify)
                 ui.Label(
                     "Verification checks geometry only. "
-                    "Microphone audio is planned in 08.2. "
+                    "Configure the Geometry sensor for microphone audio. "
                     "Steam uses the qualified CPU / Embree library.",
                     word_wrap=True,
                     height=0,
@@ -371,9 +377,7 @@ class AcousticScenePanel:
             or self.session.stage != stage
             or self.session.roots != roots
         ):
-            if self.session:
-                self.session.close()
-            self.session = AcousticSceneSession(stage, roots)
+            self.service.prepare(stage, roots)
             self._selection_signature = self._settings_signature = None
         return context
 
@@ -408,6 +412,7 @@ class AcousticScenePanel:
 
     def import_scene(self):
         def run():
+            self.service._host.close_sensor()
             self._context()
             self.session.refresh()
 
@@ -419,6 +424,7 @@ class AcousticScenePanel:
             if PARTITION in values and values[PARTITION] == "":
                 raise ValueError("Enter a nonempty structure ID")
             edit_with_undo(self.session, paths, values)
+            self.service._host._sensor_session.invalidate_frame()
             self._selection_signature = None
 
         self._run(run)
@@ -469,6 +475,7 @@ class AcousticScenePanel:
                 self._dirty,
             )
             edit_with_undo(self.session, paths, values)
+            self.service._host._sensor_session.invalidate_frame()
             self._selection_signature = None
 
         self._run(run)
@@ -508,6 +515,7 @@ class AcousticScenePanel:
             )
             self.session.stage.DefinePrim(SETTINGS, "Scope")
             edit_with_undo(self.session, [SETTINGS], values)
+            self.service._host._sensor_session.invalidate_frame()
 
         self._run(run)
 
@@ -515,7 +523,9 @@ class AcousticScenePanel:
         def run():
             self._context()
             self.session.refresh()
-            self.session.verify_provider(self.library.get_value_as_string())
+            library = self.library.get_value_as_string()
+            self.service.state.geometry_library_path = library
+            self.service.verify_scene(library)
 
         self._run(run)
 
@@ -527,6 +537,7 @@ class AcousticScenePanel:
     def _history(self, operation):
         def run():
             operation()
+            self.service._host._sensor_session.invalidate_frame()
             if self.session:
                 self.session.refresh()
 
@@ -755,9 +766,7 @@ class AcousticScenePanel:
         import omni.usd
 
         if event.type == int(omni.usd.StageEventType.CLOSING):
-            if self.session:
-                self.session.close()
-                self.session = None
+            self.service.close()
             self._proxy_targets = ()
             self.status.text = "Scene not prepared"
             self.counts.text = "Open and import a stage."
@@ -782,7 +791,8 @@ class AcousticScenePanel:
             time = (
                 timeline.get_current_time() * self.session.stage.GetTimeCodesPerSecond()
             )
-            self.session.refresh(time)
+            if self.service._host.sensor is None:
+                self.session.refresh(time)
             signature = (
                 tuple(
                     (p, o.partition, o.materials, o.dynamic, o.planar)
@@ -803,5 +813,3 @@ class AcousticScenePanel:
     def close(self):
         self.closed = True
         self._subscription = self._selection_subscription = None
-        if self.session:
-            self.session.close()

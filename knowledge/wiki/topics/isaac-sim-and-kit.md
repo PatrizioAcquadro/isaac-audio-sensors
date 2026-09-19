@@ -56,7 +56,10 @@ The extension imports without `omni`, `pxr`, CUDA, Torch, Replicator, or a displ
 
 The entrypoint exposes its `controller` and has no duplicate sensor, authoring, export, or Replicator proxies. The controller composes internal lifecycle, authoring, sensor-session, recording-workflow, Kit Audio, Replicator, and configuration services; those services reference their controller or sibling owner explicitly, without dynamic attribute lookup. The window and sections only render state and invoke controller actions.
 
-Shutdown independently cancels an active recording as incomplete, releases Kit Audio capture and listener state, stops Sensor WAV audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails. Opening, closing, or replacing a stage also releases the Kit Audio resources.
+Shutdown independently cancels an active recording as incomplete, releases Kit Audio capture and listener state, stops Sensor WAV audition, Replicator, and the sensor, clears debug/frame state, detaches workflow/window callbacks, and releases update, stage, reset, hotkey, menu, and action registrations even if one cleanup fails. Opening, closing, or replacing a stage also releases the Kit Audio resources and
+the Geometry sensor/session in dependency order. Widget teardown leaves the
+controller-owned acoustic session alive. See [[topics/geometry-acoustics#Python and Kit operating workflow|Geometry operation]]
+for provider controls and separate simulation diagnostics.
 
 ## Kit Scene Audition and Mix Capture
 
@@ -201,4 +204,5 @@ scene.close()
 Preparation works without the native library. A different Steam binary fails
 explicitly until requalified. See [[implementation_phases/r10-geometry-acoustics-integration|R10.1]]
 for the supported geometry, metadata, provenance and transmission limitations.
-Operational backend controls and propagation diagnostics remain in 08.3.
+Operational Geometry controls use this shared scene; see
+[[topics/geometry-acoustics#Python and Kit operating workflow|the operating workflow]].

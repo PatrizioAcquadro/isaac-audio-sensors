@@ -721,6 +721,7 @@ def build_control_section(window: OmniReferenceWindow) -> None:
     ui = window.ui
     with window._subsection("Sensor Settings & Debug"):
         window._combo_row("Backend", "backend", BACKEND_CHOICES)
+        build_geometry_controls(window)
         window._float_row("Period s", "update_period_s")
         window._float_row("Activity dBFS", "energy_threshold_dbfs")
         window._bool_row("DOA", "doa_enabled")
@@ -977,3 +978,46 @@ def build_kit_audio_section(window: OmniReferenceWindow) -> None:
                 "Stop Kit Mix Capture", window.controller.stop_kit_mix_capture
             )
         window._readonly_label("kit_mix_capture")
+
+
+def build_geometry_controls(window):
+    from dataclasses import fields
+
+    from .geometry_settings import GeometrySettings
+
+    with window._subsection("Geometry", collapsed=False):
+        window._string_row("Steam library", "geometry_library_path")
+        window._string_row("PRA bridge", "geometry_specular_library_path")
+        window._bool_row("NLOS", "geometry_nlos_enabled")
+        window._bool_row("Diffuse", "geometry_diffuse_enabled")
+        window._bool_row("Diagnostics", "geometry_diagnostics")
+        window.ui.Label(
+            "Uses Acoustic Scene roots and materials. Configure to apply changes. "
+            "Native acoustics runs on CPU; NLOS and diffuse are optional.",
+            word_wrap=True,
+        )
+        with window._subsection("Geometry Advanced", collapsed=True):
+            basic = {
+                "geometry_roots",
+                "geometry_library_path",
+                "geometry_specular_library_path",
+                "geometry_nlos_enabled",
+                "geometry_diffuse_enabled",
+                "geometry_diagnostics",
+            }
+            for setting in fields(GeometrySettings):
+                if setting.name in basic:
+                    continue
+                row = (
+                    window._int_row
+                    if type(setting.default) is int
+                    else window._float_row
+                )
+                row(
+                    setting.name.removeprefix("geometry_").replace("_", " "),
+                    setting.name,
+                )
+        window.ui.Label(
+            "Simulation diagnostics — separate from audio observations", word_wrap=True
+        )
+        window._readonly_label("geometry_status")

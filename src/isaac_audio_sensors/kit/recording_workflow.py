@@ -133,7 +133,11 @@ class RecordingWorkflow(ControllerService):
         reports = [
             ValidationReport(check_stage_present(stage is not None)),
             ValidationReport(check_runtime_state(state)),
-            self._validation.validate_backend_available(state.backend),
+            (
+                self._host._geometry.validate(stage)
+                if state.backend == "geometry_acoustics"
+                else self._validation.validate_backend_available(state.backend)
+            ),
             self._validation.validate_backend_device(
                 state.backend,
                 state.compute_device,

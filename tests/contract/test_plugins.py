@@ -321,7 +321,7 @@ def test_geometry_requires_explicit_session_instead_of_static_config() -> None:
     from isaac_audio_sensors.core.config import validate_audio_config
     from isaac_audio_sensors.kit.constants import BACKEND_CHOICES
 
-    assert "geometry_acoustics" not in BACKEND_CHOICES
+    assert "geometry_acoustics" in BACKEND_CHOICES
     with pytest.raises(ConfigValidationError, match="prepared USD session"):
         validate_audio_config(
             {

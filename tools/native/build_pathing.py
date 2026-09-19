@@ -1,7 +1,7 @@
-"""Build the experimental Steam 4.8.1 selected-route interface on Linux.
+"""Build the optional Steam 4.8.1 selected-route interface on Linux.
 
 Reuses an existing CPU/Embree CMake build without modifying its sources or binary.
-Adds route capture and segment queries; does not qualify complete R10 propagation.
+Adds the bounded selected-route, probe and visibility interfaces.
 """
 
 import argparse

@@ -109,7 +109,7 @@ def main():
 
     evidence = {}
     app = _ensure_isaac_runtime(evidence, headless=False)
-    panel = None
+    panel = panel_controller = None
     try:
         import carb
         import omni.kit.app
@@ -145,7 +145,10 @@ def main():
         UsdPhysics.CollisionAPI.Apply(door.GetPrim())
         window = ui.Window("Acoustic Scene - 08.1 verification", width=850, height=1000)
         with window.frame, ui.ScrollingFrame():
-            panel = AcousticScenePanel(ui)
+            from isaac_audio_sensors.kit.controller import ExtensionController
+
+            panel_controller = ExtensionController()
+            panel = AcousticScenePanel(ui, panel_controller._geometry)
             panel.build()
         panel.import_scene()
         session = panel.session
@@ -339,6 +342,8 @@ def main():
     finally:
         if panel:
             panel.close()
+        if panel_controller:
+            panel_controller._geometry.close()
         (args.out / "result.json").write_text(
             json.dumps(evidence, indent=2, default=str) + "\n"
         )

@@ -239,7 +239,9 @@ class OmniReferenceWindow:
         with self._section("Acoustic Scene", collapsed=True):
             from .acoustic_scene import AcousticScenePanel
 
-            self._acoustic_scene_panel = AcousticScenePanel(self.ui)
+            self._acoustic_scene_panel = AcousticScenePanel(
+                self.ui, self.controller._geometry
+            )
             self._acoustic_scene_panel.build()
         with self._section("Live Monitor", collapsed=False):
             build_live_monitor_section(self)
@@ -277,6 +279,7 @@ class OmniReferenceWindow:
             state.source_local_offset_z_m,
         )
         self._set_label("stage", state.stage_status)
+        self._refresh_geometry_controls()
         self._set_label(
             "discovery",
             f"Arrays: {_summary_ids(state.discovered_arrays)} | "
@@ -567,6 +570,11 @@ class OmniReferenceWindow:
         state = self.controller.state
         self._pushing_state = True
         try:
+            if self._acoustic_scene_panel is not None:
+                self._acoustic_scene_panel.roots.set_value(state.geometry_roots)
+                self._acoustic_scene_panel.library.set_value(
+                    state.geometry_library_path
+                )
             for attr_name, widget in self._string_fields.items():
                 _set_model_value(widget.model, getattr(state, attr_name))
             for attr_name, widget in self._float_fields.items():
@@ -920,6 +928,8 @@ class OmniReferenceWindow:
                         value = resolve_directivity_pattern(value)
                     setattr(self.controller.state, attr_name, value)
                     self._manual_field_changed(attr_name)
+                    if attr_name == "backend":
+                        self._refresh_geometry_controls()
 
             if hasattr(widget.model, "add_item_changed_fn"):
                 self._model_change_subscriptions.append(
@@ -1038,6 +1048,8 @@ class OmniReferenceWindow:
                 callback(changed_model)
                 if attr_name is not None:
                     self._manual_field_changed(attr_name)
+                    if attr_name == "backend":
+                        self._refresh_geometry_controls()
 
             self._model_change_subscriptions.append(
                 model.add_value_changed_fn(_changed)
@@ -1058,6 +1070,24 @@ class OmniReferenceWindow:
             return
         setattr(self.controller.state, attr_name, value)
         self._clear_field_error(attr_name)
+
+    def _refresh_geometry_controls(self):
+        state = self.controller.state
+        geometry = state.backend == "geometry_acoustics"
+        for name in (
+            "occlusion_enabled",
+            "analytic_max_order",
+            "analytic_air_absorption",
+            "analytic_ray_tracing",
+        ):
+            for widgets in (self._bool_fields, self._int_fields):
+                if name in widgets:
+                    widgets[name].enabled = not geometry
+        try:
+            summary = self.controller._geometry.status_text()
+        except (ValueError, TypeError) as exc:
+            summary = f"Configuration incomplete: {exc}"
+        self._set_label("geometry_status", summary)
 
     def _set_label(self, name: str, text: str) -> None:
         _set_widget_text(self._labels.get(name), text)

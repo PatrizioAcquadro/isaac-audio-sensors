@@ -1,7 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
 Status: **08.1 and 08.2 (Milestone 2) are complete within their documented bounds.**
-08.3 operating integration and Phase 08 closeout remain open.
+08.3 operating integration is implemented; runtime/distribution closeout remains open.
 
 ## Objective
 
@@ -116,9 +116,9 @@ tracking accuracy. Preserve failed evidence and do not change budgets to pass.
 
 #### Implementation
 
-Complete the existing Python/Kit operating workflow: provider configuration,
-capability/error reporting, caching/lifecycle and actionable path/material/coverage
-diagnostics. Keep simulation facts separate from activity, events, direction,
+Implemented the existing Python/Kit operating workflow: provider configuration,
+capability/error reporting, controller-owned scene lifecycle and actionable
+path/material/coverage diagnostics. Keep simulation facts separate from activity, events, direction,
 confidence and RMS. A blocked path is not an inferred unreliable event.
 
 Finish the geometry-backed sensor-to-instrument chain for a bounded occlusion
@@ -138,7 +138,7 @@ version/ABI failures reproducible; preserve installed providers and required cur
 
 #### Problems / Limitations
 
-08.3 is not implemented. Close only after affected native/stream checks, actual
+08.3 runtime/distribution closeout is in progress. Close only after affected native/stream checks, actual
 Isaac Sim/Lab/Kit and CUDA perception, same-PCM scalar agreement, source-stop and
 reset/isolation tests, `make check`, packaging and documentation checks pass.
 Measure one/few-environment runtime/memory during 08.3; slower-than-real-time

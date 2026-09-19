@@ -116,8 +116,8 @@ class SensorSession(ControllerService):
 
             self._validation.invalidate()
             stage_obj = self._host._authoring._stage_or_error(stage)
-            sensor = self._build_sensor(stage_obj)
             self.close_sensor()
+            sensor = self._build_sensor(stage_obj)
             self.sensor = sensor
             self._host._recording._attach_guided_reset_listener(sensor)
             self.state.sensor_running = False
@@ -127,7 +127,12 @@ class SensorSession(ControllerService):
             return sensor
         except Exception as exc:
             self.invalidate_frame()
-            self._record_error("Sensor configure failed", exc)
+            self._record_error(
+                "Sensor configure failed",
+                self._host._geometry.explain(exc)
+                if self.state.backend == "geometry_acoustics"
+                else exc,
+            )
             return None
 
     def start_sensor(
@@ -185,7 +190,7 @@ class SensorSession(ControllerService):
             if not paths:
                 raise ExtensionActionError(
                     "No exported waveform yet. Enable WAV Export and run the "
-                    "analytic_acoustics backend, then Update."
+                    "sensor, then Update."
                 )
             status = self._audition_player.play(paths[-1])
             self.state.audition_status = status
@@ -386,7 +391,12 @@ class SensorSession(ControllerService):
             if self._host._recording._guided_recorder is not None:
                 self._host._recording.guided_cancel_recording()
                 self._host._recording.guided_workflow.fail_recording(str(exc))
-            self._record_error("Sensor update failed", exc)
+            self._record_error(
+                "Sensor update failed",
+                self._host._geometry.explain(exc)
+                if self.state.backend == "geometry_acoustics"
+                else exc,
+            )
             return None
 
     def export_latest_frame(self, path: str | Path | None = None) -> Path | None:
@@ -421,6 +431,7 @@ class SensorSession(ControllerService):
     def invalidate_frame(self) -> None:
         """Discard current presentation at an episode or configuration boundary."""
         self.state.latest_frame = None
+        self.state.latest_geometry_diagnostics = {}
         self.state.latest_occlusion_summary = "Not captured"
         self.state.observation_history.clear()
         clear_latest_frames()
@@ -428,6 +439,11 @@ class SensorSession(ControllerService):
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
         self._validate_runtime_state()
+        geometry_inputs = (
+            self._host._geometry.sensor_inputs(stage)
+            if state.backend == "geometry_acoustics"
+            else {}
+        )
         environment_resolution_cfg, environment = self._environment_inputs()
         explicit_array_available = bool(
             state.array_prim_path.strip()
@@ -449,12 +465,17 @@ class SensorSession(ControllerService):
                 energy_threshold_dbfs=state.energy_threshold_dbfs,
                 doa_enabled=state.doa_enabled,
                 debug_draw=state.debug_overlay_enabled,
-                occlusion_enabled=state.occlusion_enabled,
+                **(
+                    geometry_inputs
+                    or dict(
+                        occlusion_enabled=state.occlusion_enabled,
+                        analytic_max_order=state.analytic_max_order,
+                        analytic_air_absorption=state.analytic_air_absorption,
+                        analytic_ray_tracing=state.analytic_ray_tracing,
+                    )
+                ),
                 environment=environment,
                 environment_resolution_cfg=environment_resolution_cfg,
-                analytic_max_order=state.analytic_max_order,
-                analytic_air_absorption=(state.analytic_air_absorption),
-                analytic_ray_tracing=state.analytic_ray_tracing,
             )
         else:
             binding_cfg = IsaacAudioSceneBindingCfg(
@@ -474,12 +495,17 @@ class SensorSession(ControllerService):
                 energy_threshold_dbfs=state.energy_threshold_dbfs,
                 doa_enabled=state.doa_enabled,
                 debug_draw=state.debug_overlay_enabled,
-                occlusion_enabled=state.occlusion_enabled,
+                **(
+                    geometry_inputs
+                    or dict(
+                        occlusion_enabled=state.occlusion_enabled,
+                        analytic_max_order=state.analytic_max_order,
+                        analytic_air_absorption=state.analytic_air_absorption,
+                        analytic_ray_tracing=state.analytic_ray_tracing,
+                    )
+                ),
                 environment=environment,
                 environment_resolution_cfg=environment_resolution_cfg,
-                analytic_max_order=state.analytic_max_order,
-                analytic_air_absorption=(state.analytic_air_absorption),
-                analytic_ray_tracing=state.analytic_ray_tracing,
             )
         sensor.waveform_sink = self._waveform_sink_or_none(sensor.array_id)
         if sensor.array_prim_path:
@@ -492,6 +518,20 @@ class SensorSession(ControllerService):
         _raise_first(ValidationReport(check_runtime_state(self.state)))
 
     def _validate_backend_available(self) -> None:
+        if self.sensor is not None and self.sensor.backend != self.state.backend:
+            raise ExtensionActionError("Backend changed: Configure before Start.")
+        if self.sensor is not None and self.sensor.backend == "geometry_acoustics":
+            from .geometry_settings import config_from_state
+
+            if self.sensor.geometry_config != config_from_state(self.state):
+                raise ExtensionActionError(
+                    "Geometry settings changed: Configure before Start."
+                )
+            if self._host._geometry.verified_config is None:
+                raise ExtensionActionError(
+                    "Verify Geometry with Configure before Start."
+                )
+            return
         _raise_first(self._validation.validate_backend_available(self.state.backend))
 
     def _calibration_array_facts(self) -> dict[str, Any]:
@@ -507,9 +547,14 @@ class SensorSession(ControllerService):
         if _frame_is_new(self.state.latest_frame, frame):
             append_observation_history(self.state.observation_history, frame)
         self.state.latest_frame = frame
+        self.state.latest_geometry_diagnostics = dict(
+            frame.diagnostics.get("geometry", {})
+        )
         observations = frame.observations
         occlusion = frame.diagnostics.get("stage_snapshot", {}).get("occlusion", {})
-        if occlusion.get("status") == "computed":
+        if self.sensor is not None and self.sensor.backend == "geometry_acoustics":
+            self.state.latest_occlusion_summary = "Geometry: see simulation diagnostics"
+        elif occlusion.get("status") == "computed":
             self.state.latest_occlusion_summary = (
                 f"{occlusion.get('blocked_paths', 0)}/"
                 f"{occlusion.get('total_paths', 0)} direct paths blocked (simulation)"

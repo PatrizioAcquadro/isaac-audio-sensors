@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Added prepared-scene Geometry controls in Kit, shared scene/sensor lifecycle, saved native settings and separate actionable simulation diagnostics. Preserved optional NLOS/diffuse defaults and observation contracts; historical NLOS coverage no longer changes after later captures.
+
 - Integrate Auditok 0.5.2 into the standard sensor with an explicit finite `Activity dBFS` field, causal signal-derived observations, and reset on stream-defining array changes.
 - Add a default-off DOA control using the maintained causal geometry-routed consumer; preserve unresolved warm-up, ambiguity, and temporal-instability evidence in live observations.
 - Breaking: use exact `ias.omni_extension_binding.v7` configuration with required Auditok activity state and `direction_estimation.enabled`; reject binding v6 and older without compatibility parsing.
