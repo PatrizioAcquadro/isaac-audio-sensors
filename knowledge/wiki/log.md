@@ -311,3 +311,11 @@ links were added. The index target exists and Markdown whitespace checks pass.
 Focused Python checks pass; Video 4's pre-existing long lines were excluded from
 its style check. Native dimensions and representative external/POV frames were
 verified against the delivered files.
+
+## 2026-09-19 — update: ONR Video 5 warehouse preflight
+
+Documented the local two-source warehouse production, unchanged current-event sensor display, combined Geometry configuration and bounded acoustic approximations. Individual/mixture native controls pass; the user confirmed preliminary mixture audibility. Full GPU capture and media checks remain in progress. No public SDK changes.
+
+## 2026-09-19 — lint: Verify Video 5 preflight documentation
+
+All wiki links resolve and pages remain indexed. Documentation matches the local configuration and stored probe results; Markdown whitespace and focused local Python checks pass. Protected raw material is unchanged.
