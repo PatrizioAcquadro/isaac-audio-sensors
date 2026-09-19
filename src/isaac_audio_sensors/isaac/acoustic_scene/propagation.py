@@ -27,7 +27,7 @@ from ._steam_audio import Receiver
 
 @dataclass(frozen=True, slots=True)
 class GeometryAcousticsConfig:
-    """Explicit optional native providers for the intermediate specular domain."""
+    """Native direct/specular propagation with optional NLOS and diffuse fields."""
 
     library_path: str
     specular_library_path: str
@@ -44,8 +44,6 @@ class GeometryAcousticsConfig:
     def __post_init__(self):
         if self.diffuse is not None and not isinstance(self.diffuse, PRADiffuseConfig):
             raise TypeError("diffuse must be PRADiffuseConfig or None.")
-        if self.diffuse is not None and self.nlos is not None:
-            raise ValueError("Combined NLOS/diffuse qualification belongs to Step 4.")
         if self.nlos is not None and not isinstance(self.nlos, SteamNLOSConfig):
             raise TypeError("nlos must be SteamNLOSConfig or None.")
         if not self.library_path or not self.specular_library_path:
@@ -322,6 +320,19 @@ class GeometryAcoustics:
             )
         ):
             raise ValueError("Geometry windows must use the nonnegative sample clock.")
+        stream = self.streams.get((scene.stage_id, array_id))
+        if stream and start < stream["cursor"]:
+            raise ValueError("Geometry time moved backwards without reset.")
+        try:
+            return self._propagate(scene, array, time_window, start, end)
+        except Exception:
+            # Native fields and geometry history are shared by this environment.
+            # Never reuse a partially advanced mixture after a failed read.
+            self.reset()
+            raise
+
+    def _propagate(self, scene, array, time_window, start, end):
+        rate, array_id = array.sample_rate_hz, array.array_id
         self.session.refresh(self.session._last_time)
         self._check_scene()
         if self.config.nlos is not None:
@@ -332,8 +343,6 @@ class GeometryAcoustics:
         signature = (rate, array.microphones, tuple(s.source_id for s in scene.sources))
         stream = self.streams.get(key)
         discontinuity = stream is None and (self._reset_notice or start > 0)
-        if stream and start < stream["cursor"]:
-            raise ValueError("Geometry time moved backwards without reset.")
         if (
             stream is None
             or signature != stream["signature"]
@@ -379,15 +388,9 @@ class GeometryAcoustics:
             output += stream["convolvers"][source.source_id].process(emission)
         if stream["nlos"]:
             nlos_stream = stream["nlos"]
-            try:
-                nlos_stream.observe(scene, array, start / rate, self.window_motion)
-                indirect = nlos_stream.process(scene, array, start, emissions, count)
-                output += self._nlos_response(stream, array, indirect)
-            except Exception:
-                self._release(stream)
-                del self.streams[key]
-                self._reset_notice = True
-                raise
+            nlos_stream.observe(scene, array, start / rate, self.window_motion)
+            indirect = nlos_stream.process(scene, array, start, emissions, count)
+            output += self._nlos_response(stream, array, indirect)
             before = min(s["cursor"] / s["signature"][0] for s in self.streams.values())
             self.nlos.history.prune(before - self.config.max_delay_s - 1 / rate)
         output *= np.asarray([10 ** (m.gain_db / 20) for m in array.microphones])[
@@ -424,7 +427,9 @@ class GeometryAcoustics:
             if self.config.diffuse is not None:
                 diagnostics["geometry"].update(
                     provider="steam_audio+pyroomacoustics_ism+native_pra_transport",
-                    domain="experimental_direct+specular+diffuse",
+                    domain="direct+specular+diffuse+nlos"
+                    if stream["nlos"]
+                    else "experimental_direct+specular+diffuse",
                     diffuse=dict(
                         qualification="step3_pass_with_limits",
                         motion="receiver-clock quasi-static field",
@@ -437,7 +442,6 @@ class GeometryAcoustics:
                             "Maximum-motion observation evidence uses 2.5 ms "
                             "updates and a 2 s horizon; unrestricted 10 ms is "
                             "unqualified.",
-                            "Combined NLOS/diffuse requires Step 4.",
                         ),
                         **self.diffuse_fields[rate].diagnostics,
                     ),

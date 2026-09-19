@@ -126,3 +126,11 @@ optional audio and real RTX Sim/Lab/Kit/NLOS gates. Retained inputs pass 104 epi
 checks, 131 USD compositions, visibility, producer lifecycle and independent quadrature.
 ONR frame metadata is migrated locally to v4 with unchanged PCM and observations;
 current-source replay and bounded media recomposition validate retained paths.
+
+## 2026-09-19 — update: Step 4 combined native stream
+
+Enabled joint NLOS/diffuse configuration in the existing Geometry producer, retained
+component diagnostics and made failed reads discard the environment's partially
+advanced state. Thirteen combined controls plus affected native regressions pass
+(61 native tests total); 14 convolution/route unit tests pass. Live Sim/Lab
+qualification and Step 4 admission are pending. Defaults and public schemas are unchanged.

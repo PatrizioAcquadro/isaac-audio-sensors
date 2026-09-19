@@ -2,8 +2,8 @@
 
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
 transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
-NLOS is an explicit option. A shared PRA diffuse candidate is now available as a
-separate experimental opt-in with qualification pending. Its conditioned cube
+NLOS is an explicit option. Shared PRA diffuse pressure and NLOS can also be enabled together.
+The combined native stream passes focused controls; live integration is pending. Its conditioned cube
 late-response failure is diagnostic under the approved decision. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
@@ -76,7 +76,9 @@ Receiver-clock convolution retains source/filter history; RIR changes crossfade
 without restarting on fragmented reads. This intermediate quasi-static motion
 model is not general retarded moving-scene transport. Gaps/reconfiguration reset
 context, rewind requires reset, provider replacement resets streams, and array
-cursors remain independent. Channel response is included in complete responses.
+cursors remain independent. A failed render discards all stream/native-field state
+in that producer environment; the next successful read reports discontinuity.
+Other environment producers and caller-owned sessions remain independent. Channel response is included in complete responses.
 No observation, recording or Lab schema contains provider paths.
 
 ## Native build and reproduction
@@ -153,8 +155,10 @@ builds remain unchanged. Set `IAS_PRA_LIBRARY` when running
 ### Experimental shared PRA diffuse field
 
 `GeometryAcousticsConfig.diffuse=PRADiffuseConfig()` adds diffuse pressure to the
-same direct/specular producer. The default is `None`. Combining it with `nlos`
-is rejected until Step 4. Diagnostics report `step3_pass_with_limits`, the accepted
+same direct/specular producer. The default is `None`. It can be combined with
+`nlos` on the same integer sample clock and source emissions; final gain and
+mixture effects apply once. Combined diagnostics retain both component records
+and report `direct+specular+diffuse+nlos`. Diagnostics report `step3_pass_with_limits`, the accepted
 cube/selected-mirror diagnostic discrepancies, and the unvalidated full-room moving
 pressure/observation equivalence. That property is a non-blocking known limitation,
 not a PASS. The
@@ -269,7 +273,10 @@ geometry diagnostics contain probe counts, rebuild counts and per-source/channel
 coverage states; they are not observations. The NLOS microphone response currently
 supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negative
 delay is explicitly unqualified for this causal component; the intermediate keeps
-its existing response support. Full combined-producer qualification remains Step 4.
+its existing response support. Combined native controls pass; actual Sim/Lab integration remains pending in Step 4.
+PCM subdivision equivalence assumes identical geometry epochs and timestamped
+motion inputs. Repeating a start pose at a new timestamp without a motion plan
+supplies a different trajectory, not merely another read of the same motion.
 
 Production bindings live in the package. `tools/native/steam_paths.patch`,
 `steam_probes.cpp`, `steam_visibility.cpp` and the private header/build recipe remain
