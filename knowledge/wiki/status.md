@@ -28,7 +28,7 @@ Updated: 2026-09-19. Package version: `3.0.0`.
 
 ## Delivery and boundaries
 
-ONR videos **1–4 are delivered**; Video **5** warehouse multisource production has passed individual/mixture native controls and user preliminary listening, with full capture/media checks in progress; revisions **6–9** retain individual scene/media gates. The new 30 s Hospital occlusion film uses combined Geometry, measured PCM and causal instruments; its 50 ms scene sampling does not extend acoustic admission limits. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns media evidence and readiness.
+ONR videos **1–5 are delivered**; revisions **6–9** retain individual scene/media gates. Video 5's 30 s warehouse film uses combined Geometry and all current multisource observations: every stable set is correct, without missing/extra directions, and the two isolated received levels differ by 2.96 dB. Recording replay and both final encodes pass. Preliminary mixture listening is user-confirmed; full-video listening remains pending. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns media evidence and bounded claims.
 
 [[implementation_phases/09-practical-realism-and-randomization|Phase 09]] owns practical variation; [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]] owns product-wide closeout; [[implementation_phases/11-future-semantic-perception|Phase 11]] semantics/tracking remain deferred. No physical campaign, policy training, acoustic GPU port or large-batch Geometry requirement is implied.
 

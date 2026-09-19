@@ -41,7 +41,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 - [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — live sensor, authoring, instrumentation and lifecycle.
 - [[topics/isaac-lab-integration|Isaac Lab Integration]] — current tensor/binding/clock contract.
 - [[topics/validation-and-release|Validation and Release]] — maintained commands, runtime gates and artifact audits.
-- [[topics/onr-video-production|ONR Video Production]] — delivered 1–4, warehouse multisource Video 5 production, shared FOV/direct-path styling and individual scene/media gates.
+- [[topics/onr-video-production|ONR Video Production]] — delivered 1–5, warehouse multisource evidence and listening-review status, shared FOV/direct-path styling and remaining scene/media gates.
 
 ## Key Decisions
 

@@ -319,3 +319,11 @@ Documented the local two-source warehouse production, unchanged current-event se
 ## 2026-09-19 — lint: Verify Video 5 preflight documentation
 
 All wiki links resolve and pages remain indexed. Documentation matches the local configuration and stored probe results; Markdown whitespace and focused local Python checks pass. Protected raw material is unchanged.
+
+## 2026-09-19 — update: Deliver ONR Video 5
+
+Completed the 30-second warehouse capture, preview and 1440p/1080p production. All 220 stable windows meet the correct-set gate; recording replay, causal display, GPU pose hold, full media decoding and browser playback pass. Documented timing, levels and bounded Geometry assumptions. Preliminary mixture listening is user-confirmed; full-video subjective listening remains pending.
+
+## 2026-09-19 — lint: Verify Video 5 delivery documentation
+
+All 42 wiki pages resolve and remain indexed. Canonical claims match the final capture and media reports; focused local Python lint and Markdown whitespace checks pass. Only ONR documentation is tracked in this change; protected raw material and public SDK remain unchanged.
