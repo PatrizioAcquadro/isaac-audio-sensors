@@ -252,3 +252,16 @@ locally; recordings, approved Videos 1–3 and the public SDK remain unchanged.
 All 42 wiki pages are indexed and internal links resolve. Ruff and Markdown
 whitespace checks pass. The documented 2.5 s hold matches all 900 display states;
 RMS/direction parity, silence-tail expiry, full media decode and AAC checks pass.
+
+## 2026-09-19 — update: Standardize ONR direct-path references
+
+Extended the shared production standard with Video 4's green/orange/red geometric
+path colors, synchronized blockage checks and restrained distant-source framing.
+Clarified scene-known endpoints, ambiguous source/event associations and causal
+activity timing; geometric paths do not certify audio quality or source recognition.
+This documentation update does not regenerate approved media or change the SDK.
+
+## 2026-09-19 — lint: Verify ONR direct-path standard
+
+All 42 wiki pages remain indexed and internal links resolve. Markdown whitespace
+checks pass; the documented color roles match the local Video 4 compositor.
