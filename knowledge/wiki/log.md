@@ -189,3 +189,17 @@ All canonical pages remain indexed and internal wikilink targets resolve. Update
 source/API references exist; raw material is unchanged. Host checks pass
 (677 unit/contract, 336 integration, 58 release); the focused controller/native
 checks preserve configuration, session lifetime and historical diagnostics.
+
+## 2026-09-19 — experiment: Qualify Geometry operating runtimes
+
+Actual RTX Sim, Kit and one/two-environment Lab checks pass, including combined
+screen motion, stop/tail, lifecycle and scalar/CUDA parity. The admission page
+records bounded timing, preparation, reset and allocator/process memory; these
+results do not qualify complex rooms or real-time performance. The native test
+suite also passes after rerunning the CUDA cases with host GPU access.
+
+## 2026-09-19 — lint: Verify operating runtime evidence
+
+Checked current reports against the canonical measurements and retained limits.
+No new wiki page or link target was introduced. Updated smoke sources pass lint,
+whitespace checks and the full host check suite; raw evidence is unchanged.

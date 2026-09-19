@@ -217,7 +217,11 @@ def main() -> int:
         default=Path(__file__).resolve().parents[2] / "exts" / EXTENSION_ID,
         help="Extension directory discovered by Kit.",
     )
+    parser.add_argument("--geometry-library", type=Path)
+    parser.add_argument("--specular-library", type=Path)
     args = parser.parse_args()
+    if args.geometry_library and not args.specular_library:
+        parser.error("--geometry-library requires --specular-library")
     args.out = args.out.resolve()
     args.extension_path = args.extension_path.resolve()
 
@@ -389,6 +393,16 @@ def main() -> int:
         )
 
         # Kit unloads package modules on disable; finish the manual client first.
+        if args.geometry_library:
+            from geometry_operating import run_geometry_operating
+
+            evidence["geometry_operating"] = _step(
+                evidence,
+                "geometry_sensor_to_instruments",
+                lambda: run_geometry_operating(
+                    controller, args.geometry_library, args.specular_library, args.out
+                ),
+            )
         extension.on_shutdown()
         evidence["extension_shutdown"] = "ok"
         extension = None

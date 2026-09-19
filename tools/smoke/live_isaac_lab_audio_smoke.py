@@ -36,6 +36,7 @@ def main() -> int:
     parser.add_argument("--geometry-library", type=Path)
     parser.add_argument("--geometry-indoor", action="store_true")
     parser.add_argument("--geometry-combined", action="store_true")
+    parser.add_argument("--geometry-screen", action="store_true")
     parser.add_argument("--specular-library", type=Path)
     args = parser.parse_args()
     if args.geometry_combined and not (
@@ -45,9 +46,10 @@ def main() -> int:
             "Combined geometry requires both native libraries "
             "and --perf-reference-check."
         )
-    if args.perf_envs < 2 or args.perf_steps < 1 or args.perf_substeps < 1:
+    screen_geometry = args.geometry_screen or args.geometry_combined
+    if args.perf_envs < 1 or args.perf_steps < 1 or args.perf_substeps < 1:
         parser.error(
-            "Performance checks require two environments and positive steps/substeps."
+            "Performance checks require an environment and positive steps/substeps."
         )
     evidence = {"status": "started", "phase": "app_launcher"}
     _write_evidence(args.out, evidence)
@@ -164,6 +166,7 @@ def main() -> int:
                 entity_name="speaker",
                 audio_asset_path=asset,
                 duration_s=None,
+                gain_db=6.0 if screen_geometry else 0.0,
                 loop_count=-1,
             )
         ]
@@ -179,6 +182,7 @@ def main() -> int:
                     entity_name="second_speaker",
                     audio_asset_path=source_scenes[1].sources[1].audio_asset_path,
                     duration_s=None,
+                    gain_db=6.0 if screen_geometry else 0.0,
                     loop_count=-1,
                 )
             )
@@ -188,6 +192,7 @@ def main() -> int:
                 args.perf_layout
             )
             perf_microphones = source_scenes[layout_index].arrays[0].microphones
+        preparation_started = time.perf_counter()
         geometry_config = None
         if args.geometry_library:
             from isaac_audio_sensors.isaac.acoustic_scene import (
@@ -196,7 +201,7 @@ def main() -> int:
                 SteamNLOSConfig,
             )
 
-            if args.geometry_combined:
+            if screen_geometry:
                 perf_scene["robot"].data.root_state_w[:, :3] = torch.tensor(
                     (-2, 0, 1.2), device="cuda:0"
                 )
@@ -214,9 +219,9 @@ def main() -> int:
                 if args.specular_library
                 else "",
                 reflection_order=1
-                if args.geometry_combined
+                if screen_geometry
                 else (3 if args.geometry_indoor else 0),
-                max_delay_s=0.1 if args.geometry_combined else 1.0,
+                max_delay_s=0.1 if screen_geometry else 1.0,
                 nlos=SteamNLOSConfig(probe_spacing_m=0.5)
                 if args.geometry_combined
                 else None,
@@ -228,7 +233,7 @@ def main() -> int:
             acoustic_sessions = _geometry_sessions(
                 args.perf_envs,
                 indoor=args.geometry_indoor,
-                combined=args.geometry_combined,
+                combined=screen_geometry,
             )
         perf_sensor = AudioArraySensor(
             AudioArraySensorCfg(
@@ -254,6 +259,7 @@ def main() -> int:
             acoustic_scenes=acoustic_sessions if geometry_config else None,
         )
 
+        preparation_ms = (time.perf_counter() - preparation_started) * 1000
         multisource_scenes = source_scenes
         multisource_scenes = (multisource_scenes[1], multisource_scenes[3])
         multisource_ids = tuple(
@@ -480,7 +486,16 @@ def main() -> int:
         rss_peak_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
         mean_ms = statistics.mean(step_ms)
         _assert_contract(perf_sensor.data, num_envs=args.perf_envs, max_observations=3)
-        if not perf_sensor.data.observation_mask.any():
+        pcm_peak = float(perf_sensor._entity_backend.perception.history.abs().max())
+        if geometry_config and (not np.isfinite(pcm_peak) or pcm_peak <= 1e-8):
+            raise RuntimeError(
+                "Geometry benchmark did not produce finite received PCM."
+            )
+        # Occluded geometry may cause perceptual abstention; compare the same PCM
+        # with the scalar reference instead of requiring a free-field event count.
+        if not perf_sensor.data.observation_mask.any() and not (
+            geometry_config and args.perf_reference_check
+        ):
             raise RuntimeError(
                 "Active perception benchmark returned only empty observations."
             )
@@ -567,6 +582,8 @@ def main() -> int:
             ),
             "geometry_indoor": args.geometry_indoor,
             "geometry_combined": args.geometry_combined,
+            "geometry_screen": screen_geometry,
+            "source_gain_db": 6.0 if screen_geometry else 0.0,
             "partial_reset": False,
             "perf_envs": args.perf_envs,
             "perf_sources": args.perf_sources,
@@ -576,6 +593,8 @@ def main() -> int:
             "simulated_acquisition_hz": 10 * args.perf_substeps,
             "mean_ms_per_step": mean_ms,
             "warmup_ms": warmup_ms,
+            "preparation_ms": preparation_ms,
+            "received_pcm_peak": pcm_peak,
             "process_cpu_percent": cpu_seconds / (sum(step_ms) / 1000) * 100,
             "process_peak_rss_mib": rss_peak_mib,
             "reserved_vram_mib": torch.cuda.memory_reserved() / 2**20,
@@ -616,19 +635,21 @@ def main() -> int:
         }
         torch.cuda.synchronize()
         reset_started = time.perf_counter()
-        perf_sensor.reset([1])
+        reset_index = 1 if args.perf_envs > 1 else 0
+        perf_sensor.reset([reset_index])
         torch.cuda.synchronize()
         evidence["single_environment_reset_ms"] = (
             time.perf_counter() - reset_started
         ) * 1000
-        torch.testing.assert_close(perf_sensor._audio_time[0], sample_clock[0])
-        torch.testing.assert_close(
-            perf_sensor._entity_backend.perception.history[0], untouched
-        )
-        if perf_sensor.data.observation_mask[1].any():
+        if perf_sensor.data.observation_mask[reset_index].any():
             raise RuntimeError("Entity reset retained old observations.")
-        for name, expected in untouched_observations.items():
-            torch.testing.assert_close(getattr(perf_sensor.data, name)[0], expected)
+        if args.perf_envs > 1:
+            torch.testing.assert_close(perf_sensor._audio_time[0], sample_clock[0])
+            torch.testing.assert_close(
+                perf_sensor._entity_backend.perception.history[0], untouched
+            )
+            for name, expected in untouched_observations.items():
+                torch.testing.assert_close(getattr(perf_sensor.data, name)[0], expected)
         if args.geometry_combined:
             _advance_audio(perf_sensor, args.perf_substeps)
             evidence["combined_isolation"] = _combined_isolation(perf_sensor)
@@ -676,17 +697,29 @@ def _entity_reference_parity(sensor):
     """Untimed scalar check on identical PCM, preserving existing false events."""
     import numpy as np
 
+    from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
     from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
 
     backend = sensor._entity_backend
-    samples = backend.perception.history[:, :, -12000:].cpu().numpy()
+    history = backend.perception.history.cpu().numpy()
+    samples = history[:, :, -12000:]
     positions = backend.binding.static.mic_offsets_local.cpu().numpy()
     data = sensor.data
     localizer = MaintainedEventLocalizer()
     counts, matches, errors = [], [], []
     missing = extra = 0
     for row, values in enumerate(samples):
-        events, _ = localizer.localize(values, positions, 16000)
+        detector = AuditokActivityDetector(
+            energy_threshold_dbfs=sensor.cfg.energy_threshold_dbfs
+        )
+        width = backend.perception.window_samples
+        for start in range(0, history.shape[-1], width):
+            decision = detector.detect(history[row, :, start : start + width], 16000)
+        if bool(backend.perception.active[row]) != decision.active:
+            raise RuntimeError("Scalar/CUDA activity differs on the same PCM.")
+        events = (
+            localizer.localize(values, positions, 16000)[0] if decision.active else ()
+        )
         events = sorted(
             events,
             key=lambda event: (

@@ -15,8 +15,66 @@ Decisive results from 2026-09-10–19. [[decisions/robot-audition-fidelity|Robot
 | Robot consumers | Bounded head/camera diagnostic benefit | No general application-performance or physical-transfer claim |
 
 **08.2 (Milestone 2) is complete within the bounds above.** Step 4 passes combined
-streaming and integration. Next is 08.3: operating workflow, diagnostics,
-consolidation and bounded runtime/distribution checks.
+streaming and integration. 08.3 operating/runtime checks below pass; clean-source
+distribution closeout is in progress.
+
+## 08.3 operating runtime and cost (2026-09-19)
+
+The shared controller-owned session feeds the configured Geometry sensor and
+Kit instruments. Actual RTX Kit passes four simulated seconds of closed/open/closed
+screen transitions, NLOS/diffuse composition, source-stop tails, widget rebuilding,
+configuration failure recovery and stage replacement. Actual Sim and the shared
+preparation panel pass their maintained gates, including authoring/Undo/Redo and
+live PhysX poses. Provider coverage remains separate from observed events/RMS.
+
+A retained-frame regression exposed mutable NLOS coverage: subsequent captures
+rewrote earlier diagnostic dictionaries. Copying each block's coverage fixes the
+regression without changing pressure synthesis, clocks or observations.
+
+The Lab cost fixture uses one source, the maintained four-microphone `quad_front`
+array at 16 kHz, a floor/screen/rear wall, order 1 and a 100 ms delay horizon.
+Combined adds 0.5 m floor probes and 4096 diffuse rays with 0.5 m surface spacing.
+Both configurations use the same stimulus at +6 dB to exercise active perception
+above the unchanged -60 dBFS threshold. Ten warm-up updates precede 30 timed
+100 ms updates; preparation and reset are reported separately. Geometry remains
+native CPU work on an Intel Core i9-14900KF; Isaac/CUDA perception runs on the
+actual RTX 4090 (driver 580.178.04).
+
+| Configuration | Environments | Mean update ms | p95 ms | Simulated seconds / wall second |
+| --- | ---: | ---: | ---: | ---: |
+| Base | 1 | 111.5 | 114.6 | 0.897 |
+| Base | 2 | 181.6 | 199.1 | 0.551 |
+| Combined | 1 | 474.6 | 488.7 | 0.211 |
+| Combined | 2 | 901.6 | 914.4 | 0.111 |
+
+| Configuration / environments | Preparation ms | Warm-up ms | One-environment reset ms | Process peak RSS MiB | CUDA allocated / reserved MiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Base / 1 | 30.8 | 445.6 | 0.43 | 4399 | 62.6 / 86 |
+| Base / 2 | 34.5 | 645.5 | 0.44 | 4397 | 107.5 / 140 |
+| Combined / 1 | 30.5 | 4493.7 | 0.69 | 4404 | 62.6 / 86 |
+| Combined / 2 | 35.7 | 8110.5 | 0.72 | 4409 | 107.5 / 140 |
+
+RSS covers the complete Isaac process; CUDA figures are PyTorch allocator peaks,
+not total graphics-driver memory. Warm-up includes lazy native preparation and
+causal perception fill. Timed updates cover audio acquisition and perception;
+physics stepping, rendering and policies are not timed. These measurements do not
+establish real-time operation, large-batch scaling or memory-leak bounds.
+
+All four cases retain 100% scalar/CUDA event-count agreement; maximum reported
+angular p95 is below 0.000011 degrees across two checked windows per case.
+The scalar check now applies Auditok before localization, matching the actual
+consumer: comparing a bare localizer with an activity-gated pipeline incorrectly
+reported a mismatch for the weaker original base fixture. No activity, localization
+or acoustic acceptance threshold changed. Reset and combined solo/reordered/loud-
+neighbor checks pass. This is bounded reference preservation, not absolute bearing
+accuracy or representative-room fidelity.
+
+Reproduce with `tools/smoke/live_isaac_lab_audio_smoke.py`, both qualified library
+arguments, `--geometry-screen` (base) or `--geometry-combined`, `--perf-envs 1` or
+`2`, `--perf-steps 30 --perf-sources 1 --perf-reference-check --perf-reference-steps 2`.
+`tools/smoke/live_omniverse_extension_ux.py` accepts both library arguments for
+the operating scenario. Local reports/PCM/screenshots are under
+`build/validation/r10/operating/`; no historical physical claim is expanded.
 
 ## Step 4 combined producer controls (2026-09-19)
 
