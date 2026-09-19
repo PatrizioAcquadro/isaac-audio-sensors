@@ -2,7 +2,7 @@
 
 ## Maintained production
 
-The local generator maintains the original nine-video catalog, the approved final videos 1 and 2, and the completed outdoor Video 3. Final deliveries remain `evidence/onr_demo/`, `evidence/onr_video1_final/`, `evidence/onr_video2/` and `evidence/onr_video3/`. The complete original catalog and both corrected deliveries are preserved. Video 2 now uses sequential perspectives: a 16-second third-person comparison followed by the same run replayed from the robot cameras, for a 32-second edit.
+The local generator maintains the original nine-video catalog, the approved final videos 1 and 2, the completed outdoor Video 3, and Hospital Video 4. Final deliveries remain `evidence/onr_demo/`, `evidence/onr_video1_final/`, `evidence/onr_video2/`, `evidence/onr_video3/` and `evidence/onr_video4/`. The complete original catalog and both corrected deliveries are preserved. Video 2 now uses sequential perspectives: a 16-second third-person comparison followed by the same run replayed from the robot cameras, for a 32-second edit.
 
 Production source now lives in ignored `local/onr/`, separate from disposable build outputs and the public SDK. Its README owns commands, runtime requirements and workspace selection. `run.py` provides prepare, capture, render, compose and verify stages. Common Office setup, recorded-pose replay, causal instruments and FFmpeg composition are shared. The catalog uses the current sibling SquadBot consumer; retired script copies, probing workers and the duplicated downstream snapshot are not maintained.
 
@@ -105,7 +105,7 @@ Numbers below follow the user's revised order. Old numbers identify the existing
 | 1 | Basic sensing in a relevant setting | 1 | Sequential sources in useful positions; establish shared quality standard | Corrected delivery complete |
 | 2 | With and without audio | 3 | Scripted visual scan versus measured audio guidance during an off-camera door opening | Fullscreen sequential delivery verified; 2.85 s illustrative advantage |
 | 3 | Moving source | 4 | Outdoor vehicle; direction following, native instruments and Doppler | Complete 23 s edit verified; approved excerpt and requested silent opening |
-| 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | Correctness fixes completed; scene feasibility pending; fuller geometry version after 08.3 |
+| 4 | Occlusion | 2 | Audible attenuation and understandable instrument response | 30 s Hospital Geometry delivery; technical checks complete, user review pending |
 | 5 | Multiple sources and background | 5 | Distinct concurrent sources and realistic interference; verify pipeline capability | Discuss individually |
 | 6 | Materials and acoustic spaces | 6 | Clarify what changes and make the acoustic result understandable | Deferred; design open |
 | 7 | Audio–vision link | 7 | Main integration story; show the actual chain clearly | Discuss individually |
@@ -116,13 +116,7 @@ For each revision: [ ] agree the task and setting; [ ] apply shared standards; [
 
 ## Remaining ONR deliveries
 
-Readiness checked on 2026-09-11 against the maintained generator, final files and
-saved validation reports. The original nine-video catalog exists; “remaining”
-means the individually revised deliveries in the current numbering. Videos 1,
-2 and 3 have final 1080p/1440p files and passing saved technical reports in their
-respective delivery directories. Video 3's current method records the approved
-robot-focused pass and RMS behavior. This audit does not re-run decoding or
-playback, regenerate media or reopen those approved deliveries.
+Videos 1–4 now have individual revised deliveries. Videos 1–3 remain approved and unchanged; Video 4 is the new Hospital occlusion film described below, pending the user's review. Remaining revisions 5–9 retain their separate scene and media gates. The original nine-video catalog is preserved.
 
 The series demonstrates sensing in individually qualified scenarios. Existing
 recordings retain their own scope: Video 3's 8 m/s outdoor direct-path case is a separately qualified
@@ -132,7 +126,6 @@ or partner acceptance evidence.
 
 | Revised video | Remaining work | Dependence on Phase 08 and other work |
 | --- | --- | --- |
-| 4 — Occlusion | Agree the scene; prove audible received-signal change, causal instruments and honest availability; then review an excerpt and produce the revised delivery | A bounded direct-path version can use the maintained occlusion model after its scene gate. Full geometry, meaningful indirect routes and provider diagnostics target admitted 08.2 contributions plus 08.3 operation. No exact asynchronous path-history requirement |
 | 5 — Multiple sources/background | Choose distinguishable simultaneous events and relevant interference; qualify actual observed count/direction, missing/extra events and audibility in that scene | The bounded 04.4/07 runtime exists, but does not qualify arbitrary moving/reverberant mixtures. Phase 08 is needed only for geometric/diffuse claims actually shown; Phase 09 for additional evidence-backed noise/variation claims |
 | 6 — Materials/acoustic spaces | Agree which physical change is demonstrated and validate its effect on received PCM and instruments; replace any implication that decorative furniture drives the old shoebox | A bounded declared shoebox experiment is possible independently. Geometry-authored material/space claims need the relevant 08.2 qualification and 08.3 workflow; richer randomization or physical-transfer claims belong to 09/separate validation |
 | 7 — Audio–vision link | Demonstrate hear → orient → see → link with visible failure/unconfirmed cases; verify the actual consumer chain and distinguish authored/annotated visuals from learned recognition | This application demonstration does not require full Phase 08 for a bounded analytic scene, nor automatic completion of Phase 11. Geometry claims require their own admitted domain; no unseen-source truth or visual oracle may silently become an audio estimate |
@@ -142,19 +135,37 @@ or partner acceptance evidence.
 Phase 08 completion alone does not close these media tasks or approve a scene.
 Each remaining video still needs its agreed brief, scenario-specific sensing and
 consumer gate, excerpt review, synchronized observed soundtrack/instruments and
-full technical/media QA. No new production is performed by this documentation
-update. General-purpose SDK work stays separate from local ONR orchestration and
+full technical/media QA. General-purpose SDK work stays separate from local ONR orchestration and
 SquadBot semantics.
 
-## Video 4 Readiness and Scope
+## Video 4 — Hospital Occlusion
 
-The requested Video 4 is the revised **Occlusion** video, corresponding to old catalog video 2. Its current brief is audible attenuation with understandable instrument response; the scene and story remain to be agreed individually.
+The 30-second film uses the complete NVIDIA Hospital, the approved full-body Alex V2/WSG32 assembly, nominal four-microphone array and 65° head camera. A bedside monitor emits the same one-second CC0 “Heart Monitor Beep” excerpt by samfk360 from 3 s onward. Emission level remains constant. The monitor is an illustrative prop, not a physiological simulation or a calibrated clinical recording; the retained original Hospital bed provides the treatment-room context.
 
-A bounded direct-path version may be feasible with the [[status|completed confidence/occlusion corrections and maintained perceptual reference]]: a real supported obstacle changes the recorded microphone signal, RMS follows that signal, and the direction/activity display remains truthful about availability and errors. It does not inherently require Isaac Lab 07.2 or all of Phase 09. Production still depends on its actual scene and complete sensing/recording path working; completion of a phase alone is insufficient. Solid-collider capture is corrected in its tested domain; remaining perceptual errors and scene-specific feasibility still prevent an automatic readiness claim. The general temporal research pause neither qualifies nor blocks this scene by itself.
+The robot starts in the corridor with the source outside its camera FOV. Observed audio directions command head and torso yaw until 9 s, then the target pose is held. The existing `SM_Door_01b_2` closes smoothly on its own pivot at 12–16 s, stays closed through 22 s and reopens at 22–26 s. This is a controlled scene action, not robot manipulation. The closing shot is uninterrupted; context, shoulder and a brief actual-camera view retain the series' Nimbus Sans/US English presentation.
 
-For the fuller version with acoustically active scene geometry, doors or openings, reflected/indirect contributions and provider diagnostics, target completion of [[implementation_phases/08-geometry-acoustics-integration|08.3]], within [[implementation_phases/r10-geometry-acoustics-integration|R10's supported limits]]. Phase 09 is needed only for additional claims about evidence-backed noise/material variation or physical transfer. This does not promise general diffraction or physically calibrated wall behavior.
+`GeometryAcoustics` supplies all four contribution families: Steam direct/planar transmission, first-order native PRA specular paths, selected-route NLOS and shared diffuse pressure. The retained 106 Hospital proxy surfaces preserve the aperture; the original visible leaf and its single acoustic proxy share the same parent transform. Nominal door losses are 15/19/23/26/29/32 dB at 125/250/500/1000/2000/4000 Hz. These are declared parameters, not measured calibration. The visual bed and monitor are excluded from propagation. Configuration uses a 2 s horizon, 4096 diffuse rays, 0.5 m scattering-node spacing and 0.75 m NLOS probes. No Analytic signal or editorial attenuation is added.
 
-Show actual received audio and observed instruments. If geometric blockage is displayed, label it separately from inferred direction reliability; compass color must not imply that the sensor can identify an obstacle from audio alone. The older catalog's analytic moving-partition intersection is not proof of real PhysX dynamic occlusion. No new Video 4 production is authorized or delivered by this documentation update.
+RTX 4090 articulation runs at 60 Hz; supported native propagation and maintained perception run on CPU. PCM and array poses share the 16 kHz sample clock, with 600 nonoverlapping 50 ms windows. This receiver-clock/quasi-static scene demonstration does **not** extend the separate maximum-motion admission, which used 2.5 ms updates. Full-room moving pressure equivalence, calibrated wall behavior and general diffraction remain unvalidated. Fixed base, disabled gravity/contacts and controlled pointing do not qualify navigation, balance or manipulation.
+
+The cyan fan and faint corner rays derive from the actual camera calibration and transforms. Their short extent illustrates direction and aperture, not sensing range. Green/orange direct-path segments, red impact points and hidden dashed continuations are independent geometry references. `Outside camera FOV`, `Visible` and `Blocked by door` combine frustum projection and line intersections; they are not recognition results. The SDK compass uses only recorded directions, with the established causal smoothing and three-second expiry. RMS remains visible from 3 s through the end on a fixed −90 to 0 dBFS scale, including quiet and unavailable intervals. A causal one-second received-level comparison appears after the open baseline is complete.
+
+All 600 windows replay sample-identically. The first direction is available at 3.55 s; the source is in camera view by 4.80 s. No pointing precedes the first observation, and held-pose joint drift after 10 s is below 0.003°. Matched 10–12 s, 19–21 s and 28–30 s excerpts contain the same emitted phase:
+
+| Channel | Closed loss | Reopened minus open |
+| --- | ---: | ---: |
+| Front | 14.32 dB | +0.00001 dB |
+| Right | 12.26 dB | −0.00002 dB |
+| Rear | 12.30 dB | +0.00002 dB |
+| Left | 11.03 dB | +0.00005 dB |
+
+Front-channel spectral power falls by 11.71 dB at 125–500 Hz, 14.25 dB at 500–2000 Hz and 15.89 dB at 2000–7000 Hz. The transition is not forced to be monotonic: the recorded mixture briefly increases before attenuation. Raw peak is 0.00935, without clipping or anomalous block-boundary spikes. The same constant presentation gain applies to the entire recorded front channel. Open/closed/reopened excerpts have 14/8/14 resolved windows out of 40, including periodic quiet gaps; median resolved bearing errors are 0.78°/6.78°/0.78°. The occluded estimate remains available between beeps under the normal display policy; no obstacle truth changes its color or forces it unavailable.
+
+The first finalization required correction of an episode grouping value. Its three published audio/frame shards, including original observations and array poses, remained unchanged. Full-body presentation poses were recovered by replaying the same causal controller on GPU and comparing all 600 resulting array poses with the recording: maximum position difference 0.74 μm, quaternion component distance below 1.7 × 10⁻⁷. Production now saves pose telemetry before manifest finalization and supplies the correct grouping value. This recovery is recorded in `capture.json` and `pose_recovery.json`.
+
+Source and recordings remain in ignored `local/onr/video4/` and `local/onr/data/video4/`. `evidence/onr_video4/` contains the 1440p master, 1080p copy, eight-second closure preview, representative frames, front-microphone reference, sources/licenses, method and validation. The eight-second excerpt was checked before the full render. The generator exposes the existing prepare → capture → render → compose → verify workflow; optional local graphics preserve the approved videos and introduce no public API.
+
+Both final encodes fully decode to 900 frames at 30 fps, with matching 30-second audio/video durations. AAC relative waveform error is 0.00687 and peak is 0.6503, without clipping. Visual and captured geometric blockage edges differ by at most one video frame (33 ms), within the declared 50 ms acquisition sampling. The complete contact sheet and representative full-resolution frames were inspected; preview and full 1080p browser playback reached their ends with audio enabled and no media error.
 
 ## Existing Videos 6 and 9: Verified Clarifications
 
@@ -166,9 +177,9 @@ Verified sources: `evidence/onr_demo/METHOD.md`, `catalog.json`, scenario `media
 
 ## Regeneration and verification
 
-Run `.venv/bin/python local/onr/run.py <catalog|video1|video2|video3> compose` to recompose saved recordings, followed by `verify`. For new acquisition, use `all --work build/onr/<new-run> --out evidence/<new-delivery>`; existing recordings are preserved. Source assets and essential recordings live outside `build/`, so `make clean` cannot delete the maintained generator or its inputs.
+Run `.venv/bin/python local/onr/run.py <catalog|video1|video2|video3|video4> compose` to recompose saved recordings, followed by `verify`. For new acquisition, use `all --work build/onr/<new-run> --out evidence/<new-delivery>`; existing recordings are preserved. Source assets and essential recordings live outside `build/`, so `make clean` cannot delete the maintained generator or its inputs.
 
-GPU acquisition/rendering uses the supported Isaac Lab runtime and actual RTX hardware. Audio uses the existing CPU direct-path or declared shoebox implementation. Video 2's 50 ms source pre-roll is a local direct-path adapter: it holds poses within each audio window and is not a general SDK streaming repair. The same continuous microphone samples feed perception, recording and the soundtrack.
+GPU acquisition/rendering uses the supported Isaac Lab runtime and actual RTX hardware. Videos 1–3 use their existing CPU direct-path or declared shoebox implementation; Video 4 uses the combined native Geometry configuration above. Video 2's 50 ms source pre-roll is a local direct-path adapter: it holds poses within each audio window and is not a general SDK streaming repair. The same continuous microphone samples feed perception, recording and the soundtrack.
 
 Check recorded-sample replay, event/silence behavior, causal direction expiry, shared panel states, finite poses, camera transforms, full media decoding and audio/video synchronization. Original user MP3s, source licenses and physical recordings remain preserved. Short cleanup previews verify the maintained paths without repeating full historical statistical campaigns; they do not replace the approved final deliveries or their original full-playback review.
 

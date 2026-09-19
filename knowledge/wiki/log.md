@@ -220,3 +220,20 @@ All 42 wiki pages are indexed; page and heading links resolve. Closure claims
 match host/native/runtime reports and artifact audits, and raw inputs remain
 unchanged. Ruff, whitespace and all 58 release tests pass. Historical acoustic
 limits remain separate from operating and distribution completion.
+
+## 2026-09-19 — update: Deliver Hospital ONR occlusion video
+
+Added the 30 s Video 4 delivery to the canonical ONR topic, status and index.
+The local production uses combined Geometry, the original Hospital door, observed
+pointing, camera FOV and separate geometric references. The 600-window recording
+shows 14.32 dB front-channel loss and coherent recovery; both full movies pass
+media checks and playback. Documented the verified pose-export recovery, nominal
+materials and 50 ms scene sampling without extending acoustic admission. Videos
+1–3 and the public SDK remain unchanged; no push was performed.
+
+## 2026-09-19 — lint: Verify ONR Video 4 documentation
+
+All 42 wiki pages remain indexed and internal page/heading links resolve.
+Claims match the 600-window capture, checked GPU pose replay, final media reports
+and complete playback. Local production scripts pass Ruff; Markdown whitespace
+checks pass. Immutable raw material and approved deliveries are unchanged.
