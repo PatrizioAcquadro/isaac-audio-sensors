@@ -134,3 +134,11 @@ component diagnostics and made failed reads discard the environment's partially
 advanced state. Thirteen combined controls plus affected native regressions pass
 (61 native tests total); 14 convolution/route unit tests pass. Live Sim/Lab
 qualification and Step 4 admission are pending. Defaults and public schemas are unchanged.
+
+## 2026-09-19 — update: Combined Sim and Lab runtime controls
+
+Extended existing smoke entrypoints with explicit combined modes. Actual RTX 4090
+Sim passes dynamic door, tails and reset; square Lab passes two-environment
+same-PCM scalar/CUDA parity, non-consuming reads, partial-reset continuation,
+independent native replay and reordered/+60 dB-neighbour observation isolation.
+Measurements and task-fidelity boundaries are recorded in the admission page.

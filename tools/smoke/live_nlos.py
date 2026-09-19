@@ -12,6 +12,7 @@ def main():
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--specular-library", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--combined", action="store_true")
     args = parser.parse_args()
     from isaacsim import SimulationApp
 
@@ -42,6 +43,7 @@ def main():
             AcousticSceneSession,
             GeometryAcoustics,
             GeometryAcousticsConfig,
+            PRADiffuseConfig,
             SteamNLOSConfig,
         )
         from isaac_audio_sensors.isaac.acoustic_scene.session import DYNAMIC
@@ -71,6 +73,25 @@ def main():
                 )
                 body = UsdPhysics.RigidBodyAPI.Apply(cube.GetPrim())
                 body.CreateKinematicEnabledAttr(True)
+            if args.combined:
+                cube.GetPrim().CreateAttribute(
+                    "ias:absorption", Sdf.ValueTypeNames.Float
+                ).Set(0.4)
+                cube.GetPrim().CreateAttribute(
+                    "ias:scattering", Sdf.ValueTypeNames.Float
+                ).Set(0.35)
+        if args.combined:
+            wall = UsdGeom.Mesh.Define(stage, "/World/RearWall")
+            wall.GetSubdivisionSchemeAttr().Set("none")
+            wall.GetPointsAttr().Set([(-3, -2, 0), (3, -2, 0), (3, -2, 3), (-3, -2, 3)])
+            wall.GetFaceVertexCountsAttr().Set([4])
+            wall.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+            wall.GetPrim().CreateAttribute(
+                "ias:absorption", Sdf.ValueTypeNames.Float
+            ).Set(0.4)
+            wall.GetPrim().CreateAttribute(
+                "ias:scattering", Sdf.ValueTypeNames.Float
+            ).Set(0.35)
         for _ in range(3):
             app.update()
         print("NLOS live: initializing physics", flush=True)
@@ -102,7 +123,7 @@ def main():
             position_world=(2, 0, 1.2),
             orientation_world_quat=None,
             start_time_s=0.0,
-            duration_s=None,
+            duration_s=3.6 if args.combined else None,
             gain_db=0.0,
         )
         snapshot = AudioSceneSnapshot(
@@ -117,8 +138,12 @@ def main():
             geometry_config=GeometryAcousticsConfig(
                 library_path=str(args.library),
                 specular_library_path=str(args.specular_library),
-                reflection_order=0,
+                reflection_order=1 if args.combined else 0,
+                max_delay_s=0.1 if args.combined else 1.0,
                 nlos=SteamNLOSConfig(probe_spacing_m=0.5),
+                diffuse=PRADiffuseConfig(rays=4096, surface_spacing_m=0.5)
+                if args.combined
+                else None,
                 diagnostics=True,
             ),
         )
@@ -147,11 +172,20 @@ def main():
                 ),
             )
             assert np.isfinite(block.samples).all()
+            if args.combined:
+                assert (
+                    block.diagnostics["geometry"]["domain"]
+                    == "direct+specular+diffuse+nlos"
+                )
+                assert block.diagnostics["geometry"]["diffuse"]["modes"] > 0
             states.append(block.diagnostics["geometry"]["nlos"]["coverage"]["tone"])
             peaks.append(float(np.max(abs(block.samples))))
         assert "selected" in states[0] and "selected" in states[-1]
         assert any("los" in state for state in states)
         assert backend.nlos.bakes == 1
+        if args.combined:
+            assert max(peaks[216:218]) > 1e-5  # In-flight sound after emission stops.
+            assert max(peaks[234:]) < 1e-7
         backend.reset()
         reset = backend.propagate(
             snapshot,
@@ -168,7 +202,11 @@ def main():
             states=states,
             peaks=peaks,
             reset=True,
-            scope="NLOS producer lifecycle; later model/task gates remain open",
+            combined=args.combined,
+            source_stop_tail=args.combined,
+            scope="Combined producer lifecycle"
+            if args.combined
+            else "NLOS producer lifecycle",
         )
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=2) + "\n")

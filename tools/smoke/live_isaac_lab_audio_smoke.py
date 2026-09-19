@@ -35,8 +35,16 @@ def main() -> int:
     )
     parser.add_argument("--geometry-library", type=Path)
     parser.add_argument("--geometry-indoor", action="store_true")
+    parser.add_argument("--geometry-combined", action="store_true")
     parser.add_argument("--specular-library", type=Path)
     args = parser.parse_args()
+    if args.geometry_combined and not (
+        args.geometry_library and args.specular_library and args.perf_reference_check
+    ):
+        parser.error(
+            "Combined geometry requires both native libraries "
+            "and --perf-reference-check."
+        )
     if args.perf_envs < 2 or args.perf_steps < 1 or args.perf_substeps < 1:
         parser.error(
             "Performance checks require two environments and positive steps/substeps."
@@ -182,17 +190,45 @@ def main() -> int:
             perf_microphones = source_scenes[layout_index].arrays[0].microphones
         geometry_config = None
         if args.geometry_library:
-            from isaac_audio_sensors.isaac.acoustic_scene import GeometryAcousticsConfig
+            from isaac_audio_sensors.isaac.acoustic_scene import (
+                GeometryAcousticsConfig,
+                PRADiffuseConfig,
+                SteamNLOSConfig,
+            )
+
+            if args.geometry_combined:
+                perf_scene["robot"].data.root_state_w[:, :3] = torch.tensor(
+                    (-2, 0, 1.2), device="cuda:0"
+                )
+                perf_scene["speaker"].data.root_state_w[:, :3] = torch.tensor(
+                    (2, 0, 1.2), device="cuda:0"
+                )
+                if args.perf_sources == 2:
+                    perf_scene["second_speaker"].data.root_state_w[:, :3] = (
+                        torch.tensor((2, -0.8, 1.2), device="cuda:0")
+                    )
 
             geometry_config = GeometryAcousticsConfig(
                 library_path=str(args.geometry_library),
                 specular_library_path=str(args.specular_library)
                 if args.specular_library
                 else "",
-                reflection_order=3 if args.geometry_indoor else 0,
+                reflection_order=1
+                if args.geometry_combined
+                else (3 if args.geometry_indoor else 0),
+                max_delay_s=0.1 if args.geometry_combined else 1.0,
+                nlos=SteamNLOSConfig(probe_spacing_m=0.5)
+                if args.geometry_combined
+                else None,
+                diffuse=PRADiffuseConfig(rays=4096, surface_spacing_m=0.5)
+                if args.geometry_combined
+                else None,
+                diagnostics=args.geometry_combined,
             )
             acoustic_sessions = _geometry_sessions(
-                args.perf_envs, indoor=args.geometry_indoor
+                args.perf_envs,
+                indoor=args.geometry_indoor,
+                combined=args.geometry_combined,
             )
         perf_sensor = AudioArraySensor(
             AudioArraySensorCfg(
@@ -530,6 +566,7 @@ def main() -> int:
                 else "active_cuda_free_field_waveforms_and_perception"
             ),
             "geometry_indoor": args.geometry_indoor,
+            "geometry_combined": args.geometry_combined,
             "partial_reset": False,
             "perf_envs": args.perf_envs,
             "perf_sources": args.perf_sources,
@@ -551,7 +588,9 @@ def main() -> int:
                 "reference_preservation" if args.perf_reference_check else "nominal"
             ),
             "input_randomization": (
-                "seed 72; 360-degree azimuth and 1.5-3 m range; "
+                "bounded screen fixture with matched sources"
+                if args.geometry_combined
+                else "seed 72; 360-degree azimuth and 1.5-3 m range; "
                 "raised/tetra elevation in [-30, 30] degrees"
             ),
             "peak_allocated_mib": peak_allocated_mib,
@@ -571,6 +610,10 @@ def main() -> int:
             raise RuntimeError(f"Nominal free-field event-set gate failed: {quality}")
         sample_clock = perf_sensor._audio_time.clone()
         untouched = perf_sensor._entity_backend.perception.history[0].clone()
+        untouched_observations = {
+            name: getattr(perf_sensor.data, name)[0].clone()
+            for name in perf_sensor.data.__dataclass_fields__
+        }
         torch.cuda.synchronize()
         reset_started = time.perf_counter()
         perf_sensor.reset([1])
@@ -584,6 +627,11 @@ def main() -> int:
         )
         if perf_sensor.data.observation_mask[1].any():
             raise RuntimeError("Entity reset retained old observations.")
+        for name, expected in untouched_observations.items():
+            torch.testing.assert_close(getattr(perf_sensor.data, name)[0], expected)
+        if args.geometry_combined:
+            _advance_audio(perf_sensor, args.perf_substeps)
+            evidence["combined_isolation"] = _combined_isolation(perf_sensor)
 
         evidence.update(status="passed", phase="complete", partial_reset=True)
         _write_evidence(args.out, evidence)
@@ -721,7 +769,98 @@ def _entity_quality(torch, sensor, scene, sources):
     }
 
 
-def _geometry_sessions(count, *, indoor):
+def _combined_isolation(sensor):
+    """Replay native PCM independently and test CUDA observations beside loud PCM."""
+    import numpy as np
+    import torch
+
+    from isaac_audio_sensors.core.types import AudioTimeWindow
+    from isaac_audio_sensors.isaac.acoustic_scene import GeometryAcoustics
+    from isaac_audio_sensors.lab._torch_perception import TorchPerception
+
+    backend = sensor._entity_backend
+    snapshots = backend.snapshots()
+    errors = []
+    # Reversed evaluation order, including the independently restarted environment.
+    for i in reversed(range(len(snapshots))):
+        producer = backend.producers[i]
+        assert producer.nlos and producer.diffuse_fields
+        assert any(
+            "selected" in states
+            for stream in producer.streams.values()
+            for states in stream["nlos"].states.values()
+        )
+        assert next(iter(producer.diffuse_fields.values())).diagnostics["modes"] > 0
+        count = int(backend.cursor[i])
+        reference = GeometryAcoustics(
+            acoustic_scene=producer.session,
+            geometry_config=producer.config,
+            effects=producer.effects,
+            speed_of_sound_mps=producer.speed,
+        )
+        try:
+            block = reference.propagate(
+                snapshots[i],
+                "array",
+                AudioTimeWindow(
+                    start_time_s=0,
+                    end_time_s=count / backend.rate,
+                    frame_index=0,
+                ),
+            )
+            size = min(count, backend.perception.history.shape[-1])
+            actual = backend.perception.history[i, :, -size:].cpu().numpy()
+            expected = block.samples[:, -size:]
+            errors.append(float(np.max(abs(actual - expected))))
+            np.testing.assert_allclose(actual, expected, atol=2e-7, rtol=2e-6)
+        finally:
+            reference.close()
+
+    quiet = backend.perception.history[0:1, :, -12000:].clone()
+    positions = backend.binding.static.mic_offsets_local.cpu().numpy()
+    expected = None
+    for quiet_index in (None, 0, 1):
+        values = (
+            quiet
+            if quiet_index is None
+            else torch.cat(
+                (quiet, quiet * 1000) if quiet_index == 0 else (quiet * 1000, quiet)
+            )
+        )
+        perception = TorchPerception(
+            num_envs=len(values),
+            positions=positions,
+            threshold_dbfs=sensor.cfg.energy_threshold_dbfs,
+            doa_enabled=True,
+            max_observations=sensor.cfg.max_observations,
+            max_doa_candidates=sensor.cfg.max_doa_candidates,
+            device=backend.device,
+        )
+        ids = torch.arange(len(values), device=backend.device)
+        perception.ingest(ids, values, torch.full_like(ids, values.shape[-1]))
+        observations = perception.observations(ids)
+        row = quiet_index or 0
+        if expected is None:
+            assert observations.observation_mask.any()
+            expected = {
+                name: getattr(observations, name)[0].clone()
+                for name in observations.__dataclass_fields__
+            }
+        for name, value in expected.items():
+            torch.testing.assert_close(getattr(observations, name)[row], value)
+        if quiet_index is not None:
+            perception.reset(ids[1 - row : 2 - row])
+            after = perception.observations(ids[row : row + 1])
+            for name, value in expected.items():
+                torch.testing.assert_close(getattr(after, name)[0], value)
+    return dict(
+        reversed_native_replay_max_abs=errors,
+        partial_reset_continuation=True,
+        cuda_solo_reordered_loud_neighbor_db=60,
+    )
+
+
+def _geometry_sessions(count, *, indoor, combined=False):
     import omni.usd
     from pxr import Sdf, UsdGeom
 
@@ -731,7 +870,23 @@ def _geometry_sessions(count, *, indoor):
     sessions = []
     for env in range(count):
         root = f"/World/perf/env_{env}/Room"
-        if indoor:
+        if combined:
+            for name, position, scale in (
+                ("Floor", (0, 0, -0.05), (6, 6, 0.1)),
+                ("Screen", (0, 0, 1.5), (0.02, 1.2, 3)),
+                ("RearWall", (0, 2, 1.5), (6, 0.02, 3)),
+            ):
+                cube = UsdGeom.Cube.Define(stage, f"{root}/{name}")
+                cube.CreateSizeAttr(1.0)
+                cube.AddTranslateOp().Set(position)
+                cube.AddScaleOp().Set(scale)
+                cube.GetPrim().CreateAttribute(
+                    "ias:absorption", Sdf.ValueTypeNames.Float
+                ).Set(0.4)
+                cube.GetPrim().CreateAttribute(
+                    "ias:scattering", Sdf.ValueTypeNames.Float
+                ).Set(0.35)
+        elif indoor:
             surfaces = [
                 [(-5, -5, -2), (-5, 5, -2), (5, 5, -2), (5, -5, -2)],
                 [(-5, -5, 4), (5, -5, 4), (5, 5, 4), (-5, 5, 4)],

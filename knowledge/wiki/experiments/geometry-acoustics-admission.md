@@ -15,6 +15,54 @@ Decisive results from 2026-09-10–16. [[decisions/robot-audition-fidelity|Robot
 
 Steps 4–8 remain open. The next step is the combined producer, not a provider replacement or a repeated qualification campaign.
 
+## Step 4 combined producer controls (2026-09-19)
+
+One producer now accepts both opt-ins. Direct/specular/diffuse responses and
+retarded NLOS consume identical emitted samples and receiver intervals; channel
+response applies once per contribution and final gain/electronics once per mixture.
+Native ownership and energy partition are unchanged. Failed renders discard the
+partially advanced environment state and report discontinuity on restart.
+
+- **61 native tests pass**, including 13 new combined controls: I/N/D/C composition,
+  exact LOS exclusion, nonzero reflected/scattered/deviation contributions,
+  bounded arrival/tail timing, read partitioning, reset, source/array/environment
+  isolation, signed source/microphone directivity, microphone response and final
+  clipping. Timestamped source/array motion, rotation, closed/open/closed geometry
+  and structural rebake preserve subdivision equivalence. Injected failures after
+  response, emission and mixture processing cannot leak partial state. Native node
+  exhaustion is explicit; provider replacement, reconfiguration and close pass.
+- **14 convolution/route unit controls pass**. Existing native physics controls
+  remain applicable; the composition identity alone is not a physical reference.
+- **Actual RTX 4090 Sim passes**: four simulated seconds, 180 native door updates,
+  selected-route/LOS transitions, active diffuse modes, source-stop tail/drain and
+  reset. The default NLOS smoke remains available; `--combined` selects this check.
+- **Actual RTX 4090 Lab, square, passes**: two environments, two sources, 60 Hz
+  acquisition and unchanged observations. Same-PCM scalar/CUDA count agreement is
+  100% (two environment observations), angular p95/max differences
+  0.00000840/0.00000866 degrees. Partial reset preserves the other environment's
+  clock, PCM and observation fields; continuation matches independently rendered
+  PCM within 2.33e-9. Reversed native replay and CUDA solo/reordered/+60 dB-neighbour
+  comparisons pass, including neighbour reset and repeated non-consuming reads.
+
+These are structural/consumer-compatibility checks, not full-room physical or task
+qualification. The square scene's nearest-source direction diagnostic p95 is
+34.09 degrees; indirect arrival direction is not necessarily source bearing.
+Neither parity nor finite PCM closes AV/mobile usefulness. Source-stop means
+silence in the retained source schedule; source-list reconfiguration intentionally
+starts a discontinuous stream. Identical dynamic subdivision comparisons require
+identical geometry epochs and timestamped motion, not reinterpreted start poses.
+
+The bounded square Lab measurement is 3.25 s wall time per 100 ms simulated update
+(two environments; three measured updates), about 108 MiB peak allocated VRAM.
+This is slower than real time and is not the later Phase 08 runtime qualification.
+Native acoustics remains CPU-only; entity perception runs on CUDA.
+
+Reproduce using `tests/isaac/test_geometry_combined.py`, the affected native suites,
+`tools/smoke/live_nlos.py --combined`, and
+`tools/smoke/live_isaac_lab_audio_smoke.py --geometry-combined` with both native
+library arguments and `--perf-reference-check`. Local results for this run are in
+`build/validation/step4/`; they are ignored runtime outputs, not packaged artifacts.
+
 ## Provider corrections and rejected approaches
 
 | Finding | Decisive evidence | Consequence |
