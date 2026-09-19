@@ -142,3 +142,20 @@ Sim passes dynamic door, tails and reset; square Lab passes two-environment
 same-PCM scalar/CUDA parity, non-consuming reads, partial-reset continuation,
 independent native replay and reordered/+60 dB-neighbour observation isolation.
 Measurements and task-fidelity boundaries are recorded in the admission page.
+
+## 2026-09-19 — update: Close Phase 08 Step 4
+
+Step 4 is PASS for combined streaming and integration. Raised CUDA Lab also passes
+same-PCM parity and lifecycle/isolation, with maximum angular difference 0.00854°
+and independent PCM error below 2.8e-9. Updated sequence, status, technical contract
+and admission evidence; Step 5 AV usefulness is next. Full-room moving equivalence
+and the existing cube/mirror/NLOS limits remain explicit. No defaults, public
+schemas, provider physics or acceptance budgets changed.
+
+## 2026-09-19 — lint: Verify Step 4 closeout
+
+All 42 wiki pages are indexed; internal links/anchors and new runtime/test
+references resolve. Raw material is unchanged. `make check` passes (668/336/58),
+61 affected native tests and 14 targeted stream/route tests pass, and actual RTX
+Sim plus square/raised Lab gates pass. Documentation preserves component limits
+and leaves Steps 5–8 open; whitespace and repository lint checks pass.

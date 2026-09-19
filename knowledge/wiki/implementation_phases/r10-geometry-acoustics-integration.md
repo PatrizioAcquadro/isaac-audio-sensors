@@ -1,7 +1,7 @@
 # Phase R10 — Geometry Acoustics Integration
 
-Status: 08.1, the 08.2 intermediate and Step 3 admission are complete. Step 3 is
-PASS with documented limits; Milestone 2 and 08.3 remain open. Step 4 is next.
+Status: 08.1, the 08.2 intermediate and Steps 3–4 are complete within their
+documented bounds. Milestone 2 and 08.3 remain open. Step 5 is next.
 
 ## Objective
 
@@ -91,10 +91,13 @@ Complete the following before closing Milestone 2:
    cube/mirror diagnostic limits remain separate. Resolve material
    measurement defects before affected comparisons, then share episodes/PCM across
    remaining motion and observation checks; reuse still-valid controls.
-4. Combine admitted direct, specular, diffuse and deviation contributions on one
-   persistent clock. Retain source-stop tails, block equivalence, reset/partial reset,
-   scene lifecycle, directional response and explicit native capability failures.
-   Keep intermediate defaults and public PCM/observation/recording/Lab schemas.
+4. **Step 4 is complete**: admitted direct, specular, diffuse and deviation
+   contributions share one persistent sample clock. Native and actual RTX Sim/Lab
+   controls pass source-stop tails, block equivalence, reset/partial reset, scene
+   lifecycle, directional response, explicit capability failures and environment
+   isolation. Failed rendering discards partially advanced environment state.
+   Intermediate defaults and public PCM/observation/recording/Lab schemas remain.
+   The admission record owns measurements; this does not close task usefulness.
 5. Compare intermediate, NLOS-only, diffuse-only and combined configurations using
    matched sources/trajectories. Demonstrate Profile 1 then Profile 2 with the
    approved reference consumers. Paths/truth are diagnostic/scoring inputs only.
@@ -113,7 +116,7 @@ Complete the following before closing Milestone 2:
 
 Step 2 selected-route NLOS is integrated and passes bounded transport/lifecycle controls. Door pressure remains probe-sensitive and diffraction is uncalibrated. The two-gate asynchronous route-discovery case remains a stress limit.
 
-Step 3 is PASS under the revised criteria, with `diffuse=None` still the default. The native shared field passes binding energy, persistence, visibility, lifecycle and selected C03/C04 relative-impact controls. Full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking; the cube and selected-mirror mismatches remain diagnostic. Joint NLOS/diffuse admission is still Step 4.
+Step 3 is PASS under the revised criteria, with `diffuse=None` still the default. The native shared field passes binding energy, persistence, visibility, lifecycle and selected C03/C04 relative-impact controls. Full-room moving equivalence remains NOT VALIDATED and explicitly non-blocking; the cube and selected-mirror mismatches remain diagnostic. Joint NLOS/diffuse streaming now passes Step 4; AV/mobile usefulness remains open.
 
 Material-phase separation, stable scalar/CUDA WPE and the native jamb departure-side correction resolve demonstrated defects. Historical observation intervals retain their original consumer version. The failed full-pressure angular cache cannot support unrestricted motion claims; use actual microphone-position responses or separately qualified sampling.
 

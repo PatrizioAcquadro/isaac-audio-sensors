@@ -1,6 +1,6 @@
 # Geometry Acoustics Admission Evidence
 
-Decisive results from 2026-09-10–16. [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] owns acceptance criteria; [[implementation_phases/08-geometry-acoustics-integration|Phase 08]] owns execution order; [[topics/geometry-acoustics|Geometry Acoustics]] owns interfaces and builds.
+Decisive results from 2026-09-10–19. [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] owns acceptance criteria; [[implementation_phases/08-geometry-acoustics-integration|Phase 08]] owns execution order; [[topics/geometry-acoustics|Geometry Acoustics]] owns interfaces and builds.
 
 ## Admission summary
 
@@ -9,11 +9,14 @@ Decisive results from 2026-09-10–16. [[decisions/robot-audition-fidelity|Robot
 | Contribution | Established | Boundary |
 | --- | --- | --- |
 | Steam direct + native PRA specular | Bounded arrival/gain, reflected visibility, continuous PCM and actual Sim/Lab/Kit integration | Receiver-clock quasi-static RIRs; no general dynamic-field claim |
-| Steam selected routes | Step 2 transport, ordinary motion/doors, coverage and lifecycle | Probe-sensitive pressure; uncalibrated diffraction; no combined-model admission |
+| Steam selected routes | Step 2 transport, ordinary motion/doors, coverage and lifecycle | Probe-sensitive pressure; uncalibrated diffraction; task usefulness remains open |
 | PRA persistent surface pressure | Step 3 shared-field, energy, visibility, lifecycle and selected motion/observation controls | Full-room moving equivalence unvalidated; cube/mirror limits below |
-| Robot consumers | Bounded head/camera diagnostic benefit | Complete AV/mobile usefulness, NLOS+D and physical transfer remain separate |
+| Combined stream | Step 4 continuous PCM, lifecycle/isolation and actual RTX Sim/Lab compatibility | Component approximations retained; no new full-room or task-fidelity claim |
+| Robot consumers | Bounded head/camera diagnostic benefit | Complete AV/mobile usefulness and physical transfer remain separate |
 
-Steps 4–8 remain open. The next step is the combined producer, not a provider replacement or a repeated qualification campaign.
+**Step 4 is PASS within its stream/integration scope.** Steps 5–8 remain open.
+The next step is AV usefulness; no provider replacement or repeated reference
+campaign is implied.
 
 ## Step 4 combined producer controls (2026-09-19)
 
@@ -43,10 +46,18 @@ partially advanced environment state and report discontinuity on restart.
   clock, PCM and observation fields; continuation matches independently rendered
   PCM within 2.33e-9. Reversed native replay and CUDA solo/reordered/+60 dB-neighbour
   comparisons pass, including neighbour reset and repeated non-consuming reads.
+- **Raised five-microphone Lab also passes** the same controls: 100% count
+  agreement (two environment observations), angular p95/max 0.00840/0.00854
+  degrees and independent PCM error at most 2.80e-9. Both layouts preserve existing
+  masks and 2D/3D observation shapes; reference agreement does not validate events.
+- **`make check` passes**: 668 unit/contract, 336 integration and 58 release tests;
+  lint, version synchronization and whitespace checks pass. No required native or
+  live check was skipped.
 
 These are structural/consumer-compatibility checks, not full-room physical or task
 qualification. The square scene's nearest-source direction diagnostic p95 is
-34.09 degrees; indirect arrival direction is not necessarily source bearing.
+34.09 degrees (raised: 34.85 degrees, including one three-event result for two
+sources); indirect arrival direction is not necessarily source bearing.
 Neither parity nor finite PCM closes AV/mobile usefulness. Source-stop means
 silence in the retained source schedule; source-list reconfiguration intentionally
 starts a discontinuous stream. Identical dynamic subdivision comparisons require
@@ -54,13 +65,17 @@ identical geometry epochs and timestamped motion, not reinterpreted start poses.
 
 The bounded square Lab measurement is 3.25 s wall time per 100 ms simulated update
 (two environments; three measured updates), about 108 MiB peak allocated VRAM.
-This is slower than real time and is not the later Phase 08 runtime qualification.
+The raised smoke measured 4.28 s for one update and 220 MiB allocated VRAM.
+These short measurements are slower than real time and are not the later Phase 08
+runtime qualification.
 Native acoustics remains CPU-only; entity perception runs on CUDA.
 
 Reproduce using `tests/isaac/test_geometry_combined.py`, the affected native suites,
 `tools/smoke/live_nlos.py --combined`, and
 `tools/smoke/live_isaac_lab_audio_smoke.py --geometry-combined` with both native
-library arguments and `--perf-reference-check`. Local results for this run are in
+library arguments, `--perf-envs 2 --perf-sources 2 --perf-substeps 6`,
+`--perf-layout square` or `raised`, and `--perf-reference-check`.
+Use `--perf-steps 3` for the recorded square check and `1` for raised. Local results for this run are in
 `build/validation/step4/`; they are ignored runtime outputs, not packaged artifacts.
 
 ## Provider corrections and rejected approaches
@@ -230,6 +245,6 @@ The user declined separate reference-model development and explicitly accepted t
 
 Historical trial executors, reports, PCM banks and obsolete provider copies were removed during the user-authorized cleanup after consolidating results here. They are no longer promised as replayable archives. Earlier tracked narrative and implementation are recoverable at `9395b1c`; ignored raw outputs are not in Git.
 
-Ignored `local/r10/` retains only preparation inputs/generators, licensed assets, reusable producer controls and head/scoring helpers for Steps 4–8. Its README owns commands. Current runtime regression tests remain under `tests/`; native builds remain under `tools/native/`. Existing ONR production and the 36 Lab parity inputs are retained separately.
+Ignored `local/r10/` retains only preparation inputs/generators, licensed assets, reusable producer controls and head/scoring helpers for Steps 5–8. Its README owns commands. Current runtime regression tests remain under `tests/`; native builds remain under `tools/native/`. Existing ONR production and the 36 Lab parity inputs are retained separately.
 
-Future work must preserve the admission boundaries above, reuse unaffected controls, and measure actual combined-producer/consumer behavior. No new reference campaign, acoustic solver, physical capture or provider evaluation is implied by cleanup.
+Future work must preserve the admission boundaries above, reuse unaffected controls, and measure actual AV/mobile consumer behavior using the combined producer. No new reference campaign, acoustic solver, physical capture or provider evaluation is implied by cleanup.

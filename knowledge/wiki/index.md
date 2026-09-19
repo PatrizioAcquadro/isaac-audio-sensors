@@ -54,7 +54,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 
 Read for a specific result/reference; these pages do not add requirements.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — Step 3 PASS under revised criteria, retained C03/C04/seed and room evidence, diagnostic failures and full-room moving equivalence explicitly NOT VALIDATED.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — Steps 3–4 PASS within their bounds, combined native/RTX stream evidence, retained motion/room controls and full-room moving equivalence explicitly NOT VALIDATED.
 - [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — future fixtures, references, scoring and preparation limits.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.

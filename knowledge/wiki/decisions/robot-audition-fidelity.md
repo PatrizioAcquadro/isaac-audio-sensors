@@ -1,8 +1,8 @@
 # Robot-Audition Fidelity
 
 Status: approved by the user on 2026-09-11, with explicit Step 3 admission revisions
-on 2026-09-16. Step 3 is PASS under the current decision below; combined-producer
-and AV/mobile qualification remain pending. This is the canonical R10
+on 2026-09-16. Step 3 is PASS under the current decision below; the combined
+producer passes Step 4. AV/mobile qualification remains pending. This is the canonical R10
 scope/acceptance decision; the admission record owns implementation evidence.
 It supersedes historical requirements for complete dynamic acoustic physics.
 

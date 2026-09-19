@@ -1,13 +1,13 @@
 # Current Status
 
-Updated: 2026-09-16. Package version: `3.0.0`.
+Updated: 2026-09-19. Package version: `3.0.0`.
 
 ## Current work
 
-**Phase 08: scene preparation, the Geometry intermediate and Steps 1–3 are complete within their declared bounds. Step 3 is PASS with documented limits. Milestone 2 and 08.3 remain open.**
+**Phase 08: scene preparation, the Geometry intermediate and Steps 1–4 are complete within their declared bounds. Steps 3 and 4 are PASS within their documented limits. Milestone 2 and 08.3 remain open.**
 
-- Production Geometry combines Steam direct/planar transmission with native PRA specular reflections. Selected-route NLOS and shared diffuse pressure are separate opt-ins; defaults and Analytic remain maintained. Their combination is not yet admitted.
-- **Next: Step 4, combined producer**, then AV usefulness, mobile usefulness, operating integration and bounded runtime/packaging closeout. Follow [[implementation_phases/08-geometry-acoustics-integration|the execution sequence]] and [[decisions/robot-audition-fidelity|the approved domain and budgets]].
+- Production Geometry combines Steam direct/planar transmission with native PRA specular reflections. Selected-route NLOS and shared diffuse pressure can be enabled separately or together. The combined stream passes native and actual RTX Sim/Lab lifecycle and isolation controls; defaults and Analytic remain maintained.
+- **Next: Step 5, AV usefulness**, followed by mobile usefulness, operating integration and bounded runtime/packaging closeout. Follow [[implementation_phases/08-geometry-acoustics-integration|the execution sequence]] and [[decisions/robot-audition-fidelity|the approved domain and budgets]].
 - Full-room moving pressure/observation equivalence is **NOT VALIDATED**, explicitly accepted as non-blocking for Step 3. Cube late-response and selected-mirror mismatches remain diagnostic limits. New structural or material representative failures still reopen affected qualification.
 - Selected maximum source/receiver/yaw confirmations pass relative budgets on both arrays at 2.5 ms. Unrestricted 10 ms updates, population-wide field equivalence and useful absolute tracking are not established. Door NLOS pressure remains probe-sensitive and uncalibrated.
 - WPE conditioning/peak ties and the native door-jamb projection defect are corrected. The stable WPE solve is expensive: measured 16-copy supplied-PCM p95 is about .99/1.66 s for square/raised per 100 ms update. This is offline cost, not added simulated latency. Full-pressure angular-cache isolation remains failed.

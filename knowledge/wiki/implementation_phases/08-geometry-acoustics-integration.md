@@ -1,7 +1,7 @@
 # Implementation Plan 08 — Geometry Acoustics Integration
 
-Status: 08.1, the 08.2 intermediate and Step 3 admission complete; Step 3 is PASS
-with documented limits. Milestone 2 and 08.3 remain open; Step 4 is next.
+Status: 08.1, the 08.2 intermediate and Steps 3–4 are complete within their
+documented bounds. Milestone 2 and 08.3 remain open; Step 5 is next.
 
 ## Objective
 
@@ -25,7 +25,8 @@ Preparation is not signal qualification.
 
 #### Implementation
 
-Complete native NLOS/diffuse extensions, combined streaming and AV then mobile task gates.
+Native NLOS/diffuse extensions and combined streaming are complete within their
+admitted bounds. AV and then mobile task gates remain open.
 
 #### Key Decisions
 
@@ -71,13 +72,14 @@ repetition without changing domain/budgets or hiding unresolved difficult strata
 | 1 — Instantiate the approved matrix | Record concrete scenes, trajectories, DRR/bands, camera/array settings, valid references, scoring and trial counts before comparisons | Every mandatory condition/metric has concrete inputs, bounded controls and an explicit valid/unavailable reference entry with later qualification ownership; no full-model implementation inside preparation |
 | 2 — Integrate Steam NLOS (selected-route transport complete) | Production selected-route timing, visibility, ordinary motion/door updates, non-duplication and explicit coverage limits | Native delay/geometry, continuous update and actual RTX Isaac controls pass; refinement measured, door pressure remains probe-sensitive and uncalibrated |
 | 3 — Qualify PRA diffuse extension — PASS with limits | Shared spatial/temporal statistics, energy partition, normalization, visibility and representative weak-direct motion | Retained binding controls and selected C03/C04 impact confirmations pass; full-room moving equivalence is NOT VALIDATED and explicitly non-blocking; cube/mirror diagnostic limits retained |
-| 4 — Qualify the combined producer | Integrate admitted direct/specular/NLOS/diffuse contributions on one clock, retaining source-stop tails, block equivalence, resets and environment isolation | Focused continuous-stream and integration checks pass with unchanged signal/observation contracts |
+| 4 — Qualify the combined producer — PASS | Admitted direct/specular/NLOS/diffuse contributions share one clock, with source-stop tails, block equivalence, resets and environment isolation | Native controls and actual RTX Sim/Lab integration pass with unchanged signal/observation contracts; the admission record owns results |
 | 5 — Demonstrate Profile 1 | Observed audio guides camera search with explicitly simulated reference visual confirmation | Measured audio benefit, approximation budgets and honest missing/false/unconfirmed results under mandatory AV conditions |
 | 6 — Demonstrate Profile 2 | Moving-array/source trials and untrained homing; two-source goal is an audible source without supplied identity | Motion/door cues and matched audio-disabled navigation comparisons pass; collisions, switching and timeouts remain visible |
 | 7 — Complete 08.3 operation | Existing Python/Kit configuration, actionable diagnostics, capability failures and consumer-safe consolidation | Usable geometry-backed sensor-to-instrument chain; provider truth stays separate from observations |
 | 8 — Close Phase 08 | Run affected native, scalar/CUDA, actual Sim/Lab/Kit and packaging checks; measure one/few-environment runtime and memory | Supported domain, failures and runtime limits documented; checks pass with a clean validated source tree |
 
-Step 3 is PASS under the explicitly revised criteria: full-room moving equivalence remains NOT VALIDATED and non-blocking; cube/mirror diagnostic limits remain recorded. The [[experiments/geometry-acoustics-admission|admission record]] owns measurements and failures. Maximum-motion confirmation uses 2.5 ms responses and the corrected consumer. No later-step gate is closed by these results.
+Step 3 is PASS under the explicitly revised criteria: full-room moving equivalence remains NOT VALIDATED and non-blocking; cube/mirror diagnostic limits remain recorded. The [[experiments/geometry-acoustics-admission|admission record]] owns measurements and failures. Maximum-motion confirmation uses 2.5 ms responses and the corrected consumer. These Step 3 results do not close later-step gates. Step 4 now has its own
+[[experiments/geometry-acoustics-admission#Step 4 combined producer controls (2026-09-19)|combined-producer evidence]]; Steps 5–8 remain open.
 
 Steps 2 and 3 include focused native checks before wider integration. Carry
 lifecycle checks through development rather than postponing them to Step 8.

@@ -2,9 +2,9 @@
 
 Current contract: optional prepared-USD producer, Steam 4.8.1 direct/planar
 transmission plus corrected native PRA 0.10.1 specular reflections. Selected-route
-NLOS is an explicit option. Shared PRA diffuse pressure and NLOS can also be enabled together.
-The combined native stream passes focused controls; live integration is pending. Its conditioned cube
-late-response failure is diagnostic under the approved decision. See
+NLOS and shared PRA diffuse pressure are explicit options, separately or together.
+The combined stream passes Step 4 native and actual RTX Sim/Lab controls. The
+diffuse conditioned-cube late-response failure remains diagnostic under the approved decision. See
 [[implementation_phases/r10-geometry-acoustics-integration|R10]] for remaining work
 and [[decisions/robot-audition-fidelity|the approved fidelity boundary]].
 
@@ -273,7 +273,8 @@ geometry diagnostics contain probe counts, rebuild counts and per-source/channel
 coverage states; they are not observations. The NLOS microphone response currently
 supports gain, polarity and nonnegative delay. Zero-phase microphone FIR/negative
 delay is explicitly unqualified for this causal component; the intermediate keeps
-its existing response support. Combined native controls pass; actual Sim/Lab integration remains pending in Step 4.
+its existing response support. Combined native and actual Sim/Lab controls pass
+Step 4; AV/mobile task qualification remains separate.
 PCM subdivision equivalence assumes identical geometry epochs and timestamped
 motion inputs. Repeating a start pose at a new timestamp without a motion plan
 supplies a different trajectory, not merely another read of the same motion.
