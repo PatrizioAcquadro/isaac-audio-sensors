@@ -10,9 +10,9 @@ The series demonstrates generic audio sensing and controlled downstream camera p
 
 ## Videos 1–3 Reference Revision
 
-The local `revise_references.py` workflow adds Video 4's camera FOV and geometric direct-path styling to the approved edits. New `master_fov_direct_path_1440p.mp4` files live alongside the existing movies in each delivery directory; only 2560×1440 copies are produced. Durations remain 40, 32 and 23 seconds, with the original AAC soundtrack copied unchanged. Recorded poses, clean renders and original deliveries are preserved.
+The local `revise_references.py` workflow adds Video 4's camera FOV styling and green direct-path references to the approved edits. New `master_fov_direct_path_1440p.mp4` files live alongside the existing movies in each delivery directory; only 2560×1440 copies are produced. Durations remain 40, 32 and 23 seconds, with the original AAC soundtrack copied unchanged. Recorded poses, clean renders and original deliveries are preserved.
 
-Video 2 shows direct-path references only in the right audio-guided panel. The left visual-only panel retains its camera FOV without an audio path. Paths use synchronized visible environment meshes and the animated Office door, independently of audio estimation. Robot self geometry and the emitting vehicle are excluded; these references do not add occlusion modeling to historical recordings. POV shots omit the fan and path; the prop detail in Video 1 also omits them for legibility. Regeneration and verification commands are in `local/onr/README.md`.
+Video 2 shows direct-path references only in the right audio-guided panel. The left visual-only panel retains its camera FOV without an audio path. Videos 1–3 show the direct path of their unoccluded acoustic model in green throughout detected-audio sequences, including Video 2. The legend says “Green: direct path” and makes no blockage-status claim. Its backing width follows the measured text width with equal side padding. Source endpoints and camera poses remain synchronized scene references, separate from audio estimates. POV shots omit the fan and path; the prop detail in Video 1 also omits them for legibility. Regeneration and verification commands are in `local/onr/README.md`.
 
 ## Shared Production Standard
 

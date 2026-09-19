@@ -279,3 +279,16 @@ Local production code, geometry checks and validation remain under `local/onr/`.
 
 The existing canonical production page records the new copy names and limits;
 no wiki pages or links were added. Markdown whitespace and local Python checks pass.
+
+## 2026-09-19 — update: Simplify ONR reference overlays
+
+Recomposed the three 1440p revision copies with green direct-path references for
+their unoccluded model. Removed blockage wording and sized legend backing to the
+text plus 10 px per side. Video 2 retains paths only in its audio-guided panel.
+Representative frames, full decoding, durations and unchanged AAC streams pass;
+original deliveries remain intact. Previous revision copies are retained locally.
+
+## 2026-09-19 — lint: Verify ONR overlay correction notes
+
+Updated the existing production page without adding pages or links. Local Python
+checks and Markdown whitespace checks pass.
