@@ -265,3 +265,17 @@ This documentation update does not regenerate approved media or change the SDK.
 
 All 42 wiki pages remain indexed and internal links resolve. Markdown whitespace
 checks pass; the documented color roles match the local Video 4 compositor.
+
+## 2026-09-19 — update: ONR Videos 1–3 reference copies
+
+Produced separate 1440p copies with the Video 4 FOV and geometric path styling,
+preserving approved edits and copying their AAC streams unchanged. Video 2 paths
+appear only in the right audio-guided panel; the visual-only panel retains FOV.
+All three complete decodes, frame counts, durations and audio identity checks pass.
+Existing movie hashes are unchanged, and exactly three new 1440p MP4s were added.
+Local production code, geometry checks and validation remain under `local/onr/`.
+
+## 2026-09-19 — lint: Check ONR revision documentation
+
+The existing canonical production page records the new copy names and limits;
+no wiki pages or links were added. Markdown whitespace and local Python checks pass.

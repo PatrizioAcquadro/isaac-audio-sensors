@@ -8,6 +8,12 @@ Production source now lives in ignored `local/onr/`, separate from disposable bu
 
 The series demonstrates generic audio sensing and controlled downstream camera pointing. Sensor observations, scene references and downstream behavior remain distinct. It makes no navigation, learned recognition or field-readiness claim. Historical unsuccessful video edits are available through the earlier documentation in Git; only final production paths remain active.
 
+## Videos 1–3 Reference Revision
+
+The local `revise_references.py` workflow adds Video 4's camera FOV and geometric direct-path styling to the approved edits. New `master_fov_direct_path_1440p.mp4` files live alongside the existing movies in each delivery directory; only 2560×1440 copies are produced. Durations remain 40, 32 and 23 seconds, with the original AAC soundtrack copied unchanged. Recorded poses, clean renders and original deliveries are preserved.
+
+Video 2 shows direct-path references only in the right audio-guided panel. The left visual-only panel retains its camera FOV without an audio path. Paths use synchronized visible environment meshes and the animated Office door, independently of audio estimation. Robot self geometry and the emitting vehicle are excluded; these references do not add occlusion modeling to historical recordings. POV shots omit the fan and path; the prop detail in Video 1 also omits them for legibility. Regeneration and verification commands are in `local/onr/README.md`.
+
 ## Shared Production Standard
 
 - Cinematic minimal presentation: Nimbus Sans Regular/Bold, white and neutral gray, small charcoal backing only where needed. US English throughout. Show a short title, audio/view state, and useful direction information. Remove robot-name banners, demo clock, decorative microphone waveform, large information bars, and the editorial direction radar. Do not use generated raster art.
