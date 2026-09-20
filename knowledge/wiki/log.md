@@ -327,3 +327,11 @@ Completed the 30-second warehouse capture, preview and 1440p/1080p production. A
 ## 2026-09-19 — lint: Verify Video 5 delivery documentation
 
 All 42 wiki pages resolve and remain indexed. Canonical claims match the final capture and media reports; focused local Python lint and Markdown whitespace checks pass. Only ONR documentation is tracked in this change; protected raw material and public SDK remain unchanged.
+
+## 2026-09-20 — update: Revise ONR Video 5 presentation and pointing
+
+Moved RMS above the lower-right compass, ordered current bearings consistently, unified below-floor RMS labels and moved machine details to their onsets. A new GPU/Geometry capture turns toward the sole remaining observed direction, preserving the sensor and source signals. Revised recordings and encodes pass their scene/media gates; the user approved the original soundtrack. Previous delivery remains preserved.
+
+## 2026-09-20 — lint: Verify revised Video 5 evidence
+
+All 42 wiki pages resolve and remain indexed; whitespace and focused local Python checks pass. Verified both encodes, full playback, exact audio preservation through 20.8 s and all current displayed observations. Documentation explicitly separates 201/201 stable-window passes from the 76.7% result over 22–25 s including rotation, below the earlier fixed-pose threshold. No public SDK or protected raw files changed.

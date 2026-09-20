@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-19. Package version: `3.0.0`.
+Updated: 2026-09-20. Package version: `3.0.0`.
 
 ## Current work
 
@@ -28,7 +28,7 @@ Updated: 2026-09-19. Package version: `3.0.0`.
 
 ## Delivery and boundaries
 
-ONR videos **1–5 are delivered**; revisions **6–9** retain individual scene/media gates. Video 5's 30 s warehouse film uses combined Geometry and all current multisource observations: every stable set is correct, without missing/extra directions, and the two isolated received levels differ by 2.96 dB. Recording replay and both final encodes pass. Preliminary mixture listening is user-confirmed; full-video listening remains pending. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns media evidence and bounded claims.
+ONR videos **1–5 are delivered**; revisions **6–9** retain individual scene/media gates. Video 5's revised warehouse film adds stable angular presentation, aligned right-side instruments, onset details and an observed-only turn toward the remaining direction. The correct-set gate passes in 201/201 stable windows; recording replay and both final encodes pass. The initial soundtrack is user-approved; the revised ending uses newly received PCM for the extra turn. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns evidence and bounded claims.
 
 [[implementation_phases/09-practical-realism-and-randomization|Phase 09]] owns practical variation; [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]] owns product-wide closeout; [[implementation_phases/11-future-semantic-perception|Phase 11]] semantics/tracking remain deferred. No physical campaign, policy training, acoustic GPU port or large-batch Geometry requirement is implied.
 
