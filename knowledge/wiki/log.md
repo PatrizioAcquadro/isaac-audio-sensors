@@ -343,3 +343,11 @@ Completed the 40-second Garage reflective/absorptive film with explicitly assign
 ## 2026-09-21 — lint: Verify Video 6 documentation and delivery
 
 All 42 wiki pages resolve and remain indexed; Markdown whitespace and focused local Python checks pass. Canonical claims match the saved A/B/control and final media reports. The local generator's fresh preparation and verification paths pass. Only ONR documentation is tracked; protected raw material, SDK interfaces and previous movies are unchanged.
+
+## 2026-09-21 — update: Clarify Video 6 materials and listening comparison
+
+Revised the source-activity card with plain-English material names, catalog absorption explicitly qualified at 1 kHz, and concise listening cues. Replaced the blue tile-like lining with dark perforated metal-faced acoustic cassettes and added a restrained matched-view dissolve plus a material detail during the existing silent transition. Preserved the original delivery, approved soundtrack, event times and current sensor observations; updated local regeneration defaults and method.
+
+## 2026-09-21 — lint: Verify Video 6 presentation revision
+
+All 42 wiki pages resolve and remain indexed; whitespace and focused local Python checks pass. Revised media fully decodes to 1,200 synchronized 1440p frames. The original files retain their hashes, the reference WAV and encoded AAC stream are byte-identical, and all 1,200 display rows match the approved capture. Paired acoustic geometry and the frozen rig remain unchanged. Documentation records the frequency-specific meaning of the displayed percentages.
