@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-09-20. Package version: `3.0.0`.
+Updated: 2026-09-21. Package version: `3.0.0`.
 
 ## Current work
 
@@ -28,7 +28,7 @@ Updated: 2026-09-20. Package version: `3.0.0`.
 
 ## Delivery and boundaries
 
-ONR videos **1–5 are delivered**; revisions **6–9** retain individual scene/media gates. Video 5's revised warehouse film adds stable angular presentation, aligned right-side instruments, onset details and an observed-only turn toward the remaining direction. The correct-set gate passes in 201/201 stable windows; recording replay and both final encodes pass. The initial soundtrack is user-approved; the revised ending uses newly received PCM for the extra turn. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns evidence and bounded claims.
+ONR videos **1–6 are delivered**; revisions **7–9** retain individual scene/media gates. Video 6 adds the furnished Garage's same-source reflective/absorptive comparison with explicit material assignments and the unchanged current sensor. The user approved the full-wall A/B audio; numerical controls, recording replay, causal instruments and the 40 s 1440p master pass. Video 5's revised warehouse film retains its 201/201 stable-window gate and separately reported moving-transition limitation. Videos 1–3 remain approved and unchanged; Video 4 awaits user review. [[topics/onr-video-production|ONR production]] owns evidence, final-review boundaries and bounded claims.
 
 [[implementation_phases/09-practical-realism-and-randomization|Phase 09]] owns practical variation; [[implementation_phases/10-end-to-end-validation-and-product-closeout|Phase 10]] owns product-wide closeout; [[implementation_phases/11-future-semantic-perception|Phase 11]] semantics/tracking remain deferred. No physical campaign, policy training, acoustic GPU port or large-batch Geometry requirement is implied.
 

@@ -335,3 +335,11 @@ Moved RMS above the lower-right compass, ordered current bearings consistently, 
 ## 2026-09-20 — lint: Verify revised Video 5 evidence
 
 All 42 wiki pages resolve and remain indexed; whitespace and focused local Python checks pass. Verified both encodes, full playback, exact audio preservation through 20.8 s and all current displayed observations. Documentation explicitly separates 201/201 stable-window passes from the 76.7% result over 22–25 s including rotation, below the earlier fixed-pose threshold. No public SDK or protected raw files changed.
+
+## 2026-09-21 — update: Deliver ONR Video 6 material comparison
+
+Completed the 40-second Garage reflective/absorptive film with explicitly assigned wall materials, unchanged current sensor, identical source recordings and one front-microphone gain. The user rejected the initial subtle pilot and approved the full-wall A/B contrast. Documented independent captures, denser/longer controls, replay, causal instruments, paired geometry/cameras and complete 1440p media checks. Prior videos and original assets remain preserved; no public SDK changes.
+
+## 2026-09-21 — lint: Verify Video 6 documentation and delivery
+
+All 42 wiki pages resolve and remain indexed; Markdown whitespace and focused local Python checks pass. Canonical claims match the saved A/B/control and final media reports. The local generator's fresh preparation and verification paths pass. Only ONR documentation is tracked; protected raw material, SDK interfaces and previous movies are unchanged.
