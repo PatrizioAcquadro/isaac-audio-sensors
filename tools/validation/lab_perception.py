@@ -21,6 +21,44 @@ from isaac_audio_sensors.core.types import (
 
 FS = 16000
 LAYOUTS = ("triangle", "square", "raised", "tetra")
+HOP = 1600
+PERIOD = HOP / FS
+
+
+def load_input(path):
+    """Reject partial windows or misaligned scoring references before replay."""
+    with np.load(path, allow_pickle=False) as archive:
+        data = dict(archive)
+    samples, positions = data["samples"], data["positions"]
+    if (
+        samples.ndim != 2
+        or samples.shape[1] < 8 * HOP
+        or samples.shape[1] % HOP
+        or positions.shape != (samples.shape[0], 3)
+        or int(data.get("sample_rate_hz", FS)) != FS
+    ):
+        raise ValueError("Received PCM requires aligned 16 kHz, 100 ms windows.")
+    steps = samples.shape[1] // HOP
+    received = data["received_power"]
+    if received.ndim != 2 or received.shape[0] != steps:
+        raise ValueError("Received-power references must align with PCM windows.")
+    expected = {
+        "direct_power": received.shape,
+        "directions": (*received.shape, 3),
+        "noise_power": (steps,),
+        "scheduled_count": (steps,),
+    }
+    if any(data[key].shape != shape for key, shape in expected.items()):
+        raise ValueError("Scoring references must align with received PCM windows.")
+    for key in ("samples", "positions", "received_power", *expected):
+        if not np.isfinite(data[key]).all():
+            raise ValueError(f"Received input {key} must be finite.")
+    for key in ("received_power", "direct_power", "noise_power", "scheduled_count"):
+        if (data[key] < 0).any():
+            raise ValueError(f"Received input {key} must be nonnegative.")
+    if not np.allclose(np.linalg.norm(data["directions"], axis=-1), 1):
+        raise ValueError("Scoring directions must be unit vectors.")
+    return data
 
 
 def score(found, truth):
@@ -77,6 +115,7 @@ def assess(found, diagnostic, data, step, threshold_db=0.0):
         result["source_indices"][i] for i in result["matched"]
     ]
     result["received_count"] = int(reference["present"].sum())
+    result["received_source_indices"] = np.flatnonzero(reference["present"]).tolist()
     result["unresolved_received_count"] = int(
         (reference["present"] & ~reference["direct"]).sum()
     )
@@ -114,8 +153,8 @@ def run_stream(data, *, threshold_dbfs=-60):
     )
     rows = []
     backlog = 0.0
-    for step, end in enumerate(range(1600, data["samples"].shape[1] + 1, 1600)):
-        samples = np.array(data["samples"][:, end - 1600 : end], dtype=np.float32)
+    for step, end in enumerate(range(HOP, data["samples"].shape[1] + 1, HOP)):
+        samples = np.array(data["samples"][:, end - HOP : end], dtype=np.float32)
         samples.setflags(write=False)
         block = MicrophoneSignalBlock(
             samples=samples,
@@ -157,9 +196,60 @@ def run_stream(data, *, threshold_dbfs=-60):
             completion_delay_ms=backlog * 1000,
             activity=activity,
             diagnostic=diag,
+            ambiguity_count=sum(e.ambiguity_class is not None for e in events),
+            unresolved_observation_count=sum(
+                e.estimated_bearing_deg is None for e in events
+            ),
+            observations_truncated=frame.diagnostics["perception"][
+                "truncated_observation_count"
+            ],
         )
         rows.append(result)
     return rows
+
+
+def onset_responses(rows, *, localization):
+    """Responses to received onset bins; never move an estimate back in time.
+
+    Bin starts are the onset reference and output timestamps are bin ends.
+    Delay has 100 ms resolution. A response must occur before that received
+    segment ends; later activity or a different source cannot repair a miss.
+    """
+    pending = {}
+    previous = set()
+    responses = []
+    for row in rows:
+        present = (
+            set(row["source_indices"])
+            if localization
+            else ({0} if row["received_count"] else set())
+        )
+        found = (
+            set(row["matched_source_indices"])
+            if localization and row["available"]
+            else ({0} if not localization and row["activity"] else set())
+        )
+        for source in sorted(previous - present):
+            if source in pending:
+                responses.append(pending.pop(source))
+        for source in sorted(present - previous):
+            pending[source] = dict(
+                source_index=source if localization else None,
+                onset_bin_start_s=row["time_s"] - PERIOD,
+                response_delay_ms=None,
+            )
+        for source in sorted(present & found):
+            if source in pending:
+                response = pending.pop(source)
+                response["response_delay_ms"] = 1000 * (
+                    row["time_s"] - response["onset_bin_start_s"]
+                )
+                responses.append(response)
+        previous = present
+    responses.extend(pending.values())
+    return sorted(
+        responses, key=lambda r: (r["onset_bin_start_s"], r["source_index"] or 0)
+    )
 
 
 def summarize(rows):
@@ -193,9 +283,39 @@ def summarize(rows):
         uncertain_count=sum(r["count_status"] == "uncertain" for r in rows),
         extras=sum(r["extras"] for r in resolved),
         misses=sum(r["misses"] for r in resolved),
+        activity_updates=sum(r.get("activity", False) for r in rows),
+        unresolved_received_updates=sum(not r["fully_resolvable"] for r in rows),
+        ambiguity_observations=sum(r.get("ambiguity_count", 0) for r in rows),
+        unresolved_observations=sum(
+            r.get("unresolved_observation_count", 0) for r in rows
+        ),
+        observations_truncated=sum(r.get("observations_truncated", 0) for r in rows),
         compute_p95_ms=float(np.percentile([r["compute_ms"] for r in rows], 95)),
         max_completion_delay_ms=max(r["completion_delay_ms"] for r in rows),
     )
+
+
+def case_report(data, rows):
+    sensitivity = {}
+    for threshold in (-3, 3):
+        rescored = []
+        for step, row in enumerate(rows):
+            rescored.append(
+                {
+                    **row,
+                    **assess(
+                        row["directions"], row["diagnostic"], data, step, threshold
+                    ),
+                }
+            )
+        sensitivity[str(threshold)] = summarize(rescored[7:])
+    return {
+        **summarize(rows[7:]),
+        "including_warmup": summarize(rows),
+        "received_reference_sensitivity_db": sensitivity,
+        "activity_onset_responses": onset_responses(rows, localization=False),
+        "direction_onset_responses": onset_responses(rows, localization=True),
+    }
 
 
 def main():
@@ -206,22 +326,35 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--layouts", nargs="+", choices=LAYOUTS, default=LAYOUTS)
+    parser.add_argument("--input-glob", default="*_{layout}_*stationary*.npz")
+    parser.add_argument("--threshold-dbfs", type=float, default=-60)
+    parser.add_argument("--include-rows", action="store_true")
     args = parser.parse_args()
+    if not np.isfinite(args.threshold_dbfs):
+        parser.error("--threshold-dbfs must be finite.")
     if not torch.cuda.is_available():
         raise RuntimeError("Received-audio parity requires CUDA, without CPU fallback.")
-    report = {"gpu": torch.cuda.get_device_name(0), "layouts": {}, "status": "running"}
+    report = {
+        "gpu": torch.cuda.get_device_name(0),
+        "layouts": {},
+        "status": "running",
+        "threshold_dbfs": args.threshold_dbfs,
+        "input_glob": args.input_glob,
+        "response_clock": "100 ms received-onset bin start to observation bin end",
+        "timing_scope": "offline replay; compute is not end-to-end SDK latency",
+    }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     passed = True
-    for layout in LAYOUTS:
-        paths = sorted(args.inputs_dir.glob(f"*_{layout}_*stationary*.npz"))
+    for layout in args.layouts:
+        paths = sorted(args.inputs_dir.glob(args.input_glob.format(layout=layout)))
         if not paths:
-            raise ValueError(f"No received stationary inputs for {layout}.")
+            raise ValueError(f"No matching received inputs for {layout}.")
         data = []
         reference = []
         for path in paths:
-            with np.load(path, allow_pickle=False) as archive:
-                data.append(dict(archive))
-            reference.append(run_stream(data[-1]))
+            data.append(load_input(path))
+            reference.append(run_stream(data[-1], threshold_dbfs=args.threshold_dbfs))
         lengths = {d["samples"].shape[-1] for d in data}
         if len(lengths) != 1 or not all(
             np.array_equal(d["positions"], data[0]["positions"]) for d in data
@@ -232,7 +365,7 @@ def main():
         p = TorchPerception(
             num_envs=len(data),
             positions=data[0]["positions"],
-            threshold_dbfs=-60,
+            threshold_dbfs=args.threshold_dbfs,
             doa_enabled=True,
             max_observations=32,
             max_doa_candidates=2,
@@ -242,13 +375,13 @@ def main():
         values = torch.tensor(
             np.stack([d["samples"] for d in data]), dtype=torch.float32, device="cuda:0"
         )
-        counts = torch.full((len(data),), 1600, device="cuda:0")
+        counts = torch.full((len(data),), HOP, device="cuda:0")
         results = [[] for _ in data]
         agreement, deviations, activity_agreement = [], [], []
-        for tick, start in enumerate(range(0, values.shape[-1], 1600)):
+        for tick, start in enumerate(range(0, values.shape[-1], HOP)):
             torch.cuda.synchronize()
             begin = time.perf_counter()
-            p.ingest(ids, values[..., start : start + 1600], counts)
+            p.ingest(ids, values[..., start : start + HOP], counts)
             output = p.observations(ids)
             torch.cuda.synchronize()
             elapsed = (time.perf_counter() - begin) * 1000
@@ -277,7 +410,18 @@ def main():
                 if tick < 7:
                     diag = {"status": "unavailable"}
                 row = assess(found, diag, item, tick)
-                row.update(compute_ms=elapsed, completion_delay_ms=elapsed)
+                row.update(
+                    time_s=(tick + 1) * PERIOD,
+                    activity=bool(p.active[i]),
+                    diagnostic=diag,
+                    compute_ms=elapsed,
+                    completion_delay_ms=elapsed,
+                    ambiguity_count=int(output.ambiguity_mask[i].sum()),
+                    unresolved_observation_count=int(
+                        (output.observation_mask[i] & ~valid).sum()
+                    ),
+                    observations_truncated=int(output.observations_truncated[i]),
+                )
                 results[i].append(row)
         summary = {
             "count_agreement": float(np.mean(agreement)),
@@ -288,10 +432,17 @@ def main():
             "cases": [
                 {
                     "input": path.name,
-                    "scalar": summarize(ref[7:]),
-                    "cuda": summarize(actual[7:]),
+                    "scalar": case_report(item, ref),
+                    "cuda": case_report(item, actual),
+                    **(
+                        {"rows": {"scalar": ref, "cuda": actual}}
+                        if args.include_rows
+                        else {}
+                    ),
                 }
-                for path, ref, actual in zip(paths, reference, results, strict=True)
+                for path, item, ref, actual in zip(
+                    paths, data, reference, results, strict=True
+                )
             ],
         }
         summary["passed"] = (
@@ -309,7 +460,7 @@ def main():
         )
     report["status"] = "passed" if passed else "failed"
     report["scope"] = (
-        "paired integration preservation on supplied stationary recordings; "
+        "paired integration preservation on supplied received recordings; "
         "not new acoustic qualification"
     )
     args.out.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")

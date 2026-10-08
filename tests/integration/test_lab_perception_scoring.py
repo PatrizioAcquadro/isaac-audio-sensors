@@ -46,3 +46,74 @@ def test_received_reference_does_not_call_diffuse_tail_a_resolved_source():
     )
     assert unavailable["exact"] is False
     assert unavailable["count"] is False
+
+
+def test_onset_response_is_causal_source_specific_and_segment_bounded():
+    from tools.validation.lab_perception import onset_responses
+
+    def row(t, present, matched, *, available=True):
+        return dict(
+            time_s=t,
+            source_indices=present,
+            matched_source_indices=matched,
+            received_count=len(present),
+            activity=bool(matched),
+            available=available,
+        )
+
+    rows = [
+        row(0.1, [0], [1]),  # another source is not a response
+        row(0.2, [0], [0], available=False),
+        row(0.3, [], [0]),  # a late estimate cannot repair the ended segment
+        row(0.4, [0, 1], [1]),
+        row(0.5, [0, 1], [0, 1]),
+    ]
+    result = onset_responses(rows, localization=True)
+    assert len(result) == 3
+    assert result[0]["response_delay_ms"] is None
+    assert result[1]["source_index"] == 0
+    assert result[1]["onset_bin_start_s"] == pytest.approx(0.3)
+    assert result[1]["response_delay_ms"] == pytest.approx(200)
+    assert result[2]["response_delay_ms"] == pytest.approx(100)
+    activity = onset_responses(rows, localization=False)
+    assert len(activity) == 2  # mixture activity, independent of source identity
+    assert activity[0]["response_delay_ms"] == pytest.approx(100)
+
+
+def test_unresolved_candidates_do_not_count_as_selected_directions():
+    from tools.validation.lab_perception import assess
+
+    data = dict(
+        received_power=np.ones((1, 1)),
+        direct_power=np.ones((1, 1)),
+        noise_power=np.full(1, 0.01),
+        directions=np.array([[[1.0, 0, 0]]]),
+        scheduled_count=np.ones(1),
+    )
+    result = assess(np.empty((0, 3)), {"status": "events"}, data, 0)
+    assert not result["exact"]
+    assert result["misses"] == 1
+    assert result["matched_source_indices"] == []
+
+
+def test_received_input_rejects_partial_windows_and_misaligned_truth(tmp_path):
+    from tools.validation.lab_perception import load_input
+
+    data = dict(
+        samples=np.zeros((4, 12800)),
+        positions=np.zeros((4, 3)),
+        received_power=np.zeros((8, 1)),
+        direct_power=np.zeros((8, 1)),
+        noise_power=np.zeros(8),
+        directions=np.tile([[[1.0, 0, 0]]], (8, 1, 1)),
+        scheduled_count=np.zeros(8),
+    )
+    path = tmp_path / "received.npz"
+    np.savez(path, **data)
+    assert load_input(path)["samples"].shape == (4, 12800)
+    np.savez(path, **{**data, "samples": np.zeros((4, 12801))})
+    with pytest.raises(ValueError, match="aligned"):
+        load_input(path)
+    np.savez(path, **{**data, "directions": data["directions"][:-1]})
+    with pytest.raises(ValueError, match="references"):
+        load_input(path)
