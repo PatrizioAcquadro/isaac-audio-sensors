@@ -351,3 +351,19 @@ Revised the source-activity card with plain-English material names, catalog abso
 ## 2026-09-21 — lint: Verify Video 6 presentation revision
 
 All 42 wiki pages resolve and remain indexed; whitespace and focused local Python checks pass. Revised media fully decodes to 1,200 synchronized 1440p frames. The original files retain their hashes, the reference WAV and encoded AAC stream are byte-identical, and all 1,200 display rows match the approved capture. Paired acoustic geometry and the frozen rig remain unchanged. Documentation records the frequency-specific meaning of the displayed percentages.
+
+## 2026-10-02 — update: Correct guided recording channel order
+
+The Isaac Sim and Kit topic now explains that guided recording declares the captured producer order, preserving PCM rows and microphone geometry for USD-discovered arrays. Dataset recording remains independent of Sensor WAV export, and recorder contract checks still reject later incompatible channel changes.
+
+## 2026-10-02 — lint: Verify guided quad recording repair
+
+All 42 wiki pages resolve and remain indexed; Git whitespace, Ruff and version checks pass. The required repository gate passes 677 unit/contract, 341 integration and 58 release tests. Coordinated live Kit GUI checks with Sensor WAV enabled and disabled each accepted 28 quad frames, zero drops and three shards, then finalized and exported with zero validation errors. Independent checks preserved all PCM samples and microphone ID/geometry correspondence; existing USD diagnostic portability warnings remain.
+
+## 2026-10-03 — update: Correct Replicator stop lifecycle
+
+The Isaac Sim and Kit topic now documents that Stop disables frame dispatch before writer teardown while preserving output settings and final artifacts. Start enables dispatch only after successful initialization; failed lifecycle actions leave it disabled. Sensor acquisition and timeline operation remain independent.
+
+## 2026-10-03 — lint: Verify Replicator lifecycle repair
+
+All 42 wiki pages resolve and remain indexed; Ruff, version synchronization and Git whitespace pass. The repository gate passes 677 unit/contract, 348 integration and 58 release tests, including 11 Replicator cases. Coordinated actual Kit GUI start/flush/stop/restart and repeated-stop cycles retain 23 and 20 writes while sensor and timeline continue; timestamps advance 1,500 ms after each stop with Enable cleared and no additional writes. Authentic screenshots and final manifests/JSONL were independently inspected. Existing quad channel-order source and tests remain unchanged.

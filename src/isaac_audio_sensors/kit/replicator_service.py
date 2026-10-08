@@ -27,7 +27,8 @@ class ReplicatorService(ControllerService):
         """Start the Omniverse-native Replicator writer path."""
 
         try:
-            self.state.replicator_enabled = True
+            self.state.replicator_enabled = False
+            self.state.replicator_recording = False
             if self.replicator_recorder is not None:
                 self.replicator_recorder.stop()
             output_dir = _resolve_gui_output_path(self.state.replicator_output_dir)
@@ -38,6 +39,7 @@ class ReplicatorService(ControllerService):
             )
             self.replicator_recorder = recorder
             status = recorder.start()
+            self.state.replicator_enabled = True
             self._apply_replicator_status(status.to_dict())
             self._set_status(f"Replicator recording started at {output_dir}.")
             return self._replicator_status_dict()
@@ -61,8 +63,10 @@ class ReplicatorService(ControllerService):
             return None
 
     def stop_replicator(self) -> dict[str, Any] | None:
-        """Stop Replicator recording without disabling configured settings."""
+        """Disable frame dispatch and stop recording, retaining output settings."""
 
+        self.state.replicator_enabled = False
+        self.state.replicator_recording = False
         try:
             if self.replicator_recorder is None:
                 self.state.replicator_recording = False
