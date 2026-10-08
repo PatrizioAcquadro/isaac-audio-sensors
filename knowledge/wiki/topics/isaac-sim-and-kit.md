@@ -115,7 +115,7 @@ When `omni.graph.core` is available, the extension registers `isaac_audio_sensor
 
 The node publishes the latest frame ID, timestamp, observation count, first observed bearing/sector, microphone IDs/RMS, and JSON payload, optionally filtered by array key.
 
-Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
+Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. `Start Replicator` enables frame dispatch only after writer initialization succeeds. `Stop Replicator` clears Enable and active recording before stopping the writer, retaining output settings, counters, and artifacts; sensor acquisition and the timeline continue independently. Repeated Stop is safe, and Start re-enables recording for the next session. Failed Start or Stop leaves dispatch disabled and reports the action error. Manually enabling dispatch without starting a recorder still reports the missing-start error. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
 
 Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and may inject a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes. The sensor also retains the exact latest signal block independently. Guided dataset recording consumes that block directly, so it neither rereads a WAV nor depends on Sensor WAV output being enabled. Its session channel order comes from the captured frame, preserving the producer's PCM-row and microphone-geometry correspondence. USD child discovery can have a different order from the named layout; quad child prims use `front, left, rear, right`. Recording requires a captured frame, and subsequent channel-order changes still fail the recorder's contract checks.
 
@@ -136,6 +136,8 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 Forced updates on a paused timeline can repeat the same signal window. The common pipeline treats those repeats as discontinuities: repeated 50 ms snapshots cannot satisfy Auditok's 100 ms minimum activity. Advance sample time contiguously for streaming activity; inactive snapshots still update microphone meters and preserve genuine earlier activity in UI history.
 
 ## Version Notes
+
+- 2026-10-03: Corrected Replicator Stop lifecycle so continued sensor updates cannot write to the stopped recorder. Regression coverage includes repeated start/stop, automatic and forced captures, GUI Enable synchronization, and failed lifecycle actions.
 
 - 2026-10-02: Corrected guided recording channel order for USD-discovered quad and custom arrays. Regression coverage verifies exact PCM and ID/geometry correspondence through recording and portable dataset export with Sensor WAV disabled; both quad layouts and the two-microphone layout are covered.
 

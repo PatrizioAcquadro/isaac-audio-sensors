@@ -359,3 +359,11 @@ The Isaac Sim and Kit topic now explains that guided recording declares the capt
 ## 2026-10-02 — lint: Verify guided quad recording repair
 
 All 42 wiki pages resolve and remain indexed; Git whitespace, Ruff and version checks pass. The required repository gate passes 677 unit/contract, 341 integration and 58 release tests. Coordinated live Kit GUI checks with Sensor WAV enabled and disabled each accepted 28 quad frames, zero drops and three shards, then finalized and exported with zero validation errors. Independent checks preserved all PCM samples and microphone ID/geometry correspondence; existing USD diagnostic portability warnings remain.
+
+## 2026-10-03 — update: Correct Replicator stop lifecycle
+
+The Isaac Sim and Kit topic now documents that Stop disables frame dispatch before writer teardown while preserving output settings and final artifacts. Start enables dispatch only after successful initialization; failed lifecycle actions leave it disabled. Sensor acquisition and timeline operation remain independent.
+
+## 2026-10-03 — lint: Verify Replicator lifecycle repair
+
+All 42 wiki pages resolve and remain indexed; Ruff, version synchronization and Git whitespace pass. The repository gate passes 677 unit/contract, 348 integration and 58 release tests, including 11 Replicator cases. Coordinated actual Kit GUI start/flush/stop/restart and repeated-stop cycles retain 23 and 20 writes while sensor and timeline continue; timestamps advance 1,500 ms after each stop with Enable cleared and no additional writes. Authentic screenshots and final manifests/JSONL were independently inspected. Existing quad channel-order source and tests remain unchanged.
