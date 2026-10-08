@@ -135,29 +135,6 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 
 Forced updates on a paused timeline can repeat the same signal window. The common pipeline treats those repeats as discontinuities: repeated 50 ms snapshots cannot satisfy Auditok's 100 ms minimum activity. Advance sample time contiguously for streaming activity; inactive snapshots still update microphone meters and preserve genuine earlier activity in UI history.
 
-## Version Notes
-
-- 2026-10-03: Corrected Replicator Stop lifecycle so continued sensor updates cannot write to the stopped recorder. Regression coverage includes repeated start/stop, automatic and forced captures, GUI Enable synchronization, and failed lifecycle actions.
-
-- 2026-10-02: Corrected guided recording channel order for USD-discovered quad and custom arrays. Regression coverage verifies exact PCM and ID/geometry correspondence through recording and portable dataset export with Sensor WAV disabled; both quad layouts and the two-microphone layout are covered.
-
-- 2026-09-04: Subphase 06.1 centralizes geometry and continuity resets in Core. Kit smoke now distinguishes genuine contiguous activity from repeated paused snapshots; Isaac lifecycle resets remain explicit.
-
-- 2026-09-04: Added default-off standard DOA control and upgraded exact configuration to binding v7 with required `direction_estimation.enabled`; binding v6 has no parser.
-- 2026-09-04: Integrated explicit-threshold Auditok observations through the standard sensor, UI, presets, headless workflow, recording, Replicator, OmniGraph, and binding v6; live layout changes reset stateful perception.
-- 2026-09-03: Added persistent sensor perception and latest-block ownership; guided dataset recording now consumes that block without depending on WAV output.
-- 2026-09-02: Removed sensor-side ambiguity policy and introduced `ias.omni_extension_binding.v5`; v2-v4 have no runtime parser.
-- 2026-09-01: Completed R7/R8 environment resolution, analytic backend consolidation, and occlusion transmission with the then-current v4 binding.
-- 2026-08-27: Made source and child-microphone directivity enum-backed and fail-closed, aligned native gain conversion, and removed the effects-owned directivity path for v3.
-- 2026-08-26: Removed dead Kit internals and dynamic sibling-service lookup while preserving the controller, UI, configuration, and runtime contracts.
-- 2026-08-26: Clarified direct Replicator writer updates and retained the v1 annotator name as metadata without registering a runtime annotator.
-- 2026-08-24: Made non-spatial exclusion non-fatal during strict scans and restricted listener reuse to compatible direct array children.
-- 2026-08-24: Added complete finite/infinite `loopCount` conversion and room-backend repetition, excluded non-spatial sources from physical-sensor discovery, and introduced array-listener reuse with a session-layer fallback plus qualitative Kit device-mix capture without changing sensor observations.
-- 2026-08-24: Migrated authoring and live validation to `OmniSound` and `OmniListener`, corrected native schema units and metadata precedence, and retained deprecated-alias read compatibility.
-- 2026-08-24: Refined the existing three-area UI with visual guided indicators, actionable feedback, monotonic frame freshness, dBFS meters, adaptive detections, field-specific recovery, and transient field provenance without changing controller, serialization, or audio contracts.
-- 2026-08-24: Rebuilt the native Kit UI around the three task-oriented areas, added persistent Guided collapse behavior, promoted Live Monitor to the canonical operating surface, and moved specialist controls into Advanced Tools without changing core APIs or serialized contracts.
-
-
 ## Acoustic scene preparation
 
 The **Acoustic Scene** section imports the open composed stage and supports
@@ -193,20 +170,10 @@ root or source material. Issues and provider separates geometry verification
 from audio production. All sections operate through the shared session service.
 
 
-```python
-from isaac_audio_sensors.isaac.acoustic_scene import AcousticSceneSession
+Preparation works without the native library; geometry verification is separate
+from audio production. See [[topics/geometry-acoustics|Geometry Acoustics]] for
+Python usage, pinned native builds, metadata, operating controls, and limitations.
 
-scene = AcousticSceneSession(stage)  # Or roots=("/World/Building",).
-report = scene.refresh()
-scene.edit(["/World/Door"], {"ias:acoustic_material_id": "nominal.wood"})
-# Optional: exact qualified Release/Embree library supplied by the application.
-report = scene.verify_provider(library_path)
-# Refresh at simulation time codes; close when the stage/session ends.
-scene.close()
-```
+## Version Notes
 
-Preparation works without the native library. A different Steam binary fails
-explicitly until requalified. See [[implementation_phases/r10-geometry-acoustics-integration|R10.1]]
-for the supported geometry, metadata, provenance and transmission limitations.
-Operational Geometry controls use this shared scene; see
-[[topics/geometry-acoustics#Python and Kit operating workflow|the operating workflow]].
+- 2026-10-08: Configuration import is transactional; USD adapters use standard methods. Prior changes and migrations are recorded in the changelog and [[decisions/product-boundary-and-compatibility|compatibility decision]].

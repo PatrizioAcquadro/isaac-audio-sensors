@@ -1,74 +1,45 @@
 # Isaac Audio Sensors
 
-`isaac-audio-sensors` is an open-source robot-audition SDK for Isaac Sim and Isaac Lab. It models robot-mounted microphone arrays and turns simulated audio scenes into standardized multichannel waveforms, spatial-audio features, recordings, datasets, and fixed-shape observations for robot learning.
+An open-source robot-audition SDK for Python, Isaac Sim, Isaac Lab, and NVIDIA Kit. It models standalone or robot-mounted microphone arrays and produces multichannel waveforms, observed audio features, recordings, datasets, and fixed-shape learning observations.
 
-It complements NVIDIA Kit Audio and RTX Acoustic with reusable sensor and data contracts, acoustic backends, recording and replay, and Isaac integrations. Robot-specific tasks, policies, assets, and task-level validation remain downstream.
+Current source version: `3.0.0`. **Unreleased.** The latest published release is **2.0.0**; the examples below target this checkout.
 
-[View the project showcase](https://isaac-audio-showcase-site.vercel.app).
+[Project showcase](https://isaac-audio-showcase-site.vercel.app) · [Verified status](knowledge/wiki/status.md) · [Technical wiki](knowledge/wiki/index.md)
 
-Current package release: `3.0.0`. This release is not yet published.
+## Capabilities
 
-## What It Provides
+- Analytic direct-path and optional room propagation, configurable array geometry, source/microphone directivity, gain, and signal effects.
+- Optional Geometry Acoustics from composed USD scenes, with native direct/transmission, specular, selected-route NLOS, and diffuse components.
+- Waveform-derived activity and optional direction estimation, with explicit ambiguity, missing estimates, and stream resets.
+- Aligned multichannel recording, bounded-memory shards, recovery, validation, splits, FLAC export, and replay.
+- Live Isaac Sim sensors, CUDA Isaac Lab observations, and a Kit authoring/monitoring interface. Simulator dependencies remain optional.
 
-- Simulator-independent, versioned contracts for sources, arrays, five analytic acoustic environments, sensor frames, calibration, and datasets, with one topology-routed `analytic_acoustics` backend for direct, TDOA, optional room, and per-microphone direct-path occlusion behavior.
-- Entity-owned source and microphone directivity with four first-order families, plus one amplitude-gain convention shared by Core, Isaac Sim, Isaac Lab, and Kit.
-- One maintained Auditok activity detector integrated into the standard scalar runtimes, with causal multichannel decisions, an explicit application-owned dBFS threshold, and deterministic reset.
-- Explicit, default-off mixture-only DOA: bounded indoor planar/3D multisource localization at 16 kHz with 750 ms past context; honest stereo ambiguity and other planar rates retain their 250 ms single-event role.
-- Generic multichannel recording, validation, sharded datasets, deterministic splits, statistics, FLAC export, and read-only replay.
-- Lazy Isaac Sim and Isaac Lab integrations for live stages and fixed-shape, batched observations without making NVIDIA runtimes core dependencies.
-- Audited Python source/wheel distributions plus a reference, self-contained Kit archive.
+## Install and try the checkout
 
-## Install
-
-The core package supports Python 3.10 or newer. Install it from PyPI:
+Python 3.10 or newer:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install isaac-audio-sensors
-```
-
-Install the optional PyRoom closed-room solvers only when shoebox or polygon-prism propagation is needed:
-
-```bash
-python -m pip install "isaac-audio-sensors[room]"
-```
-
-Isaac Sim, Isaac Lab, Kit, CUDA, Torch, and Replicator are user-managed runtime capabilities and are not installed with the core package.
-
-## Quickstart
-
-From a source checkout, validate the maintained configuration and generate a deterministic sensor frame:
-
-```bash
+python -m pip install --editable ".[dev]"
 isaac-audio-sensors validate-config examples/configs/isaac_audio_sensors_demo.toml
 isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --backend analytic_acoustics --array-id rig_front --energy-threshold-dbfs -60
 ```
 
-Add `--enable-doa` to the simulation command to opt into standard geometry-based direction estimation. Planar DOA requires the `room` extra; two-microphone least-squares does not. Without that flag, neither command needs Isaac, a GPU, or PyRoom. The threshold is a required runtime argument rather than a TOML or package default; `-60` is specific to this deterministic example.
+This free-field example needs neither Isaac nor a GPU. The threshold is specific to the example; applications must choose their own. Add `--enable-doa` for direction estimation. Room propagation and planar DOA additionally need `python -m pip install --editable ".[room]"`.
 
-## Limitations
+For the published **2.0.0** package, use `python -m pip install "isaac-audio-sensors==2.0.0"` and its matching release documentation. See [Getting started](knowledge/wiki/topics/getting-started.md) for runtime setup and [migration guidance](knowledge/wiki/decisions/product-boundary-and-compatibility.md) for 3.0 API changes.
 
-- `analytic_acoustics` supports Core free field and half space plus optional PyRoom shoebox and polygon prisms. Opt-in 16 kHz DOA uses WPE/group-sparse localization, confirmed for bounded simulated indoor, relatively stable sources. Weak speech remains imperfect; source changes can take 1–1.5 seconds, and 3D compute exceeds 50 ms. Rotating microphone arrivals and retarded source orientation are validated at signal level. The motion/indoor DOA comparison retains the existing localizer because faster candidates fail joint moving-pair utility. Physical/general indoor robustness and rapid-motion DOA remain unqualified; see the [measured scope and regressions](knowledge/wiki/experiments/04-4-multisource-localization.md). Stereo retains least-squares ambiguity; other planar rates retain PyRoom SRP. Lab reference and CUDA entity modes project received-audio observations into masked tensors; 07.2 is complete within its documented baseline. Occlusion affects only the direct path; `surface_set`, diffraction and reflected-path blocking remain outside this backend.
-- Optional `geometry_acoustics` completes the bounded 08.2 USD-to-PCM producer: Steam direct/planar transmission, native PRA specular reflections, and opt-in selected-route NLOS/shared diffuse pressure. Combined streaming and actual Sim/Lab integration are qualified within documented limits; full-room moving equivalence and calibrated diffraction remain unvalidated. Python/Kit now share prepared-scene operating controls and separate simulation diagnostics; 08.3 and Phase 08 are complete within these bounds, including actual RTX Sim/Lab/Kit checks and audited Python/Kit artifacts. See [Geometry configuration and native builds](knowledge/wiki/topics/geometry-acoustics.md) and [measurements and limits](knowledge/wiki/experiments/geometry-acoustics-admission.md).
-- Software and GPU validation do not establish hardware calibration, physical acoustic fidelity, downstream task success, or sim-to-real transfer.
-- Auditok requires an application-specific fixed threshold; no calibration mode is maintained. Low SNR, changing noise floors, or short impulses can limit energy-based detection.
-- This SDK does not provide robot-specific tasks or policies and is not a safety-critical perception component.
+## Scope and limits
 
-## Documentation
+Activity uses an application-specific energy threshold. Localization is qualified for bounded simulated cases; weak speech, rapid motion, reverberation, and latency remain limitations. Geometry's selected-route diffraction is uncalibrated, and full-room moving equivalence is not established. Software checks do not establish physical fidelity or sim-to-real transfer. Robot policies and task acceptance belong downstream.
 
-- [Technical wiki](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/index.md)
-- [Current verified status](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/status.md)
-- [Getting started](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/topics/getting-started.md)
-- [Changelog](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/CHANGELOG.md)
+[Acoustic models](knowledge/wiki/topics/acoustic-modeling.md), [Geometry setup](knowledge/wiki/topics/geometry-acoustics.md), and [localization evidence](knowledge/wiki/experiments/04-4-multisource-localization.md) define the supported cases and limits.
 
-## Contributing and Security
+## Development
 
-Contributions should preserve lazy optional dependencies, subsystem-owned APIs, versioned serialized contracts, and the downstream project boundary. Add proportional tests and update the canonical wiki when public behavior changes.
+Run `make check` for lint, version synchronization, and host tests. Use [Validation and release](knowledge/wiki/topics/validation-and-release.md) for Isaac/GPU checks and audited sdist, wheel, and Kit builds. Preserve lazy dependencies, serialized contracts, and concise canonical documentation when contributing.
 
-Report vulnerabilities privately through a GitHub security advisory when available or directly to the maintainer. Never publish credentials, private recordings, restricted robot data, or workstation-specific paths.
+[Changelog](CHANGELOG.md) · [Architecture](knowledge/wiki/topics/system-architecture.md) · [License](LICENSE) · [Notice](NOTICE)
 
-## License
-
-Licensed under the Apache License 2.0. See [LICENSE](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/LICENSE) and [NOTICE](https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/NOTICE).
+Report vulnerabilities privately through a GitHub security advisory or to the maintainer; exclude credentials and private recordings. Licensed under Apache 2.0.

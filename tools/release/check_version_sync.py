@@ -119,11 +119,11 @@ def check_version_sync(repo_root: Path) -> tuple[str, tuple[str, ...]]:
         ),
     )
     check(
-        "README.md current-release statement",
+        "README.md source-version statement",
         lambda: _required_regex(
             repo_root / "README.md",
-            r"^Current package release: `([^`]+)`\.",
-            "README current release",
+            r"^Current source version: `([^`]+)`\.",
+            "README source version",
         ),
     )
     check(

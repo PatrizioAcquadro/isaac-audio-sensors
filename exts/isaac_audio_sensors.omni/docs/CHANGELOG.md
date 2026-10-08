@@ -2,27 +2,16 @@
 
 ## 3.0.0 - Unreleased
 
-- Added prepared-scene Geometry controls in Kit, shared scene/sensor lifecycle, saved native settings and separate actionable simulation diagnostics. Preserved optional NLOS/diffuse defaults and observation contracts; historical NLOS coverage no longer changes after later captures.
-
-- Integrate Auditok 0.5.2 into the standard sensor with an explicit finite `Activity dBFS` field, causal signal-derived observations, and reset on stream-defining array changes.
-- Add a default-off DOA control using the maintained causal geometry-routed consumer; preserve unresolved warm-up, ambiguity, and temporal-instability evidence in live observations.
-- Breaking: use exact `ias.omni_extension_binding.v7` configuration with required Auditok activity state and `direction_estimation.enabled`; reject binding v6 and older without compatibility parsing.
-- Migrate state, configuration, export, recording, Replicator, OmniGraph, instruments, and summaries to frame-v3 observation/producer semantics without deriving source truth.
-- Preserve valid waveform and RMS output during inactive, warm-up, and post-reset empty-observation states, and bundle Auditok as the sixth hash-locked runtime distribution.
-- Breaking: require explicit environment resolution before validation or sensor start, with `unconfigured`, `manual_free_field`, `anchor`, and `auto` modes and no implicit array-centered shoebox.
-- Export and import the analytic backend, solver options, environment mode, anchor, tolerance, resolved result, and provenance without any contextual direction prior.
-- Breaking: removed all four legacy backend choices and renamed room-specific UI/configuration fields to their analytic equivalents.
-- Breaking: replaced free-form source directivity with the shared four-value `DirectivityPattern` selector and removed the obsolete effects-owned directivity configuration without compatibility aliases.
-- Validate source directivity, orientation, nominal gain, saved configuration, sound profiles, and child-microphone `ias:directivity` metadata before authoring mutations.
-- Use the shared fail-closed amplitude-gain conversion for native Kit Audio and microphone-rig gains; `gain_db = 0` remains unity and file-backed WAV amplitude is not normalized.
+- Added shared Geometry scene/sensor ownership, prepared-scene controls, saved native settings and separate actionable diagnostics.
+- Migrated all sensor consumers to frame v4 observations; integrated Auditok with an explicit activity threshold and default-off causal DOA. Missing estimates and valid silent PCM remain explicit.
+- Breaking: binding v7 requires activity, direction and environment settings; older bindings, legacy backends, implicit rooms, and effects-owned directivity are removed.
+- Added multievent instruments, guided workflows, source/microphone directivity controls, native OmniSound/OmniListener authoring, finite/infinite playback loops, and qualitative Kit mix capture separate from sensor audio.
+- Fixed captured channel order in guided recording and dispatch ordering in Replicator Start/Stop.
+- Configuration parses fully before closing the session or applying state. Scalar fields share one import/export definition; USD operations use standard methods.
+- Split the live smoke into coherent scenarios with one aggregate result; packaged dependency origins, recording, rendering, and lifecycle remain verified.
 
 ## 2.0.0 - 2026-08-21
 
-- Post-release, unreleased: added compatible array-child listener reuse with a session-layer fallback plus manual qualitative Kit mix capture with verified WAV metadata, safe active-listener restoration, and lifecycle cleanup; Sensor WAV playback and microphone-array observations remain separate.
-- Post-release, unreleased: completed native finite/infinite `loopCount` authoring and discovery, excluded non-spatial sounds from strict physical-sensor scans unless explicitly selected, and exposed source loop count in the Kit UI/configuration.
-- Post-release, unreleased: author current `OmniSound` prims with schema-native timing, gain, spatial, and loop attributes; generated SDK assets no longer author Kit Audio `filePath` values.
-- Post-release, unreleased: refined guided indicators, frame freshness, dBFS meters, adaptive detection rows, operational footer priority, field-specific recovery, and transient field styling without changing public or serialized contracts.
-- Post-release, unreleased: redesigned the native Kit window around Guided Workflow, Live Monitor, and Advanced Tools, with persistent expert-mode collapse state and a fixed status strip.
 - Consolidated the maintained Kit workflow and runtime services.
 - Standardized the standalone Linux archive for the NVIDIA Community Registry.
 - Bundled the room-acoustics and FLAC runtime dependencies without shadowing Kit's NumPy.

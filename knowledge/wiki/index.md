@@ -33,7 +33,7 @@ and past experiments are linked from those pages, not required background for ev
 
 Reusable current contracts and workflows; phase pages retain only introductions/outcomes.
 
-- [[topics/getting-started|Getting Started]] — install, CLI, examples and contributions.
+- [[topics/getting-started|Getting Started]] — unreleased checkout versus published package, CLI and examples.
 - [[topics/system-architecture|System Architecture]] — dependency and responsibility boundaries.
 - [[topics/public-contracts-and-recording|Public Contracts and Recording]] — PCM, frames, truth, schemas, datasets and splits.
 - [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, analytic propagation, effects and perception semantics.
@@ -48,7 +48,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 - [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope/budgets, binding invariants, accepted cube/mirror and unvalidated full-room limits, Step 3 admission and provider stop rule.
 - [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival model, libraries and motion/lifecycle approximations.
 - [[decisions/minimal-maintained-repository-surface|Minimal Maintained Surface]] — consumer-proven implementation/cleanup principle.
-- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces and exclusions.
+- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces, 3.0 migrations and maintenance removals.
 
 ## Experiments
 
@@ -65,4 +65,4 @@ Read for a specific result/reference; these pages do not add requirements.
 
 No raw external sources have been ingested into canonical source pages.
 [[log|Knowledge Log]] records compact milestones; detailed prior prose is recoverable
-from Git at `5cfe48d`. Raw/evidence artifacts remain unchanged.
+from Git at `5cfe48d`. Raw sources remain immutable; selective local cleanup follows the maintained-surface decision.

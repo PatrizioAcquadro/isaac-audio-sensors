@@ -8,28 +8,24 @@ Use the pure environment for contracts, configuration, deterministic backends, r
 
 Use the official Isaac Lab launcher for Isaac Sim, Isaac Lab, Kit, GPU, and live-stage validation because those packages are user-managed NVIDIA runtime dependencies rather than PyPI dependencies of this project.
 
-## Install the Core
+## Install the Checkout
 
-Create a clean environment and install the published package:
+These commands and examples target the unreleased 3.0 checkout. Create an environment from the repository root:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install isaac-audio-sensors
+python -m pip install --editable ".[dev]"
 ```
 
 Install approximate room-acoustics support only when needed:
 
 ```bash
-python -m pip install "isaac-audio-sensors[room]"
+python -m pip install --editable ".[room]"
 ```
 
-For repository development, replace the package install with:
-
-```bash
-python -m pip install --editable ".[dev]"
-```
+The published package remains 2.0.0. Install it with `python -m pip install "isaac-audio-sensors==2.0.0"` and use the documentation at that release tag; current 3.0 contracts and examples are not interchangeable with 2.0.
 
 Install an audited local wheel with:
 

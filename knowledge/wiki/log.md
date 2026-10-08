@@ -379,3 +379,11 @@ Production Isaac/Kit helpers now share USD attribute methods instead of fake-obj
 ## 2026-10-08 — update: Make Kit configuration application transactional
 
 Shared scalar field definitions now drive import and export. All parsing completes before closing the live session or changing UI state; malformed late fields preserve the current session. Guided presets use the same validated binding shape. Configuration, guided recording, headless workflow, recorder/recovery, replay and codec checks pass 83 focused cases.
+
+## 2026-10-08 — update: Focus tests, runtime tools and documentation
+
+Split the Kit gate by scenario under one entrypoint, removed duplicated UI inventories and unused fake widget trees, and limited Markdown checks to maintained paths. The source Kit gate passes all 39 workflow steps, including Geometry, audio, screenshots and teardown. The README and changelogs distinguish unreleased 3.0 from published 2.0; the Kit topic now keeps current behavior rather than duplicate operational chronology.
+
+## 2026-10-08 — update: Remove obsolete local review outputs
+
+Removed prior cleanup outputs, superseded extracted R10/DOA packages and unused candidate/repeat/trace provider binaries after checking consumers. Reclaimed 3,131,875,328 allocated file bytes (2.92 GiB); selected providers and their source/build trees, wheelhouse, ONR originals/deliveries/regeneration inputs, Lab reference recordings and R10 inputs remain. Decisive experimental results and failure limits remain in their canonical pages; raw sources are untouched.
