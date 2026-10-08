@@ -387,3 +387,7 @@ Split the Kit gate by scenario under one entrypoint, removed duplicated UI inven
 ## 2026-10-08 — update: Remove obsolete local review outputs
 
 Removed prior cleanup outputs, superseded extracted R10/DOA packages and unused candidate/repeat/trace provider binaries after checking consumers. Reclaimed 3,131,875,328 allocated file bytes (2.92 GiB); selected providers and their source/build trees, wheelhouse, ONR originals/deliveries/regeneration inputs, Lab reference recordings and R10 inputs remain. Decisive experimental results and failure limits remain in their canonical pages; raw sources are untouched.
+
+## 2026-10-08 — lint: Verify maintenance closeout
+
+All 42 wiki pages remain indexed and links resolve. Host checks pass 672 unit/contract, 348 integration and 56 release cases; supported Isaac checks pass 251 cases. Actual RTX Sim, combined two-environment Lab/reference and source Kit pass. SquadBot's 17 focused consumer checks and preserved ONR Video 6 replay/display checks pass. Clean committed-source sdist, derived wheel and Kit archive audits pass; 3.0 remains unreleased, with no tag or package publication.

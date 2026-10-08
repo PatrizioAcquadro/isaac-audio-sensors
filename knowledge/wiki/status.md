@@ -17,6 +17,9 @@ episode serialization have separate ownership. See
 - Supported Isaac runtime: 251 tests pass, including real USD and CUDA controls.
   Actual RTX 4090 Sim, two-environment combined Geometry Lab/reference comparison,
   and source Kit pass. Kit completes 39 workflow steps and required screenshots.
+- Clean-source sdist, wheel built from the sdist, and locked-dependency Kit archive
+  audits pass. The extracted archive uses the same live Kit gate; native providers
+  remain external runtime dependencies.
 - Consumers: 17 focused SquadBot adapter/replay/bench tests pass. ONR Video 6
   recording replay and causal display verification pass on preserved inputs;
   1,200 revised display rows match the approved capture. No videos were regenerated.
