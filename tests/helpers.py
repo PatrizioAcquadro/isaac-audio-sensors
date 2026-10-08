@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 import types
+from collections.abc import Mapping
+from typing import Any
 
 import numpy as np
 
@@ -28,6 +30,34 @@ WINDOW_SAMPLE_COUNT = 2_400
 MOTION_SEGMENTS = 8
 
 
+def _value_at_time(value: Any, time_code: Any | None) -> Any:
+    if hasattr(value, "Get") and callable(value.Get):
+        try:
+            return value.Get(time_code)
+        except TypeError:
+            return value.Get()
+    if isinstance(value, Mapping):
+        if time_code in value:
+            return value[time_code]
+        if time_code is not None:
+            try:
+                numeric_time = float(time_code)
+            except (TypeError, ValueError):
+                numeric_time = None
+            if numeric_time in value:
+                return value[numeric_time]
+            for sample_time, sample_value in value.items():
+                if (
+                    isinstance(sample_time, (int, float))
+                    and numeric_time is not None
+                    and abs(float(sample_time) - numeric_time) <= 1e-5
+                ):
+                    return sample_value
+        if "default" in value:
+            return value["default"]
+    return value
+
+
 class FakeUsdPrim:
     def __init__(
         self,
@@ -38,12 +68,68 @@ class FakeUsdPrim:
         self.path = str(path)
         self.type_name = type_name
         self.attributes = attributes if attributes is not None else {}
+        self.attribute_types = {}
 
     def IsValid(self) -> bool:
         return True
 
     def GetPath(self) -> str:
         return self.path
+
+    def GetTypeName(self):
+        return self.type_name
+
+    def SetTypeName(self, type_name):
+        self.type_name = type_name
+
+    def GetAttributes(self):
+        return [FakeUsdAttribute(self, name) for name in self.attributes]
+
+    def GetAttribute(self, name):
+        return FakeUsdAttribute(self, name)
+
+    def CreateAttribute(self, name, type_name, custom=True):
+        self.attribute_types[name] = (type_name, custom)
+        self.attributes.setdefault(name, None)
+        return self.GetAttribute(name)
+
+    def RemoveProperty(self, name):
+        self.attributes.pop(name, None)
+
+
+class FakeUsdAttribute:
+    def __init__(self, prim, name):
+        self.prim = prim
+        self.name = name
+
+    def IsValid(self):
+        return self.name in self.prim.attributes
+
+    def GetName(self):
+        return self.name
+
+    def Get(self, time_code=None):
+        if hasattr(time_code, "GetValue"):
+            time_code = time_code.GetValue()
+        return _value_at_time(self.prim.attributes.get(self.name), time_code)
+
+    def Set(self, value):
+        if hasattr(value, "GetImaginary"):
+            value = (*value.GetImaginary(), value.GetReal())
+        elif hasattr(value, "GetValue"):
+            value = value.GetValue()
+        elif hasattr(value, "path"):
+            value = value.path
+        elif hasattr(value, "GetLength"):
+            value = tuple(value)
+        self.prim.attributes[self.name] = value
+        return True
+
+    def GetTypeName(self):
+        return self.prim.attribute_types.get(self.name, (None, True))[0]
+
+    def IsCustom(self):
+        return self.prim.attribute_types.get(self.name, (None, True))[1]
 
 
 class FakeUsdStage:

@@ -8,6 +8,7 @@ from contextlib import nullcontext, suppress
 from typing import Any
 
 from isaac_audio_sensors.isaac.stage_audio import (
+    _set_attr,
     get_or_define_prim,
     remove_prim,
     set_prim_xform_pose,
@@ -20,39 +21,6 @@ _SPHERE_KINDS = frozenset({"microphone", "source", "occlusion_hit"})
 
 def _slug(label: str) -> str:
     return re.sub(r"[^A-Za-z0-9_]+", "_", label).strip("_") or "primitive"
-
-
-def _set_attr(prim: Any, name: str, value: Any) -> None:
-    """Set an attribute on fake (dict-backed) or real USD prims."""
-
-    if hasattr(prim, "attributes"):
-        prim.attributes[name] = value
-        return
-    attr = None
-    getter = getattr(prim, "GetAttribute", None)
-    if callable(getter):
-        with suppress(Exception):
-            candidate = getter(name)
-            if candidate is not None and getattr(candidate, "IsValid", bool)():
-                attr = candidate
-    if attr is None:
-        creator = getattr(prim, "CreateAttribute", None)
-        if not callable(creator):
-            return
-        try:
-            from pxr import Sdf  # type: ignore
-        except ImportError:
-            return
-        value_type = getattr(Sdf.ValueTypeNames, "String", None)
-        if isinstance(value, bool):
-            value_type = getattr(Sdf.ValueTypeNames, "Bool", value_type)
-        elif isinstance(value, (int, float)):
-            value_type = getattr(Sdf.ValueTypeNames, "Double", value_type)
-        with suppress(Exception):
-            attr = creator(name, value_type)
-    if attr is not None:
-        with suppress(Exception):
-            attr.Set(value)
 
 
 class UsdDebugGeometryAuthor:

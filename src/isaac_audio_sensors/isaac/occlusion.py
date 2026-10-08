@@ -286,17 +286,22 @@ class IsaacPhysxRaycaster:
         def report(hit: Any) -> bool:
             # Copy native callback data before PhysX reuses its hit structure.
             try:
-                hits.append(OcclusionHit(
-                    prim_path=str(hit.collision), distance_m=float(hit.distance)
-                ))
+                hits.append(
+                    OcclusionHit(
+                        prim_path=str(hit.collision), distance_m=float(hit.distance)
+                    )
+                )
             except Exception as exc:
                 failures.append(exc)
                 return False
             return True
 
         any_hit = interface.raycast_all(
-            _carb_vec3(origin), _carb_vec3(direction),
-            float(max_distance_m), report, True
+            _carb_vec3(origin),
+            _carb_vec3(direction),
+            float(max_distance_m),
+            report,
+            True,
         )
         if failures:
             raise ValueError(
@@ -359,6 +364,7 @@ class UsdTransmissionLossResolver:
                 bands,
                 application=f"transmission preset {name!r}",
             )
+
     def loss_for(self, prim_path: str) -> TransmissionLoss:
         """Return the transmission loss for one blocking prim path."""
 
@@ -507,6 +513,7 @@ class UsdTransmissionLossResolver:
                     )
         return None
 
+
 def compute_scene_occlusion(
     scene: AudioSceneSnapshot,
     raycaster: Any,
@@ -526,16 +533,11 @@ def compute_scene_occlusion(
     fails closed rather than returning a truncated attenuation.
     """
 
-    if (
-        not math.isfinite(unknown_material_loss_db)
-        or unknown_material_loss_db < 0.0
-    ):
+    if not math.isfinite(unknown_material_loss_db) or unknown_material_loss_db < 0.0:
         raise ValueError("unknown_material_loss_db must be finite and non-negative.")
     if not math.isfinite(endpoint_epsilon_m) or endpoint_epsilon_m <= 0.0:
         raise ValueError("endpoint_epsilon_m must be finite and positive.")
-    for value, name, minimum in (
-        (max_hits_per_ray, "max_hits_per_ray", 1),
-    ):
+    for value, name, minimum in ((max_hits_per_ray, "max_hits_per_ray", 1),):
         if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
             qualifier = "non-negative" if minimum == 0 else "positive"
             raise ValueError(f"{name} must be a {qualifier} integer.")
@@ -790,17 +792,11 @@ def occlusion_trace_debug_primitives(
     primitives: list[DebugPrimitive] = []
     for trace in traces:
         applied_hits = tuple(hit for hit in trace.hits if hit.applied)
-        color = (
-            (0.95, 0.15, 0.1, 0.85)
-            if applied_hits
-            else (0.05, 0.9, 0.35, 0.55)
-        )
+        color = (0.95, 0.15, 0.1, 0.85) if applied_hits else (0.05, 0.9, 0.35, 0.55)
         primitives.append(
             DebugPrimitive(
                 kind="occlusion_ray",
-                label=(
-                    f"occlusion:{trace.array_id}:{trace.source_id}:{trace.mic_id}"
-                ),
+                label=(f"occlusion:{trace.array_id}:{trace.source_id}:{trace.mic_id}"),
                 points_world=(
                     trace.source_world,
                     *(hit.point_world for hit in trace.hits),
@@ -915,9 +911,6 @@ def _path_excluded(path: str, excluded_prefixes: tuple[str, ...]) -> bool:
 def _prim_attr(prim: Any, name: str) -> Any | None:
     """Read one attribute from a USD-compatible prim."""
 
-    attributes = getattr(prim, "attributes", None)
-    if isinstance(attributes, dict):
-        return attributes.get(name)
     get_attribute = getattr(prim, "GetAttribute", None)
     if callable(get_attribute):
         attribute = get_attribute(name)

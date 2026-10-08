@@ -152,3 +152,27 @@ def test_clear_removes_whole_subtree():
     author.clear(stage)
     assert "/World/CustomDebug" in stage.removed
     assert all(path not in stage.prims for path in paths)
+
+
+def test_demo_object_authors_visible_usd_cube():
+    import pytest
+
+    Usd = pytest.importorskip("pxr.Usd")
+    from isaac_audio_sensors.kit import ExtensionController
+    from isaac_audio_sensors.kit.state import CurrentStageContext
+
+    stage = Usd.Stage.CreateInMemory()
+    stage.DefinePrim("/World", "Xform")
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert controller.create_demo_object(stage=stage) == "/World/Oven"
+    oven = stage.GetPrimAtPath("/World/Oven")
+    assert oven.GetTypeName() == "Cube"
+    assert tuple(oven.GetAttribute("xformOp:translate").Get()) == (2.0, 0.0, 0.0)
+    assert oven.GetAttribute("size").Get() == pytest.approx(0.9)
+    assert tuple(oven.GetAttribute("primvars:displayColor").Get()[0]) == pytest.approx(
+        (0.95, 0.48, 0.08)
+    )
+    for path in ("KeyLight", "DemoObjectDomeLight", "DemoObjectFillLight"):
+        assert stage.GetPrimAtPath("/World/" + path).IsValid()

@@ -14,7 +14,11 @@ from typing import Any
 import numpy as np
 
 from isaac_audio_sensors.core.io.wave_read import read_wav
-from isaac_audio_sensors.isaac.pose_resolver import prim_path, prim_type_name
+from isaac_audio_sensors.isaac.pose_resolver import (
+    prim_attributes,
+    prim_path,
+    prim_type_name,
+)
 from isaac_audio_sensors.isaac.stage_audio import (
     create_listener_prim,
     remove_prim,
@@ -499,9 +503,7 @@ def _listener_has_identity_local_transform(listener: Any) -> bool:
             )
         )
     except (ImportError, RuntimeError, TypeError):
-        attributes = getattr(listener, "attributes", None)
-        if not isinstance(attributes, dict):
-            return False
+        attributes = prim_attributes(listener)
         if attributes.get("xformOpOrder"):
             return False
         return not any(str(name).startswith("xformOp:") for name in attributes)
@@ -566,9 +568,6 @@ def _file_asset_path(value: Any) -> str:
 
 
 def _prim_attribute(prim: Any, name: str) -> Any:
-    attributes = getattr(prim, "attributes", None)
-    if isinstance(attributes, dict):
-        return attributes.get(name)
     getter = getattr(prim, "GetAttribute", None)
     if callable(getter):
         try:

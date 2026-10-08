@@ -35,6 +35,7 @@ from isaac_audio_sensors.isaac.environment_resolution import (
 from isaac_audio_sensors.isaac.occlusion import OcclusionHit
 from isaac_audio_sensors.isaac.sensor import IsaacAudioArraySensor
 from isaac_audio_sensors.isaac.stage_cache import StageAudioCache
+from tests.helpers import FakeUsdPrim as _Prim
 from tests.helpers import run_frame_pipeline
 
 SAMPLE_RATE_HZ = 48_000
@@ -142,10 +143,12 @@ def fake_room(monkeypatch):
     from isaac_audio_sensors.core.backends._analytic import rendering
 
     def fixture_convolution(source, impulse, window, sample_rate):
-        count = round((window.end_time_s-window.start_time_s)*sample_rate)
-        samples = round(window.start_time_s*sample_rate) + np.arange(count)
-        return impulse[0] * sum(.1*np.sin(2*np.pi*f*samples/sample_rate)
-                                for f in OCCLUSION_BAND_CENTERS_HZ)
+        count = round((window.end_time_s - window.start_time_s) * sample_rate)
+        samples = round(window.start_time_s * sample_rate) + np.arange(count)
+        return impulse[0] * sum(
+            0.1 * np.sin(2 * np.pi * f * samples / sample_rate)
+            for f in OCCLUSION_BAND_CENTERS_HZ
+        )
 
     monkeypatch.setattr(rendering, "convolve_emission", fixture_convolution)
     return fake
@@ -396,13 +399,6 @@ def test_source_and_array_motion_use_current_endpoints_without_stale_output(fake
     assert array_sink.mixtures[0].tobytes() != base_wave.tobytes()
     assert source_sink.mixtures[0].tobytes() != base_wave.tobytes()
     assert base_frame.observations == ()
-
-
-class _Prim:
-    def __init__(self, path, type_name, attributes):
-        self.path = path
-        self.type_name = type_name
-        self.attributes = attributes
 
 
 class _Stage:
@@ -680,9 +676,7 @@ def test_off_state_frame_has_no_acoustics_namespace_and_is_byte_deterministic():
         arrays=(array,),
         environment=free_field_environment(environment_id="off_free_field"),
     )
-    first, _ = run_frame_pipeline(
-        AnalyticAcoustics(), scene, array.array_id, _window()
-    )
+    first, _ = run_frame_pipeline(AnalyticAcoustics(), scene, array.array_id, _window())
     second, _ = run_frame_pipeline(
         AnalyticAcoustics(), scene, array.array_id, _window()
     )

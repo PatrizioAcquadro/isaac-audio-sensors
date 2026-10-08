@@ -371,3 +371,7 @@ All 42 wiki pages resolve and remain indexed; Ruff, version synchronization and 
 ## 2026-10-08 — update: Remove unused runtime surfaces
 
 Removed unused numerical helpers, test-only wrappers and the stale fidelity prose catalog. Capability discovery remains authoritative for runtime availability; model limits remain in canonical topics. Consolidated identical calibration/dataset ID, digest and relative-path validation while preserving serialized contracts and the downstream active_sources consumer.
+
+## 2026-10-08 — update: Consolidate USD attribute access
+
+Production Isaac/Kit helpers now share USD attribute methods instead of fake-object fields. Host fakes implement those methods; the demo appearance check moved to the real USD lane. Host unit/contract/integration checks pass 1,018 cases, and the supported Isaac interpreter passes 79 focused schema, pose, cache, occlusion and geometry checks.

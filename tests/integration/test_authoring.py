@@ -85,16 +85,6 @@ def test_kit_stage_has_prim_uses_sdf_path_for_strict_isaac_stage(
     assert stage.calls == ["SdfPath"]
 
 
-def test_kit_stage_has_prim_falls_back_to_traverse_after_type_error():
-    class RejectingStage(_FakeStage):
-        def GetPrimAtPath(self, path: object) -> _FakePrim | None:
-            raise TypeError(f"unsupported path type: {type(path).__name__}")
-
-    stage = RejectingStage((_FakePrim("/World/Oven", "Xform"),))
-
-    assert _stage_has_prim(stage, "/World/Oven") is True
-
-
 def test_extension_controller_manual_profile_apply_authors_source_metadata():
     stage = _FakeStage(
         (
@@ -581,31 +571,6 @@ def test_extension_controller_attaches_array_to_object_and_motion_updates_frame(
     assert after_detach_frame is not None
     assert after_detach_frame.array_pose is not None
     assert after_detach_frame.array_pose.position_m == pytest.approx((0.0, 2.0, 1.1))
-
-
-def test_extension_controller_create_demo_object_authors_visible_cube():
-    stage = _FakeStage(
-        (_FakePrim("/World", "Xform", {"xformOp:translate": (0.0, 0.0, 0.0)}),)
-    )
-    controller = ExtensionController(
-        stage_context_provider=lambda: CurrentStageContext(stage, ())
-    )
-
-    assert controller.create_demo_object(stage=stage) == "/World/Oven"
-
-    oven = stage.GetPrimAtPath("/World/Oven")
-    assert oven is not None
-    assert oven.type_name == "Cube"
-    assert oven.attributes["xformOp:translate"] == (2.0, 0.0, 0.0)
-    assert oven.attributes["size"] == 0.9
-    assert oven.attributes["displayColor"] == (0.95, 0.48, 0.08)
-    assert oven.attributes["displayOpacity"] == 1.0
-    assert oven.attributes["doubleSided"] is True
-    assert controller.state.object_prim_path == "/World/Oven"
-    assert controller.state.object_label == "Oven"
-    assert stage.GetPrimAtPath("/World/KeyLight") is not None
-    assert stage.GetPrimAtPath("/World/DemoObjectDomeLight") is not None
-    assert stage.GetPrimAtPath("/World/DemoObjectFillLight") is not None
 
 
 def test_extension_controller_missing_attached_object_is_readable(tmp_path):

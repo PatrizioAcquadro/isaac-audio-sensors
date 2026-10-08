@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Iterable, Mapping
-from contextlib import suppress
 from typing import Any
 
+from isaac_audio_sensors.isaac.pose_resolver import (
+    prim_attributes as _prim_attrs,
+)
 from isaac_audio_sensors.isaac.pose_resolver import (
     prim_path,
     prim_type_name,
     quat_from_any,
     usd_path,
     vec3_from_any,
+)
+from isaac_audio_sensors.isaac.stage_audio import (
+    _set_attr as _set_prim_attr,
 )
 from isaac_audio_sensors.isaac.stage_audio import (
     get_or_define_prim,
@@ -51,37 +56,14 @@ def current_omni_stage_context() -> CurrentStageContext:
 
 
 def _stage_has_prim(stage: Any, path: str) -> bool:
-    if not path:
-        return False
-    if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (usd_path(path), path):
-            try:
-                prim = stage.GetPrimAtPath(candidate_path)
-            except TypeError:
-                continue
-            if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
-                return True
-    if hasattr(stage, "Traverse"):
-        return any(prim_path(prim) == path for prim in stage.Traverse())
-    return False
+    return _stage_prim_at_path(stage, path) is not None
 
 
 def _stage_prim_at_path(stage: Any | None, path: str) -> Any | None:
     if stage is None or not path:
         return None
-    if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (usd_path(path), path):
-            try:
-                prim = stage.GetPrimAtPath(candidate_path)
-            except TypeError:
-                continue
-            if prim is not None and (not hasattr(prim, "IsValid") or prim.IsValid()):
-                return prim
-    if hasattr(stage, "Traverse"):
-        for prim in stage.Traverse():
-            if prim_path(prim) == path:
-                return prim
-    return None
+    prim = stage.GetPrimAtPath(usd_path(path))
+    return prim if prim is not None and prim.IsValid() else None
 
 
 def _author_position_arg(
@@ -118,46 +100,12 @@ def _author_orientation_arg(
 
 def _prim_has_xform_pose(prim: Any) -> bool:
     attrs = _prim_attrs(prim)
-    return any(key in attrs for key in ("xformOp:translate", "usd_world_position"))
+    return "xformOp:translate" in attrs
 
 
 def _prim_has_xform_orientation(prim: Any) -> bool:
     attrs = _prim_attrs(prim)
-    return any(key in attrs for key in ("xformOp:orient", "usd_world_orientation"))
-
-
-def _prim_attrs(prim: Any) -> dict[str, Any]:
-    if hasattr(prim, "attributes"):
-        return dict(prim.attributes)
-    attrs: dict[str, Any] = {}
-    if hasattr(prim, "GetAttributes"):
-        for attr in prim.GetAttributes():
-            if hasattr(attr, "GetName") and hasattr(attr, "Get"):
-                attrs[str(attr.GetName())] = attr.Get()
-    return attrs
-
-
-def _set_prim_attr(prim: Any, name: str, value: Any) -> None:
-    if hasattr(prim, "attributes"):
-        prim.attributes[name] = value
-        return
-    if not hasattr(prim, "CreateAttribute"):
-        return
-    try:
-        from pxr import Sdf  # type: ignore
-    except ImportError:
-        return
-    value_type = getattr(Sdf.ValueTypeNames, "String", None)
-    if isinstance(value, bool):
-        value_type = getattr(Sdf.ValueTypeNames, "Bool", value_type)
-    elif isinstance(value, float):
-        value_type = getattr(Sdf.ValueTypeNames, "Double", value_type)
-    try:
-        attr = prim.CreateAttribute(name, value_type)
-        if hasattr(attr, "Set"):
-            attr.Set(value)
-    except Exception:
-        return
+    return "xformOp:orient" in attrs
 
 
 def _refresh_applied_profile_binding_snapshot(
@@ -279,13 +227,7 @@ def _discover_scene_objects(
 
 def _get_or_define_demo_object_prim(stage: Any, prim_path: str) -> Any:
     prim = get_or_define_prim(stage, prim_path=prim_path, prim_type="Cube")
-    if hasattr(prim, "type_name"):
-        prim.type_name = "Cube"
-        return prim
-    set_type_name = getattr(prim, "SetTypeName", None)
-    if callable(set_type_name):
-        with suppress(Exception):
-            set_type_name("Cube")
+    prim.SetTypeName("Cube")
     return prim
 
 
@@ -295,39 +237,6 @@ def _style_demo_object_prim(
     prim: Any,
     position_world: tuple[float, float, float],
 ) -> None:
-    if hasattr(prim, "attributes"):
-        if "xformOp:translate" not in prim.attributes:
-            set_prim_xform_pose(prim, position=position_world)
-        prim.attributes["size"] = 0.9
-        prim.attributes["displayColor"] = (0.95, 0.48, 0.08)
-        prim.attributes["displayOpacity"] = 1.0
-        prim.attributes["doubleSided"] = True
-        light = get_or_define_prim(
-            stage,
-            prim_path="/World/KeyLight",
-            prim_type="DistantLight",
-        )
-        if hasattr(light, "attributes"):
-            light.attributes["inputs:intensity"] = 750.0
-            light.attributes["inputs:angle"] = 0.35
-        dome = get_or_define_prim(
-            stage,
-            prim_path="/World/DemoObjectDomeLight",
-            prim_type="DomeLight",
-        )
-        if hasattr(dome, "attributes"):
-            dome.attributes["inputs:intensity"] = 450.0
-            dome.attributes["inputs:color"] = (1.0, 0.92, 0.82)
-        fill = get_or_define_prim(
-            stage,
-            prim_path="/World/DemoObjectFillLight",
-            prim_type="SphereLight",
-        )
-        if hasattr(fill, "attributes"):
-            fill.attributes["inputs:intensity"] = 1800.0
-            fill.attributes["inputs:radius"] = 3.0
-            set_prim_xform_pose(fill, position=(-3.0, -4.0, 3.0))
-        return
     try:
         from pxr import Gf, UsdGeom, UsdLux  # type: ignore
 

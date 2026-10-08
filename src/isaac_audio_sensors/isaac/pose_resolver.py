@@ -99,20 +99,8 @@ class IsaacStagePoseResolver:
         )
 
     def attrs(self, prim_or_path: Any) -> dict[str, Any]:
-        """Return current attributes, resolving fake and USD time samples."""
-
-        prim = self.prim(prim_or_path)
-        if hasattr(prim, "attributes"):
-            return {
-                str(key): _value_at_time(value, self.time_code)
-                for key, value in dict(prim.attributes).items()
-            }
-        attrs: dict[str, Any] = {}
-        if hasattr(prim, "GetAttributes"):
-            for attr in prim.GetAttributes():
-                if hasattr(attr, "GetName") and hasattr(attr, "Get"):
-                    attrs[str(attr.GetName())] = _usd_attr_get(attr, self.time_code)
-        return attrs
+        """Read the prim's attributes at this resolver's time code."""
+        return prim_attributes(self.prim(prim_or_path), time_code=self.time_code)
 
     def prim(self, prim_or_path: Any) -> Any:
         """Resolve a prim object or absolute prim path."""
@@ -198,19 +186,13 @@ def diagnostic_time_code(time_code: Any | None) -> Any | None:
 
 
 def prim_path(prim: Any) -> str:
-    """Return a USD-compatible prim path."""
-
-    if hasattr(prim, "GetPath"):
-        return str(prim.GetPath())
-    return str(getattr(prim, "path", ""))
+    """Return the prim's absolute USD path."""
+    return str(prim.GetPath())
 
 
 def prim_type_name(prim: Any) -> str:
-    """Return a USD-compatible prim type name."""
-
-    if hasattr(prim, "GetTypeName"):
-        return str(prim.GetTypeName())
-    return str(getattr(prim, "type_name", ""))
+    """Return the prim's USD type name."""
+    return str(prim.GetTypeName())
 
 
 def usd_path(path: str) -> Any:
@@ -305,7 +287,10 @@ def _usd_world_pose(prim: Any, *, time_code: Any | None) -> StagePose:
 
 
 def _usd_time_code(time_code: Any | None) -> Any:
-    from pxr import Usd  # type: ignore
+    try:
+        from pxr import Usd  # type: ignore
+    except ImportError:
+        return time_code
 
     if time_code is None:
         return Usd.TimeCode.Default()
@@ -331,32 +316,12 @@ def _usd_attr_get(attr: Any, time_code: Any | None) -> Any:
         return attr.Get(time_code)
 
 
-def _value_at_time(value: Any, time_code: Any | None) -> Any:
-    if hasattr(value, "Get") and callable(value.Get):
-        try:
-            return value.Get(time_code)
-        except TypeError:
-            return value.Get()
-    if isinstance(value, Mapping):
-        if time_code in value:
-            return value[time_code]
-        if time_code is not None:
-            try:
-                numeric_time = float(time_code)
-            except (TypeError, ValueError):
-                numeric_time = None
-            if numeric_time in value:
-                return value[numeric_time]
-            for sample_time, sample_value in value.items():
-                if (
-                    isinstance(sample_time, (int, float))
-                    and numeric_time is not None
-                    and abs(float(sample_time) - numeric_time) <= 1e-5
-                ):
-                    return sample_value
-        if "default" in value:
-            return value["default"]
-    return value
+def prim_attributes(prim: Any, *, time_code: Any | None = None) -> dict[str, Any]:
+    """Read USD attributes at the requested time."""
+    return {
+        str(attr.GetName()): _usd_attr_get(attr, time_code)
+        for attr in prim.GetAttributes()
+    }
 
 
 def _required_vec3_attr(

@@ -20,6 +20,7 @@ from isaac_audio_sensors.isaac.occlusion import (
     DEFAULT_MATERIAL_TRANSMISSION_DB,
     UsdTransmissionLossResolver,
 )
+from tests.helpers import FakeUsdPrim
 
 MEASURED = {
     "pra.rough_concrete": (0.02, 0.03, 0.03, 0.03, 0.04, 0.07),
@@ -133,9 +134,9 @@ def test_environment_accepts_only_resolvable_absorption_material_ids():
         )
 
 
-class _Prim:
+class _Prim(FakeUsdPrim):
     def __init__(self, attributes):
-        self.attributes = attributes
+        super().__init__("/World/Wall", "Mesh", attributes)
 
 
 class _Stage:

@@ -1320,7 +1320,6 @@ class AuthoringService(ControllerService):
             attrs = _prim_attrs(prim)
             for name in (
                 "xformOp:orient",
-                "usd_world_orientation",
                 "ias:orientation_world_quat",
             ):
                 if attrs.get(name) is not None:

@@ -69,6 +69,11 @@ and qualification limits belong to the canonical acoustic topics and status,
 not a parallel prose catalog embedded in Python. Frame v4, manifest v4,
 frame-record v2, and calibration v1 are unchanged.
 
+USD adapters now use `GetAttributes`, `GetAttribute`, `CreateAttribute`,
+`GetTypeName`, `SetTypeName`, and stage prim methods. Dictionary-backed fake
+fields are no longer a production interface; host tests implement the same USD
+methods. Authored IAS metadata and lazy optional-runtime imports remain supported.
+
 ## Consequences
 
 The core stays portable and testable, optional runtimes remain lazy, downstream ownership is explicit, and release archives can be audited against one generic product boundary.

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -187,21 +186,9 @@ def attach_sound_source_attrs(
 
 
 def _prim_has_authored_orientation(prim: Any) -> bool:
-    attrs: dict[str, Any] = {}
-    if hasattr(prim, "attributes"):
-        attrs = dict(prim.attributes)
-    else:
-        getter = getattr(prim, "GetAttributes", None)
-        if callable(getter):
-            for attribute in getter():
-                if hasattr(attribute, "GetName") and hasattr(attribute, "Get"):
-                    attrs[str(attribute.GetName())] = attribute.Get()
-    for name in (
-        "xformOp:orient",
-        "usd_world_orientation",
-        "ias:orientation_world_quat",
-    ):
-        if name in attrs and attrs[name] is not None:
+    attrs = usd.prim_attributes(prim)
+    for name in ("xformOp:orient", "ias:orientation_world_quat"):
+        if attrs.get(name) is not None:
             usd.quat_from_any(attrs[name])
             return True
     return False
@@ -281,15 +268,8 @@ def clear_array_object_binding_attrs(prim: Any) -> None:
 
 def clear_prim_attrs(prim: Any, names: tuple[str, ...]) -> None:
     """Remove authored attributes when present."""
-
-    if hasattr(prim, "attributes"):
-        for name in names:
-            prim.attributes.pop(name, None)
-        return
     for name in names:
-        if hasattr(prim, "RemoveProperty"):
-            with suppress(Exception):
-                prim.RemoveProperty(name)
+        prim.RemoveProperty(name)
 
 
 def set_prim_xform_pose(
@@ -510,21 +490,8 @@ def attach_microphone_attrs(
 
 
 def remove_prim(stage: Any, prim_path: str) -> None:
-    """Remove a prim when supported by the stage."""
-
-    if hasattr(stage, "RemovePrim"):
-        try:
-            stage.RemovePrim(usd.usd_path(prim_path))
-            return
-        except Exception:
-            try:
-                stage.RemovePrim(prim_path)
-                return
-            except Exception:
-                pass
-    prims = getattr(stage, "_prims", None)
-    if isinstance(prims, list):
-        stage._prims = [prim for prim in prims if usd.prim_path(prim) != prim_path]
+    """Remove a prim and its descendants."""
+    stage.RemovePrim(usd.usd_path(prim_path))
 
 
 def get_or_define_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any:
@@ -552,29 +519,14 @@ def _define_or_retype_prim(stage: Any, *, prim_path: str, prim_type: str) -> Any
     if callable(set_type_name):
         set_type_name(prim_type)
         return prim
-    if hasattr(prim, "type_name"):
-        prim.type_name = prim_type
-        return prim
     return stage.DefinePrim(prim_path, prim_type)
 
 
 def _copy_prim_attrs(source: Any, dest: Any) -> None:
-    if hasattr(source, "attributes") and hasattr(dest, "attributes"):
-        dest.attributes.update(dict(source.attributes))
-        return
-    if not hasattr(source, "GetAttributes") or not hasattr(dest, "CreateAttribute"):
-        return
     for attr in source.GetAttributes():
-        try:
-            name = attr.GetName()
-            value = attr.Get()
-            type_name = attr.GetTypeName() if hasattr(attr, "GetTypeName") else None
-            custom = attr.IsCustom() if hasattr(attr, "IsCustom") else True
-            dest_attr = dest.CreateAttribute(name, type_name, custom=custom)
-            if hasattr(dest_attr, "Set"):
-                dest_attr.Set(value)
-        except Exception:
-            continue
+        dest.CreateAttribute(
+            attr.GetName(), attr.GetTypeName(), custom=attr.IsCustom()
+        ).Set(attr.Get())
 
 
 def _require_stage(stage: Any) -> None:
@@ -583,22 +535,8 @@ def _require_stage(stage: Any) -> None:
 
 
 def _existing_prim(stage: Any, prim_path: str) -> Any | None:
-    if hasattr(stage, "GetPrimAtPath"):
-        for candidate_path in (usd.usd_path(prim_path), prim_path):
-            try:
-                prim = stage.GetPrimAtPath(candidate_path)
-            except TypeError:
-                continue
-            if _prim_is_valid(prim):
-                return prim
-    if hasattr(stage, "Traverse"):
-        for prim in stage.Traverse():
-            path = getattr(prim, "path", None)
-            if path is None and hasattr(prim, "GetPath"):
-                path = prim.GetPath()
-            if str(path) == prim_path:
-                return prim
-    return None
+    prim = stage.GetPrimAtPath(usd.usd_path(prim_path))
+    return prim if _prim_is_valid(prim) else None
 
 
 def _prim_is_valid(prim: Any) -> bool:
@@ -613,19 +551,12 @@ def _prim_is_valid(prim: Any) -> bool:
 
 
 def _set_attr(prim: Any, name: str, value: object) -> None:
-    if hasattr(prim, "CreateAttribute"):
+    attr = prim.GetAttribute(name)
+    if attr is None or not attr.IsValid():
         attr = prim.CreateAttribute(
-            name,
-            _usd_value_type_name(value, attr_name=name),
-            custom=True,
+            name, _usd_value_type_name(value, attr_name=name), custom=True
         )
-        if hasattr(attr, "Set"):
-            attr.Set(_usd_value(value, attr_name=name))
-            return
-    if hasattr(prim, "attributes"):
-        prim.attributes[name] = value
-        return
-    setattr(prim, name.replace(":", "_"), value)
+    attr.Set(_usd_value(value, attr_name=name))
 
 
 def _set_usd_translate_op(

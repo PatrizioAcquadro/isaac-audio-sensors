@@ -11,7 +11,7 @@ from typing import Any
 
 from isaac_audio_sensors.core.acoustics.materials import SEMANTIC_ABSORPTION
 from isaac_audio_sensors.core.math_utils import Vector3
-from isaac_audio_sensors.isaac.pose_resolver import vec3_from_any
+from isaac_audio_sensors.isaac.pose_resolver import prim_attributes, vec3_from_any
 
 ENVIRONMENT_MIN_WORLD_ATTR = "ias:environment_min_world"
 ENVIRONMENT_MAX_WORLD_ATTR = "ias:environment_max_world"
@@ -89,22 +89,6 @@ def resolve_environment_absorption(
     return default, "config"
 
 
-def prim_attributes(prim: Any, *, time_code: Any | None = None) -> dict[str, Any]:
-    """Read prim attributes from fake (dict-backed) or real USD prims."""
-
-    if hasattr(prim, "attributes"):
-        return {
-            str(key): _value_of(value, time_code)
-            for key, value in dict(prim.attributes).items()
-        }
-    attrs: dict[str, Any] = {}
-    if hasattr(prim, "GetAttributes"):
-        for attr in prim.GetAttributes():
-            if hasattr(attr, "GetName") and hasattr(attr, "Get"):
-                attrs[str(attr.GetName())] = _value_of(attr, time_code)
-    return attrs
-
-
 def _prim_labels(attrs: Mapping[str, Any]) -> tuple[str, ...]:
     labels: list[str] = []
     material = attrs.get(MATERIAL_ATTR)
@@ -153,12 +137,3 @@ def _optional_vec3(value: Any) -> Vector3 | None:
     if value is None:
         return None
     return vec3_from_any(value)
-
-
-def _value_of(value: Any, time_code: Any | None) -> Any:
-    if hasattr(value, "Get") and callable(value.Get):
-        try:
-            return value.Get(time_code)
-        except TypeError:
-            return value.Get()
-    return value
