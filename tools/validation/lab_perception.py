@@ -254,6 +254,7 @@ def onset_responses(rows, *, localization):
 
 def summarize(rows):
     resolved = [r for r in rows if r["exact"] is not None]
+    active_resolved = [r for r in resolved if r["received_count"] > 0]
     errors = [e for r in resolved for e in r["errors"]]
     matches = sum(r["expected"] - r["misses"] for r in resolved)
     detected = sum(r["detected"] for r in resolved)
@@ -275,6 +276,13 @@ def summarize(rows):
         resolvable_updates=len(resolved),
         exact=float(np.mean([r["exact"] for r in resolved])) if resolved else None,
         count=float(np.mean([r["count"] for r in resolved])) if resolved else None,
+        active_resolvable_updates=len(active_resolved),
+        active_complete_set_rate=float(np.mean([r["exact"] for r in active_resolved]))
+        if active_resolved
+        else None,
+        active_count_rate=float(np.mean([r["count"] for r in active_resolved]))
+        if active_resolved
+        else None,
         precision=matches / detected if detected else None,
         recall=matches / expected if expected else None,
         angular_p95=float(np.percentile(errors, 95)) if errors else None,

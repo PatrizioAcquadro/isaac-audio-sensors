@@ -80,20 +80,39 @@ def test_onset_response_is_causal_source_specific_and_segment_bounded():
     assert activity[0]["response_delay_ms"] == pytest.approx(100)
 
 
-def test_unresolved_candidates_do_not_count_as_selected_directions():
-    from tools.validation.lab_perception import assess
+def test_unresolved_candidates_do_not_count_as_selected_directions(monkeypatch):
+    from isaac_audio_sensors.core.types import DoaEstimate
+    from tools.validation import lab_perception
 
+    class AmbiguousLocalizer:
+        def localize(self, samples, positions, sample_rate_hz):
+            return (
+                (
+                    DoaEstimate(
+                        estimated_bearing_deg=None,
+                        candidate_bearing_deg=(0.0, 180.0),
+                        ambiguity_class="ambiguous_front_back",
+                    ),
+                ),
+                {"status": "events"},
+            )
+
+    monkeypatch.setattr(lab_perception, "MaintainedEventLocalizer", AmbiguousLocalizer)
     data = dict(
-        received_power=np.ones((1, 1)),
-        direct_power=np.ones((1, 1)),
-        noise_power=np.full(1, 0.01),
-        directions=np.array([[[1.0, 0, 0]]]),
-        scheduled_count=np.ones(1),
+        samples=np.full((2, 12800), 0.1, dtype=np.float32),
+        positions=np.array([[-0.03, 0, 0], [0.03, 0, 0]]),
+        received_power=np.ones((8, 1)),
+        direct_power=np.ones((8, 1)),
+        noise_power=np.full(8, 0.01),
+        directions=np.tile([[[1.0, 0, 0]]], (8, 1, 1)),
+        scheduled_count=np.ones(8),
     )
-    result = assess(np.empty((0, 3)), {"status": "events"}, data, 0)
+    result = lab_perception.run_stream(data)[-1]
     assert not result["exact"]
     assert result["misses"] == 1
     assert result["matched_source_indices"] == []
+    assert result["ambiguity_count"] == result["unresolved_observation_count"] == 1
+    assert result["detected"] == 0
 
 
 def test_received_input_rejects_partial_windows_and_misaligned_truth(tmp_path):
@@ -117,3 +136,27 @@ def test_received_input_rejects_partial_windows_and_misaligned_truth(tmp_path):
     np.savez(path, **{**data, "directions": data["directions"][:-1]})
     with pytest.raises(ValueError, match="references"):
         load_input(path)
+
+
+def test_quiet_windows_do_not_inflate_active_complete_set_rate():
+    from tools.validation.lab_perception import assess, summarize
+
+    data = dict(
+        received_power=np.array([[0.0], [1.0]]),
+        direct_power=np.array([[0.0], [1.0]]),
+        noise_power=np.full(2, 0.01),
+        directions=np.tile([[[1.0, 0, 0]]], (2, 1, 1)),
+        scheduled_count=np.zeros(2),
+    )
+    rows = [
+        {
+            **assess(np.empty((0, 3)), {"status": "no_events"}, data, step),
+            "compute_ms": 0.0,
+            "completion_delay_ms": 0.0,
+        }
+        for step in range(2)
+    ]
+    result = summarize(rows)
+    assert result["exact"] == 0.5
+    assert result["active_complete_set_rate"] == 0
+    assert result["active_resolvable_updates"] == 1
