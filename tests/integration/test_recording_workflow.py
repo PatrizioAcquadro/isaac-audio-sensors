@@ -29,8 +29,10 @@ from isaac_audio_sensors.kit.workflow import (
     GuidedWorkflow,
     StageStatus,
 )
+from isaac_audio_sensors.recording import SessionDataset
 from isaac_audio_sensors.recording.serialization import read_dataset_manifest
 from isaac_audio_sensors.recording.validate import Finding, validate_dataset
+from tests.helpers import FakeUsdPrim, FakeUsdStage
 
 
 class _FakeStage:
@@ -434,6 +436,99 @@ def test_guided_recording_end_to_end_validates_and_reports_progress(
     assert controller.guided_workflow.status(GuidedStage.RECORD) is (
         StageStatus.COMPLETE
     )
+
+
+@pytest.mark.parametrize(
+    "layout", ("quad_front", "quad_cross", "two_mic_y", "custom_quad")
+)
+def test_guided_recording_preserves_discovered_channel_geometry_and_pcm(
+    tmp_path: Path,
+    layout: str,
+) -> None:
+    stage = FakeUsdStage((FakeUsdPrim("/World", "Xform"),))
+    controller = ExtensionController(
+        stage_context_provider=lambda: CurrentStageContext(stage, ())
+    )
+    assert controller.guided_apply_preset("xvf3800_quad_demo") is not None
+    controller.state.layout_name = "quad_front" if layout == "custom_quad" else layout
+    controller.state.trace_enabled = False
+    controller.state.waveform_enabled = False
+    assert controller.author_array() is not None
+    if layout == "custom_quad":
+        for name, mic_id in zip(
+            ("front", "left", "rear", "right"),
+            ("mic_z", "mic_w", "mic_b", "mic_a"),
+            strict=True,
+        ):
+            stage.GetPrimAtPath(
+                f"{controller.state.array_prim_path}/{name}"
+            ).attributes["ias:microphone_id"] = mic_id
+    assert controller.author_source() is not None
+    assert controller.guided_validate().ok
+    sensor = controller.guided_start_run()
+    assert sensor is not None
+    _enter_record_stage(controller)
+
+    block = sensor.latest_signal_block
+    array = sensor.latest_array_spec
+    assert block is not None and array is not None
+    expected_ids = tuple(mic.mic_id for mic in array.microphones)
+    expected_positions = tuple(mic.relative_position_m for mic in array.microphones)
+    assert block.microphone_ids == expected_ids
+    assert block.microphone_positions_m == expected_positions
+    if layout.startswith("quad"):
+        assert expected_ids == ("front", "left", "rear", "right")
+    elif layout == "custom_quad":
+        assert expected_ids == ("mic_z", "mic_w", "mic_b", "mic_a")
+
+    session = tmp_path / "recorded"
+    recorder = controller.guided_start_recording(session, "discovered", 2, False)
+    assert recorder is not None
+    assert tuple(recorder.configuration["channel_order"]) == expected_ids
+    recorded_samples = []
+    for _ in range(3):
+        assert controller.update_sensor() is not None
+        block = sensor.latest_signal_block
+        assert block is not None
+        assert block.microphone_ids == expected_ids
+        assert block.microphone_positions_m == expected_positions
+        recorded_samples.append(block.samples.copy())
+    assert controller.guided_recording_status.frames == 3
+    assert controller.guided_recording_status.dropped_frames == 0
+    assert controller.guided_stop_recording() is not None
+    destination = tmp_path / "exported"
+    assert controller.guided_export(destination) == destination
+
+    for root in (session, destination):
+        assert validate_dataset(root).status in {"passed", "passed_with_warnings"}
+        dataset = SessionDataset.open(root)
+        assert dataset.manifest.channel_order == expected_ids
+        records = list(dataset.iter_records())
+        assert len(records) == 3
+        for record, samples in zip(records, recorded_samples, strict=True):
+            assert record.frame.channel_validity == dict.fromkeys(expected_ids, True)
+            assert {
+                mic_id: tuple(position)
+                for mic_id, position in record.frame.diagnostics["signal"][
+                    "microphone_positions_m"
+                ].items()
+            } == dict(zip(expected_ids, expected_positions, strict=True))
+            np.testing.assert_array_equal(dataset.read_frame_audio(record), samples)
+    controller.close_sensor()
+
+
+def test_guided_recording_requires_current_frame_before_creating_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    controller, sensor = _run_ready_controller(monkeypatch, [_frame(0)])
+    _enter_record_stage(controller)
+    sensor.reset()
+    session = tmp_path / "session"
+
+    assert controller.guided_start_recording(session, "no_frame", 2, False) is None
+    assert "Capture a sensor frame before recording" in controller.state.error_message
+    assert not session.exists()
 
 
 def test_guided_recording_marks_sensor_and_detected_simulator_resets(

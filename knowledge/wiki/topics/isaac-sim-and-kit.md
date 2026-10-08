@@ -117,7 +117,7 @@ The node publishes the latest frame ID, timestamp, observation count, first obse
 
 Replicator integration is a lazy Isaac bridge used by the extension; core frames, package JSON/JSONL writers, the base sensor capture path, and Isaac Lab do not require it. The registered writer receives frames directly from extension updates. The v1 payload and configuration retain `annotator_name` as compatibility metadata, but no runtime annotator is registered.
 
-Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and may inject a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes. The sensor also retains the exact latest signal block independently. Guided dataset recording consumes that block directly, so it neither rereads a WAV nor depends on Sensor WAV output being enabled.
+Kit services own profile libraries, validation, output paths, and application persistence. The sensor-session service appends JSONL only for new frames and may inject a constructed core `WaveformSink`; the live sensor uses and closes that sink without knowing UI paths or output modes. The sensor also retains the exact latest signal block independently. Guided dataset recording consumes that block directly, so it neither rereads a WAV nor depends on Sensor WAV output being enabled. Its session channel order comes from the captured frame, preserving the producer's PCM-row and microphone-geometry correspondence. USD child discovery can have a different order from the named layout; quad child prims use `front, left, rear, right`. Recording requires a captured frame, and subsequent channel-order changes still fail the recorder's contract checks.
 
 ## Troubleshooting
 
@@ -136,6 +136,8 @@ If Kit mix capture is refused, verify that at least one `OmniSound` has a real `
 Forced updates on a paused timeline can repeat the same signal window. The common pipeline treats those repeats as discontinuities: repeated 50 ms snapshots cannot satisfy Auditok's 100 ms minimum activity. Advance sample time contiguously for streaming activity; inactive snapshots still update microphone meters and preserve genuine earlier activity in UI history.
 
 ## Version Notes
+
+- 2026-10-02: Corrected guided recording channel order for USD-discovered quad and custom arrays. Regression coverage verifies exact PCM and ID/geometry correspondence through recording and portable dataset export with Sensor WAV disabled; both quad layouts and the two-microphone layout are covered.
 
 - 2026-09-04: Subphase 06.1 centralizes geometry and continuity resets in Core. Kit smoke now distinguishes genuine contiguous activity from repeated paused snapshots; Isaac lifecycle resets remain explicit.
 
