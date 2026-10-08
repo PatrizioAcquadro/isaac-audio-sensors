@@ -72,13 +72,7 @@ class _FakeModel:
 
 
 class _FakeWidget:
-    _context_stack: list[_FakeWidget] = []
-
     def __init__(self, *args: object, **kwargs: object) -> None:
-        self.kind = str(kwargs.pop("_kind", "Widget"))
-        self.ui = kwargs.pop("_ui", None)
-        self.args = args
-        self.kwargs = kwargs
         self.model = kwargs.pop("model", None)
         if self.model is None and args and isinstance(args[0], _FakeModel):
             self.model = args[0]
@@ -92,25 +86,15 @@ class _FakeWidget:
         self._collapsed = bool(kwargs.get("collapsed", False))
         self.collapsed_changed_fn = None
         self.visibility_changed_fn = None
-        self.children: list[_FakeWidget] = []
-        self.parent = (
-            _FakeWidget._context_stack[-1] if _FakeWidget._context_stack else None
-        )
-        if self.parent is not None:
-            self.parent.children.append(self)
-        if self.ui is not None:
-            self.ui.created.append(self)
 
     def __enter__(self) -> _FakeWidget:
-        _FakeWidget._context_stack.append(self)
         return self
 
     def __exit__(self, *exc_info: object) -> bool:
-        _FakeWidget._context_stack.pop()
         return False
 
     def clear(self) -> None:
-        self.children.clear()
+        pass
 
     def set_visibility_changed_fn(self, callback: object) -> None:
         self.visibility_changed_fn = callback
@@ -143,26 +127,27 @@ class _FakeByteImageProvider:
 class _FakeUI(ModuleType):
     def __init__(self) -> None:
         super().__init__("omni.ui")
-        _FakeWidget._context_stack = []
-        self.created: list[_FakeWidget] = []
-        self.Window = self._widget_factory("Window")
-        self.ScrollingFrame = self._widget_factory("ScrollingFrame")
-        self.VStack = self._widget_factory("VStack")
-        self.HStack = self._widget_factory("HStack")
-        self.ZStack = self._widget_factory("ZStack")
-        self.Frame = self._widget_factory("Frame")
-        self.Spacer = self._widget_factory("Spacer")
-        self.Rectangle = self._widget_factory("Rectangle")
-        self.CollapsableFrame = self._widget_factory("CollapsableFrame")
-        self.Label = self._widget_factory("Label")
-        self.StringField = self._widget_factory("StringField")
-        self.FloatDrag = self._widget_factory("FloatDrag")
-        self.IntDrag = self._widget_factory("IntDrag")
-        self.CheckBox = self._widget_factory("CheckBox")
-        self.ComboBox = self._widget_factory("ComboBox")
-        self.Button = self._widget_factory("Button")
-        self.ProgressBar = self._widget_factory("ProgressBar")
-        self.ImageWithProvider = self._widget_factory("ImageWithProvider")
+        for name in (
+            "Window",
+            "ScrollingFrame",
+            "VStack",
+            "HStack",
+            "ZStack",
+            "Frame",
+            "Spacer",
+            "Rectangle",
+            "CollapsableFrame",
+            "Label",
+            "StringField",
+            "FloatDrag",
+            "IntDrag",
+            "CheckBox",
+            "ComboBox",
+            "Button",
+            "ProgressBar",
+            "ImageWithProvider",
+        ):
+            setattr(self, name, _FakeWidget)
         self.ByteImageProvider = _FakeByteImageProvider
         self.SimpleStringModel = _FakeModel
         self.SimpleFloatModel = _FakeModel
@@ -175,12 +160,6 @@ class _FakeUI(ModuleType):
             LEFT_CENTER="left_center",
             RIGHT_CENTER="right_center",
         )
-
-    def _widget_factory(self, kind: str):
-        def _create(*args: object, **kwargs: object) -> _FakeWidget:
-            return _FakeWidget(*args, _kind=kind, _ui=self, **kwargs)
-
-        return _create
 
 
 class _FakeAction:

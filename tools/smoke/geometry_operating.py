@@ -7,7 +7,7 @@ def run_geometry_operating(controller, library, specular_library, output):
     import numpy as np
     import omni.kit.app
     import omni.usd
-    from live_omniverse_extension_ux import _capture_app_screenshot
+    from kit_capture import _capture_app_screenshot
     from pxr import Sdf, UsdGeom, UsdLux
 
     from isaac_audio_sensors.core.directivity import DirectivityPattern

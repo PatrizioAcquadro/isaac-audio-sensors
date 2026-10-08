@@ -28,7 +28,9 @@ Use focused tests during iteration, then run the complete relevant lane before c
 
 `make smoke-isaac-lab` exercises real Lab inheritance, multi-environment bindings, fixed-shape tensors, selected reset/update, and CUDA placement; it fails when the GPU path is unavailable.
 
-`make smoke-kit` is the authority for real Kit rendering and wiring. It exercises the extension manager, window, instruments, OmniGraph, USD operations, frame and audio output, qualitative device-mix capture, cleanup, and shutdown on the supported runtime and GPU. Changes that remove simulated UI coverage require this gate to finish with `passed` and every workflow step passing.
+`make smoke-kit` is the authority for real Kit rendering and wiring. It exercises the extension manager, window, instruments, OmniGraph, USD operations, frame and audio output, qualitative device-mix capture, cleanup, and shutdown on the supported runtime and GPU. One entrypoint aggregates scenario modules for distribution, UI, attachment/configuration, audio outputs, and capture. Host fakes check state/callback logic; the live gate must finish with `passed` and every workflow step passing.
+
+Documentation checks traverse only maintained Markdown roots, excluding environments, raw material, and generated outputs.
 
 Automatic smoke and diagnostic artifacts use temporary paths under `build/validation/isaac_audio_sensors/`. `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT` remains the explicit Kit override.
 

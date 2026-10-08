@@ -312,7 +312,7 @@ def main():
         evidence["native_coordinate_max_error_m"] = float(
             np.max(np.abs(vertices - expected))
         )
-        from live_omniverse_extension_ux import _capture_app_screenshot
+        from kit_capture import _capture_app_screenshot
 
         for _ in range(10):
             omni.kit.app.get_app().update()
