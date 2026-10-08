@@ -58,7 +58,9 @@ class SafePreset:
 
         values = self.values
         return {
+            "schema_version": "ias.omni_extension_binding.v7",
             "backend": values["backend"],
+            "analytic_acoustics": {},
             "array": {
                 "prim_path": values["array_prim_path"],
                 "array_id": values["array_id"],

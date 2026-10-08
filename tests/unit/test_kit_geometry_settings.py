@@ -1,5 +1,6 @@
 """Operating settings retain native defaults and reject corrupt saved input."""
 
+import json
 from dataclasses import asdict
 
 import pytest
@@ -62,8 +63,10 @@ def test_binding_roundtrip_and_legacy_defaults(tmp_path):
     assert geometry_settings(other.state) == geometry_settings(state)
     payload = controller.config_summary_dict()
     payload.pop("geometry_acoustics")
-    other._configuration._apply_config_summary(payload)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    assert other.import_config_summary(path), other.state.error_message
     assert geometry_settings(other.state) == geometry_settings(GeometrySettings())
     payload["geometry_acoustics"] = {"nlos_enabled": "false"}
-    with pytest.raises(ValueError):
-        other._configuration._preflight_config_summary(payload)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    assert other.import_config_summary(path) is None
+    assert geometry_settings(other.state) == geometry_settings(GeometrySettings())

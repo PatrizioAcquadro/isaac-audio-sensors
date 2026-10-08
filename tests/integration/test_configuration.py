@@ -576,3 +576,30 @@ def test_kit_session_accepts_analytic_occlusion() -> None:
     assert sensor.backend == "analytic_acoustics"
     assert sensor.occlusion_enabled is True
     controller.close_sensor()
+
+
+@pytest.mark.parametrize(
+    "invalid_section",
+    (
+        {"recording": {"replicator": {"write_count": "invalid"}}},
+        {"overlay": {"primitives": [42]}},
+    ),
+)
+def test_config_import_failure_preserves_state_and_live_session(
+    tmp_path, monkeypatch, invalid_section
+):
+    controller = ExtensionController()
+    original = controller.config_summary_dict()
+    payload = controller.config_summary_dict()
+    payload["array"]["position_world"] = [8.0, 9.0, 10.0]
+    payload["source"]["source_id"] = "must_not_apply"
+    payload.update(invalid_section)
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    closed = []
+    monkeypatch.setattr(controller._geometry, "close", lambda: closed.append(True))
+
+    assert controller.import_config_summary(path) is None
+    assert controller.config_summary_dict() == original
+    assert not closed
+    assert "Config import failed" in controller.state.error_message

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Mapping
+from dataclasses import fields, replace
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,7 @@ from .stage_context import (
     _path_name,
 )
 from .state import (
+    ExtensionUiState,
     _authored_metadata_from_dict,
     _discovered_summary_from_dict,
     _json_ready,
@@ -64,6 +66,72 @@ from .validation.checks import (
     check_sound_profile_library_sequence,
 )
 from .validation.results import ValidationReport
+
+# JSON key, UI state field, input conversion.
+_SCALAR_FIELDS = {
+    "guided": (("mode_enabled", "guided_mode_enabled", bool),),
+    "guided.recording": (
+        ("dataset_id", "guided_dataset_id", str),
+        ("shard_max_frames", "guided_shard_max_frames", int),
+        ("shard_episode_aligned", "guided_record_aligned", bool),
+        ("scene_id", "guided_scene_id", str),
+        ("environment_id", "guided_environment_id", str),
+        ("split_group", "guided_split_group", str),
+        ("session_seed", "guided_session_seed", int),
+    ),
+    "guided.export": (
+        ("split_enabled", "guided_split_enabled", bool),
+        ("train_ratio", "guided_split_train_ratio", float),
+        ("validation_ratio", "guided_split_validation_ratio", float),
+        ("test_ratio", "guided_split_test_ratio", float),
+    ),
+    "device": (
+        ("device_id", "device_id", str),
+        ("compute_device", "compute_device", str),
+    ),
+    "array": (
+        ("prim_path", "array_prim_path", str),
+        ("array_id", "array_id", str),
+        ("layout_name", "layout_name", str),
+        ("sample_rate_hz", "sample_rate_hz", int),
+        ("coordinate_convention", "coordinate_convention", str),
+    ),
+    "array_binding": (("attached", "array_attached_to_object", bool),),
+    "source": (
+        ("prim_path", "source_prim_path", str),
+        ("source_id", "source_id", str),
+        ("class_label", "source_class_label", str),
+        ("audio_asset_path", "audio_asset_path", str),
+        ("start_time_s", "source_start_time_s", float),
+        ("duration_s", "source_duration_s", float),
+        ("gain_db", "source_gain_db", float),
+    ),
+    "object_binding": (("attached", "source_attached_to_object", bool),),
+    "lifecycle": (
+        ("update_period_s", "update_period_s", float),
+        ("max_observations", "max_observations", int),
+        ("debug_overlay_enabled", "debug_overlay_enabled", bool),
+        ("occlusion_enabled", "occlusion_enabled", bool),
+        ("waveform_enabled", "waveform_enabled", bool),
+        ("follow_viewport_selection", "follow_viewport_selection", bool),
+        ("live_sync_array_pose", "live_sync_array_pose", bool),
+        ("live_sync_source_pose", "live_sync_source_pose", bool),
+        ("usd_debug_enabled", "usd_debug_enabled", bool),
+    ),
+    "environment": (
+        ("mode", "environment_resolution_mode", str),
+        ("containment_tolerance_m", "environment_containment_tolerance_m", float),
+    ),
+    "analytic_acoustics": (
+        ("max_order", "analytic_max_order", int),
+        ("air_absorption", "analytic_air_absorption", bool),
+        ("ray_tracing", "analytic_ray_tracing", bool),
+    ),
+}
+
+
+def _scalar_values(state: ExtensionUiState, section: str) -> dict[str, Any]:
+    return {key: getattr(state, name) for key, name, _ in _SCALAR_FIELDS[section]}
 
 
 class ConfigurationService(ControllerService):
@@ -101,13 +169,6 @@ class ConfigurationService(ControllerService):
             requested_path = path or self.state.config_import_path
             input_path = _resolve_gui_output_path(requested_path)
             payload = json.loads(input_path.read_text(encoding="utf-8"))
-            _raise_first(
-                ValidationReport(
-                    check_config_schema_version(payload.get("schema_version"))
-                )
-            )
-            self._preflight_config_summary(payload)
-            self._host._geometry.close()
             self._apply_config_summary(payload)
             self.state.config_import_path = str(requested_path)
             missing_attachment = (
@@ -155,54 +216,35 @@ class ConfigurationService(ControllerService):
                 },
                 "direction_estimation": {"enabled": state.doa_enabled},
                 "environment": {
-                    "mode": state.environment_resolution_mode,
+                    **_scalar_values(state, "environment"),
                     "anchor_prim_path": (
                         state.environment_anchor_prim_path or None
                         if state.environment_resolution_mode == "anchor"
                         else None
                     ),
-                    "containment_tolerance_m": (
-                        state.environment_containment_tolerance_m
-                    ),
                     "resolved": state.latest_environment_summary,
                 },
                 "analytic_acoustics": {
-                    "max_order": state.analytic_max_order,
-                    "air_absorption": state.analytic_air_absorption,
-                    "ray_tracing": state.analytic_ray_tracing,
+                    **_scalar_values(state, "analytic_acoustics"),
                 },
                 "device": {
-                    "device_id": state.device_id,
-                    "compute_device": state.compute_device,
+                    **_scalar_values(state, "device"),
                 },
                 "calibration": {
                     "profile_path": state.calibration_profile_path or None,
                 },
                 "guided": {
-                    "mode_enabled": state.guided_mode_enabled,
+                    **_scalar_values(state, "guided"),
                     "preset_id": state.guided_preset_id or None,
                     "recording": {
-                        "dataset_id": state.guided_dataset_id,
-                        "shard_max_frames": state.guided_shard_max_frames,
-                        "shard_episode_aligned": state.guided_record_aligned,
-                        "scene_id": state.guided_scene_id,
-                        "environment_id": state.guided_environment_id,
-                        "split_group": state.guided_split_group,
-                        "session_seed": state.guided_session_seed,
+                        **_scalar_values(state, "guided.recording"),
                     },
                     "export": {
-                        "split_enabled": state.guided_split_enabled,
-                        "train_ratio": state.guided_split_train_ratio,
-                        "validation_ratio": state.guided_split_validation_ratio,
-                        "test_ratio": state.guided_split_test_ratio,
+                        **_scalar_values(state, "guided.export"),
                     },
                 },
                 "array": {
-                    "prim_path": state.array_prim_path,
-                    "array_id": state.array_id,
-                    "layout_name": state.layout_name,
-                    "sample_rate_hz": state.sample_rate_hz,
-                    "coordinate_convention": state.coordinate_convention,
+                    **_scalar_values(state, "array"),
                     "position_world": (
                         self._host._authoring._array_position_from_state()
                     ),
@@ -216,10 +258,7 @@ class ConfigurationService(ControllerService):
                     ),
                 },
                 "source": {
-                    "prim_path": state.source_prim_path,
-                    "source_id": state.source_id,
-                    "class_label": state.source_class_label,
-                    "audio_asset_path": state.audio_asset_path,
+                    **_scalar_values(state, "source"),
                     "position_world": (
                         self._host._authoring._source_position_from_state()
                     ),
@@ -227,9 +266,6 @@ class ConfigurationService(ControllerService):
                     "local_offset_m": (
                         self._host._authoring._source_local_offset_from_state()
                     ),
-                    "start_time_s": state.source_start_time_s,
-                    "duration_s": state.source_duration_s,
-                    "gain_db": state.source_gain_db,
                     "loop_count": state.source_loop_count,
                     "directivity": state.source_directivity,
                 },
@@ -250,7 +286,7 @@ class ConfigurationService(ControllerService):
                 "object_binding": {
                     "selected_object_prim_path": state.object_prim_path or None,
                     "selected_object_label": state.object_label,
-                    "attached": state.source_attached_to_object,
+                    **_scalar_values(state, "object_binding"),
                     "attached_object_prim_path": state.attached_object_prim_path
                     or None,
                     "source_local_offset_m": (
@@ -258,7 +294,7 @@ class ConfigurationService(ControllerService):
                     ),
                 },
                 "array_binding": {
-                    "attached": state.array_attached_to_object,
+                    **_scalar_values(state, "array_binding"),
                     "attached_object_prim_path": (
                         state.attached_array_object_prim_path or None
                     ),
@@ -297,19 +333,11 @@ class ConfigurationService(ControllerService):
                     "discovered_objects": state.discovered_objects,
                 },
                 "lifecycle": {
-                    "update_period_s": state.update_period_s,
-                    "max_observations": state.max_observations,
-                    "debug_overlay_enabled": state.debug_overlay_enabled,
-                    "occlusion_enabled": state.occlusion_enabled,
+                    **_scalar_values(state, "lifecycle"),
                     "writer_enabled": state.trace_enabled,
                     "writer_path": writer_path,
-                    "waveform_enabled": state.waveform_enabled,
                     "waveform_dir": state.waveform_dir,
                     "waveform_mode": state.waveform_mode,
-                    "follow_viewport_selection": state.follow_viewport_selection,
-                    "live_sync_array_pose": state.live_sync_array_pose,
-                    "live_sync_source_pose": state.live_sync_source_pose,
-                    "usd_debug_enabled": state.usd_debug_enabled,
                     "usd_debug_root": state.usd_debug_root,
                     "runtime_options": {
                         "subscribe_to_update_stream_default": True,
@@ -349,7 +377,24 @@ class ConfigurationService(ControllerService):
         )
 
     def _apply_config_summary(self, payload: Mapping[str, Any]) -> None:
+        updates, primitives = self._parse_config_summary(payload)
+        self._host._geometry.close()
         self._validation.invalidate()
+        for name, value in updates.items():
+            setattr(self.state, name, value)
+        self._imported_overlay_primitives = primitives
+
+    def _parse_config_summary(
+        self, payload: Any
+    ) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
+        self._preflight_config_summary(payload)
+        state = replace(self.state)
+        for section, definitions in _SCALAR_FIELDS.items():
+            values = payload
+            for key in section.split("."):
+                values = values.get(key, {})
+            for key, name, convert in definitions:
+                setattr(state, name, convert(values.get(key, getattr(state, name))))
         array = dict(payload.get("array", {}))
         source = dict(payload.get("source", {}))
         sound_profiles = payload.get("sound_profiles")
@@ -361,167 +406,85 @@ class ConfigurationService(ControllerService):
         activity_detection = dict(payload.get("activity_detection", {}))
         direction_estimation = dict(payload.get("direction_estimation", {}))
         environment = dict(payload.get("environment", {}))
-        analytic_acoustics = dict(payload.get("analytic_acoustics", {}))
-        device = dict(payload.get("device", {}))
         calibration = dict(payload.get("calibration", {}))
         recording = dict(payload.get("recording", {}))
         package_recording = dict(recording.get("package_jsonl", {}))
         replicator = dict(recording.get("replicator", {}))
         guided = dict(payload.get("guided", {}))
-        guided_recording = dict(guided.get("recording", {}))
-        guided_export = dict(guided.get("export", {}))
 
-        self.state.guided_mode_enabled = bool(
-            guided.get("mode_enabled", self.state.guided_mode_enabled)
-        )
         preset_id = guided.get("preset_id")
-        self.state.guided_preset_id = "" if preset_id is None else str(preset_id)
-        self.state.guided_dataset_id = str(
-            guided_recording.get("dataset_id", self.state.guided_dataset_id)
-        )
-        self.state.guided_shard_max_frames = int(
-            guided_recording.get(
-                "shard_max_frames",
-                self.state.guided_shard_max_frames,
-            )
-        )
-        self.state.guided_record_aligned = bool(
-            guided_recording.get(
-                "shard_episode_aligned",
-                self.state.guided_record_aligned,
-            )
-        )
-        self.state.guided_scene_id = str(
-            guided_recording.get("scene_id", self.state.guided_scene_id)
-        )
-        self.state.guided_environment_id = str(
-            guided_recording.get(
-                "environment_id",
-                self.state.guided_environment_id,
-            )
-        )
-        self.state.guided_split_group = str(
-            guided_recording.get("split_group", self.state.guided_split_group)
-        )
-        self.state.guided_session_seed = int(
-            guided_recording.get(
-                "session_seed",
-                self.state.guided_session_seed,
-            )
-        )
-        self.state.guided_split_enabled = bool(
-            guided_export.get(
-                "split_enabled",
-                self.state.guided_split_enabled,
-            )
-        )
-        self.state.guided_split_train_ratio = float(
-            guided_export.get(
-                "train_ratio",
-                self.state.guided_split_train_ratio,
-            )
-        )
-        self.state.guided_split_validation_ratio = float(
-            guided_export.get(
-                "validation_ratio",
-                self.state.guided_split_validation_ratio,
-            )
-        )
-        self.state.guided_split_test_ratio = float(
-            guided_export.get(
-                "test_ratio",
-                self.state.guided_split_test_ratio,
-            )
-        )
+        state.guided_preset_id = "" if preset_id is None else str(preset_id)
 
         geometry = parse_geometry_settings(payload.get("geometry_acoustics", {}))
         for name, value in geometry_settings(geometry).items():
-            setattr(self.state, "geometry_" + name, value)
-        self.state.backend = str(payload.get("backend", self.state.backend))
-        self.state.energy_threshold_dbfs = float(
-            activity_detection["energy_threshold_dbfs"]
-        )
-        self.state.doa_enabled = bool(direction_estimation["enabled"])
-        self.state.device_id = str(device.get("device_id", self.state.device_id))
-        self.state.compute_device = str(
-            device.get("compute_device", self.state.compute_device)
-        )
+            setattr(state, "geometry_" + name, value)
+        state.backend = str(payload.get("backend", state.backend))
+        state.energy_threshold_dbfs = float(activity_detection["energy_threshold_dbfs"])
+        state.doa_enabled = bool(direction_estimation["enabled"])
         if "profile_path" in calibration:
             selected_calibration = calibration.get("profile_path")
-            self.state.calibration_profile_path = (
+            state.calibration_profile_path = (
                 "" if selected_calibration is None else str(selected_calibration)
             )
-        self.state.array_prim_path = str(
-            array.get("prim_path", self.state.array_prim_path)
-        )
-        self.state.array_id = str(array.get("array_id", self.state.array_id))
-        self.state.layout_name = str(array.get("layout_name", self.state.layout_name))
-        self.state.sample_rate_hz = int(
-            array.get("sample_rate_hz", self.state.sample_rate_hz)
-        )
-        self.state.coordinate_convention = str(
-            array.get("coordinate_convention", self.state.coordinate_convention)
-        )
         if array.get("position_world") is not None:
-            self._host._authoring._set_array_pose_state(array["position_world"], None)
+            (
+                state.array_position_x_m,
+                state.array_position_y_m,
+                state.array_position_z_m,
+            ) = vec3_from_any(array["position_world"])
         if array.get("orientation_world_quat") is not None:
             (
-                self.state.array_roll_deg,
-                self.state.array_pitch_deg,
-                self.state.array_yaw_deg,
+                state.array_roll_deg,
+                state.array_pitch_deg,
+                state.array_yaw_deg,
             ) = euler_deg_from_quaternion(
                 quat_from_any(array["orientation_world_quat"])
             )
         if array.get("orientation_euler_deg") is not None:
             (
-                self.state.array_roll_deg,
-                self.state.array_pitch_deg,
-                self.state.array_yaw_deg,
+                state.array_roll_deg,
+                state.array_pitch_deg,
+                state.array_yaw_deg,
             ) = vec3_from_any(array["orientation_euler_deg"])
-        self.state.array_attached_to_object = bool(
-            array_binding.get("attached", self.state.array_attached_to_object)
-        )
         attached_array_path = array_binding.get("attached_object_prim_path")
         if attached_array_path is not None:
-            self.state.attached_array_object_prim_path = str(attached_array_path)
-        elif not self.state.array_attached_to_object:
-            self.state.attached_array_object_prim_path = ""
+            state.attached_array_object_prim_path = str(attached_array_path)
+        elif not state.array_attached_to_object:
+            state.attached_array_object_prim_path = ""
         array_local_offset = array_binding.get("array_local_offset_m")
         if array_local_offset is not None:
             (
-                self.state.array_local_offset_x_m,
-                self.state.array_local_offset_y_m,
-                self.state.array_local_offset_z_m,
+                state.array_local_offset_x_m,
+                state.array_local_offset_y_m,
+                state.array_local_offset_z_m,
             ) = vec3_from_any(array_local_offset)
         array_local_quat = array_binding.get("array_local_orientation_quat")
         if array_local_quat is not None:
             (
-                self.state.array_local_roll_deg,
-                self.state.array_local_pitch_deg,
-                self.state.array_local_yaw_deg,
+                state.array_local_roll_deg,
+                state.array_local_pitch_deg,
+                state.array_local_yaw_deg,
             ) = euler_deg_from_quaternion(quat_from_any(array_local_quat))
         if array_binding.get("array_local_euler_deg") is not None:
             (
-                self.state.array_local_roll_deg,
-                self.state.array_local_pitch_deg,
-                self.state.array_local_yaw_deg,
+                state.array_local_roll_deg,
+                state.array_local_pitch_deg,
+                state.array_local_yaw_deg,
             ) = vec3_from_any(array_binding["array_local_euler_deg"])
         if rig_profiles is not None:
-            self._apply_rig_profile_config(rig_profiles)
-        self.state.source_prim_path = str(
-            source.get("prim_path", self.state.source_prim_path)
-        )
-        self.state.source_id = str(source.get("source_id", self.state.source_id))
-        self.state.source_class_label = str(
-            source.get("class_label", self.state.source_class_label)
-        )
-        self.state.audio_asset_path = str(
-            source.get("audio_asset_path", self.state.audio_asset_path)
-        )
+            (
+                state.rig_profile_library,
+                state.selected_rig_profile_id,
+                state.applied_array_rig_profile,
+            ) = self._parse_rig_profile_config(rig_profiles)
         if source.get("position_world") is not None:
-            self._host._authoring._set_source_position_state(source["position_world"])
+            (
+                state.source_position_x_m,
+                state.source_position_y_m,
+                state.source_position_z_m,
+            ) = vec3_from_any(source["position_world"])
         source_orientation = source.get("orientation_world_quat")
-        self.state.source_orientation_world_quat = (
+        state.source_orientation_world_quat = (
             None if source_orientation is None else quat_from_any(source_orientation)
         )
         local_offset = object_binding.get(
@@ -530,235 +493,162 @@ class ConfigurationService(ControllerService):
         )
         if local_offset is not None:
             (
-                self.state.source_local_offset_x_m,
-                self.state.source_local_offset_y_m,
-                self.state.source_local_offset_z_m,
+                state.source_local_offset_x_m,
+                state.source_local_offset_y_m,
+                state.source_local_offset_z_m,
             ) = vec3_from_any(local_offset)
-        self.state.source_start_time_s = float(
-            source.get("start_time_s", self.state.source_start_time_s)
-        )
-        self.state.source_duration_s = float(
-            source.get("duration_s", self.state.source_duration_s)
-        )
-        self.state.source_gain_db = float(
-            source.get("gain_db", self.state.source_gain_db)
-        )
-        self.state.source_loop_count = source.get(
-            "loop_count", self.state.source_loop_count
-        )
-        self.state.source_directivity = resolve_directivity_pattern(
-            source.get("directivity", self.state.source_directivity),
+        state.source_loop_count = source.get("loop_count", state.source_loop_count)
+        state.source_directivity = resolve_directivity_pattern(
+            source.get("directivity", state.source_directivity),
             "source.directivity",
         )
         if sound_profiles is not None:
-            self._apply_profile_config(sound_profiles)
-        self.state.robot_base_prim_path = str(binding.get("robot_base_prim_path") or "")
-        self.state.object_prim_path = str(
+            (
+                state.profile_library,
+                state.object_profile_mappings,
+                state.selected_profile_id,
+                state.applied_source_profile,
+            ) = self._parse_sound_profile_config(sound_profiles)
+        state.robot_base_prim_path = str(binding.get("robot_base_prim_path") or "")
+        state.object_prim_path = str(
             object_binding.get("selected_object_prim_path")
-            or self.state.object_prim_path
+            or state.object_prim_path
             or ""
         )
-        self.state.object_label = str(
+        state.object_label = str(
             object_binding.get("selected_object_label")
             or (
-                _path_name(self.state.object_prim_path)
-                if self.state.object_prim_path
-                else "none"
+                _path_name(state.object_prim_path) if state.object_prim_path else "none"
             )
         )
-        self.state.source_attached_to_object = bool(
-            object_binding.get("attached", self.state.source_attached_to_object)
-        )
-        self.state.attached_object_prim_path = str(
+        state.attached_object_prim_path = str(
             object_binding.get("attached_object_prim_path")
-            or (
-                self.state.object_prim_path
-                if self.state.source_attached_to_object
-                else ""
-            )
+            or (state.object_prim_path if state.source_attached_to_object else "")
         )
         roots = binding.get("discovery_roots", self._host._authoring._discovery_roots())
-        self.state.discovery_roots_text = ", ".join(str(root) for root in roots)
-        self.state.selected_prim_paths = _normalize_paths(
+        state.discovery_roots_text = ", ".join(str(root) for root in roots)
+        state.selected_prim_paths = _normalize_paths(
             binding.get("selected_prim_paths", ())
         )
-        self.state.discovered_arrays = tuple(
+        state.discovered_arrays = tuple(
             _discovered_summary_from_dict(item)
             for item in binding.get("discovered_arrays", ())
         )
-        self.state.discovered_sources = tuple(
+        state.discovered_sources = tuple(
             _discovered_summary_from_dict(item)
             for item in binding.get("discovered_sources", ())
         )
-        self.state.discovered_objects = tuple(
+        state.discovered_objects = tuple(
             _discovered_summary_from_dict(item)
             for item in binding.get("discovered_objects", ())
         )
-        self.state.update_period_s = float(
-            lifecycle.get("update_period_s", self.state.update_period_s)
+        state.waveform_dir = str(
+            lifecycle.get("waveform_dir", state.waveform_dir) or state.waveform_dir
         )
-        self.state.max_observations = int(
-            lifecycle.get("max_observations", self.state.max_observations)
-        )
-        self.state.debug_overlay_enabled = bool(
-            lifecycle.get(
-                "debug_overlay_enabled",
-                self.state.debug_overlay_enabled,
-            )
-        )
-        self.state.occlusion_enabled = bool(
-            lifecycle.get(
-                "occlusion_enabled",
-                self.state.occlusion_enabled,
-            )
-        )
-        self.state.waveform_enabled = bool(
-            lifecycle.get("waveform_enabled", self.state.waveform_enabled)
-        )
-        self.state.waveform_dir = str(
-            lifecycle.get("waveform_dir", self.state.waveform_dir)
-            or self.state.waveform_dir
-        )
-        waveform_mode = str(lifecycle.get("waveform_mode", self.state.waveform_mode))
+        waveform_mode = str(lifecycle.get("waveform_mode", state.waveform_mode))
         if waveform_mode in {"per_frame", "session"}:
-            self.state.waveform_mode = waveform_mode
-        self.state.follow_viewport_selection = bool(
-            lifecycle.get(
-                "follow_viewport_selection",
-                self.state.follow_viewport_selection,
-            )
-        )
-        self.state.live_sync_array_pose = bool(
-            lifecycle.get("live_sync_array_pose", self.state.live_sync_array_pose)
-        )
-        self.state.live_sync_source_pose = bool(
-            lifecycle.get("live_sync_source_pose", self.state.live_sync_source_pose)
-        )
-        self.state.usd_debug_enabled = bool(
-            lifecycle.get("usd_debug_enabled", self.state.usd_debug_enabled)
-        )
-        self.state.usd_debug_root = str(
-            lifecycle.get("usd_debug_root", self.state.usd_debug_root)
-            or self.state.usd_debug_root
-        )
-        self.state.environment_resolution_mode = str(
-            environment.get("mode", self.state.environment_resolution_mode)
+            state.waveform_mode = waveform_mode
+        state.usd_debug_root = str(
+            lifecycle.get("usd_debug_root", state.usd_debug_root)
+            or state.usd_debug_root
         )
         anchor_path = environment.get(
             "anchor_prim_path",
-            self.state.environment_anchor_prim_path,
+            state.environment_anchor_prim_path,
         )
-        self.state.environment_anchor_prim_path = (
+        state.environment_anchor_prim_path = (
             "" if anchor_path is None else str(anchor_path)
         )
-        self.state.environment_containment_tolerance_m = float(
-            environment.get(
-                "containment_tolerance_m",
-                self.state.environment_containment_tolerance_m,
-            )
-        )
         environment_summary = environment.get("resolved")
-        self.state.latest_environment_summary = (
+        state.latest_environment_summary = (
             dict(environment_summary)
             if isinstance(environment_summary, Mapping)
             else None
         )
-        self.state.analytic_max_order = int(
-            analytic_acoustics.get(
-                "max_order",
-                self.state.analytic_max_order,
-            )
-        )
-        self.state.analytic_air_absorption = bool(
-            analytic_acoustics.get(
-                "air_absorption",
-                self.state.analytic_air_absorption,
-            )
-        )
-        self.state.analytic_ray_tracing = bool(
-            analytic_acoustics.get(
-                "ray_tracing",
-                self.state.analytic_ray_tracing,
-            )
-        )
-        self.state.trace_enabled = bool(
+        state.trace_enabled = bool(
             package_recording.get(
                 "enabled",
-                lifecycle.get("writer_enabled", self.state.trace_enabled),
+                lifecycle.get("writer_enabled", state.trace_enabled),
             )
         )
-        self.state.jsonl_trace_path = str(
+        state.jsonl_trace_path = str(
             package_recording.get(
                 "path",
-                lifecycle.get("writer_path", self.state.jsonl_trace_path),
+                lifecycle.get("writer_path", state.jsonl_trace_path),
             )
-            or self.state.jsonl_trace_path
+            or state.jsonl_trace_path
         )
-        self.state.replicator_enabled = bool(
-            replicator.get("enabled", self.state.replicator_enabled)
+        state.replicator_enabled = bool(
+            replicator.get("enabled", state.replicator_enabled)
         )
-        self.state.replicator_output_dir = str(
-            replicator.get("output_dir", self.state.replicator_output_dir)
+        state.replicator_output_dir = str(
+            replicator.get("output_dir", state.replicator_output_dir)
         )
-        self.state.replicator_writer_name = str(
-            replicator.get("writer_name", self.state.replicator_writer_name)
+        state.replicator_writer_name = str(
+            replicator.get("writer_name", state.replicator_writer_name)
         )
-        self.state.replicator_annotator_name = str(
-            replicator.get("annotator_name", self.state.replicator_annotator_name)
+        state.replicator_annotator_name = str(
+            replicator.get("annotator_name", state.replicator_annotator_name)
         )
-        self.state.replicator_recording = bool(
-            replicator.get("started", self.state.replicator_recording)
+        state.replicator_recording = bool(
+            replicator.get("started", state.replicator_recording)
         )
-        self.state.replicator_write_count = int(
-            replicator.get("write_count", self.state.replicator_write_count)
+        state.replicator_write_count = int(
+            replicator.get("write_count", state.replicator_write_count)
         )
-        self.state.replicator_flush_count = int(
-            replicator.get("flush_count", self.state.replicator_flush_count)
+        state.replicator_flush_count = int(
+            replicator.get("flush_count", state.replicator_flush_count)
         )
-        self.state.replicator_latest_write_path = replicator.get(
+        state.replicator_latest_write_path = replicator.get(
             "latest_write_path",
-            self.state.replicator_latest_write_path,
+            state.replicator_latest_write_path,
         )
-        self.state.replicator_latest_jsonl_path = replicator.get(
+        state.replicator_latest_jsonl_path = replicator.get(
             "latest_jsonl_path",
-            self.state.replicator_latest_jsonl_path,
+            state.replicator_latest_jsonl_path,
         )
-        self.state.replicator_latest_error = replicator.get(
+        state.replicator_latest_error = replicator.get(
             "latest_error",
-            self.state.replicator_latest_error,
+            state.replicator_latest_error,
         )
-        self.state.replicator_output_artifacts = tuple(
+        state.replicator_output_artifacts = tuple(
             str(item) for item in replicator.get("output_artifacts", ())
         )
-        self.state.replicator_status_message = str(
+        state.replicator_status_message = str(
             replicator.get(
                 "status_message",
-                self.state.replicator_status_message,
+                state.replicator_status_message,
             )
         )
-        self.state.authored_metadata = tuple(
+        state.authored_metadata = tuple(
             _authored_metadata_from_dict(item)
             for item in payload.get("authored_metadata", ())
         )
         overlay = dict(payload.get("overlay", {}))
-        self.state.latest_overlay_primitive_count = int(
-            overlay.get("primitive_count", 0)
-        )
-        self.state.latest_overlay_labels = tuple(
+        state.latest_overlay_primitive_count = int(overlay.get("primitive_count", 0))
+        state.latest_overlay_labels = tuple(
             str(item) for item in overlay.get("labels", ())
         )
-        self.state.latest_overlay_status = str(overlay.get("status", "none"))
-        self.state.latest_overlay_error = overlay.get("error")
-        self._imported_overlay_primitives = tuple(
-            dict(item) for item in overlay.get("primitives", ())
-        )
+        state.latest_overlay_status = str(overlay.get("status", "none"))
+        state.latest_overlay_error = overlay.get("error")
+        primitives = tuple(dict(item) for item in overlay.get("primitives", ()))
+
+        # Leave runtime fields changed by close() under their owning service.
+        updates = {
+            field.name: getattr(state, field.name)
+            for field in fields(state)
+            if getattr(state, field.name) is not getattr(self.state, field.name)
+        }
+        return updates, primitives
 
     def _preflight_config_summary(self, payload: Any) -> None:
-        """Validate entity gains/directivity and profile libraries before mutation."""
+        """Validate binding schema and acoustic constraints before parsing."""
 
         if not isinstance(payload, Mapping):
             raise ValueError("Config summary must be a JSON object.")
-        parse_geometry_settings(payload.get("geometry_acoustics", {}))
+        _raise_first(
+            ValidationReport(check_config_schema_version(payload.get("schema_version")))
+        )
         lifecycle = payload.get("lifecycle", {})
         if not isinstance(lifecycle, Mapping):
             raise ValueError("lifecycle must be a JSON object.")
@@ -924,27 +814,6 @@ class ConfigurationService(ControllerService):
             source.get("gain_db", self.state.source_gain_db),
             "source.gain_db",
         )
-        sound_profiles = payload.get("sound_profiles")
-        if sound_profiles is not None:
-            self._parse_sound_profile_config(sound_profiles)
-        rig_profiles = payload.get("microphone_rig_profiles")
-        if rig_profiles is not None:
-            self._parse_rig_profile_config(rig_profiles)
-
-    def _apply_profile_config(self, payload: Any) -> None:
-        profiles, mappings, selected_profile_id, applied = (
-            self._parse_sound_profile_config(payload)
-        )
-        self.state.profile_library = profiles
-        self.state.object_profile_mappings = mappings
-        self.state.selected_profile_id = selected_profile_id
-        self.state.applied_source_profile = applied
-
-    def _apply_rig_profile_config(self, payload: Any) -> None:
-        profiles, selected_rig_id, applied = self._parse_rig_profile_config(payload)
-        self.state.rig_profile_library = profiles
-        self.state.selected_rig_profile_id = selected_rig_id
-        self.state.applied_array_rig_profile = applied
 
     def _parse_sound_profile_config(
         self,

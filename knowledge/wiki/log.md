@@ -375,3 +375,7 @@ Removed unused numerical helpers, test-only wrappers and the stale fidelity pros
 ## 2026-10-08 — update: Consolidate USD attribute access
 
 Production Isaac/Kit helpers now share USD attribute methods instead of fake-object fields. Host fakes implement those methods; the demo appearance check moved to the real USD lane. Host unit/contract/integration checks pass 1,018 cases, and the supported Isaac interpreter passes 79 focused schema, pose, cache, occlusion and geometry checks.
+
+## 2026-10-08 — update: Make Kit configuration application transactional
+
+Shared scalar field definitions now drive import and export. All parsing completes before closing the live session or changing UI state; malformed late fields preserve the current session. Guided presets use the same validated binding shape. Configuration, guided recording, headless workflow, recorder/recovery, replay and codec checks pass 83 focused cases.
