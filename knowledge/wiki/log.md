@@ -391,3 +391,17 @@ Removed prior cleanup outputs, superseded extracted R10/DOA packages and unused 
 ## 2026-10-08 — lint: Verify maintenance closeout
 
 All 42 wiki pages remain indexed and links resolve. Host checks pass 672 unit/contract, 348 integration and 56 release cases; supported Isaac checks pass 251 cases. Actual RTX Sim, combined two-environment Lab/reference and source Kit pass. SquadBot's 17 focused consumer checks and preserved ONR Video 6 replay/display checks pass. Clean committed-source sdist, derived wheel and Kit archive audits pass; 3.0 remains unreleased, with no tag or package publication.
+
+## 2026-10-08 — update: Locate consumer audio readiness in the SDK
+
+Moved the SDK portion of SquadBot Phase 7 into
+[[implementation_phases/squadbot-audio-runtime-readiness|one canonical plan]].
+Quality, operating-envelope and runtime-performance work live here; dependency
+adoption, application adapters and task scheduling remain downstream. Existing
+SDK Phase 07 numbering and runtime status are unchanged.
+
+## 2026-10-08 — lint: Verify relocated readiness plan
+
+The three documentation-boundary checks pass: wiki index coverage, internal
+wikilinks and maintained Markdown links. Git whitespace checks pass. This is
+planning relocation only; no runtime or acoustic qualification was performed.

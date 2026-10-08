@@ -29,6 +29,8 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
 - [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
 
+- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — planned SDK quality/performance work for SquadBot Phase 7; downstream adoption stays in SquadBot.
+
 ## Topics
 
 Reusable current contracts and workflows; phase pages retain only introductions/outcomes.
