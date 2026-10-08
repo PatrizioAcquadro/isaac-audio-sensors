@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from isaac_audio_sensors import __version__
+from isaac_audio_sensors.core.microphone_array import (
+    microphone_layout,
+)
 from isaac_audio_sensors.kit.validation import (
     ValidationFinding,
     ValidationReport,
@@ -697,17 +700,16 @@ class RecordingWorkflow(ControllerService):
         self,
         request: Mapping[str, Any],
     ) -> dict[str, Any]:
-        latest = None if self._host.sensor is None else self._host.sensor.latest_frame
-        if latest is None:
-            raise ExtensionActionError("Capture a sensor frame before recording.")
-        # USD child discovery can differ from the named layout's order. Keep
-        # the producer's ordered IDs aligned with its PCM rows and geometry.
-        channel_order = list(latest.channel_validity)
+        channel_order = [
+            microphone.mic_id
+            for microphone in microphone_layout(self.state.layout_name)
+        ]
         window_samples = max(
             1,
             int(round(self.state.sample_rate_hz * self.state.update_period_s)),
         )
-        diagnostics = latest.diagnostics
+        latest = None if self._host.sensor is None else self._host.sensor.latest_frame
+        diagnostics = getattr(latest, "diagnostics", {}) if latest else {}
         diagnostic_window = diagnostics.get("window_sample_count")
         if (
             isinstance(diagnostic_window, int)
