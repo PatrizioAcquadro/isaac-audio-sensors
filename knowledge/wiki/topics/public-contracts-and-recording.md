@@ -20,7 +20,7 @@ Frame v4 makes `DoaEstimate.bearing_confidence` nullable, with default `None`. N
 
 Every frame identifies its producer, array, required time window, selected-array sample rate, ordered channel validity by microphone identifier, frame index, coordinate convention, units, provenance, output observation bound, observations, aggregate microphone RMS values, waveform paths, and diagnostics. Its serialized `timestamp_ms` is not an independent input: the model derives it exclusively as `int(round(start_time_s * 1000.0))`. `waveform_paths` contains references managed by recording services; perception itself writes no files and initializes the field empty.
 
-Allowed provenance values remain `synthetic/core`, `room_acoustics`, `isaac_live`, and `replay/trace`. `room_acoustics` is historical serialized provenance, not a selectable runtime backend.
+Allowed provenance values remain `synthetic/core`, `room_acoustics`, `isaac_live`, `replay/trace`, and `physical_capture`. `room_acoustics` is historical serialized provenance, not a selectable runtime backend.
 
 The coordinate convention is `x_forward_y_right_z_up_clockwise_bearing`: local `+X` is array forward, local `+Y` is right, local `+Z` is up, positions use meters, orientations use XYZW quaternions, and bearing is clockwise degrees from array forward.
 
@@ -96,9 +96,9 @@ External physical producers use `provenance="physical_capture"`. This additive f
 
 JSON frame files and JSONL streams use deterministic serialization and round-trip through the public frame model.
 
-Readers require the exact v3 frame shape; writers emit that same deterministic shape. A reader reconstructs the frame from `start_time_s` and rejects any serialized `timestamp_ms` that does not equal the derived value. Frame v1/v2 resources and compatibility parsing are absent from the current package. Recorded producer identifiers describe provenance but do not become runtime selectors.
+Readers require the exact v4 frame shape; writers emit that same deterministic shape. A reader reconstructs the frame from `start_time_s` and rejects any serialized `timestamp_ms` that does not equal the derived value. Frame v1-v3 compatibility parsing is absent from the current package. Recorded producer identifiers describe provenance but do not become runtime selectors.
 
-Tracked v3 examples under `examples/traces/` cover a minimal zero-observation frame, one resolved observation, and external/unresolved observation records.
+Tracked v4 examples under `examples/traces/` cover a minimal zero-observation frame, one resolved observation, and external/unresolved observation records.
 
 ## Dataset Supervision
 

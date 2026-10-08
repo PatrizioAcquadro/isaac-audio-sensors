@@ -31,6 +31,32 @@ Local reports and failed development attempts are in
 `build/validation/maintenance-20261008/`. These checks preserve current behavior;
 no new acoustic accuracy, performance or physical qualification is claimed.
 
+## Consumer audio readiness — 7.1
+
+[[implementation_phases/squadbot-audio-runtime-readiness|7.1 is complete as a bounded compatibility and quality assessment]];
+7.2 latency/throughput work remains planned. SDK 3.0.0 remains unreleased, with
+unchanged perception, public APIs and schemas; downstream dependencies/adapters
+were not modified. The local Sim `6.0.1-rc.7` / Lab `3.0.0` (`2e44ddb2e1`) /
+RTX 4090 combination passes 672 unit/contract, 352 integration, 56 release and
+251 Isaac tests, plus actual Sim/Geometry and 60 Hz / 10 Hz square-array Lab.
+
+The 18-episode screen reaches 1 m/s source motion and 90 degrees/s receiver yaw,
+using natural speech, a nominal four-microphone array and separate received-PCM
+scoring. Scalar/CUDA preserve activity on all 1440 updates and count on 1439
+(99.93%); retained-direction difference p95 is .000018 degrees. The retained
+36-recording stationary comparison still preserves every activity/count update.
+
+Active complete sets are 97.9% for static speech and 96.8% for a moving source
+with fixed receiver. They fall to 49.7% with receiver rotation, 59.9% with joint
+motion, 34.2% in the Geometry-room screen and 49.3% with a competing voice.
+This supports a provisional fixed-receiver free-field listening profile; it does
+**not** establish reliable full-domain closed-loop tracking. Received-onset
+responses and warm-up do not establish wall-clock reaction or learning throughput.
+[[experiments/consumer-audio-operating-envelope|The assessment]] owns the protocol,
+reproduction, numerical discrepancy and remaining acoustic/physical limits;
+[[decisions/product-boundary-and-compatibility#Consumer readiness migration|migration guidance]]
+owns the consumer handoff. Local reports are in `build/validation/sdk-readiness-7.1/`.
+
 ## Geometry qualification
 
 **08.1–08.3 and Phase 08 are complete within their documented bounds. Operating, runtime and clean-source distribution gates pass.**

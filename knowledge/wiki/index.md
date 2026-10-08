@@ -29,7 +29,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
 - [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
 
-- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — planned SDK quality/performance work for SquadBot Phase 7; downstream adoption stays in SquadBot.
+- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — 7.1 compatibility/quality assessment complete with dynamic limits; 7.2 performance work remains planned and adoption stays downstream.
 
 ## Topics
 
@@ -61,6 +61,7 @@ Read for a specific result/reference; these pages do not add requirements.
 - [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
 - [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
 - [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, WPE/peak numerical corrections and dated practical batch costs.
+- [[experiments/consumer-audio-operating-envelope|Consumer Audio Envelope]] — 18 natural-speech motion/room/competition episodes, paired CUDA preservation, received-onset responses and insufficient rotating-receiver quality.
 - [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
 
 ## Sources and history

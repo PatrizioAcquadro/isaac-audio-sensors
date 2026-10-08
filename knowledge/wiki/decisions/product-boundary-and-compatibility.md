@@ -29,6 +29,28 @@ Advanced public services remain importable from their canonical modules; they ar
 
 Current serialized versions and their ownership are listed in [[topics/public-contracts-and-recording|Public Contracts and Recording]]: frame v4, dataset-manifest v4, frame-record v2 and calibration-profile v1. The confidence migration changes only the embedded frame contract; frame v1–v3 inputs are rejected.
 
+## Consumer readiness migration
+
+The 7.1 assessment adds validation tooling and evidence; it changes no public
+API, tensor shape or serialized version. Consumers upgrading from an older
+revision must adopt the existing unreleased v3 contracts:
+
+| Consumer assumption | Required adoption |
+| --- | --- |
+| Published package equals this checkout | Select a compatible source revision; 3.0.0 remains unreleased. The local verified Sim/Lab combination is recorded in [[experiments/consumer-audio-operating-envelope|7.1 evidence]], not a blanket version promise. |
+| Frame v3 or unavailable confidence encoded as zero | Read/write `ias.audio_sensor_frame.v4`; preserve null confidence. Manifest v4, frame-record v2 and calibration v1 remain independent. Older frame versions are rejected; preserve archived originals rather than relabeling their schemas. |
+| Source-conditioned detections or stable source IDs | Consume `AudioObservation`. Signal-derived observation IDs are frame-local event identities, not persistent tracks, source identities or class labels. Association stays downstream. |
+| Six legacy Lab tensors, event RMS or zero meaning unavailable | Consume the current observed tensors with every corresponding mask and truncation count. Null confidence maps to zero with a false confidence mask; a measured zero keeps a true mask. Do not choose ambiguity candidates as selected directions. |
+| An implicit detector, sample rate or estimator | Configure `energy_threshold_dbfs` and `doa_enabled` explicitly. Sample rate belongs to the array / `EntityBindingCfg`; the current CUDA entity path requires 16 kHz and explicit audio assets. Capacity does not select or constrain the true source count. |
+| Imports or device fallback before simulator setup | Import Lab classes after `AppLauncher`; use the active simulation CUDA device and the supported optional dependencies. There is no implicit CPU fallback for CUDA entity inference. |
+| Bearings/timestamps are immediately actionable global state | Bearings use array-local clockwise `[0,360)` degrees, +X forward / +Y right / +Z up. Core poses use meters and XYZW; entity bindings declare quaternion order/frame. Preserve acquisition windows, elapsed sample clocks and warm-up/discontinuity semantics. Frame timestamps derive from window start; observation freshness is distinct from perceptual response. |
+
+[[topics/isaac-lab-integration|Lab Integration]] owns exact tensor fields and
+masking/scaling. [[topics/public-contracts-and-recording|Public Contracts]] owns
+serialization, confidence and coordinate semantics. Task-specific calibration,
+head-pose association, queues, dependency pins and adapter migration remain
+consumer-owned; SDK 7.1 does not certify those paths.
+
 ## Stable Promises
 
 The v3 line promises the documented semantic import boundary, signal block, observed sensor frame, dataset-manifest, and calibration-profile contracts; the exact four-value entity directivity contract; amplitude `gain_db` semantics; snapshot-authoritative `propagate(scene, array_id, time_window)` signal production; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.

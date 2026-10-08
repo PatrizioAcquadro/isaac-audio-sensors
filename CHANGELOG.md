@@ -23,6 +23,8 @@
 
 ### Maintenance and fixes
 
+- Extended received-PCM validation with dynamic input selection, causal onset responses and active-only quality scoring. Public contracts and runtime perception remain unchanged; compatibility and measured limits are documented in the consumer readiness assessment.
+
 - Guided recordings retain the captured microphone order. Replicator enables dispatch only after Start succeeds and disables it before Stop.
 - Kit configuration parses completely before applying state; invalid input preserves the live session. Scalar import/export fields share one definition.
 - Production USD adapters use standard USD methods; test-specific object branches and duplicated attribute readers/writers are removed. Recorder configuration and durable episode state are separate from shard/session orchestration.

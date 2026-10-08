@@ -405,3 +405,22 @@ SDK Phase 07 numbering and runtime status are unchanged.
 The three documentation-boundary checks pass: wiki index coverage, internal
 wikilinks and maintained Markdown links. Git whitespace checks pass. This is
 planning relocation only; no runtime or acoustic qualification was performed.
+
+## 2026-10-08 — update: Complete SDK readiness 7.1 assessment
+
+Extended received-PCM evaluation without changing runtime perception or public
+contracts. The 18-episode motion/room/competition screen passes paired CUDA
+preservation but exposes insufficient rotating-receiver quality. The phase and
+[[experiments/consumer-audio-operating-envelope|assessment]] retain the measured
+fixed-receiver profile, causal onset results and dynamic limitations. Added
+consumer migration guidance and corrected stale frame-version/provenance prose.
+Host, complete Isaac and actual Sim/Lab gates pass; 7.2 remains planned.
+
+## 2026-10-08 — lint: Verify readiness evidence and migration
+
+All canonical pages remain indexed and internal/maintained Markdown links
+resolve. Host checks pass 672 unit/contract, 352 integration and 56 release
+cases; 251 actual-runtime Isaac cases and live Sim/Lab pass. Dynamic and
+stationary paired reports pass their declared gates; angular accuracy, onset
+response and deferred 7.2 performance remain separate. Whitespace checks pass;
+raw inputs and pre-existing local material are unchanged.

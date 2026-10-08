@@ -1,6 +1,7 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: planned. Phase 7 identifies the downstream SquadBot roadmap; the SDK's
+Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2 planned.
+Phase 7 identifies the downstream SquadBot roadmap; the SDK's
 existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
 
 ## Objective
@@ -10,18 +11,71 @@ before downstream robot integration. Build on the existing SDK through focused
 readiness assessment and optimization. SquadBot motivates this work; improvements
 must remain reusable across consumers, robots and microphone arrays.
 
-## 7.1 — SDK compatibility and operating envelope
+## Subphase 7.1 — SDK compatibility and operating envelope
 
-Establish the supported SDK and Isaac Sim/Isaac Lab configuration and identify
-any contract changes that consumers need to adopt. Document migration guidance;
-updating SquadBot's dependency and adapters belongs to the downstream project.
+#### Implementation
 
-Assess observation quality with moving sources and receivers, ambiguity,
-reverberation and competing sounds. Use representative microphone geometry,
-acoustic backends and perception settings within their documented bounds.
-Existing integration and stable-source results do not establish useful dynamic
-tracking. Begin with a bounded scenario and introduce harder acoustics only
-where they materially affect the intended consumer.
+Verified SDK 3.0.0 on the local Isaac Sim `6.0.1-rc.7` / Isaac Lab `3.0.0`
+checkout (`2e44ddb2e1`) and RTX 4090. The host gate passes 672 unit/contract,
+352 integration and 56 release tests; the supported Isaac lane passes 251 tests.
+Actual Sim with Geometry providers and Lab square-array acquisition at 60 Hz /
+10 Hz observations pass their live gates. This identifies one verified local
+runtime, not compatibility with every Sim/Lab release.
+
+Extended the maintained received-PCM comparator with explicit layout/input
+selection, finite aligned input checks, per-window rows, received-onset responses,
+audibility sensitivity and active-only quality summaries. Stationary defaults
+remain unchanged. The retained 36-input comparison preserves all activity/count
+updates; direction-difference p95 remains below 0.000175 degrees.
+
+The new screen contains 18 eight-second natural-speech episodes: static source,
+moving source, rotating receiver, joint motion, joint motion in a simple Geometry
+room, and joint motion with a stationary competing voice. The nominal planar
+array uses XY offsets at +/-33 mm, 16 kHz, 60 Hz acquisition, 100 ms observations,
+an explicit -60 dBFS Auditok threshold, 750 ms localization context, 32 observation
+slots and two candidate slots on CUDA; the scalar reference remains uncapped. Source speed reaches 1 m/s and receiver yaw speed
+90 degrees/s; distances are 1.5, 2.25 and 3 m. Evaluation uses identical received
+mixtures for scalar and CUDA perception; private poses/stems enter scoring only.
+
+[[experiments/consumer-audio-operating-envelope|Operating-envelope evidence]] owns
+the detailed protocol, results and reproduction commands. Migration guidance is
+in [[decisions/product-boundary-and-compatibility#Consumer readiness migration|the compatibility decision]].
+Dependency adoption and adapter changes remain downstream.
+
+#### Key Decisions
+
+Keep the current localizer, precision, thresholds and public contracts. This
+assessment introduces no tracker, smoothing, source-conditioned observation or
+new acoustic engine. Capacity remains independent of expected source count.
+Evaluate complete event sets and missing/extra events; silence, a correct onset
+or numerical agreement cannot substitute for continuous directional quality.
+
+Use the measured free-field, fixed-receiver profile as a provisional listening
+configuration. Its active complete-set rates are 97.9% for static speech and
+96.8% for the moving-source screen. These finite cases support further bounded
+consumer trials; they do not establish population reliability or real-time use.
+
+#### Problems / Limitations
+
+Rotating-receiver quality remains insufficient: active complete sets are 49.7%,
+59.9% with joint motion, 34.2% in the room screen and 49.3% with a competing voice.
+The room screen has incorrect-set sequences up to 2.2 s. No dynamically reliable
+closed-loop listening configuration is delivered for the full requested domain.
+The unchanged localizer's temporal problem remains open; research is not
+automatically reopened by this assessment.
+
+The dynamic scalar/CUDA gate passes: activity agreement 100%, count agreement
+1439/1440 (99.93%) and retained-direction difference p95 0.000018 degrees.
+One room-window count difference remains documented within the existing 97%
+preservation gate; it is not exact numerical identity. No production defect
+requiring a correction was established in this subphase. The initial missing
+Auditok runtime path was corrected through the existing isolated dependency
+setup, without changing the package or Isaac installation.
+
+Warm-up, uncertainty and received reverberant tails remain explicit. The room
+screen measures the existing base Geometry renderer at 60 Hz, not an independent
+moving-room pressure reference or physical transfer. Wall-clock latency, rendering
+load and learning throughput belong to 7.2; smoke/replay timing is not that result.
 
 ## 7.2 — Latency and learning throughput
 
@@ -52,3 +106,15 @@ Downstream scope and adoption work:
 
 [[decisions/product-boundary-and-compatibility|SDK ownership and compatibility]] ·
 [[index|Wiki index]]
+
+## Artifacts
+
+The [[experiments/consumer-audio-operating-envelope|7.1 assessment]] owns measured
+results and reproduction. Ignored PCM/preparation is in
+`local/sdk-runtime-readiness/`; reports and runtime gates are in
+`build/validation/sdk-readiness-7.1/`.
+
+## Files
+
+`tools/validation/lab_perception.py`,
+`tests/integration/test_lab_perception_scoring.py`.

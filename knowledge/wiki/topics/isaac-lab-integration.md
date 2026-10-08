@@ -105,6 +105,17 @@ Downstream learners must keep statistical normalization and observation modifier
 
 `tools/validation/lab_perception.py` compares scalar and CUDA processing on supplied received-PCM archives, keeping private scoring truth outside perception. The maintained stationary comparison covers 36 recordings and 1,440 updates across triangle, square, raised and tetrahedral arrays, 0/1/2 events, speech/broadband/disjoint content, 20 dB SNR, nominal RT60 0.3 s and 6 dB imbalance. Activity and count agree on every update; direction-difference p95 is below 0.00018 degrees on the final float64 path. Misses/extras agree as well. This preserves the reference's known failures and is an integration comparison, not a fresh physical or general acoustic qualification. Exact measurements and scale limits belong to [[implementation_phases/07-isaac-lab-observation-integration|Subphase 07.2]].
 
+The received-PCM tool additionally accepts `--layouts`, `--input-glob` with a
+`{layout}` placeholder, `--threshold-dbfs` and optional `--include-rows`. Defaults
+retain the four-layout stationary comparison. It validates aligned finite 16 kHz
+PCM/scoring references and reports active-only complete sets, warm-up-inclusive
+results, ambiguity/unavailability, truncation, +/-3 dB reference sensitivity and
+source-specific received-onset responses. Onset-bin start to observation-bin end
+has 100 ms resolution; it is separate from replay computation and SDK wall-clock
+latency. [[experiments/consumer-audio-operating-envelope|The 7.1 moving-receiver screen]]
+preserves numerical integration while exposing poor directional quality. No Lab
+API or policy observation field was added.
+
 The historical 07.1 closeout passed 116 runtime tests and measured 0.212 ms/step over 4096 **empty** entity environments. That result is not an active-perception baseline or a throughput claim for 07.2.
 
 ## Consumer and Validation Closeout
