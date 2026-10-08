@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import math
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any
 
 from isaac_audio_sensors.core.constants import (
@@ -15,9 +13,25 @@ from isaac_audio_sensors.core.constants import (
     CALIBRATION_PROFILE_UNITS,
     COORDINATE_CONVENTION,
 )
+from isaac_audio_sensors.core.types._validation import (
+    require_non_empty as _require_text,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_relative_path as _require_relative_path,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_sha256 as _require_sha256,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_stable_id as _require_id,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_unique as _require_unique,
+)
+from isaac_audio_sensors.core.types._validation import (
+    unique_id_tuple as _unique_id_tuple,
+)
 
-_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 MEASUREMENT_STATUSES = (
     "measured",
     "nominal_not_measured",
@@ -471,19 +485,6 @@ def _get_value(value: object, name: str, *, required: bool = True) -> Any:
     return result
 
 
-def _require_text(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field_name} must be a non-empty string.")
-
-
-def _require_id(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or _ID_PATTERN.fullmatch(value) is None:
-        raise ValueError(
-            f"{field_name} must be a non-empty stable id using letters, numbers, "
-            "'.', '_', ':', or '-'."
-        )
-
-
 def _require_status(value: str, field_name: str) -> None:
     if value not in MEASUREMENT_STATUSES:
         raise ValueError(f"{field_name} must be one of {list(MEASUREMENT_STATUSES)}.")
@@ -499,47 +500,6 @@ def _finite_tuple(values: object, length: int, field_name: str):
     if len(result) != length or not all(math.isfinite(value) for value in result):
         raise ValueError(f"{field_name} must contain {length} finite values.")
     return result
-
-
-def _unique_id_tuple(
-    values: object,
-    field_name: str,
-    *,
-    require_non_empty: bool = False,
-) -> tuple[str, ...]:
-    result = tuple(values)  # type: ignore[arg-type]
-    if require_non_empty and not result:
-        raise ValueError(f"{field_name} must not be empty.")
-    for value in result:
-        _require_id(value, field_name)
-    _require_unique(result, field_name)
-    return result
-
-
-def _require_unique(values: tuple[str, ...], field_name: str) -> None:
-    if len(set(values)) != len(values):
-        raise ValueError(f"{field_name} must not contain duplicates.")
-
-
-def _require_relative_path(value: str, field_name: str) -> None:
-    _require_text(value, field_name)
-    posix_path = PurePosixPath(value)
-    windows_path = PureWindowsPath(value)
-    if (
-        posix_path.is_absolute()
-        or windows_path.is_absolute()
-        or windows_path.drive
-        or ".." in posix_path.parts
-        or "\\" in value
-    ):
-        raise ValueError(
-            f"{field_name} must be a relative POSIX path without parent traversal."
-        )
-
-
-def _require_sha256(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
-        raise ValueError(f"{field_name} must be 64 lowercase hexadecimal characters.")
 
 
 def _require_utc_timestamp(value: str, field_name: str) -> None:

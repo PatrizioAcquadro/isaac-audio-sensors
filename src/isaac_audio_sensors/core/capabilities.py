@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 
-from isaac_audio_sensors.core.fidelity import ACOUSTIC_FIDELITY_LADDER
 from isaac_audio_sensors.core.plugins.registry import get_default_registry
 
 _BUNDLED_ROOT = Path(__file__).resolve().parents[1] / "_bundled"
@@ -136,25 +135,6 @@ def _base_level(level: str, public_name: str) -> CapabilityStatus:
     )
 
 
-def _unavailable_future_level(level: str, public_name: str) -> CapabilityStatus:
-    if level == "L3":
-        message = (
-            f"Complete {public_name} remains unqualified; the intermediate "
-            "geometry_acoustics provider requires explicit native scene configuration."
-        )
-    else:
-        message = f"{public_name} is not a released runtime capability in Stage 1."
-    return CapabilityStatus(
-        capability_id=level,
-        kind="fidelity_level",
-        fidelity_level=level,
-        status="unavailable",
-        origin="absent",
-        missing_dependencies=(),
-        actionable_message=message,
-    )
-
-
 def discover_capabilities() -> CapabilityReport:
     """Discover bundled, external, and absent capabilities."""
 
@@ -188,18 +168,8 @@ def discover_capabilities() -> CapabilityReport:
         dependencies=("pyroomacoustics",),
     )
 
-    fidelity_levels: list[CapabilityStatus] = []
-    for metadata in ACOUSTIC_FIDELITY_LADDER:
-        level = metadata.level.value
-        if level in {"L0", "L1", "L2"}:
-            fidelity_levels.append(_base_level(level, metadata.public_name))
-        else:
-            fidelity_levels.append(
-                _unavailable_future_level(level, metadata.public_name)
-            )
-
     return CapabilityReport(
-        fidelity_levels=tuple(fidelity_levels),
+        fidelity_levels=(_base_level("L2", "analytic_acoustics"),),
         optional_features=(
             *optional_backends,
             CapabilityStatus(

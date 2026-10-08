@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import re
+from pathlib import PurePosixPath, PureWindowsPath
 
 from isaac_audio_sensors.core.constants import COORDINATE_CONVENTION
 
@@ -52,3 +54,56 @@ def coerce_float_dict(
             raise ValueError(f"{field_name}[{key!r}] must be non-negative.")
         coerced[key] = numeric
     return coerced
+
+
+_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
+_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+
+def require_stable_id(value: str, field_name: str) -> None:
+    if not isinstance(value, str) or _ID_PATTERN.fullmatch(value) is None:
+        raise ValueError(
+            f"{field_name} must be a non-empty stable id using letters, numbers, "
+            "'.', '_', ':', or '-'."
+        )
+
+
+def unique_id_tuple(
+    values: object,
+    field_name: str,
+    *,
+    require_non_empty: bool = False,
+) -> tuple[str, ...]:
+    result = tuple(values)  # type: ignore[arg-type]
+    if require_non_empty and not result:
+        raise ValueError(f"{field_name} must not be empty.")
+    for value in result:
+        require_stable_id(value, field_name)
+    require_unique(result, field_name)
+    return result
+
+
+def require_unique(values: tuple[str, ...], field_name: str) -> None:
+    if len(set(values)) != len(values):
+        raise ValueError(f"{field_name} must not contain duplicates.")
+
+
+def require_relative_path(value: str, field_name: str) -> None:
+    require_non_empty(value, field_name)
+    posix_path = PurePosixPath(value)
+    windows_path = PureWindowsPath(value)
+    if (
+        posix_path.is_absolute()
+        or windows_path.is_absolute()
+        or windows_path.drive
+        or ".." in posix_path.parts
+        or "\\" in value
+    ):
+        raise ValueError(
+            f"{field_name} must be a relative POSIX path without parent traversal."
+        )
+
+
+def require_sha256(value: str, field_name: str) -> None:
+    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
+        raise ValueError(f"{field_name} must be 64 lowercase hexadecimal characters.")

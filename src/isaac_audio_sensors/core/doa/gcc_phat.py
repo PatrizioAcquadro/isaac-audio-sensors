@@ -18,48 +18,6 @@ class GccPhatDelay:
     max_delay_s: float | None
 
 
-def gcc_phat_delay(
-    signal: Sequence[float],
-    reference_signal: Sequence[float],
-    *,
-    sample_rate_hz: int,
-    max_delay_s: float | None = None,
-    interp: int = 8,
-) -> GccPhatDelay:
-    """Estimate the delay of ``signal`` relative to ``reference_signal``.
-
-    A positive delay means ``signal`` arrives later than ``reference_signal``.
-    ``max_delay_s`` should normally be bounded by the microphone-array aperture
-    divided by the speed of sound.
-    """
-
-    if sample_rate_hz <= 0:
-        raise ValueError("sample_rate_hz must be positive.")
-    if interp <= 0:
-        raise ValueError("interp must be positive.")
-    if max_delay_s is not None and max_delay_s < 0.0:
-        raise ValueError("max_delay_s must be non-negative.")
-
-    sig = _as_waveform(signal, "signal")
-    ref = _as_waveform(reference_signal, "reference_signal")
-    if sig.size == 0 or ref.size == 0:
-        raise ValueError("signals must not be empty.")
-    if not np.any(sig) or not np.any(ref):
-        raise ValueError("signals must contain at least one non-zero sample.")
-
-    sig = sig - float(np.mean(sig))
-    ref = ref - float(np.mean(ref))
-    n_fft = _next_power_of_two(sig.size + ref.size - 1)
-    return _gcc_phat_from_spectra(
-        np.fft.rfft(sig, n=n_fft),
-        np.fft.rfft(ref, n=n_fft),
-        n_fft=n_fft,
-        sample_rate_hz=sample_rate_hz,
-        max_delay_s=max_delay_s,
-        interp=interp,
-    )
-
-
 def _gcc_phat_from_spectra(
     signal_spectrum: np.ndarray,
     reference_spectrum: np.ndarray,
@@ -96,24 +54,6 @@ def _gcc_phat_from_spectra(
         sample_shift=sample_shift,
         max_delay_s=max_delay_s,
     )
-
-
-def estimate_tdoa_matrix(
-    waveforms: Mapping[str, Sequence[float]],
-    *,
-    sample_rate_hz: int,
-    max_delay_s: float | None = None,
-    interp: int = 8,
-) -> dict[str, float]:
-    """Return pairwise TDOA estimates in seconds for all microphone pairs."""
-
-    delays, _peaks = _pairwise_gcc_phat(
-        waveforms,
-        sample_rate_hz=sample_rate_hz,
-        max_delay_s=max_delay_s,
-        interp=interp,
-    )
-    return delays
 
 
 def estimate_tdoa_diagnostics(
@@ -227,21 +167,6 @@ def relative_delays_from_tdoa_matrix(
             continue
         delays[mic_id] = float(tdoa_matrix_s[f"{mic_id}->{reference}"])
     return delays
-
-
-def rms_by_channel(
-    waveforms: Mapping[str, Sequence[float]],
-) -> dict[str, float]:
-    """Compute RMS amplitude per waveform channel."""
-
-    rms: dict[str, float] = {}
-    for mic_id, waveform in waveforms.items():
-        values = _as_waveform(waveform, mic_id)
-        if values.size == 0:
-            rms[mic_id] = 0.0
-        else:
-            rms[mic_id] = float(np.sqrt(np.mean(values * values)))
-    return rms
 
 
 def _as_waveform(values: Sequence[float], name: str) -> np.ndarray:

@@ -197,10 +197,3 @@ def bearing_from_components(forward_m: float, right_m: float) -> float | None:
     if horizontal <= EPSILON:
         return None
     return normalize_bearing_deg(math.degrees(math.atan2(right_m, forward_m)))
-
-
-def angular_error_deg(left: float, right: float) -> float:
-    """Return the smallest absolute angular difference in degrees."""
-
-    delta = (left - right + 180.0) % 360.0 - 180.0
-    return abs(delta)

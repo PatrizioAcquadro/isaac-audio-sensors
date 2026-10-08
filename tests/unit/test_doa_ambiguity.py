@@ -7,7 +7,6 @@ import pytest
 from isaac_audio_sensors.core.backends._analytic.doa import (
     estimate_doa_from_delays,
 )
-from isaac_audio_sensors.core.microphone_array import validate_tdoa_array
 from isaac_audio_sensors.core.types import MicrophoneArraySpec, MicrophoneSpec
 
 SPEED_OF_SOUND_MPS = 343.0
@@ -85,15 +84,3 @@ def test_three_non_collinear_mics_recover_unique_azimuth(bearing_deg):
     assert result.estimated_bearing_deg == pytest.approx(bearing_deg)
     assert result.candidate_bearing_deg == pytest.approx((bearing_deg,))
     assert result.ambiguity_class is None
-
-
-def test_three_or_more_collinear_mics_fail_closed():
-    sensor = _array(
-        (0.0, -0.05, 0.0),
-        (0.0, 0.0, 0.0),
-        (0.0, 0.05, 0.0),
-        (0.0, 0.1, 0.0),
-    )
-
-    with pytest.raises(ValueError, match="non-collinear"):
-        validate_tdoa_array(sensor)

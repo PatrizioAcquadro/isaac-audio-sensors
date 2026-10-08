@@ -2,6 +2,8 @@
 
 ## 3.0.0 - Unreleased
 
+- Removed unused numerical wrappers and the stale fidelity metadata catalog. Capability discovery reports maintained runtime roles; the compatibility decision documents replacements. Consolidated calibration/dataset ID and safe-path validation without changing serialized formats.
+
 - Added prepared-scene Geometry controls in Kit, shared scene/sensor lifecycle, saved native settings and separate actionable simulation diagnostics. Preserved optional NLOS/diffuse defaults and observation contracts; historical NLOS coverage no longer changes after later captures.
 
 - Breaking (07.2 admission): frame v4 preserves unavailable bearing confidence as null; frame v3 inputs are rejected. Later numerical maintenance stabilizes scalar/CUDA WPE and equal-score peak selection without changing thresholds.

@@ -8,7 +8,6 @@ from isaac_audio_sensors.core.constants import COORDINATE_CONVENTION
 from isaac_audio_sensors.core.math_utils import quaternion_from_yaw_deg
 from isaac_audio_sensors.core.microphone_array import (
     create_microphone_array,
-    layout_rank_xy,
     layout_rank_xyz,
     microphone_layout,
     microphone_world_positions,
@@ -55,7 +54,6 @@ def test_tetrahedral_layout_is_rank_three_with_requested_edge_length():
         microphones=microphones,
     )
     assert layout_rank_xyz(array) == 3
-    assert layout_rank_xy(array) == 2
 
 
 @pytest.mark.parametrize(

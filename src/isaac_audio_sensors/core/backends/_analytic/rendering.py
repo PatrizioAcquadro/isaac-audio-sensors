@@ -39,10 +39,6 @@ from isaac_audio_sensors.core.directivity import (
 from isaac_audio_sensors.core.effects.chain import ChannelEffectsChain
 from isaac_audio_sensors.core.effects.config import EffectsConfig
 from isaac_audio_sensors.core.gain import db_to_amplitude_gain
-from isaac_audio_sensors.core.math_utils import (
-    norm,
-    subtract,
-)
 from isaac_audio_sensors.core.microphone_array import (
     microphone_world_positions,
 )
@@ -1335,17 +1331,6 @@ def _world_to_environment_positions(
             environment_position[2],
         )
     return environment_positions
-
-
-def _max_microphone_spacing(
-    positions: dict[str, tuple[float, float, float]],
-) -> float:
-    max_spacing = 0.0
-    values = tuple(positions.values())
-    for left in values:
-        for right in values:
-            max_spacing = max(max_spacing, norm(subtract(left, right)))
-    return max_spacing
 
 
 def _cached_room(room, cache, key):

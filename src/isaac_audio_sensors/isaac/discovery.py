@@ -1234,13 +1234,6 @@ def _linear_gain_candidate(
     return _linear_gain_to_db(value), provenance
 
 
-def _first_present_key(attrs: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
-    for key in keys:
-        if key in attrs and attrs[key] is not None:
-            return key
-    return None
-
-
 def _class_label_override(
     cfg: IsaacAudioDiscoveryCfg,
     *,
@@ -1261,16 +1254,6 @@ def _asset_path(value: Any) -> str | None:
     path = getattr(value, "path", None)
     resolved = str(path if path is not None else value)
     return resolved if resolved else None
-
-
-def _float_attr(
-    attrs: Mapping[str, Any],
-    keys: tuple[str, ...],
-    *,
-    default: float,
-) -> float:
-    value = _optional_float_attr(attrs, keys, default=None)
-    return default if value is None else value
 
 
 def _gain_db_attr(

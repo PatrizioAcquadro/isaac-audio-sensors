@@ -160,14 +160,6 @@ class _SimulationSharedInputs(ctypes.Structure):
     ]
 
 
-class _ReflectionEffectSettings(ctypes.Structure):
-    _fields_ = [
-        ("effect_type", ctypes.c_int),
-        ("ir_size", ctypes.c_int32),
-        ("num_channels", ctypes.c_int32),
-    ]
-
-
 class _ReflectionEffectParams(ctypes.Structure):
     _fields_ = [
         ("effect_type", ctypes.c_int),

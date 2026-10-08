@@ -53,6 +53,22 @@ Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequen
 
 Experimental or private names may change with clear release notes, but downstream project-specific surfaces are not preserved through permanent shims.
 
+## Maintenance removals in unreleased 3.0
+
+Unused lower-level conveniences are removed without aliases: `gcc_phat_delay`,
+`estimate_tdoa_matrix`, `rms_by_channel`, `validate_tdoa_array`, `layout_rank_xy`,
+`angular_error_deg`, and the `core.fidelity` metadata module. Use
+`estimate_tdoa_diagnostics` for waveform-derived pair delays and peaks, the
+maintained estimator for geometry admission, and `layout_rank_xyz` for spatial
+rank. `active_sources` remains available to downstream scene consumers.
+
+Capability discovery retains the base Analytic level and reports optional room,
+codec, and configured Geometry capabilities directly. It no longer advertises
+the speculative L4 level or a separate unavailable L3 placeholder. Model scope
+and qualification limits belong to the canonical acoustic topics and status,
+not a parallel prose catalog embedded in Python. Frame v4, manifest v4,
+frame-record v2, and calibration v1 are unchanged.
+
 ## Consequences
 
 The core stays portable and testable, optional runtimes remain lazy, downstream ownership is explicit, and release archives can be audited against one generic product boundary.

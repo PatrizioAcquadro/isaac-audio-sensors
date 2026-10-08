@@ -117,31 +117,6 @@ def microphone_world_positions(
     return world_positions
 
 
-def validate_tdoa_array(array: MicrophoneArraySpec) -> None:
-    """Validate physically observable azimuth geometry for TDOA localization."""
-
-    if len(array.microphones) < 2:
-        raise ValueError("TDOA localization requires at least two microphones.")
-    rank_xy = _layout_rank_xy(array)
-    if len(array.microphones) == 2:
-        if rank_xy < 1:
-            raise ValueError(
-                "Two-microphone TDOA requires distinct positions in local XY."
-            )
-        return
-    if rank_xy < 2:
-        raise ValueError(
-            "Unique azimuth TDOA requires at least three non-collinear "
-            "microphones in local XY."
-        )
-
-
-def layout_rank_xy(array: MicrophoneArraySpec) -> int:
-    """Return a simple local-XY layout rank used in diagnostics."""
-
-    return _layout_rank_xy(array)
-
-
 def layout_rank_xyz(array: MicrophoneArraySpec) -> int:
     """Return the full local-3D layout rank (0-3) used for elevation gating."""
 
@@ -183,25 +158,3 @@ def microphone_positions_rank_xyz(positions: list[Vector3]) -> int:
         if abs(dot(plane_normal, vector)) > 1e-9:
             return 3
     return 2
-
-
-def _layout_rank_xy(array: MicrophoneArraySpec) -> int:
-    positions = [microphone.relative_position_m for microphone in array.microphones]
-    if len(positions) <= 1:
-        return 0
-
-    origin = positions[0]
-    vectors = [
-        (position[0] - origin[0], position[1] - origin[1]) for position in positions[1:]
-    ]
-    if all(math.hypot(vector[0], vector[1]) <= 1e-9 for vector in vectors):
-        return 0
-
-    first = next(
-        vector for vector in vectors if math.hypot(vector[0], vector[1]) > 1e-9
-    )
-    for vector in vectors[1:]:
-        cross_z = first[0] * vector[1] - first[1] * vector[0]
-        if abs(cross_z) > 1e-9:
-            return 2
-    return 1

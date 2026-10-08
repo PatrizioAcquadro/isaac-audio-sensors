@@ -2,21 +2,36 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from pathlib import PurePosixPath, PureWindowsPath
+from pathlib import PurePosixPath
 
 from isaac_audio_sensors.core.constants import (
     COORDINATE_CONVENTION,
     RUNTIME_PROFILES,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_non_empty as _require_text,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_relative_path as _require_relative_path,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_sha256 as _require_sha256,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_stable_id as _require_id,
+)
+from isaac_audio_sensors.core.types._validation import (
+    require_unique as _require_unique,
+)
+from isaac_audio_sensors.core.types._validation import (
+    unique_id_tuple as _unique_id_tuple,
 )
 from isaac_audio_sensors.recording.constants import (
     DATASET_MANIFEST_SCHEMA_VERSION,
     DATASET_MANIFEST_UNITS,
 )
 
-_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _COMPLETION_STATES = frozenset({"incomplete", "complete"})
 _ASSET_KINDS = frozenset({"frame_trace_jsonl", "audio_wav", "audio_flac"})
 _DTYPES = frozenset({"float32", "float64", "int16", "int24", "int32"})
@@ -394,19 +409,6 @@ def _learning_identities(
     return trajectory_id, assets
 
 
-def _require_text(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field_name} must be a non-empty string.")
-
-
-def _require_id(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or _ID_PATTERN.fullmatch(value) is None:
-        raise ValueError(
-            f"{field_name} must be a non-empty stable id using letters, numbers, "
-            "'.', '_', ':', or '-'."
-        )
-
-
 def _require_non_negative_int(value: int, field_name: str) -> None:
     if isinstance(value, bool) or int(value) != value or int(value) < 0:
         raise ValueError(f"{field_name} must be a non-negative integer.")
@@ -429,27 +431,6 @@ def _require_monotonic(values: tuple[int, ...], field_name: str) -> None:
         raise ValueError(f"{field_name} must be non-negative and monotonic.")
 
 
-def _require_relative_path(value: str, field_name: str) -> None:
-    _require_text(value, field_name)
-    posix_path = PurePosixPath(value)
-    windows_path = PureWindowsPath(value)
-    if (
-        posix_path.is_absolute()
-        or windows_path.is_absolute()
-        or windows_path.drive
-        or ".." in posix_path.parts
-        or "\\" in value
-    ):
-        raise ValueError(
-            f"{field_name} must be a relative POSIX path without parent traversal."
-        )
-
-
-def _require_sha256(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
-        raise ValueError(f"{field_name} must be 64 lowercase hexadecimal characters.")
-
-
 def _require_units(
     units: dict[str, str],
     expected: dict[str, str],
@@ -457,26 +438,6 @@ def _require_units(
 ) -> None:
     if not isinstance(units, dict) or units != expected:
         raise ValueError(f"{field_name} must use the canonical unit values {expected}.")
-
-
-def _unique_id_tuple(
-    values: object,
-    field_name: str,
-    *,
-    require_non_empty: bool = False,
-) -> tuple[str, ...]:
-    result = tuple(values)  # type: ignore[arg-type]
-    if require_non_empty and not result:
-        raise ValueError(f"{field_name} must not be empty.")
-    for value in result:
-        _require_id(value, field_name)
-    _require_unique(result, field_name)
-    return result
-
-
-def _require_unique(values: tuple[str, ...], field_name: str) -> None:
-    if len(set(values)) != len(values):
-        raise ValueError(f"{field_name} must not contain duplicates.")
 
 
 def _require_completion_state(value: str, field_name: str) -> None:

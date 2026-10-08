@@ -367,3 +367,7 @@ The Isaac Sim and Kit topic now documents that Stop disables frame dispatch befo
 ## 2026-10-03 — lint: Verify Replicator lifecycle repair
 
 All 42 wiki pages resolve and remain indexed; Ruff, version synchronization and Git whitespace pass. The repository gate passes 677 unit/contract, 348 integration and 58 release tests, including 11 Replicator cases. Coordinated actual Kit GUI start/flush/stop/restart and repeated-stop cycles retain 23 and 20 writes while sensor and timeline continue; timestamps advance 1,500 ms after each stop with Enable cleared and no additional writes. Authentic screenshots and final manifests/JSONL were independently inspected. Existing quad channel-order source and tests remain unchanged.
+
+## 2026-10-08 — update: Remove unused runtime surfaces
+
+Removed unused numerical helpers, test-only wrappers and the stale fidelity prose catalog. Capability discovery remains authoritative for runtime availability; model limits remain in canonical topics. Consolidated identical calibration/dataset ID, digest and relative-path validation while preserving serialized contracts and the downstream active_sources consumer.
