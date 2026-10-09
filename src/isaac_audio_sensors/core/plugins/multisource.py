@@ -23,6 +23,16 @@ def localization_context_samples(duration_s: float) -> int:
     return round(duration_s * 16000)
 
 
+def validate_spatial_coherence_threshold(threshold: float | None) -> None:
+    """Optional squared plane-wave coherence; never a source-count prior."""
+    if threshold is None:
+        return
+    if isinstance(threshold, bool) or not isinstance(threshold, Real):
+        raise TypeError("spatial coherence threshold must be a real number or None.")
+    if not math.isfinite(threshold) or not 0 < threshold <= 1:
+        raise ValueError("spatial coherence threshold must be in (0, 1].")
+
+
 class MaintainedEventLocalizer:
     """Localize independent frame events; retain no source identities.
 
@@ -30,6 +40,8 @@ class MaintainedEventLocalizer:
     for relatively stable sources. Default memory is 750 ms; a shorter context
     can be selected explicitly for dynamic listening. WPE may be disabled for
     a direct-covariance free-field profile. Context is not response latency.
+    Optional plane-wave coherence selection reduces reflected events; overlapping
+    voices may lose support. It never selects only the strongest frame event.
     Physical recordings and arbitrary rooms are unqualified.
     Stereo and other planar sample rates keep the existing single-event role.
     All dependencies remain lazy.
@@ -45,10 +57,13 @@ class MaintainedEventLocalizer:
         runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
         context_duration_s: float = 0.75,
         dereverberation_enabled: bool = True,
+        spatial_coherence_threshold: float | None = None,
     ) -> None:
         if not isinstance(dereverberation_enabled, bool):
             raise TypeError("dereverberation_enabled must be a boolean.")
         self.dereverberation_enabled = dereverberation_enabled
+        validate_spatial_coherence_threshold(spatial_coherence_threshold)
+        self.spatial_coherence_threshold = spatial_coherence_threshold
         self.context_samples = localization_context_samples(context_duration_s)
         self.consumer_context_duration_s = self.context_samples / 16000
         self._stereo = MaintainedDoaEstimator(runtime_profile=runtime_profile)
@@ -120,9 +135,13 @@ class MaintainedEventLocalizer:
                     "Multisource DOA requires isaac-audio-sensors[room]."
                 ) from exc
             self._spatial = (
-                WpeSparseCovariance()
+                WpeSparseCovariance(
+                    spatial_coherence_threshold=self.spatial_coherence_threshold
+                )
                 if self.dereverberation_enabled
-                else GroupSparseCovariance()
+                else GroupSparseCovariance(
+                    spatial_coherence_threshold=self.spatial_coherence_threshold
+                )
             )
         directions, diagnostics = self._spatial.localize(
             values[:, -self.context_samples :], positions, sample_rate_hz
@@ -151,9 +170,12 @@ class MaintainedEventLocalizer:
             "temporal_policy": "causal_window_event_set",
             "qualification_scope": (
                 "simulated_indoor_stable_sources"
-                if self.context_samples == 12000 and self.dereverberation_enabled
+                if self.context_samples == 12000
+                and self.dereverberation_enabled
+                and self.spatial_coherence_threshold is None
                 else "configured_localization_experimental"
             ),
             "context_duration_s": self.consumer_context_duration_s,
             "dereverberation_enabled": self.dereverberation_enabled,
+            "spatial_coherence_threshold": self.spatial_coherence_threshold,
         }

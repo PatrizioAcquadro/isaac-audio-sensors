@@ -64,6 +64,7 @@ class TorchPerception:
         window_samples=1600,
         localization_context_s=0.75,
         localization_dereverberation=True,
+        localization_spatial_coherence=None,
     ):
         self.device = device
         self.threshold = threshold_dbfs
@@ -83,6 +84,7 @@ class TorchPerception:
                 device=device,
                 context_duration_s=localization_context_s,
                 dereverberation_enabled=localization_dereverberation,
+                spatial_coherence_threshold=localization_spatial_coherence,
             )
             if doa_enabled
             else None

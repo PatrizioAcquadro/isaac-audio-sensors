@@ -11,7 +11,10 @@ from isaaclab.utils.configclass import configclass
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
-from isaac_audio_sensors.core.plugins.multisource import localization_context_samples
+from isaac_audio_sensors.core.plugins.multisource import (
+    localization_context_samples,
+    validate_spatial_coherence_threshold,
+)
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
 from isaac_audio_sensors.lab.audio_array_sensor_data import _validate_capacity
 
@@ -29,6 +32,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
     doa_enabled: bool = False
     localization_context_s: float = 0.75
     localization_dereverberation: bool = True
+    localization_spatial_coherence: float | None = None
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
@@ -54,6 +58,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
         if not isinstance(self.doa_enabled, bool):
             raise TypeError("doa_enabled must be a boolean.")
         localization_context_samples(self.localization_context_s)
+        validate_spatial_coherence_threshold(self.localization_spatial_coherence)
         if not isinstance(self.localization_dereverberation, bool):
             raise TypeError("localization_dereverberation must be a boolean.")
         if (

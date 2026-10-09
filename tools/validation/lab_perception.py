@@ -14,6 +14,7 @@ from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
 from isaac_audio_sensors.core.plugins.multisource import (
     MaintainedEventLocalizer,
     localization_context_samples,
+    validate_spatial_coherence_threshold,
 )
 from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
@@ -145,10 +146,12 @@ def run_stream(
     threshold_dbfs=-60,
     localization_context_s=0.75,
     localization_dereverberation=True,
+    localization_spatial_coherence=None,
 ):
     estimator = MaintainedEventLocalizer(
         context_duration_s=localization_context_s,
         dereverberation_enabled=localization_dereverberation,
+        spatial_coherence_threshold=localization_spatial_coherence,
     )
     positions = np.array(data["positions"], dtype=float, copy=True)
     positions.setflags(write=False)
@@ -482,10 +485,12 @@ def main():
     parser.add_argument("--rescore-report", type=Path)
     parser.add_argument("--localization-context-s", type=float, default=0.75)
     parser.add_argument("--no-localization-wpe", action="store_true")
+    parser.add_argument("--localization-spatial-coherence", type=float)
     args = parser.parse_args()
     if not np.isfinite(args.threshold_dbfs):
         parser.error("--threshold-dbfs must be finite.")
     context_samples = localization_context_samples(args.localization_context_s)
+    validate_spatial_coherence_threshold(args.localization_spatial_coherence)
     if args.rescore_report:
         report = rescore_report(
             json.loads(args.rescore_report.read_text()), args.inputs_dir
@@ -496,12 +501,14 @@ def main():
 
     import torch
 
+    import isaac_audio_sensors
     from isaac_audio_sensors.lab._torch_perception import TorchPerception
 
     if not torch.cuda.is_available():
         raise RuntimeError("Received-audio parity requires CUDA, without CPU fallback.")
     report = {
         "gpu": torch.cuda.get_device_name(0),
+        "sdk_source": isaac_audio_sensors.__file__,
         "layouts": {},
         "status": "running",
         "threshold_dbfs": args.threshold_dbfs,
@@ -510,6 +517,7 @@ def main():
         "timing_scope": "offline replay; compute is not end-to-end SDK latency",
         "localization_context_s": args.localization_context_s,
         "localization_dereverberation": not args.no_localization_wpe,
+        "localization_spatial_coherence": args.localization_spatial_coherence,
         "matching_policy": "maximum valid cardinality, then minimum total angle",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -528,6 +536,7 @@ def main():
                     threshold_dbfs=args.threshold_dbfs,
                     localization_context_s=args.localization_context_s,
                     localization_dereverberation=not args.no_localization_wpe,
+                    localization_spatial_coherence=args.localization_spatial_coherence,
                 )
             )
         lengths = {d["samples"].shape[-1] for d in data}
@@ -547,6 +556,7 @@ def main():
             device="cuda:0",
             localization_context_s=args.localization_context_s,
             localization_dereverberation=not args.no_localization_wpe,
+            localization_spatial_coherence=args.localization_spatial_coherence,
         )
         ids = torch.arange(len(data), device="cuda:0")
         values = torch.tensor(

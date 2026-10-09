@@ -9,7 +9,8 @@ pytest.importorskip("nara_wpe")
 from isaac_audio_sensors.core.plugins._multisource_sparse import GroupSparseCovariance
 
 
-def test_direct_covariance_localization_does_not_import_wpe(monkeypatch):
+@pytest.mark.parametrize("coherence", [None, 0.98])
+def test_direct_covariance_localization_does_not_import_wpe(monkeypatch, coherence):
     import builtins
 
     from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
@@ -34,7 +35,9 @@ def test_direct_covariance_localization_does_not_import_wpe(monkeypatch):
         n=len(signal),
     )
     events, diagnostic = MaintainedEventLocalizer(
-        context_duration_s=0.15, dereverberation_enabled=False
+        context_duration_s=0.15,
+        dereverberation_enabled=False,
+        spatial_coherence_threshold=coherence,
     ).localize(samples, positions, 16000)
     assert len(events) == 1
     assert events[0].estimated_bearing_deg == pytest.approx(55, abs=5)
@@ -42,11 +45,12 @@ def test_direct_covariance_localization_does_not_import_wpe(monkeypatch):
 
 
 @pytest.mark.parametrize("three_d", [False, True])
-def test_silence_geometry_and_unbounded_event_selection(three_d):
+@pytest.mark.parametrize("coherence", [None, 0.98])
+def test_silence_geometry_and_unbounded_event_selection(three_d, coherence):
     positions = np.array(
         [[0, 0, 0], [0.06, 0, 0], [0, 0.06, 0], [0, 0, 0.06 if three_d else 0]]
     )
-    estimator = GroupSparseCovariance()
+    estimator = GroupSparseCovariance(spatial_coherence_threshold=coherence)
     samples = np.zeros((4, 12000))
     samples.setflags(write=False)
     found, diagnostic = estimator.localize(samples, positions, 16000)

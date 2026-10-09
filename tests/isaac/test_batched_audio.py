@@ -52,6 +52,79 @@ def cuda():
     return "cuda:0"
 
 
+def separated_band_voices(positions):
+    """Independent emitters with distinct spectral support; second is 9 dB lower."""
+    positions = np.asarray(positions)
+    rng = np.random.default_rng(903)
+    frequencies = np.fft.rfftfreq(12000, 1 / 16000)
+    samples = np.zeros((len(positions), 12000))
+    for bearing, band, gain in (
+        (20, (500, 1800), 1),
+        (120, (2600, 4500), 10 ** (-9 / 20)),
+    ):
+        spectrum = np.fft.rfft(rng.normal(0, 0.08, 12000))
+        spectrum *= (frequencies >= band[0]) & (frequencies <= band[1])
+        azimuth = np.radians(bearing)
+        vector = np.array([np.cos(azimuth), np.sin(azimuth), 0])
+        samples += gain * np.fft.irfft(
+            spectrum[None]
+            * np.exp(
+                2j * np.pi * frequencies[None] * (positions @ vector)[:, None] / 343
+            ),
+            n=12000,
+        )
+    return samples.astype(np.float32)
+
+
+@pytest.mark.parametrize("positions", LAYOUTS)
+def test_coherence_filter_preserves_weak_independent_direction_and_batch(
+    positions, cuda
+):
+    from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+
+    positions = np.asarray(positions)
+    signal = separated_band_voices(positions)
+    values = np.stack([signal, signal * 1e-3, np.zeros_like(signal)])
+    scalar = MaintainedEventLocalizer(
+        context_duration_s=0.2,
+        dereverberation_enabled=False,
+        spatial_coherence_threshold=0.98,
+    )
+    model = TorchEventLocalizer(
+        positions,
+        device=cuda,
+        context_duration_s=0.2,
+        dereverberation_enabled=False,
+        spatial_coherence_threshold=0.98,
+    )
+    found, mask = model.localize(torch.tensor(values, device=cuda))
+    assert mask.sum(dim=-1).tolist() == [2, 2, 0]
+    for row in (0, 1):
+        events, diagnostic = scalar.localize(values[row], positions, 16000)
+        assert len(events) == 2 and not diagnostic["event_confidence_available"]
+        actual = found[row, mask[row]].cpu().numpy()
+        expected = np.array(
+            [
+                [
+                    np.cos(np.radians(e.estimated_bearing_deg))
+                    * np.cos(np.radians(e.estimated_elevation_deg or 0)),
+                    np.sin(np.radians(e.estimated_bearing_deg))
+                    * np.cos(np.radians(e.estimated_elevation_deg or 0)),
+                    np.sin(np.radians(e.estimated_elevation_deg or 0)),
+                ]
+                for e in events
+            ]
+        )
+        errors = np.degrees(np.arccos(np.clip(actual @ expected.T, -1, 1)))
+        assert errors.min(axis=0).max() < 0.1
+        bearings = sorted(e.estimated_bearing_deg % 360 for e in events)
+        np.testing.assert_allclose(bearings, [20, 120], atol=10, rtol=0)
+    alone, valid = model.localize(torch.tensor(values[:1], device=cuda))
+    torch.testing.assert_close(
+        found[0, mask[0]], alone[0, valid[0]], atol=1e-5, rtol=1e-4
+    )
+
+
 def test_wpe_batch_independence_and_silence(cuda):
     torch.manual_seed(72)
     samples = torch.randn(1, 4, 12000, device=cuda) * 0.08
@@ -285,8 +358,13 @@ def test_cuda_activity_matches_auditok_tokens(cuda, block_size):
 
 
 @pytest.mark.parametrize("capacity", [0, 1, 3])
-@pytest.mark.parametrize("context_s,wpe", [(0.15, False), (0.25, True), (0.75, True)])
-def test_perception_partial_reset_and_capacity(cuda, capacity, context_s, wpe):
+@pytest.mark.parametrize(
+    "context_s,wpe,coherence",
+    [(0.15, False, None), (0.25, True, None), (0.75, True, None), (0.2, False, 0.98)],
+)
+def test_perception_partial_reset_and_capacity(
+    cuda, capacity, context_s, wpe, coherence
+):
     from isaac_audio_sensors.lab._torch_perception import TorchPerception
 
     p = TorchPerception(
@@ -299,8 +377,12 @@ def test_perception_partial_reset_and_capacity(cuda, capacity, context_s, wpe):
         device=cuda,
         localization_context_s=context_s,
         localization_dereverberation=wpe,
+        localization_spatial_coherence=coherence,
     )
-    samples = torch.tensor(np.stack([mixture(LAYOUTS[1])] * 2), device=cuda)
+    signal = (
+        mixture(LAYOUTS[1]) if coherence is None else separated_band_voices(LAYOUTS[1])
+    )
+    samples = torch.tensor(np.stack([signal] * 2), device=cuda)
     ids = torch.arange(2, device=cuda)
     for start in range(0, 12000, 1600):
         values = samples[..., start : start + 1600]
@@ -382,6 +464,7 @@ def test_entity_received_pcm_matches_core_and_partial_reset(
         speed_of_sound_mps=343,
         localization_context_s=0.75,
         localization_dereverberation=True,
+        localization_spatial_coherence=None,
         update_period=0.1,
         energy_threshold_dbfs=-60,
         doa_enabled=False,
