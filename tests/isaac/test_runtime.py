@@ -35,6 +35,34 @@ from isaac_audio_sensors.lab.reference_backend import ReferenceBackend
 DB_DOUBLE = 20.0 * math.log10(2.0)
 
 
+@pytest.mark.parametrize("offset", [(0.0, 0.0, 0.0), (0.2, -0.1, 0.3)])
+@pytest.mark.parametrize("relative_quat", [(0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.6, 0.8)])
+def test_mount_composition_preserves_identity_and_custom_transforms(
+    offset, relative_quat
+):
+    from isaac_audio_sensors.lab.entity_binding import (
+        _compose_pose,
+        _normalize,
+        _quat_mul,
+        _rotate,
+    )
+
+    assert torch.cuda.is_available(), "Actual GPU required for pose-path validation"
+    position = torch.tensor([[1.0, -2.0, 0.4], [-3.0, 0.2, 1.0]], device="cuda:0")
+    quat = _normalize(
+        torch.tensor([[0.1, 0.2, 0.3, 0.9], [-0.4, 0.1, 0.2, 0.8]], device="cuda:0")
+    )
+    expected_position = position + _rotate(
+        position.new_tensor(offset).expand_as(position), quat
+    )
+    expected_quat = _normalize(
+        _quat_mul(quat, quat.new_tensor(relative_quat).expand_as(quat))
+    )
+    actual_position, actual_quat = _compose_pose(position, quat, offset, relative_quat)
+    torch.testing.assert_close(actual_position, expected_position, atol=0, rtol=0)
+    torch.testing.assert_close(actual_quat, expected_quat, atol=0, rtol=0)
+
+
 class _Scene(dict):
     def __init__(self, *args, env_origins=None, **kwargs):
         super().__init__(*args, **kwargs)

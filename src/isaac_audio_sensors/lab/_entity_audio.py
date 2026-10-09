@@ -45,6 +45,11 @@ class EntityAudioBackend:
                 torch.tensor(samples, dtype=torch.float32, device=self.device)
             )
         initialize_perception(self, binding, cfg)
+        self.axis = torch.tensor([1.0, 0.0, 0.0], device=self.device)
+        self.mic_axis_local = _rotate(
+            self.axis.expand(binding.num_mics, -1),
+            binding.static.mic_relative_quats_xyzw,
+        )
         self.distance, self.gain = self._geometry(self.ids)
 
     def _geometry(self, ids):
@@ -63,12 +68,10 @@ class EntityAudioBackend:
                 "Sources and microphones require finite distinct positions."
             )
         direction = vector / distance[..., None]
-        axis = torch.tensor([1.0, 0.0, 0.0], device=self.device)
         source_axis = _rotate(
-            axis.expand_as(pose.source_positions), pose.source_quats_xyzw
+            self.axis.expand_as(pose.source_positions), pose.source_quats_xyzw
         )
-        mic_axis = _rotate(axis.expand(m, -1), meta.mic_relative_quats_xyzw)
-        mic_axis = _rotate(mic_axis[None].expand(b, -1, -1), orientations)
+        mic_axis = _rotate(self.mic_axis_local[None].expand(b, -1, -1), orientations)
         source_cosine = (direction * source_axis[:, :, None]).sum(dim=-1).clamp(-1, 1)
         mic_cosine = (-direction * mic_axis[:, None]).sum(dim=-1).clamp(-1, 1)
         source_coefficient = meta.source_directivity_coefficient[None, :, None]

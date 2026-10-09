@@ -473,3 +473,10 @@ per-update latency/deadline rows, lifecycle/onset response, declared rendering
 load and environment scaling. A clean 30-second baseline meets the SDK p95
 budget but accumulates scheduling backlog under rendering. Geometry acquisition
 is a measured optimization target; no localizer or indoor quality change is made.
+
+## 2026-10-09 — update: Reduce acquisition geometry overhead
+
+Removed default identity mount transfers/products while retaining normalization
+and cached constant microphone axes on CUDA. Four exact identity/custom mount
+controls and 73 focused Isaac tests pass. Algorithms, thresholds, capacity,
+source-independent observations, clocks and reset contracts are preserved.

@@ -134,11 +134,25 @@ rendering, delivery latency and multi-environment throughput remain in 7.2.
 
 ## 7.2 — Latency and learning throughput
 
-Measure audio generation, buffering, perception and observation delivery in the
-supported runtime, accounting for representative rendering and simulation load.
-Distinguish simulated time, observation age, wall-clock response and
-multi-environment learning throughput. Preserve signal timing and direction
-information while optimizing demonstrated SDK bottlenecks.
+#### Implementation
+
+Added a live, worktree-verified CUDA benchmark with exclusive GPU locking,
+external-load monitoring, per-update latency/deadline rows, onset response,
+startup/reset measurements and environment scaling. The first clean loaded
+baseline passes the 50 ms SDK p95 target but accumulates scheduling delay at
+9.56 observations per real second; this is not an interactive qualification.
+The [[experiments/consumer-audio-runtime-performance|performance experiment]] owns
+the workload, clock definitions, detailed evidence and reproduction procedure.
+
+The measured geometry cost motivates skipping zero mount translations and
+identity quaternion multiplication while retaining normalization. Cache the
+constant local microphone directivity axes on CUDA instead of recomputing and
+transferring constants every acquisition. Custom mounts and runtime orientations
+retain the complete transform; localizer, thresholds and observation contracts
+remain unchanged. Exact CUDA transform controls and 73 focused runtime,
+observation and batched-perception tests pass.
+
+#### Key Decisions
 
 An interactive configuration need not use the most expensive acoustic path or
 the settings used for every training episode. Choose useful operating profiles
@@ -148,6 +162,14 @@ large-scale GPU rewrite; revisit training scale when the workload is concrete.
 Reusable changes belong in the SDK. Robot-specific configuration, application
 queues and scheduling, task behavior, partner-classifier latency and policy
 training remain downstream responsibilities.
+
+#### Problems / Limitations
+
+CUDA events and fenced wall timings remain available, but this Kit process owns
+a CUPTI subscriber and PyTorch's kernel/copy profiling can be unavailable. Missing
+device trace events are not zero transfer cost. Geometry native propagation stays
+CPU-side. After integrating indoor changes, repeat the measurements with the
+selected localizer, native producer and scene; this profile does not qualify them.
 
 ## Outcome and handoff
 
