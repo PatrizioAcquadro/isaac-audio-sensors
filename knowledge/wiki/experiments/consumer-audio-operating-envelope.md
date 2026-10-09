@@ -118,6 +118,22 @@ persistent identity, wall-clock response or a closed-loop reaction guarantee.
 
 ## Disposition and reproduction
 
+### Subsequent scoring correction (2026-10-08)
+
+The original 7.1 report remains unchanged. The follow-up evaluator maximizes
+the number of one-to-one pairs inside 20 degrees before minimizing total angular
+error, retaining invalid assigned angles in p95. At `distractor_1`, 2.4 s, the
+old minimum-angle assignment counted zero matches; the corrected assignment
+retains the valid 17.3503-degree pair (one miss and one extra remain).
+Rescoring saved directions, without new inference, changes competing-voice
+precision/recall from 54.8/61.3% to 55.12/61.62% and angular p95 from 41.01 to
+39.946 degrees. Complete-set rates and the other scenario metrics above are
+unchanged. These are corrected historical metrics, not improved perception.
+The separate report is `build/validation/sdk-dynamic-quality/historical-rescored.json`.
+The evaluator's `--rescore-report` option reproduces it from the original report
+and received inputs; targeted tests include the failure and exhaustive small
+rectangular assignments.
+
 The provisional listening profile is 16 kHz square-array, free-field Analytic,
 fixed receiver, explicit -60 dBFS threshold, `doa_enabled=True`, current
 750 ms localizer and 100 ms

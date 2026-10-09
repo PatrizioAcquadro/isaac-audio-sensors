@@ -8,6 +8,43 @@ pytest.importorskip("scipy")
 from tools.validation.lab_perception import score
 
 
+def test_matching_prioritizes_valid_edges_over_total_angle():
+    from tools.validation.lab_perception import direction
+
+    # Historical distractor_1, 2.4 s: minimum total angle chose two invalid
+    # edges (48.30 + 84.80) over one valid edge (17.35 + 115.75).
+    found = np.array([direction(140.51), direction(171.46)])
+    truth = np.array([direction(-171.19), direction(-103.74)])
+    result = score(found, truth)
+    assert result["matched"] == [0]
+    assert result["misses"] == result["extras"] == 1
+    assert min(result["errors"]) == pytest.approx(17.35)
+    assert not result["exact"]
+
+
+def test_matching_maximizes_cardinality_then_minimizes_angle():
+    from itertools import permutations
+
+    from tools.validation.lab_perception import direction
+
+    rng = np.random.default_rng(81)
+    for found_count, truth_count in ((2, 3), (3, 2), (3, 3)):
+        for _ in range(30):
+            found = np.array([direction(a) for a in rng.uniform(-40, 40, found_count)])
+            truth = np.array([direction(a) for a in rng.uniform(-40, 40, truth_count)])
+            cost = np.degrees(np.arccos(np.clip(found @ truth.T, -1, 1)))
+            if found_count > truth_count:
+                cost = cost.T
+            possibilities = [
+                cost[np.arange(len(cost)), columns]
+                for columns in permutations(range(cost.shape[1]), len(cost))
+            ]
+            best = min(possibilities, key=lambda e: (-(e <= 20).sum(), e.sum()))
+            result = score(found, truth)
+            assert len(result["matched"]) == (best <= 20).sum()
+            assert sum(result["errors"]) == pytest.approx(best.sum())
+
+
 def test_motion_scoring_requires_one_to_one_directions():
     truth = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     result = score(np.array([[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]), truth)

@@ -70,7 +70,11 @@ def score(found, truth):
         cost = np.degrees(
             np.arccos(np.clip(np.asarray(found) @ np.asarray(truth).T, -1, 1))
         )
-        rows, cols = linear_sum_assignment(cost)
+        # One invalid edge must cost more than every angular error combined.
+        # First maximize cardinality inside the gate, then minimize total angle
+        # among those assignments. Retain invalid-pair errors for honest p95.
+        penalty = 180 * min(cost.shape) + 1
+        rows, cols = linear_sum_assignment(cost + (cost > 20) * penalty)
         errors = cost[rows, cols].tolist()
         matches = [int(c) for r, c in zip(rows, cols, strict=True) if cost[r, c] <= 20]
     return dict(
@@ -326,11 +330,32 @@ def case_report(data, rows):
     }
 
 
+def rescore_report(report, inputs_dir):
+    """Recompute reference metrics from saved directions, without new inference."""
+    for summary in report["layouts"].values():
+        agreement, deviations = [], []
+        for case in summary["cases"]:
+            data = load_input(inputs_dir / case["input"])
+            for lane, rows in case["rows"].items():
+                for step, row in enumerate(rows):
+                    row.update(assess(row["directions"], row["diagnostic"], data, step))
+                case[lane] = case_report(data, rows)
+            for actual, reference in zip(
+                case["rows"]["cuda"], case["rows"]["scalar"], strict=True
+            ):
+                comparison = score(actual["directions"], reference["directions"])
+                agreement.append(comparison["count"])
+                deviations.extend(comparison["errors"])
+        summary["count_agreement"] = float(np.mean(agreement))
+        summary["direction_difference_p95_deg"] = (
+            float(np.percentile(deviations, 95)) if deviations else 0
+        )
+    report["matching_policy"] = "maximum valid cardinality, then minimum total angle"
+    report["rescored_saved_directions"] = True
+    return report
+
+
 def main():
-    import torch
-
-    from isaac_audio_sensors.lab._torch_perception import TorchPerception
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
@@ -338,9 +363,22 @@ def main():
     parser.add_argument("--input-glob", default="*_{layout}_*stationary*.npz")
     parser.add_argument("--threshold-dbfs", type=float, default=-60)
     parser.add_argument("--include-rows", action="store_true")
+    parser.add_argument("--rescore-report", type=Path)
     args = parser.parse_args()
     if not np.isfinite(args.threshold_dbfs):
         parser.error("--threshold-dbfs must be finite.")
+    if args.rescore_report:
+        report = rescore_report(
+            json.loads(args.rescore_report.read_text()), args.inputs_dir
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(report, indent=2) + "\n")
+        return
+
+    import torch
+
+    from isaac_audio_sensors.lab._torch_perception import TorchPerception
+
     if not torch.cuda.is_available():
         raise RuntimeError("Received-audio parity requires CUDA, without CPU fallback.")
     report = {

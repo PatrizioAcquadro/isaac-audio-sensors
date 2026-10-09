@@ -424,3 +424,10 @@ cases; 251 actual-runtime Isaac cases and live Sim/Lab pass. Dynamic and
 stationary paired reports pass their declared gates; angular accuracy, onset
 response and deferred 7.2 performance remain separate. Whitespace checks pass;
 raw inputs and pre-existing local material are unchanged.
+
+## 2026-10-08 — update: Correct received-direction matching
+
+Threshold-aware assignments maximize valid pair count before total angle.
+Rescored historical directions in a separate report; competing-voice partial
+matches and angular p95 change, while complete-set success remains unchanged.
+Eight focused scoring tests and whitespace/lint checks pass.
