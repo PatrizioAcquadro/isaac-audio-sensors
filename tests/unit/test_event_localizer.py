@@ -33,6 +33,11 @@ def test_selected_context_controls_readiness_without_changing_stereo():
     assert not events and diagnostic["reason"] == "insufficient_context"
 
 
+def test_dereverberation_flag_rejects_non_boolean():
+    with pytest.raises(TypeError, match="dereverberation_enabled"):
+        MaintainedEventLocalizer(dereverberation_enabled=0)
+
+
 @pytest.mark.parametrize(
     "samples,positions,rate,reason",
     [

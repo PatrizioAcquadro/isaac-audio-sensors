@@ -445,3 +445,23 @@ Host checks pass 681 unit/contract, 356 integration and 56 release cases;
 256 supported-runtime Isaac cases pass. The live 250 ms Lab path preserves
 scalar events, tensor contracts and partial reset at 60 Hz acquisition/10 Hz
 observations. Lint/whitespace pass. Replay/quality qualification remains separate.
+
+## 2026-10-08 — update: Validate dynamic audio profiles and preserve limits
+
+Corrected matching and retained the original 7.1 evidence. Compared causal
+context/recent-covariance/direct alternatives; relative peak filters were rejected
+because they lost weaker voices. Added matched free/room and independent fresh
+controls. The 200 ms direct profile supports bounded one-voice free-field trials;
+250 ms WPE remains an experimental room alternative. Uniform 3 m accuracy,
+room/competition, a universal 100 ms lag bound and loaded runtime readiness remain
+open. Documented 72 distinct episodes, scalar/CUDA discrepancies, startup and
+isolated replay/live costs; observation timestamps and schemas are preserved.
+
+## 2026-10-08 — lint: Verify dynamic-quality delivery and open gates
+
+All canonical pages are indexed, internal links resolve and release/documentation
+checks pass. Final host gates pass 682 unit/contract, 357 integration and 56 release
+cases; the actual-runtime suite passes 261 cases. Selected direct-profile replay
+and live gates pass, including fresh confirmation and scalar/reset controls.
+Whitespace/lint pass. Historical/raw inputs are preserved, with per-scenario
+quality failures, finite discrepancies and 7.2 scope retained explicitly.

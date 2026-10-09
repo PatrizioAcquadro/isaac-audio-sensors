@@ -11,7 +11,10 @@ import numpy as np
 
 from isaac_audio_sensors.core.perception import AudioPerceptionPipeline
 from isaac_audio_sensors.core.plugins.auditok import AuditokActivityDetector
-from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+from isaac_audio_sensors.core.plugins.multisource import (
+    MaintainedEventLocalizer,
+    localization_context_samples,
+)
 from isaac_audio_sensors.core.types import (
     AudioTimeWindow,
     MicrophoneArraySpec,
@@ -136,11 +139,16 @@ def assess(found, diagnostic, data, step, threshold_db=0.0):
     return result
 
 
-def run_stream(data, *, threshold_dbfs=-60, localization_context_s=0.75):
-    estimator = (
-        MaintainedEventLocalizer()
-        if localization_context_s == 0.75
-        else MaintainedEventLocalizer(context_duration_s=localization_context_s)
+def run_stream(
+    data,
+    *,
+    threshold_dbfs=-60,
+    localization_context_s=0.75,
+    localization_dereverberation=True,
+):
+    estimator = MaintainedEventLocalizer(
+        context_duration_s=localization_context_s,
+        dereverberation_enabled=localization_dereverberation,
     )
     positions = np.array(data["positions"], dtype=float, copy=True)
     positions.setflags(write=False)
@@ -437,6 +445,9 @@ def case_report(data, rows, *, context_samples=12000):
 
 def rescore_report(report, inputs_dir):
     """Recompute reference metrics from saved directions, without new inference."""
+    context_samples = localization_context_samples(
+        report.get("localization_context_s", 0.75)
+    )
     for summary in report["layouts"].values():
         agreement, deviations = [], []
         for case in summary["cases"]:
@@ -444,7 +455,7 @@ def rescore_report(report, inputs_dir):
             for lane, rows in case["rows"].items():
                 for step, row in enumerate(rows):
                     row.update(assess(row["directions"], row["diagnostic"], data, step))
-                case[lane] = case_report(data, rows)
+                case[lane] = case_report(data, rows, context_samples=context_samples)
             for actual, reference in zip(
                 case["rows"]["cuda"], case["rows"]["scalar"], strict=True
             ):
@@ -470,13 +481,10 @@ def main():
     parser.add_argument("--include-rows", action="store_true")
     parser.add_argument("--rescore-report", type=Path)
     parser.add_argument("--localization-context-s", type=float, default=0.75)
+    parser.add_argument("--no-localization-wpe", action="store_true")
     args = parser.parse_args()
     if not np.isfinite(args.threshold_dbfs):
         parser.error("--threshold-dbfs must be finite.")
-    from isaac_audio_sensors.core.plugins.multisource import (
-        localization_context_samples,
-    )
-
     context_samples = localization_context_samples(args.localization_context_s)
     if args.rescore_report:
         report = rescore_report(
@@ -501,6 +509,7 @@ def main():
         "response_clock": "100 ms received-onset bin start to observation bin end",
         "timing_scope": "offline replay; compute is not end-to-end SDK latency",
         "localization_context_s": args.localization_context_s,
+        "localization_dereverberation": not args.no_localization_wpe,
         "matching_policy": "maximum valid cardinality, then minimum total angle",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -518,6 +527,7 @@ def main():
                     data[-1],
                     threshold_dbfs=args.threshold_dbfs,
                     localization_context_s=args.localization_context_s,
+                    localization_dereverberation=not args.no_localization_wpe,
                 )
             )
         lengths = {d["samples"].shape[-1] for d in data}
@@ -536,6 +546,7 @@ def main():
             max_doa_candidates=2,
             device="cuda:0",
             localization_context_s=args.localization_context_s,
+            localization_dereverberation=not args.no_localization_wpe,
         )
         ids = torch.arange(len(data), device="cuda:0")
         values = torch.tensor(

@@ -51,6 +51,15 @@ serialization, confidence and coordinate semantics. Task-specific calibration,
 head-pose association, queues, dependency pins and adapter migration remain
 consumer-owned; SDK 7.1 does not certify those paths.
 
+The subsequent dynamic-quality intervention adds optional Lab
+`localization_context_s` and `localization_dereverberation`, with equivalent Core
+localizer constructor options. Defaults preserve .75 s WPE and all observation
+schemas. The bounded one-voice free-field profile selects `.2` and `False`;
+`.25` with WPE is an experimental room alternative. Consumers must preserve
+the [[experiments/consumer-audio-dynamic-quality|measured accuracy, startup, lag and cost limits]]
+when adopting either profile. Selecting a shorter context does not certify loaded
+end-to-end latency or robot attention behavior.
+
 ## Stable Promises
 
 The v3 line promises the documented semantic import boundary, signal block, observed sensor frame, dataset-manifest, and calibration-profile contracts; the exact four-value entity directivity contract; amplitude `gain_db` semantics; snapshot-authoritative `propagate(scene, array_id, time_window)` signal production; deterministic L0/L1 behavior; optional supported L2 behavior; generic plugin contracts; package JSON/JSONL; generic recording/replay; supported lazy Isaac Sim and Isaac Lab paths; and the Kit extension as the reference UX.

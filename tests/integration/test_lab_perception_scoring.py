@@ -122,6 +122,9 @@ def test_unresolved_candidates_do_not_count_as_selected_directions(monkeypatch):
     from tools.validation import lab_perception
 
     class AmbiguousLocalizer:
+        def __init__(self, **kwargs):
+            pass
+
         def localize(self, samples, positions, sample_rate_hz):
             return (
                 (

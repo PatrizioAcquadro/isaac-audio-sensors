@@ -63,6 +63,7 @@ class TorchPerception:
         device,
         window_samples=1600,
         localization_context_s=0.75,
+        localization_dereverberation=True,
     ):
         self.device = device
         self.threshold = threshold_dbfs
@@ -81,6 +82,7 @@ class TorchPerception:
                 np.asarray(positions),
                 device=device,
                 context_duration_s=localization_context_s,
+                dereverberation_enabled=localization_dereverberation,
             )
             if doa_enabled
             else None

@@ -9,6 +9,38 @@ pytest.importorskip("nara_wpe")
 from isaac_audio_sensors.core.plugins._multisource_sparse import GroupSparseCovariance
 
 
+def test_direct_covariance_localization_does_not_import_wpe(monkeypatch):
+    import builtins
+
+    from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
+
+    original = builtins.__import__
+
+    def blocked(name, *args, **kwargs):
+        if name.startswith("nara_wpe"):
+            raise ImportError("WPE deliberately unavailable")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked)
+    signal = np.random.default_rng(91).normal(0, 0.1, 2400)
+    positions = np.array(
+        [[-0.033, -0.033, 0], [-0.033, 0.033, 0], [0.033, 0.033, 0], [0.033, -0.033, 0]]
+    )
+    vector = np.array([np.cos(np.radians(55)), np.sin(np.radians(55)), 0])
+    frequencies = np.fft.rfftfreq(len(signal), 1 / 16000)
+    samples = np.fft.irfft(
+        np.fft.rfft(signal)[None]
+        * np.exp(2j * np.pi * frequencies[None] * (positions @ vector)[:, None] / 343),
+        n=len(signal),
+    )
+    events, diagnostic = MaintainedEventLocalizer(
+        context_duration_s=0.15, dereverberation_enabled=False
+    ).localize(samples, positions, 16000)
+    assert len(events) == 1
+    assert events[0].estimated_bearing_deg == pytest.approx(55, abs=5)
+    assert diagnostic["doa_estimator"] == "group_sparse_covariance"
+
+
 @pytest.mark.parametrize("three_d", [False, True])
 def test_silence_geometry_and_unbounded_event_selection(three_d):
     positions = np.array(

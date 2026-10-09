@@ -15,7 +15,7 @@ from isaac_audio_sensors.core.types import DoaEstimate
 
 
 def localization_context_samples(duration_s: float) -> int:
-    """Bound supported 16 kHz WPE contexts; reject silent coercion of config."""
+    """Bound 16 kHz localization contexts; reject silent coercion of config."""
     if isinstance(duration_s, bool) or not isinstance(duration_s, Real):
         raise TypeError("localization context must be a real number.")
     if not math.isfinite(duration_s) or not 0.15 <= duration_s <= 0.75:
@@ -28,8 +28,9 @@ class MaintainedEventLocalizer:
 
     WPE/group-sparse covariance supports the bounded 16 kHz indoor reference
     for relatively stable sources. Default memory is 750 ms; a shorter context
-    can be selected explicitly for dynamic listening. Context is not response
-    latency. Physical recordings and arbitrary rooms are unqualified.
+    can be selected explicitly for dynamic listening. WPE may be disabled for
+    a direct-covariance free-field profile. Context is not response latency.
+    Physical recordings and arbitrary rooms are unqualified.
     Stereo and other planar sample rates keep the existing single-event role.
     All dependencies remain lazy.
     """
@@ -43,7 +44,11 @@ class MaintainedEventLocalizer:
         *,
         runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
         context_duration_s: float = 0.75,
+        dereverberation_enabled: bool = True,
     ) -> None:
+        if not isinstance(dereverberation_enabled, bool):
+            raise TypeError("dereverberation_enabled must be a boolean.")
+        self.dereverberation_enabled = dereverberation_enabled
         self.context_samples = localization_context_samples(context_duration_s)
         self.consumer_context_duration_s = self.context_samples / 16000
         self._stereo = MaintainedDoaEstimator(runtime_profile=runtime_profile)
@@ -99,9 +104,8 @@ class MaintainedEventLocalizer:
             self._geometry = positions.tobytes()
         if self._spatial is None:
             try:
-                from nara_wpe.wpe import wpe_v7  # noqa: F401
-
                 from isaac_audio_sensors.core.plugins._multisource_sparse import (
+                    GroupSparseCovariance,
                     WpeSparseCovariance,
                 )
                 from isaac_audio_sensors.core.plugins.pyroomacoustics import (
@@ -109,11 +113,17 @@ class MaintainedEventLocalizer:
                 )
 
                 _import_supported_pyroomacoustics()
+                if self.dereverberation_enabled:
+                    from nara_wpe.wpe import wpe_v7  # noqa: F401
             except ImportError as exc:
                 raise OptionalDependencyUnavailable(
                     "Multisource DOA requires isaac-audio-sensors[room]."
                 ) from exc
-            self._spatial = WpeSparseCovariance()
+            self._spatial = (
+                WpeSparseCovariance()
+                if self.dereverberation_enabled
+                else GroupSparseCovariance()
+            )
         directions, diagnostics = self._spatial.localize(
             values[:, -self.context_samples :], positions, sample_rate_hz
         )
@@ -131,14 +141,19 @@ class MaintainedEventLocalizer:
         return events, {
             **diagnostics,
             "status": "events" if events else "no_events",
-            "doa_estimator": "wpe_group_sparse_covariance",
+            "doa_estimator": (
+                "wpe_group_sparse_covariance"
+                if self.dereverberation_enabled
+                else "group_sparse_covariance"
+            ),
             "role": "3d" if rank == 3 else "planar",
             "event_confidence_available": False,
             "temporal_policy": "causal_window_event_set",
             "qualification_scope": (
                 "simulated_indoor_stable_sources"
-                if self.context_samples == 12000
-                else "short_context_experimental"
+                if self.context_samples == 12000 and self.dereverberation_enabled
+                else "configured_localization_experimental"
             ),
             "context_duration_s": self.consumer_context_duration_s,
+            "dereverberation_enabled": self.dereverberation_enabled,
         }

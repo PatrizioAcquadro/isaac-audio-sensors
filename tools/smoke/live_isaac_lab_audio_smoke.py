@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--perf-steps", type=int, default=5)
     parser.add_argument("--perf-substeps", type=int, default=1)
     parser.add_argument("--localization-context-s", type=float, default=0.75)
+    parser.add_argument("--no-localization-wpe", action="store_true")
     parser.add_argument("--perf-reference-check", action="store_true")
     parser.add_argument("--perf-reference-steps", type=int, default=1)
     parser.add_argument("--perf-budget-ms", type=float, default=None)
@@ -248,6 +249,7 @@ def main() -> int:
                 doa_enabled=True,
                 update_period=0.1,
                 localization_context_s=args.localization_context_s,
+                localization_dereverberation=not args.no_localization_wpe,
             )
         ).bind_entities(
             perf_scene,
@@ -593,6 +595,7 @@ def main() -> int:
             "perf_steps": args.perf_steps,
             "perf_substeps": args.perf_substeps,
             "localization_context_s": args.localization_context_s,
+            "localization_dereverberation": not args.no_localization_wpe,
             "simulated_acquisition_hz": 10 * args.perf_substeps,
             "mean_ms_per_step": mean_ms,
             "warmup_ms": warmup_ms,
@@ -709,7 +712,8 @@ def _entity_reference_parity(sensor):
     positions = backend.binding.static.mic_offsets_local.cpu().numpy()
     data = sensor.data
     localizer = MaintainedEventLocalizer(
-        context_duration_s=sensor.cfg.localization_context_s
+        context_duration_s=sensor.cfg.localization_context_s,
+        dereverberation_enabled=sensor.cfg.localization_dereverberation,
     )
     counts, matches, errors = [], [], []
     missing = extra = 0
@@ -874,6 +878,7 @@ def _combined_isolation(sensor):
             max_doa_candidates=sensor.cfg.max_doa_candidates,
             device=backend.device,
             localization_context_s=sensor.cfg.localization_context_s,
+            localization_dereverberation=sensor.cfg.localization_dereverberation,
         )
         ids = torch.arange(len(values), device=backend.device)
         perception.ingest(ids, values, torch.full_like(ids, values.shape[-1]))

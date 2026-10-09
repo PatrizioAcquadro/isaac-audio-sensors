@@ -28,6 +28,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
     energy_threshold_dbfs: float | None = None
     doa_enabled: bool = False
     localization_context_s: float = 0.75
+    localization_dereverberation: bool = True
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
@@ -53,6 +54,8 @@ class AudioArraySensorCfg(SensorBaseCfg):
         if not isinstance(self.doa_enabled, bool):
             raise TypeError("doa_enabled must be a boolean.")
         localization_context_samples(self.localization_context_s)
+        if not isinstance(self.localization_dereverberation, bool):
+            raise TypeError("localization_dereverberation must be a boolean.")
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0

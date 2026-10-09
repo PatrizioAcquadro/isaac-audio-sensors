@@ -34,9 +34,10 @@ no new acoustic accuracy, performance or physical qualification is claimed.
 ## Consumer audio readiness — 7.1
 
 [[implementation_phases/squadbot-audio-runtime-readiness|7.1 is complete as a bounded compatibility and quality assessment]];
-7.2 latency/throughput work remains planned. SDK 3.0.0 remains unreleased, with
-unchanged perception, public APIs and schemas; downstream dependencies/adapters
-were not modified. The local Sim `6.0.1-rc.7` / Lab `3.0.0` (`2e44ddb2e1`) /
+7.2 latency/throughput work remains planned. SDK 3.0.0 remains unreleased.
+The original assessment left perception, public APIs and schemas unchanged;
+downstream dependencies/adapters were not modified. The local Sim `6.0.1-rc.7` /
+Lab `3.0.0` (`2e44ddb2e1`) /
 RTX 4090 combination passes 672 unit/contract, 352 integration, 56 release and
 251 Isaac tests, plus actual Sim/Geometry and 60 Hz / 10 Hz square-array Lab.
 
@@ -56,6 +57,32 @@ responses and warm-up do not establish wall-clock reaction or learning throughpu
 reproduction, numerical discrepancy and remaining acoustic/physical limits;
 [[decisions/product-boundary-and-compatibility#Consumer readiness migration|migration guidance]]
 owns the consumer handoff. Local reports are in `build/validation/sdk-readiness-7.1/`.
+
+### Dynamic-quality follow-up
+
+The SDK now exposes explicit context and optional WPE preprocessing in scalar
+and both Lab bindings. Defaults preserve 750 ms WPE; observations, timestamps,
+ambiguity and serialized schemas remain unchanged. Recommend a **200 ms direct
+covariance free-field profile for bounded one-voice trials**. Original rotating
+complete sets rise from 49.7% to 97.3%, joint motion from 59.9% to 96.8%, while
+static stays 97.9%. Matched room/motion controls and 15 fresh confirmation
+episodes distinguish this from the historical assessment.
+
+Fresh per-scenario complete sets are 92.5–95.7%, source-correct onset p95 200 ms,
+and no active error run reaches .5 s. Two 3 m episodes reach only 89.7/86.8%;
+uniform 1.5–3 m reliability is not established. Some fitted lags reach 130–140 ms,
+and room/competing voices remain insufficient. WPE 250 ms is an experimental
+room alternative, with remaining false events and about 118 ms live update cost.
+The direct profile's small isolated live gate measures about 32 ms p95, with
+scalar preservation and reset at 60 Hz acquisition/10 Hz observations.
+
+Host gates pass 682 unit/contract, 357 integration and 56 release cases;
+261 supported-runtime Isaac cases pass. Corrected matching, profile selection,
+per-scenario results, finite numerical discrepancies, cold/warm replay costs
+and retained artifacts are in
+[[experiments/consumer-audio-dynamic-quality|dynamic-quality evidence]].
+**Full dynamic readiness remains open; 7.2 must measure loaded end-to-end latency,
+queues and throughput.** No replay/live smoke result establishes real-time use.
 
 ## Geometry qualification
 

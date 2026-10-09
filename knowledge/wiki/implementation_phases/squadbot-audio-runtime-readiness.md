@@ -1,6 +1,8 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
 Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2 planned.
+The dynamic-quality follow-up delivers a bounded free-field profile; full
+dynamic readiness remains open.
 Phase 7 identifies the downstream SquadBot roadmap; the SDK's
 existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
 
@@ -87,8 +89,9 @@ total angular error; the original 7.1 artifacts remain intact. The retained
 single-voice episodes, distinct from compute and delivery cost. Quality continues
 to use current directions and original timestamps.
 
-The SDK now accepts an explicit `MaintainedEventLocalizer(context_duration_s=...)`
-and Lab `localization_context_s` in both bindings. Defaults remain 750 ms and
+The SDK now accepts an explicit `MaintainedEventLocalizer(context_duration_s=...,
+dereverberation_enabled=...)`, and Lab `localization_context_s` plus
+`localization_dereverberation` in both bindings. Defaults remain 750 ms WPE and
 stereo/other-rate single-event roles remain 250 ms. Mixture history/readiness and
 CUDA slicing use the configured duration, preserving clocks, masks, resets and
 source-independent event discovery. The received-PCM evaluator reports active
@@ -97,22 +100,37 @@ diagnostic direction lag, context readiness and accumulated serial replay cost.
 
 #### Key Decisions
 
-Select 250 ms WPE/group-sparse context on six episode-zero selection cases.
+Initially select 250 ms WPE/group-sparse context on six episode-zero selection cases.
 Compare short contexts (150/200/250 ms), recent covariance after longer WPE, and
 a no-WPE ablation. 150 ms and recent-covariance variants reduce lag but lose
 static/room robustness; the no-WPE variant fails room quality. The selected
 250 ms variant exceeds 90% active complete sets in each selection condition;
 independent validation and supported-profile disposition are recorded separately.
+The isolated live check exposes WPE's approximately 118 ms update cost. Retain
+250 ms WPE as an experimental room alternative and select a faster 200 ms
+direct-covariance free-field profile from the same selection cases. A 150 ms
+direct profile loses robustness on independent phrases. Confirm the frozen
+200 ms choice on 15 additional episodes, separately from the 39 room/motion
+controls already inspected. No threshold or solver shortcut is adopted.
 No source identities, private poses, motion input, tracking or time correction
 enter observations. The existing WPE, fitting and ambiguity rules are retained.
 
 #### Problems / Limitations
 
-Selection is not qualification. Holdout room/motion controls, scalar/CUDA gates,
-and preliminary single-array 10 Hz costs must decide the supported profile.
-The approximately 100 ms directional-lag target is separate from correct-set
-rates and cannot be satisfied by shifting estimates into the past. Rendering,
-acquisition/delivery latency and multi-environment throughput remain in 7.2.
+The [[experiments/consumer-audio-dynamic-quality|separate follow-up evidence]]
+retains the original 18 episodes, 39 matched controls and 15 fresh confirmations.
+The direct 200 ms profile reaches 92.5–95.7% complete sets per confirmation
+scenario, 200 ms source-correct onset p95 and no active error runs >=.5 s.
+Two 3 m episodes remain below 90%; no uniform or population guarantee follows.
+Static quality remains strong. Room/competition remain unqualified; WPE 250 ms
+helps room quality but costs about 118 ms per live update. Direct 200 ms costs
+about 32 ms p95 in the small live check, with scalar/CUDA preservation and reset.
+
+Directional lag approaches 100 ms but reaches 130–140 ms in some fits. The
+approximately 100 ms target is separate from correct-set rates and cannot be
+satisfied by shifting estimates into the past. Host/Isaac gates pass; full
+readiness is not closed by measured replay completion. Loaded acquisition,
+rendering, delivery latency and multi-environment throughput remain in 7.2.
 
 ## 7.2 — Latency and learning throughput
 
@@ -150,8 +168,16 @@ The [[experiments/consumer-audio-operating-envelope|7.1 assessment]] owns measur
 results and reproduction. Ignored PCM/preparation is in
 `local/sdk-runtime-readiness/`; reports and runtime gates are in
 `build/validation/sdk-readiness-7.1/`.
+The [[experiments/consumer-audio-dynamic-quality|dynamic follow-up]] owns new
+measurements under `build/validation/sdk-dynamic-quality/`; inputs/scripts are
+retained separately under `local/sdk-dynamic-quality/` and
+`local/sdk-dynamic-confirmation/`.
 
 ## Files
 
 `tools/validation/lab_perception.py`,
-`tests/integration/test_lab_perception_scoring.py`.
+`src/isaac_audio_sensors/core/plugins/multisource.py`,
+`src/isaac_audio_sensors/lab/_torch_localizer.py`,
+`src/isaac_audio_sensors/lab/audio_array_sensor_cfg.py`,
+`tests/integration/test_lab_perception_scoring.py`,
+`tools/smoke/live_isaac_lab_audio_smoke.py`.

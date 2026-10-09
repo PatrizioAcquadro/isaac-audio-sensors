@@ -107,6 +107,7 @@ class AudioArraySensor(SensorBase):
             energy_threshold_dbfs=float(self.cfg.energy_threshold_dbfs),
             doa_enabled=bool(self.cfg.doa_enabled),
             localization_context_s=self.cfg.localization_context_s,
+            localization_dereverberation=self.cfg.localization_dereverberation,
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,

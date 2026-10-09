@@ -12,14 +12,20 @@
 
 `localization_context_s` explicitly selects 0.15–0.75 s of past mixture for
 16 kHz multisource localization in both reference and entity bindings; its
-default remains 0.75 s. `MaintainedEventLocalizer(context_duration_s=...)` supplies
-the equivalent Core configuration through an injected `AudioPerceptionPipeline`.
+default remains 0.75 s. `localization_dereverberation=True` preserves WPE;
+`False` fits covariance directly from the mixture for a faster free-field profile.
+Core consumers inject `MaintainedEventLocalizer(context_duration_s=...,
+dereverberation_enabled=...)` through an `AudioPerceptionPipeline`.
 Stereo/other-rate scalar roles retain their existing 250 ms context. The choice
 changes context readiness, not observation timestamps, tensor shape, activity
 rules or expected source count. `processing_status.context_samples` reflects
 the configured CUDA context. Context duration, effective directional lag and
 wall-clock computation are separate quantities. The dynamic-quality follow-up
-to readiness 7.1 evaluates 250 ms without replacing the historical default.
+to readiness 7.1 evaluates a 200 ms direct-covariance profile and a 250 ms WPE
+alternative without replacing the historical default. See
+[[experiments/consumer-audio-dynamic-quality|dynamic quality]] for their distinct
+quality/cost boundaries. Disabling WPE affects localization only, not retained
+PCM, propagation, detector activity or source-count semantics.
 
 ## Observation Contract
 
@@ -69,9 +75,9 @@ not completion of general geometric acoustic coverage.
 
 Every `update(dt)` acquires elapsed microphone PCM, including when observation reads are deferred. Static fractional delays, signed polar gains, distance attenuation, emission schedules and file loops agree with Core. For moving geometry, receiver-time distances and gains interpolate between observed physics poses; this is a quasi-static approximation, not Core's retarded-source trajectory solver. A physics interval longer than 100 ms lacks the required pose history: it clears acoustic context, advances the acquisition cursor without fabricating the missing audio, and exposes a discontinuity. Subsequent contiguous updates warm up again. Physics intervals at or below 100 ms and observation cadence are separate settings.
 
-CUDA perception accepts only mixtures and microphone geometry. Its bounded PCM history retains the 750 ms localizer context plus sufficient detector history for the configured observation period. The detector replays the maintained 50 ms analysis / 100 ms minimum activity / 100 ms tolerated silence rule, including partial analysis frames. Deferred reads return the latest observation window; earlier observations are not queued for policy replay. Both input context and detector state remain independent per environment.
+CUDA perception accepts only mixtures and microphone geometry. Its bounded PCM history retains the configured localizer context (750 ms by default) plus sufficient detector history for the configured observation period. The detector replays the maintained 50 ms analysis / 100 ms minimum activity / 100 ms tolerated silence rule, including partial analysis frames. Deferred reads return the latest observation window; earlier observations are not queued for policy replay. Both input context and detector state remain independent per environment.
 
-The localizer adapts NARA-WPE primitives and the maintained group-sparse equations with Torch. WPE retains float64 after float32 produced extra events in correlated raised-array mixtures; spatial transforms retain reference precision, fitting remains float32, and geometry-only grids/dictionaries are shared. Power floors and convergence are environment-local. Reference neighborhood boundaries and event order are preserved. Processing chunks of up to 128 environments bound working memory without a source-count cap. No private stems, poses, schedules, identifiers, or expected count enter perception. Score/confidence remain unavailable when the reference provides none. Stereo and other scalar sample rates retain their existing reference roles; CUDA localization requires non-collinear XY-planar or rank-3 geometry, with qualification limited to the maintained four geometries.
+The default localizer adapts NARA-WPE primitives and the maintained group-sparse equations with Torch; the explicit direct-covariance option skips WPE. WPE retains float64 after float32 produced extra events in correlated raised-array mixtures; spatial transforms retain reference precision, fitting remains float32, and geometry-only grids/dictionaries are shared. Power floors and convergence are environment-local. Reference neighborhood boundaries and event order are preserved. Processing chunks of up to 128 environments bound working memory without a source-count cap. No private stems, poses, schedules, identifiers, or expected count enter perception. Score/confidence remain unavailable when the reference provides none. Stereo and other scalar sample rates retain their existing reference roles; CUDA localization requires non-collinear XY-planar or rank-3 geometry, with qualification limited to the maintained four geometries.
 
 The 2026-09-16 measurement correction solves WPE's weighted least squares on the
 original delayed-signal matrix: reduced QR followed by a small pseudoinverse,
@@ -92,7 +98,7 @@ An internal `ingest` / `observations` / `reset` boundary separates producer, con
 
 `bind_reference(snapshots, array_ids)` accepts equal non-empty sequences of pure snapshots and string selectors. Each selected array must exist and selected arrays must share a microphone count. Each environment owns an independent persistent standard pipeline. `simulate_frame()` supplies actual observed activity and optional geometry-routed DOA; only `frame.observations` enters the tensor conversion.
 
-The scalar pipeline has no internal observation cap. The tensor converter owns truncation. Standard 16 kHz perception emits independently localized events without an internal two-source ceiling; stereo retains one ambiguous event. It needs Auditok's minimum context before activity and 750 ms past context for the bounded indoor multisource path (250 ms for retained single-event roles). The [[experiments/04-4-multisource-localization|04.4 experiment]] distinguishes memory, warm-up, response, compute and remaining speech errors.
+The scalar pipeline has no internal observation cap. The tensor converter owns truncation. Standard 16 kHz perception emits independently localized events without an internal two-source ceiling; stereo retains one ambiguous event. It needs Auditok's minimum context before activity and the selected past context (750 ms by default) for the bounded indoor multisource path (250 ms for retained single-event roles). The [[experiments/04-4-multisource-localization|04.4 experiment]] distinguishes memory, warm-up, response, compute and remaining speech errors.
 
 The 07.2 causal-clock correction uses a compensated float64 episode clock and integer consumed-sample cursors. Only elapsed audio is processed: time zero returns no observations, repeated reads do not advance perception, and deferred reference reads consume intervening audio in bounded windows (the configured period, or 100 ms when zero). Reset clears only selected clocks, cursors and pipeline state. Warp float32 timestamps remain lifecycle bookkeeping, not the acoustic clock.
 
@@ -134,3 +140,10 @@ The historical 07.1 closeout passed 116 runtime tests and measured 0.212 ms/step
 Subphase 07.3 keeps the scalar reference and CUDA paths behind the existing sensor lifecycle, with unchanged finite tensors, masks, ordering and truncation. The example scales bearings by 180 to `[0, 2)` and elevations by 90 to `[-1, 1]`; it does not normalize across environments or change mask/count values. `processing_status` remains separate from policy data.
 
 The live smoke defaults to 16 active environments on a supported CUDA GPU; larger `--perf-envs` values remain explicit exploratory measurements. Paired received-PCM validation is consolidated in `tools/validation/lab_perception.py`, with 36 maintained stationary inputs under `local/lab/received_stationary/`. The retired temporal campaign loaders and streaming-candidate interface are not compatibility paths.
+
+## Version Notes
+
+2026-10-08: Added explicit context and optional localization WPE in both bindings;
+750 ms WPE defaults and serialized observations are preserved. The bounded
+[[experiments/consumer-audio-dynamic-quality|dynamic-profile evidence]] owns
+accuracy, temporal response and preliminary cost limits.

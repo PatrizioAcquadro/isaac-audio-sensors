@@ -3,6 +3,8 @@
 Measured 2026-10-08 for [[implementation_phases/squadbot-audio-runtime-readiness|SDK readiness 7.1]].
 This is a bounded simulated quality screen. It preserves the separation between
 runtime compatibility, scalar/CUDA agreement and perceptual usefulness.
+This page records the original assessment; later SDK profiles and independent
+measurements belong to [[experiments/consumer-audio-dynamic-quality|the dynamic follow-up]].
 
 ## Runtime and inputs
 

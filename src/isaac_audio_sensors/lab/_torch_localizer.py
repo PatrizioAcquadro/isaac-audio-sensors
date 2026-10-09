@@ -69,13 +69,21 @@ class TorchEventLocalizer:
     context_samples = 12000
 
     def __init__(
-        self, positions: np.ndarray, *, device: str, context_duration_s: float = 0.75
+        self,
+        positions: np.ndarray,
+        *,
+        device: str,
+        context_duration_s: float = 0.75,
+        dereverberation_enabled: bool = True,
     ) -> None:
         from isaac_audio_sensors.core.plugins.multisource import (
             localization_context_samples,
         )
 
         self.context_samples = localization_context_samples(context_duration_s)
+        if not isinstance(dereverberation_enabled, bool):
+            raise TypeError("dereverberation_enabled must be a boolean.")
+        self.dereverberation_enabled = dereverberation_enabled
         from isaac_audio_sensors.core.plugins._multisource_sparse import (
             GroupSparseCovariance,
         )
@@ -146,7 +154,11 @@ class TorchEventLocalizer:
             raise ValueError("Insufficient localization context.")
         samples = samples[..., -self.context_samples :]
         with torch.profiler.record_function("audio.wpe"):
-            processed = dereverberate(samples)
+            processed = (
+                dereverberate(samples)
+                if self.dereverberation_enabled
+                else samples.double()
+            )
         with torch.profiler.record_function("audio.sparse"):
             histogram = self._fit(processed)
         with torch.profiler.record_function("audio.peaks"):
