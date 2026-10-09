@@ -1,6 +1,7 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2 planned.
+Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2
+measured and qualified for the initial CUDA free-field profile under its declared load.
 The dynamic-quality follow-up delivers a bounded free-field profile; full
 dynamic readiness remains open.
 Phase 7 identifies the downstream SquadBot roadmap; the SDK's
@@ -152,6 +153,18 @@ retain the complete transform; localizer, thresholds and observation contracts
 remain unchanged. Exact CUDA transform controls and 73 focused runtime,
 observation and batched-perception tests pass.
 
+Four clean 30-second runs sustain 9.983–9.988 observations per real second with
+60 Hz acquisition/physics, 64 moving rigid bodies and a shared 640x480 camera at
+30 Hz. SDK p95 is 32.86–33.68 ms, returned-active p95 34.98–36.86 ms, with no
+lost windows, discontinuities or persistent scheduling growth. First active
+calls cost 68.75–83.35 ms and are retained separately. The 60 Hz rendering stress
+case does not sustain the deadline. Exact PCM/all-field before/after comparison
+and 265 actual-runtime tests preserve contracts and quality content.
+
+Unpaced 1/4/16-environment runs measure 1.053 / 4.273 / 16.635 aggregate simulated
+seconds per real second under the 60 Hz shared-camera load. This is measured
+rollout cost, not policy/optimizer throughput or a promised training-scale gate.
+
 #### Key Decisions
 
 An interactive configuration need not use the most expensive acoustic path or
@@ -168,7 +181,9 @@ training remain downstream responsibilities.
 CUDA events and fenced wall timings remain available, but this Kit process owns
 a CUPTI subscriber and PyTorch's kernel/copy profiling can be unavailable. Missing
 device trace events are not zero transfer cost. Geometry native propagation stays
-CPU-side. After integrating indoor changes, repeat the measurements with the
+CPU-side; a short retained indoor-stage run reaches only 6.45 observations per
+real second despite SDK p95 within 50 ms. It does not qualify. After integrating
+indoor changes, repeat the measurements with the
 selected localizer, native producer and scene; this profile does not qualify them.
 
 ## Outcome and handoff
@@ -194,6 +209,9 @@ The [[experiments/consumer-audio-dynamic-quality|dynamic follow-up]] owns new
 measurements under `build/validation/sdk-dynamic-quality/`; inputs/scripts are
 retained separately under `local/sdk-dynamic-quality/` and
 `local/sdk-dynamic-confirmation/`.
+Separate 7.2 results and reproduction are in
+[[experiments/consumer-audio-runtime-performance|runtime performance evidence]],
+under this worktree's ignored `build/validation/runtime-performance/`.
 
 ## Files
 
@@ -202,4 +220,7 @@ retained separately under `local/sdk-dynamic-quality/` and
 `src/isaac_audio_sensors/lab/_torch_localizer.py`,
 `src/isaac_audio_sensors/lab/audio_array_sensor_cfg.py`,
 `tests/integration/test_lab_perception_scoring.py`,
-`tools/smoke/live_isaac_lab_audio_smoke.py`.
+`tools/smoke/live_isaac_lab_audio_smoke.py`,
+`tools/validation/audio_runtime_performance.py`,
+`src/isaac_audio_sensors/lab/entity_binding.py`,
+`src/isaac_audio_sensors/lab/_entity_audio.py`.

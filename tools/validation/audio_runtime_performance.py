@@ -40,7 +40,7 @@ def distribution(values):
     )
 
 
-def summarize(rows, envs, elapsed_s):
+def summarize(rows, envs, elapsed_s, *, paced=True):
     updates = [r for r in rows if "sdk_ready_ms" in r]
     steady = [r for r in updates if r["phase"] == "steady"]
     active = [r for r in steady if r["events"] > 0]
@@ -85,7 +85,8 @@ def summarize(rows, envs, elapsed_s):
         else None,
     }
     result["interactive_timing_pass"] = bool(
-        steady
+        paced
+        and steady
         and result["steady"]["sdk_ready_ms"]["p95"] <= 50
         and not result["missed_audio_updates"]
         and not result["discontinuities"]
@@ -214,7 +215,7 @@ def write(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n")
 
 
-def scene(sim_utils, envs, workload):
+def scene(sim_utils, envs, workload, array_position):
     """Local primitives keep the declared load independent of asset downloads."""
     import omni.usd
     import torch
@@ -262,10 +263,11 @@ def scene(sim_utils, envs, workload):
         state[:, 3] = 1
         return SimpleNamespace(data=SimpleNamespace(root_state_w=state))
 
-    return dict(robot=entity((0, 0, 1.2)), speaker=entity((2.25, 0, 1.2)))
+    x, y, z = array_position
+    return dict(robot=entity((x, y, z)), speaker=entity((x + 2.25, y, z)))
 
 
-def onsets(pcm, rows, origin):
+def onsets(pcm, rows, origin, *, paced=True):
     """10 ms received-energy onset screen; private PCM is scoring only."""
     import numpy as np
 
@@ -310,17 +312,17 @@ def onsets(pcm, rows, origin):
                 if response is None
                 else (response["ready_wall"] - lower) * 1000,
                 scheduled_response_ms=None
-                if response is None
+                if response is None or not paced
                 else (response["ready_wall"] - origin - onset) * 1000,
             )
         )
     return result
 
 
-def acoustic_rooms(envs, library, specular_library, order):
+def acoustic_rooms(envs, library, specular_library, order, stage_path=None):
     """Isolated six-wall native fixture for remeasuring a selected indoor profile."""
     import omni.usd
-    from pxr import Sdf, UsdGeom
+    from pxr import Sdf, Usd, UsdGeom
 
     from isaac_audio_sensors.isaac.acoustic_scene import (
         AcousticSceneSession,
@@ -330,6 +332,12 @@ def acoustic_rooms(envs, library, specular_library, order):
     stage = omni.usd.get_context().get_stage()
     sessions = []
     for env in range(envs):
+        if stage_path is not None:
+            acoustic_stage = Usd.Stage.Open(str(stage_path))
+            if acoustic_stage is None:
+                raise RuntimeError(f"Cannot read acoustic stage: {stage_path}")
+            sessions.append(AcousticSceneSession(acoustic_stage, roots=("/World",)))
+            continue
         root = f"/World/Benchmark/env_{env}/Room"
         for i, (position, scale) in enumerate(
             (
@@ -361,6 +369,26 @@ def acoustic_rooms(envs, library, specular_library, order):
     return config, sessions
 
 
+def motion_driver(binding, envs):
+    import torch
+
+    radii = torch.linspace(1.5, 3.0, envs, device="cuda:0")
+    radii[0] = 2.25
+    phases = torch.arange(envs, device="cuda:0") * 0.3
+
+    def move(audio_s):
+        yaws = torch.deg2rad(60 * torch.sin(audio_s + phases))
+        angles = torch.deg2rad(35 * torch.sin(audio_s / radii + phases))
+        state = binding._robot.data.root_state_w
+        state[:, 3] = torch.cos(yaws / 2)
+        state[:, 6] = torch.sin(yaws / 2)
+        source = binding._sources[0].data.root_state_w
+        source[:, 0] = state[:, 0] + radii * torch.cos(angles)
+        source[:, 1] = state[:, 1] + radii * torch.sin(angles)
+
+    return move
+
+
 def run(sensor, sim, camera, args, monitor, *, reset=False):
     import numpy as np
     import torch
@@ -378,33 +406,27 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
     backend.perception.ingest = capture
     seconds = args.reset_seconds if reset else args.seconds
     rows = []
+    camera_start = camera.frame.torch.cpu().tolist() if camera is not None else None
     torch.cuda.synchronize()
     origin = time.perf_counter()
     previous_sample = 0
-    radii = torch.linspace(1.5, 3.0, args.envs, device="cuda:0")
-    radii[0] = 2.25
-    phases = torch.arange(args.envs, device="cuda:0") * 0.3
+    move = motion_driver(backend.binding, args.envs)
     for tick in range(round(seconds * 60)):
         deadline = origin + (tick + 1) / 60
         if args.paced:
             time.sleep(max(0, deadline - time.perf_counter()))
         before_sim = time.perf_counter()
-        sim.step(render=camera is not None)
+        camera_due = camera is not None and (tick + 1) % (60 // args.camera_hz) == 0
+        sim.step(render=camera_due)
         if camera is not None:
             camera.update(1 / 60)
-            _ = camera.data.output["rgb"]
+            if camera_due:
+                _ = camera.data.output["rgb"]
         # A moving source and rotating receiver expose stale direction information.
         audio_s = (tick + 1) / 60
         yaw = math.radians(60 * math.sin(audio_s))
         angle = math.radians(35 * math.sin(audio_s / 2.25))
-        state = backend.binding._robot.data.root_state_w
-        yaws = torch.deg2rad(60 * torch.sin(audio_s + phases))
-        angles = torch.deg2rad(35 * torch.sin(audio_s / radii + phases))
-        state[:, 3] = torch.cos(yaws / 2)
-        state[:, 6] = torch.sin(yaws / 2)
-        source = backend.binding._sources[0].data.root_state_w
-        source[:, 0] = radii * torch.cos(angles)
-        source[:, 1] = radii * torch.sin(angles)
+        move(audio_s)
         torch.cuda.synchronize()
         window_end = time.perf_counter()
         sensor.update(1 / 60)
@@ -483,7 +505,19 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
             for name in observation_frames[0]
         },
     )
-    result = summarize(rows, args.envs, end - origin)
+    result = summarize(rows, args.envs, end - origin, paced=args.paced)
+    if camera is not None:
+        frames = [
+            c - s
+            for c, s in zip(
+                camera.frame.torch.cpu().tolist(), camera_start, strict=True
+            )
+        ]
+        expected_frames = round(seconds * args.camera_hz)
+        result["camera_frames"] = frames
+        result["expected_camera_frames"] = expected_frames
+        if any(c < expected_frames for c in frames):
+            raise RuntimeError("Camera produced fewer frames than the declared load")
     expected_samples = round(len(rows) / 60 * 16000)
     clock_samples = backend.cursor.cpu().tolist()
     result["audio_clock_samples"] = clock_samples
@@ -491,7 +525,7 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
     if any(c != expected_samples for c in clock_samples):
         raise RuntimeError("Acquired sample clocks disagree with elapsed audio time")
     active_rows = [r for r in rows if r.get("events", 0) > 0]
-    result["active_complete_set_rate"] = (
+    result["returned_event_complete_set_rate"] = (
         sum(r["complete_set"] for r in active_rows) / len(active_rows)
         if active_rows
         else None
@@ -501,14 +535,14 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
     )
     result.update(
         rows=rows,
-        onsets=onsets(pcm, rows, origin),
+        onsets=onsets(pcm, rows, origin, paced=args.paced),
         directional_lag=direction_lag(rows),
         gpu_load=monitor.assessment(origin, end),
     )
     return result
 
 
-def diagnostics(sensor, updates):
+def diagnostics(sensor, sim, camera, args):
     """Separate synchronized stage attribution; never mix into latency gates."""
     import torch
 
@@ -520,12 +554,41 @@ def diagnostics(sensor, updates):
         sensor.update(1 / 60)
         _ = sensor.data
     stages = {}
+    scope_times, exclusive_times, stack = {}, {}, []
     patches = []
 
-    def wrap(obj, name, label):
+    record_function = torch.profiler.record_function
+
+    @contextmanager
+    def measured_scope(name, *args, **kwargs):
+        with record_function(name, *args, **kwargs):
+            if not name.startswith("audio."):
+                yield
+                return
+            torch.cuda.synchronize()
+            started = time.perf_counter()
+            children = [0.0]
+            stack.append(children)
+            try:
+                yield
+            finally:
+                torch.cuda.synchronize()
+                elapsed = (time.perf_counter() - started) * 1000
+                stack.pop()
+                scope_times.setdefault(name, []).append(elapsed)
+                exclusive_times.setdefault(name, []).append(elapsed - children[0])
+                if stack:
+                    stack[-1][0] += elapsed
+
+    patches.append((torch.profiler, "record_function", record_function))
+    torch.profiler.record_function = measured_scope
+
+    def wrap(obj, name, label, predicate=None):
         original = getattr(obj, name)
 
         def measured(*args, **kwargs):
+            if predicate is not None and not predicate(args, kwargs):
+                return original(*args, **kwargs)
             torch.cuda.synchronize()
             start = time.perf_counter()
             value = original(*args, **kwargs)
@@ -543,6 +606,18 @@ def diagnostics(sensor, updates):
         wrap(backend, "snapshots", "pose_device_to_host")
         for producer in backend.producers:
             wrap(producer, "propagate", "cpu_native_generation")
+        import numpy as np
+
+        wrap(
+            torch,
+            "as_tensor",
+            "pcm_host_to_device_tensor",
+            lambda a, k: (
+                isinstance(a[0], np.ndarray)
+                and a[0].ndim == 3
+                and str(k.get("device")) == backend.device
+            ),
+        )
     wrap(backend.perception, "ingest", "buffering")
     wrap(backend, "acquire", "acquisition_including_buffering")
     wrap(backend.perception, "observations", "perception_including_projection")
@@ -555,7 +630,17 @@ def diagnostics(sensor, updates):
                 torch.profiler.ProfilerActivity.CUDA,
             ]
         ) as profiler:
-            for _ in range(updates * 6):
+            move = motion_driver(backend.binding, args.envs)
+            for tick in range(args.diagnostic_updates * 6):
+                camera_due = (
+                    camera is not None and (tick + 1) % (60 // args.camera_hz) == 0
+                )
+                sim.step(render=camera_due)
+                if camera is not None:
+                    camera.update(1 / 60)
+                    if camera_due:
+                        _ = camera.data.output["rgb"]
+                move(2 + (tick + 1) / 60)
                 sensor.update(1 / 60)
                 _ = sensor.data
         profiler.export_chrome_trace(str(sensor.cfg._performance_trace))
@@ -575,6 +660,8 @@ def diagnostics(sensor, updates):
     return dict(
         stage_wall_ms={k: distribution(v) for k, v in stages.items()},
         profiler_scopes=events,
+        fenced_scopes_ms={k: distribution(v) for k, v in scope_times.items()},
+        exclusive_scopes_ms={k: distribution(v) for k, v in exclusive_times.items()},
         cuda_profiler_status="available"
         if any(e["device_total_ms"] > 0 for e in events)
         else "unavailable; use fenced wall stages and CUDA event endpoints",
@@ -592,12 +679,19 @@ def main():
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--reset-seconds", type=float, default=3)
     parser.add_argument("--paced", action="store_true")
+    parser.add_argument("--camera-hz", type=int, choices=(30, 60), default=60)
     parser.add_argument(
         "--workload", choices=("audio", "physics", "render"), default="render"
     )
     parser.add_argument("--context-s", type=float, default=0.2)
     parser.add_argument("--wpe", action="store_true")
     parser.add_argument("--geometry-library", type=Path)
+    parser.add_argument(
+        "--acoustic-stage", type=Path, help="Read-only USD /World acoustic geometry"
+    )
+    parser.add_argument(
+        "--array-position", type=float, nargs=3, default=(0.0, 0.0, 1.2)
+    )
     parser.add_argument("--specular-library", type=Path)
     parser.add_argument("--reflection-order", type=int, default=3)
     parser.add_argument("--diagnostic-updates", type=int, default=5)
@@ -606,6 +700,8 @@ def main():
         "--gpu-lock", type=Path, default=Path("/tmp/isaac-audio-sensors-gpu.lock")
     )
     args = parser.parse_args()
+    if args.acoustic_stage and not args.geometry_library:
+        parser.error("--acoustic-stage requires --geometry-library")
     if args.envs < 1 or args.seconds < 3 or args.reset_seconds < 1:
         parser.error(
             "Positive environments, >=3 s measurement and >=1 s reset required"
@@ -679,7 +775,7 @@ def main():
                     physics_hz=60,
                     observation_hz=10,
                     rigid_bodies=64 * args.envs if args.workload != "audio" else 0,
-                    camera="one shared 640x480 RGB at 60 Hz"
+                    camera=f"one shared 640x480 RGB at {args.camera_hz} Hz"
                     if args.workload == "render"
                     else None,
                     backend="CUDA free-field analytic; mixture perception CUDA",
@@ -691,7 +787,7 @@ def main():
             sim = sim_utils.SimulationContext(
                 sim_utils.SimulationCfg(device="cuda:0", dt=1 / 60, render_interval=1)
             )
-            entities = scene(sim_utils, args.envs, args.workload)
+            entities = scene(sim_utils, args.envs, args.workload, args.array_position)
             geometry_config = None
             if args.geometry_library:
                 geometry_config, sessions = acoustic_rooms(
@@ -699,10 +795,16 @@ def main():
                     args.geometry_library,
                     args.specular_library,
                     args.reflection_order,
+                    args.acoustic_stage,
                 )
                 evidence["workload"]["backend"] = (
                     "CPU native geometry generation; H2D PCM; CUDA perception"
                 )
+                for session in sessions:
+                    session.refresh()
+                evidence["acoustic_triangles"] = [
+                    sum(len(o.triangles) for o in s.objects.values()) for s in sessions
+                ]
             camera = None
             if args.workload == "render":
                 from isaaclab.sensors import Camera, CameraCfg
@@ -713,6 +815,7 @@ def main():
                         width=640,
                         height=480,
                         data_types=["rgb"],
+                        update_period=1 / args.camera_hz,
                         spawn=sim_utils.PinholeCameraCfg(),
                     )
                 )
@@ -759,14 +862,43 @@ def main():
             )
             start = time.perf_counter()
             if args.profile_initialization:
+                import numpy as np
+
+                tensor = torch.tensor
+                transfers = []
+
+                def measured_tensor(values, *positional, **keywords):
+                    if (
+                        not isinstance(values, np.ndarray)
+                        or str(keywords.get("device", "cpu")) != "cuda:0"
+                    ):
+                        return tensor(values, *positional, **keywords)
+                    torch.cuda.synchronize()
+                    before = time.perf_counter()
+                    result = tensor(values, *positional, **keywords)
+                    torch.cuda.synchronize()
+                    transfers.append(
+                        dict(
+                            shape=list(values.shape),
+                            input_bytes=values.nbytes,
+                            wall_ms=(time.perf_counter() - before) * 1000,
+                        )
+                    )
+                    return result
+
+                torch.tensor = measured_tensor
                 with torch.profiler.profile(
                     activities=[
                         torch.profiler.ProfilerActivity.CPU,
                         torch.profiler.ProfilerActivity.CUDA,
                     ]
                 ) as init_profiler:
-                    sim.reset()
-                    torch.cuda.synchronize()
+                    try:
+                        sim.reset()
+                        torch.cuda.synchronize()
+                    finally:
+                        torch.tensor = tensor
+                evidence["initialization_array_host_to_device"] = transfers
                 evidence["initialization_transfers"] = [
                     dict(
                         name=e.key, calls=e.count, device_ms=e.device_time_total / 1000
@@ -824,7 +956,7 @@ def main():
             )
             if args.diagnostic_updates:
                 sensor.cfg._performance_trace = args.out / "trace.json"
-                evidence["diagnostics"] = diagnostics(sensor, args.diagnostic_updates)
+                evidence["diagnostics"] = diagnostics(sensor, sim, camera, args)
             clean = evidence["measurement"]["gpu_load"]["clean"]
             evidence.update(
                 status="measured",

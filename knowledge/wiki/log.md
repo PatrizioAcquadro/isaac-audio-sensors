@@ -480,3 +480,20 @@ Removed default identity mount transfers/products while retaining normalization
 and cached constant microphone axes on CUDA. Four exact identity/custom mount
 controls and 73 focused Isaac tests pass. Algorithms, thresholds, capacity,
 source-independent observations, clocks and reset contracts are preserved.
+
+## 2026-10-09 — experiment: Qualify the initial loaded audio profile
+
+Four clean 30-second runs sustain 10 Hz with 60 Hz audio/physics and a 30 Hz
+shared RGB camera. Retained first activation, onset wall bounds, observation age,
+SDK/deadline tails, reset, memory and 1/4/16-environment rollout costs. The 60 Hz
+camera still accumulates backlog; loaded native indoor stages remain unqualified.
+Preserved failed/contaminated runs and exact before/after PCM/all-field evidence.
+Added read-only selected-stage reproduction for post-integration measurement.
+
+## 2026-10-09 — lint: Verify performance evidence and documentation
+
+All canonical pages remain indexed and internal links resolve. Version sync,
+lint/whitespace and host gates pass (682 unit/contract, 367 integration, 56 release).
+The actual-runtime gate passes 265 tests with read-only reused native binaries.
+Reconciled workload, cold activation, queue failures, transfer-profile limitations
+and post-integration indoor gates against the separate retained reports.

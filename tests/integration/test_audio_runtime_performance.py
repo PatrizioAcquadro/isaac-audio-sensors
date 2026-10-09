@@ -68,6 +68,7 @@ def test_bad_latency_or_backlog_does_not_qualify(change):
 
 def test_slow_training_does_not_qualify_as_realtime():
     assert not summarize(rows(), 16, 20)["interactive_timing_pass"]
+    assert not summarize(rows(), 1, 10, paced=False)["interactive_timing_pass"]
 
 
 def test_missing_onset_cannot_match_a_later_speech_segment():

@@ -259,6 +259,12 @@ and multi-environment throughput. Investigate WPE cost without losing its
 conditioning/quality properties. Room/competition accuracy needs separate work;
 a latency pass cannot close those failures.
 
+The subsequent [[experiments/consumer-audio-runtime-performance|7.2 performance
+assessment]] now measures those costs and qualifies the initial free-field
+profile under its declared 30 Hz camera load. Its 60 Hz rendering and native
+indoor-stage limits remain explicit; the future indoor selection still needs
+its own loaded measurement after integration.
+
 ## Artifacts and reproduction
 
 Preserved originals: `local/sdk-runtime-readiness/` and

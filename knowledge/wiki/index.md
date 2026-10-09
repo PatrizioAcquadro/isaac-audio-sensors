@@ -29,7 +29,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
 - [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
 
-- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — historical 7.1 assessment and measured free-field dynamic profile; room/competition and loaded 7.2 performance remain open.
+- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — bounded 7.1 quality and loaded 7.2 free-field timing; room/competition, 60 Hz rendering and integrated indoor readiness remain open.
 
 ## Topics
 
