@@ -106,6 +106,7 @@ class AudioArraySensor(SensorBase):
             max_doa_candidates=self.cfg.max_doa_candidates,
             energy_threshold_dbfs=float(self.cfg.energy_threshold_dbfs),
             doa_enabled=bool(self.cfg.doa_enabled),
+            localization_context_s=self.cfg.localization_context_s,
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,
@@ -207,7 +208,9 @@ class AudioArraySensor(SensorBase):
         if self._entity_backend is not None:
             p = self._entity_backend.perception
             result.update(
-                context_samples=p.samples.clamp(max=12000).clone(),
+                context_samples=p.samples.clamp(
+                    max=p.localizer.context_samples if p.localizer else 12000
+                ).clone(),
                 activity_detected=p.active.clone(),
                 discontinuity=p.discontinuity.clone(),
                 discontinuity_count=self._entity_backend.discontinuity_count.clone(),

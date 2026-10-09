@@ -10,6 +10,17 @@
 
 `energy_threshold_dbfs` must be finite and is required by both bindings. Entity audio now supports activity and optional 16 kHz planar/3D DOA on CUDA. The active `SimulationContext` is the device authority. `debug_vis=True` fails because the sensor has no visualization implementation.
 
+`localization_context_s` explicitly selects 0.15–0.75 s of past mixture for
+16 kHz multisource localization in both reference and entity bindings; its
+default remains 0.75 s. `MaintainedEventLocalizer(context_duration_s=...)` supplies
+the equivalent Core configuration through an injected `AudioPerceptionPipeline`.
+Stereo/other-rate scalar roles retain their existing 250 ms context. The choice
+changes context readiness, not observation timestamps, tensor shape, activity
+rules or expected source count. `processing_status.context_samples` reflects
+the configured CUDA context. Context duration, effective directional lag and
+wall-clock computation are separate quantities. The dynamic-quality follow-up
+to readiness 7.1 evaluates 250 ms without replacing the historical default.
+
 ## Observation Contract
 
 `AudioArraySensorData.from_observations(observations, *, max_observations=1, max_doa_candidates=2, device=...)` accepts one ordered sequence of `AudioObservation` values per environment. It accepts no frames, snapshots, truth, source state, or free-form diagnostic maps. The scalar reference packs observations on the host and transfers each tensor to the requested device; this is not the scalable CUDA perception path.

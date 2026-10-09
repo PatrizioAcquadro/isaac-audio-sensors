@@ -18,6 +18,7 @@ def main() -> int:
     parser.add_argument("--perf-envs", type=int, default=16)
     parser.add_argument("--perf-steps", type=int, default=5)
     parser.add_argument("--perf-substeps", type=int, default=1)
+    parser.add_argument("--localization-context-s", type=float, default=0.75)
     parser.add_argument("--perf-reference-check", action="store_true")
     parser.add_argument("--perf-reference-steps", type=int, default=1)
     parser.add_argument("--perf-budget-ms", type=float, default=None)
@@ -246,6 +247,7 @@ def main() -> int:
                 energy_threshold_dbfs=-60.0,
                 doa_enabled=True,
                 update_period=0.1,
+                localization_context_s=args.localization_context_s,
             )
         ).bind_entities(
             perf_scene,
@@ -590,6 +592,7 @@ def main() -> int:
             "perf_layout": args.perf_layout,
             "perf_steps": args.perf_steps,
             "perf_substeps": args.perf_substeps,
+            "localization_context_s": args.localization_context_s,
             "simulated_acquisition_hz": 10 * args.perf_substeps,
             "mean_ms_per_step": mean_ms,
             "warmup_ms": warmup_ms,
@@ -705,7 +708,9 @@ def _entity_reference_parity(sensor):
     samples = history[:, :, -12000:]
     positions = backend.binding.static.mic_offsets_local.cpu().numpy()
     data = sensor.data
-    localizer = MaintainedEventLocalizer()
+    localizer = MaintainedEventLocalizer(
+        context_duration_s=sensor.cfg.localization_context_s
+    )
     counts, matches, errors = [], [], []
     missing = extra = 0
     for row, values in enumerate(samples):
@@ -868,6 +873,7 @@ def _combined_isolation(sensor):
             max_observations=sensor.cfg.max_observations,
             max_doa_candidates=sensor.cfg.max_doa_candidates,
             device=backend.device,
+            localization_context_s=sensor.cfg.localization_context_s,
         )
         ids = torch.arange(len(values), device=backend.device)
         perception.ingest(ids, values, torch.full_like(ids, values.shape[-1]))

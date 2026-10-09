@@ -178,6 +178,7 @@ def initialize_perception(backend, binding, cfg):
         positions=binding.static.mic_offsets_local.cpu().numpy(),
         threshold_dbfs=cfg.energy_threshold_dbfs,
         doa_enabled=cfg.doa_enabled,
+        localization_context_s=cfg.localization_context_s,
         max_observations=cfg.max_observations,
         max_doa_candidates=cfg.max_doa_candidates,
         device=backend.device,

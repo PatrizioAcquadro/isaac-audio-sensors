@@ -431,3 +431,17 @@ Threshold-aware assignments maximize valid pair count before total angle.
 Rescored historical directions in a separate report; competing-voice partial
 matches and angular p95 change, while complete-set success remains unchanged.
 Eight focused scoring tests and whitespace/lint checks pass.
+
+## 2026-10-08 — update: Make localization context explicit
+
+Scalar and both Lab bindings now select a bounded causal localization context;
+750 ms defaults and single-event ambiguity roles remain unchanged. Documented
+context/readiness versus lag/compute separation and the 250 ms selection rationale.
+Independent dynamic validation remains a separate gate.
+
+## 2026-10-08 — lint: Validate selectable-context SDK milestone
+
+Host checks pass 681 unit/contract, 356 integration and 56 release cases;
+256 supported-runtime Isaac cases pass. The live 250 ms Lab path preserves
+scalar events, tensor contracts and partial reset at 60 Hz acquisition/10 Hz
+observations. Lint/whitespace pass. Replay/quality qualification remains separate.

@@ -9,6 +9,30 @@ from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
 
 
+@pytest.mark.parametrize("duration", [0, 0.149, 0.751, float("nan"), float("inf")])
+def test_context_duration_rejects_unsupported_values(duration):
+    with pytest.raises(ValueError, match="context"):
+        MaintainedEventLocalizer(context_duration_s=duration)
+
+
+@pytest.mark.parametrize("duration", [True, "0.25", None])
+def test_context_duration_rejects_coercion(duration):
+    with pytest.raises(TypeError, match="context"):
+        MaintainedEventLocalizer(context_duration_s=duration)
+
+
+def test_selected_context_controls_readiness_without_changing_stereo():
+    localizer = MaintainedEventLocalizer(context_duration_s=0.25)
+    assert localizer.consumer_context_duration_s_for(16000, 4) == 0.25
+    assert localizer.consumer_context_duration_s_for(8000, 2) == 0.25
+    events, diagnostic = localizer.localize(
+        np.ones((3, 3999)),
+        np.array([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]]),
+        16000,
+    )
+    assert not events and diagnostic["reason"] == "insufficient_context"
+
+
 @pytest.mark.parametrize(
     "samples,positions,rate,reason",
     [

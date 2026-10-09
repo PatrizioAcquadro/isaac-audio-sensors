@@ -631,6 +631,7 @@ def _build_standard_perception_pipeline(
     doa_enabled: bool = False,
     max_observations: int | None = None,
     runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+    localization_context_s: float = 0.75,
 ) -> AudioPerceptionPipeline:
     """Compose the maintained scalar detector and optional DOA consumer."""
 
@@ -653,7 +654,10 @@ def _build_standard_perception_pipeline(
     return AudioPerceptionPipeline(
         activity_detector=activity_detector,
         event_localizer=(
-            MaintainedEventLocalizer(runtime_profile=runtime_profile)
+            MaintainedEventLocalizer(
+                runtime_profile=runtime_profile,
+                context_duration_s=localization_context_s,
+            )
             if doa_enabled
             else None
         ),

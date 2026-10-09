@@ -136,8 +136,12 @@ def assess(found, diagnostic, data, step, threshold_db=0.0):
     return result
 
 
-def run_stream(data, *, threshold_dbfs=-60):
-    estimator = MaintainedEventLocalizer()
+def run_stream(data, *, threshold_dbfs=-60, localization_context_s=0.75):
+    estimator = (
+        MaintainedEventLocalizer()
+        if localization_context_s == 0.75
+        else MaintainedEventLocalizer(context_duration_s=localization_context_s)
+    )
     positions = np.array(data["positions"], dtype=float, copy=True)
     positions.setflags(write=False)
     array = MicrophoneArraySpec(
@@ -266,6 +270,8 @@ def summarize(rows):
     longest_error = current_error = 0
     fragments = 0
     previous_matched = set()
+    active_error_runs = []
+    active_error = 0
     for row in rows:
         current_error = current_error + 1 if row["exact"] is False else 0
         longest_error = max(longest_error, current_error)
@@ -273,10 +279,26 @@ def summarize(rows):
         current_sources = set(row["source_indices"])
         fragments += len((previous_matched & current_sources) - current_matched)
         previous_matched = current_matched
+        if row["exact"] is False and row["received_count"] > 0:
+            active_error += 1
+        elif active_error:
+            active_error_runs.append(active_error * PERIOD)
+            active_error = 0
+    if active_error:
+        active_error_runs.append(active_error * PERIOD)
     return dict(
         updates=len(rows),
         longest_joint_error_s=longest_error * 0.1,
         localization_interruptions=fragments,
+        active_incorrect_run_durations_s=active_error_runs,
+        active_long_error_runs=sum(d >= 0.5 for d in active_error_runs),
+        active_long_error_runs_per_minute=(
+            sum(d >= 0.5 for d in active_error_runs)
+            * 60
+            / (len(active_resolved) * PERIOD)
+        )
+        if active_resolved
+        else None,
         resolvable_updates=len(resolved),
         exact=float(np.mean([r["exact"] for r in resolved])) if resolved else None,
         count=float(np.mean([r["count"] for r in resolved])) if resolved else None,
@@ -307,7 +329,64 @@ def summarize(rows):
     )
 
 
-def case_report(data, rows):
+def direction_lag(data, rows):
+    """Diagnostic single-source past-direction fit; never changes quality/time.
+
+    Report only windows with one estimate/reference and angular speed >=20 deg/s.
+    The omitted missing/extra windows remain failures in all quality summaries.
+    A 10 ms scan/interpolation is a descriptive lag fit, not timestamp accuracy.
+    """
+    if data["directions"].shape[1] != 1:
+        return {"status": "not_identifiable_multisource"}
+    truth = data["directions"][:, 0]
+    times = np.arange(1, len(rows) + 1) * PERIOD
+    speed = (
+        np.degrees(np.arccos(np.clip(np.sum(truth[1:] * truth[:-1], axis=1), -1, 1)))
+        / PERIOD
+    )
+    indices = [
+        i
+        for i, r in enumerate(rows)
+        if times[i] >= 1
+        and r["expected"] == r["detected"] == 1
+        and r["available"]
+        and r["fully_resolvable"]
+        and speed[i - 1] >= 20
+    ]
+    if len(indices) < 10:
+        return {"status": "insufficient_directional_motion", "windows": len(indices)}
+    found = np.array([rows[i]["directions"][0] for i in indices])
+    delays = np.arange(0, 0.751, 0.01)
+    errors = []
+    for delay in delays:
+        past = np.column_stack(
+            [np.interp(times[indices] - delay, times, truth[:, c]) for c in range(3)]
+        )
+        past /= np.linalg.norm(past, axis=1)[:, None]
+        errors.append(
+            np.degrees(np.arccos(np.clip(np.sum(found * past, axis=1), -1, 1)))
+        )
+    medians = np.median(errors, axis=1)
+    best = int(np.argmin(medians))
+    return dict(
+        status="diagnostic_only",
+        windows=len(indices),
+        eligible_single_reference_windows=int(
+            sum(
+                r["expected"] == 1 and times[i] >= 1 and speed[i - 1] >= 20
+                for i, r in enumerate(rows)
+            )
+        ),
+        fitted_lag_ms=float(delays[best] * 1000),
+        current_median_error_deg=float(medians[0]),
+        fitted_median_error_deg=float(medians[best]),
+        scan_step_ms=10,
+        at_scan_boundary=best in (0, len(delays) - 1),
+    )
+
+
+def case_report(data, rows, *, context_samples=12000):
+    warmup_updates = (context_samples + HOP - 1) // HOP - 1
     sensitivity = {}
     for threshold in (-3, 3):
         rescored = []
@@ -320,13 +399,39 @@ def case_report(data, rows):
                     ),
                 }
             )
-        sensitivity[str(threshold)] = summarize(rescored[7:])
+        sensitivity[str(threshold)] = summarize(rescored[warmup_updates:])
+    onsets = onset_responses(rows, localization=True)
+    ready_time = (warmup_updates + 1) * PERIOD
+    responses = {}
+    for label, items in (
+        (
+            "initial_acquisition",
+            [r for r in onsets if r["onset_bin_start_s"] < ready_time],
+        ),
+        (
+            "acquisition_already_active",
+            [r for r in onsets if r["onset_bin_start_s"] >= ready_time],
+        ),
+    ):
+        delays = [
+            r["response_delay_ms"] for r in items if r["response_delay_ms"] is not None
+        ]
+        responses[label] = {
+            "segments": len(items),
+            "missed_segments": len(items) - len(delays),
+            "p95_ms": float(np.percentile(delays, 95)) if delays else None,
+        }
     return {
-        **summarize(rows[7:]),
+        **summarize(rows[warmup_updates:]),
+        "common_after_750ms": summarize(rows[7:]),
         "including_warmup": summarize(rows),
+        "context_duration_ms": context_samples / FS * 1000,
+        "first_context_ready_ms": ready_time * 1000,
+        "direction_lag": direction_lag(data, rows),
+        "direction_response_summary": responses,
         "received_reference_sensitivity_db": sensitivity,
         "activity_onset_responses": onset_responses(rows, localization=False),
-        "direction_onset_responses": onset_responses(rows, localization=True),
+        "direction_onset_responses": onsets,
     }
 
 
@@ -364,9 +469,15 @@ def main():
     parser.add_argument("--threshold-dbfs", type=float, default=-60)
     parser.add_argument("--include-rows", action="store_true")
     parser.add_argument("--rescore-report", type=Path)
+    parser.add_argument("--localization-context-s", type=float, default=0.75)
     args = parser.parse_args()
     if not np.isfinite(args.threshold_dbfs):
         parser.error("--threshold-dbfs must be finite.")
+    from isaac_audio_sensors.core.plugins.multisource import (
+        localization_context_samples,
+    )
+
+    context_samples = localization_context_samples(args.localization_context_s)
     if args.rescore_report:
         report = rescore_report(
             json.loads(args.rescore_report.read_text()), args.inputs_dir
@@ -389,6 +500,8 @@ def main():
         "input_glob": args.input_glob,
         "response_clock": "100 ms received-onset bin start to observation bin end",
         "timing_scope": "offline replay; compute is not end-to-end SDK latency",
+        "localization_context_s": args.localization_context_s,
+        "matching_policy": "maximum valid cardinality, then minimum total angle",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     passed = True
@@ -400,7 +513,13 @@ def main():
         reference = []
         for path in paths:
             data.append(load_input(path))
-            reference.append(run_stream(data[-1], threshold_dbfs=args.threshold_dbfs))
+            reference.append(
+                run_stream(
+                    data[-1],
+                    threshold_dbfs=args.threshold_dbfs,
+                    localization_context_s=args.localization_context_s,
+                )
+            )
         lengths = {d["samples"].shape[-1] for d in data}
         if len(lengths) != 1 or not all(
             np.array_equal(d["positions"], data[0]["positions"]) for d in data
@@ -416,6 +535,7 @@ def main():
             max_observations=32,
             max_doa_candidates=2,
             device="cuda:0",
+            localization_context_s=args.localization_context_s,
         )
         ids = torch.arange(len(data), device="cuda:0")
         values = torch.tensor(
@@ -424,6 +544,7 @@ def main():
         counts = torch.full((len(data),), HOP, device="cuda:0")
         results = [[] for _ in data]
         agreement, deviations, activity_agreement = [], [], []
+        backlog_ms = 0.0
         for tick, start in enumerate(range(0, values.shape[-1], HOP)):
             torch.cuda.synchronize()
             begin = time.perf_counter()
@@ -431,6 +552,7 @@ def main():
             output = p.observations(ids)
             torch.cuda.synchronize()
             elapsed = (time.perf_counter() - begin) * 1000
+            backlog_ms = max(0, backlog_ms - PERIOD * 1000) + elapsed
             for i, item in enumerate(data):
                 valid = output.bearing_deg_mask[i]
                 found = np.array(
@@ -453,7 +575,7 @@ def main():
                     bool(p.active[i]) == reference[i][tick]["activity"]
                 )
                 diag = {"status": "events" if len(found) else "no_events"}
-                if tick < 7:
+                if (tick + 1) * HOP < context_samples:
                     diag = {"status": "unavailable"}
                 row = assess(found, diag, item, tick)
                 row.update(
@@ -461,7 +583,7 @@ def main():
                     activity=bool(p.active[i]),
                     diagnostic=diag,
                     compute_ms=elapsed,
-                    completion_delay_ms=elapsed,
+                    completion_delay_ms=backlog_ms,
                     ambiguity_count=int(output.ambiguity_mask[i].sum()),
                     unresolved_observation_count=int(
                         (output.observation_mask[i] & ~valid).sum()
@@ -478,8 +600,8 @@ def main():
             "cases": [
                 {
                     "input": path.name,
-                    "scalar": case_report(item, ref),
-                    "cuda": case_report(item, actual),
+                    "scalar": case_report(item, ref, context_samples=context_samples),
+                    "cuda": case_report(item, actual, context_samples=context_samples),
                     **(
                         {"rows": {"scalar": ref, "cuda": actual}}
                         if args.include_rows

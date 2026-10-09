@@ -11,6 +11,7 @@ from isaaclab.utils.configclass import configclass
 from isaac_audio_sensors.core.backends.base import registered_backend_ids
 from isaac_audio_sensors.core.constants import DEFAULT_SPEED_OF_SOUND_MPS
 from isaac_audio_sensors.core.effects import EffectsConfig
+from isaac_audio_sensors.core.plugins.multisource import localization_context_samples
 from isaac_audio_sensors.lab.audio_array_sensor import AudioArraySensor
 from isaac_audio_sensors.lab.audio_array_sensor_data import _validate_capacity
 
@@ -26,6 +27,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
     max_doa_candidates: int = 2
     energy_threshold_dbfs: float | None = None
     doa_enabled: bool = False
+    localization_context_s: float = 0.75
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
     analytic_max_order: int = 0
     analytic_air_absorption: bool = False
@@ -50,6 +52,7 @@ class AudioArraySensorCfg(SensorBaseCfg):
                 raise ValueError("energy_threshold_dbfs must be finite.")
         if not isinstance(self.doa_enabled, bool):
             raise TypeError("doa_enabled must be a boolean.")
+        localization_context_samples(self.localization_context_s)
         if (
             not math.isfinite(float(self.speed_of_sound_mps))
             or self.speed_of_sound_mps <= 0.0

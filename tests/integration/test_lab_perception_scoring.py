@@ -197,3 +197,51 @@ def test_quiet_windows_do_not_inflate_active_complete_set_rate():
     assert result["exact"] == 0.5
     assert result["active_complete_set_rate"] == 0
     assert result["active_resolvable_updates"] == 1
+
+
+def test_lag_diagnostic_does_not_retime_or_repair_current_quality():
+    from tools.validation.lab_perception import direction, direction_lag
+
+    times = np.arange(1, 41) / 10
+    data = {"directions": np.array([[direction(60 * t)] for t in times])}
+    rows = [
+        {
+            **score([direction(60 * (t - 0.2))], data["directions"][i]),
+            "time_s": t,
+            "available": True,
+            "fully_resolvable": True,
+        }
+        for i, t in enumerate(times)
+    ]
+    original = [r["time_s"] for r in rows]
+    result = direction_lag(data, rows)
+    assert result["fitted_lag_ms"] == 200
+    assert result["current_median_error_deg"] == pytest.approx(12)
+    assert result["fitted_median_error_deg"] < 1e-5
+    assert [r["time_s"] for r in rows] == original
+    assert rows[-1]["errors"] == pytest.approx([12])
+
+
+def test_active_error_run_duration_and_frequency_exclude_quiet_windows():
+    from tools.validation.lab_perception import assess, summarize
+
+    data = dict(
+        received_power=np.ones((10, 1)),
+        direct_power=np.ones((10, 1)),
+        noise_power=np.full(10, 0.01),
+        directions=np.tile([[[1.0, 0, 0]]], (10, 1, 1)),
+        scheduled_count=np.ones(10),
+    )
+    rows = [
+        {
+            **assess(np.empty((0, 3)), {"status": "no_events"}, data, step),
+            "compute_ms": 0.0,
+            "completion_delay_ms": 0.0,
+        }
+        for step in range(10)
+    ]
+    rows[6]["received_count"] = 0
+    result = summarize(rows)
+    assert result["active_incorrect_run_durations_s"] == pytest.approx([0.6, 0.3])
+    assert result["active_long_error_runs"] == 1
+    assert result["active_long_error_runs_per_minute"] == pytest.approx(60 / 0.9)

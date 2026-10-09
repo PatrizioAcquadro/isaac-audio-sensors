@@ -169,7 +169,8 @@ def test_cuda_localizer_matches_scalar_mixtures(positions, cuda):
 
 
 @pytest.mark.parametrize("capacity", [1, 3])
-def test_cuda_bearing_order_and_truncation_match_core(cuda, capacity):
+@pytest.mark.parametrize("context_s", [0.25, 0.75])
+def test_cuda_bearing_order_and_truncation_match_core(cuda, capacity, context_s):
     from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
     from isaac_audio_sensors.lab._torch_perception import TorchPerception
 
@@ -183,7 +184,9 @@ def test_cuda_bearing_order_and_truncation_match_core(cuda, capacity):
         ]
     )
     samples = mixture(positions @ rotation.T)
-    events, _ = MaintainedEventLocalizer().localize(samples, positions, 16000)
+    events, _ = MaintainedEventLocalizer(context_duration_s=context_s).localize(
+        samples, positions, 16000
+    )
     expected = sorted(event.estimated_bearing_deg for event in events)
     assert len(expected) == 2 and expected[0] < 180 < expected[1]
     p = TorchPerception(
@@ -194,6 +197,7 @@ def test_cuda_bearing_order_and_truncation_match_core(cuda, capacity):
         max_observations=capacity,
         max_doa_candidates=2,
         device=cuda,
+        localization_context_s=context_s,
     )
     ids = torch.tensor([0], device=cuda)
     p.ingest(
@@ -280,7 +284,8 @@ def test_cuda_activity_matches_auditok_tokens(cuda, block_size):
 
 
 @pytest.mark.parametrize("capacity", [0, 1, 3])
-def test_perception_partial_reset_and_capacity(cuda, capacity):
+@pytest.mark.parametrize("context_s", [0.25, 0.75])
+def test_perception_partial_reset_and_capacity(cuda, capacity, context_s):
     from isaac_audio_sensors.lab._torch_perception import TorchPerception
 
     p = TorchPerception(
@@ -291,6 +296,7 @@ def test_perception_partial_reset_and_capacity(cuda, capacity):
         max_observations=capacity,
         max_doa_candidates=2,
         device=cuda,
+        localization_context_s=context_s,
     )
     samples = torch.tensor(np.stack([mixture(LAYOUTS[1])] * 2), device=cuda)
     ids = torch.arange(2, device=cuda)
@@ -298,7 +304,7 @@ def test_perception_partial_reset_and_capacity(cuda, capacity):
         values = samples[..., start : start + 1600]
         p.ingest(ids, values, torch.full((2,), values.shape[-1], device=cuda))
         result = p.observations(ids)
-        if start + values.shape[-1] < 12000:
+        if start + values.shape[-1] < round(context_s * 16000):
             assert not result.observation_mask.any()
     assert (result.observation_mask.sum(dim=1) == min(2, capacity)).all()
     assert (result.observations_truncated == max(0, 2 - capacity)).all()
@@ -372,6 +378,7 @@ def test_entity_received_pcm_matches_core_and_partial_reset(
     )
     cfg = SimpleNamespace(
         speed_of_sound_mps=343,
+        localization_context_s=0.75,
         update_period=0.1,
         energy_threshold_dbfs=-60,
         doa_enabled=False,

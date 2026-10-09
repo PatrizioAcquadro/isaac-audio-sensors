@@ -33,6 +33,7 @@ class ReferenceBackend:
         max_doa_candidates: int = 2,
         energy_threshold_dbfs: float,
         doa_enabled: bool = False,
+        localization_context_s: float = 0.75,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -77,6 +78,7 @@ class ReferenceBackend:
             _build_standard_perception_pipeline(
                 energy_threshold_dbfs=energy_threshold_dbfs,
                 doa_enabled=doa_enabled,
+                localization_context_s=localization_context_s,
                 max_observations=None,
             )
             for _ in self.snapshots

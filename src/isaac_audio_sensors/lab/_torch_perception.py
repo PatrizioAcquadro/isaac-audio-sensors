@@ -62,6 +62,7 @@ class TorchPerception:
         max_doa_candidates,
         device,
         window_samples=1600,
+        localization_context_s=0.75,
     ):
         self.device = device
         self.threshold = threshold_dbfs
@@ -76,7 +77,11 @@ class TorchPerception:
         self.active = torch.zeros(num_envs, dtype=torch.bool, device=device)
         self.discontinuity = torch.zeros_like(self.active)
         self.localizer = (
-            TorchEventLocalizer(np.asarray(positions), device=device)
+            TorchEventLocalizer(
+                np.asarray(positions),
+                device=device,
+                context_duration_s=localization_context_s,
+            )
             if doa_enabled
             else None
         )
@@ -141,7 +146,7 @@ class TorchPerception:
             if len(chunk) == 0:
                 continue
             vectors, mask = self.localizer.localize(
-                self.history[env_ids[chunk], :, -12000:]
+                self.history[env_ids[chunk], :, -self.localizer.context_samples :]
             )
             with torch.profiler.record_function("audio.projection"):
                 found = mask.sum(dim=-1)

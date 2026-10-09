@@ -108,12 +108,13 @@ def test_reference_backend_supports_standard_doa_opt_in() -> None:
         max_observations=8,
         energy_threshold_dbfs=-60.0,
         doa_enabled=True,
+        localization_context_s=0.25,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(_snapshot(array, ()),),
         array_ids=("array",),
     )
 
-    assert reference._perception[0]._event_localizer is not None
+    assert reference._perception[0]._event_localizer.consumer_context_duration_s == 0.25
 
 
 def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:

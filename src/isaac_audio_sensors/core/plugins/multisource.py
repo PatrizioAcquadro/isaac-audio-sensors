@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import math
+from numbers import Real
+
 import numpy as np
 
 from isaac_audio_sensors.core.constants import DEFAULT_RUNTIME_PROFILE
@@ -11,12 +14,22 @@ from isaac_audio_sensors.core.plugins.standard_doa import MaintainedDoaEstimator
 from isaac_audio_sensors.core.types import DoaEstimate
 
 
+def localization_context_samples(duration_s: float) -> int:
+    """Bound supported 16 kHz WPE contexts; reject silent coercion of config."""
+    if isinstance(duration_s, bool) or not isinstance(duration_s, Real):
+        raise TypeError("localization context must be a real number.")
+    if not math.isfinite(duration_s) or not 0.15 <= duration_s <= 0.75:
+        raise ValueError("localization context must be between 0.15 and 0.75 s.")
+    return round(duration_s * 16000)
+
+
 class MaintainedEventLocalizer:
     """Localize independent frame events; retain no source identities.
 
     WPE/group-sparse covariance supports the bounded 16 kHz indoor reference
-    for relatively stable sources. Memory is 750 ms; measured response can
-    exceed one second. Physical recordings and arbitrary rooms are unqualified.
+    for relatively stable sources. Default memory is 750 ms; a shorter context
+    can be selected explicitly for dynamic listening. Context is not response
+    latency. Physical recordings and arbitrary rooms are unqualified.
     Stereo and other planar sample rates keep the existing single-event role.
     All dependencies remain lazy.
     """
@@ -25,7 +38,14 @@ class MaintainedEventLocalizer:
     consumer_jump_threshold_deg = 150.0
     consumer_confirmation_tolerance_deg = 30.0
 
-    def __init__(self, *, runtime_profile: str = DEFAULT_RUNTIME_PROFILE) -> None:
+    def __init__(
+        self,
+        *,
+        runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+        context_duration_s: float = 0.75,
+    ) -> None:
+        self.context_samples = localization_context_samples(context_duration_s)
+        self.consumer_context_duration_s = self.context_samples / 16000
         self._stereo = MaintainedDoaEstimator(runtime_profile=runtime_profile)
         self._spatial = None
         self._geometry: bytes | None = None
@@ -39,7 +59,11 @@ class MaintainedEventLocalizer:
         self, sample_rate_hz: int, channel_count: int
     ) -> float:
         """Keep the existing single-event context for stereo/other rates."""
-        return 0.25 if channel_count == 2 or sample_rate_hz != 16000 else 0.75
+        return (
+            0.25
+            if channel_count == 2 or sample_rate_hz != 16000
+            else self.consumer_context_duration_s
+        )
 
     def localize(
         self,
@@ -68,7 +92,7 @@ class MaintainedEventLocalizer:
             return (), {"status": "unavailable", "reason": "unsupported_geometry"}
         if sample_rate_hz != 16000:
             return (), {"status": "unavailable", "reason": "unsupported_sample_rate"}
-        if values.shape[1] < 12000:
+        if values.shape[1] < self.context_samples:
             return (), {"status": "unavailable", "reason": "insufficient_context"}
         if positions.tobytes() != self._geometry:
             self.reset()
@@ -91,7 +115,7 @@ class MaintainedEventLocalizer:
                 ) from exc
             self._spatial = WpeSparseCovariance()
         directions, diagnostics = self._spatial.localize(
-            values[:, -12000:], positions, sample_rate_hz
+            values[:, -self.context_samples :], positions, sample_rate_hz
         )
         events = tuple(
             DoaEstimate(
@@ -111,5 +135,10 @@ class MaintainedEventLocalizer:
             "role": "3d" if rank == 3 else "planar",
             "event_confidence_available": False,
             "temporal_policy": "causal_window_event_set",
-            "qualification_scope": "simulated_indoor_stable_sources",
+            "qualification_scope": (
+                "simulated_indoor_stable_sources"
+                if self.context_samples == 12000
+                else "short_context_experimental"
+            ),
+            "context_duration_s": self.consumer_context_duration_s,
         }

@@ -68,7 +68,14 @@ class TorchEventLocalizer:
 
     context_samples = 12000
 
-    def __init__(self, positions: np.ndarray, *, device: str) -> None:
+    def __init__(
+        self, positions: np.ndarray, *, device: str, context_duration_s: float = 0.75
+    ) -> None:
+        from isaac_audio_sensors.core.plugins.multisource import (
+            localization_context_samples,
+        )
+
+        self.context_samples = localization_context_samples(context_duration_s)
         from isaac_audio_sensors.core.plugins._multisource_sparse import (
             GroupSparseCovariance,
         )
@@ -135,6 +142,9 @@ class TorchEventLocalizer:
         )
 
     def localize(self, samples: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        if samples.shape[-1] < self.context_samples:
+            raise ValueError("Insufficient localization context.")
+        samples = samples[..., -self.context_samples :]
         with torch.profiler.record_function("audio.wpe"):
             processed = dereverberate(samples)
         with torch.profiler.record_function("audio.sparse"):

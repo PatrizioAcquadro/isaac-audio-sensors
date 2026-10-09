@@ -77,6 +77,43 @@ screen measures the existing base Geometry renderer at 60 Hz, not an independent
 moving-room pressure reference or physical transfer. Wall-clock latency, rendering
 load and learning throughput belong to 7.2; smoke/replay timing is not that result.
 
+## Follow-up to 7.1 — Dynamic audio quality
+
+#### Implementation
+
+Corrected received-direction matching to maximize valid pair cardinality before
+total angular error; the original 7.1 artifacts remain intact. The retained
+750 ms context has a diagnostic past-direction fit of 360–420 ms in rotating
+single-voice episodes, distinct from compute and delivery cost. Quality continues
+to use current directions and original timestamps.
+
+The SDK now accepts an explicit `MaintainedEventLocalizer(context_duration_s=...)`
+and Lab `localization_context_s` in both bindings. Defaults remain 750 ms and
+stereo/other-rate single-event roles remain 250 ms. Mixture history/readiness and
+CUDA slicing use the configured duration, preserving clocks, masks, resets and
+source-independent event discovery. The received-PCM evaluator reports active
+error-run durations/frequency, initial versus already-acquiring onset responses,
+diagnostic direction lag, context readiness and accumulated serial replay cost.
+
+#### Key Decisions
+
+Select 250 ms WPE/group-sparse context on six episode-zero selection cases.
+Compare short contexts (150/200/250 ms), recent covariance after longer WPE, and
+a no-WPE ablation. 150 ms and recent-covariance variants reduce lag but lose
+static/room robustness; the no-WPE variant fails room quality. The selected
+250 ms variant exceeds 90% active complete sets in each selection condition;
+independent validation and supported-profile disposition are recorded separately.
+No source identities, private poses, motion input, tracking or time correction
+enter observations. The existing WPE, fitting and ambiguity rules are retained.
+
+#### Problems / Limitations
+
+Selection is not qualification. Holdout room/motion controls, scalar/CUDA gates,
+and preliminary single-array 10 Hz costs must decide the supported profile.
+The approximately 100 ms directional-lag target is separate from correct-set
+rates and cannot be satisfied by shifting estimates into the past. Rendering,
+acquisition/delivery latency and multi-environment throughput remain in 7.2.
+
 ## 7.2 — Latency and learning throughput
 
 Measure audio generation, buffering, perception and observation delivery in the
