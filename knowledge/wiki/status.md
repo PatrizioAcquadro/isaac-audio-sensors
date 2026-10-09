@@ -1,6 +1,6 @@
 # Current Status
 
-Updated: 2026-10-08. Package version: `3.0.0`.
+Updated: 2026-10-09. Package version: `3.0.0`.
 
 ## Maintenance validation
 
@@ -34,7 +34,7 @@ no new acoustic accuracy, performance or physical qualification is claimed.
 ## Consumer audio readiness — 7.1
 
 [[implementation_phases/squadbot-audio-runtime-readiness|7.1 is complete as a bounded compatibility and quality assessment]];
-7.2 latency/throughput work remains planned. SDK 3.0.0 remains unreleased.
+7.2 latency/throughput work is being implemented separately. SDK 3.0.0 remains unreleased.
 The original assessment left perception, public APIs and schemas unchanged;
 downstream dependencies/adapters were not modified. The local Sim `6.0.1-rc.7` /
 Lab `3.0.0` (`2e44ddb2e1`) /
@@ -83,6 +83,24 @@ and retained artifacts are in
 [[experiments/consumer-audio-dynamic-quality|dynamic-quality evidence]].
 **Full dynamic readiness remains open; 7.2 must measure loaded end-to-end latency,
 queues and throughput.** No replay/live smoke result establishes real-time use.
+
+### Indoor-quality follow-up
+
+Opt-in `localization_spatial_coherence=.98` with 200 ms direct context reduces
+reflected events while preserving default behavior and scalar/CUDA contracts.
+Independent fresh room static/source/rotation/joint conditions reach 94.5–97.3%
+complete sets, worst episode 92.4%; free single-voice conditions reach 97.8%.
+Audio-clock first-correct p95 is 200 ms; some fitted lags still reach 140 ms.
+Preliminary single-array compute p95 is about 15.3 ms, separate from 7.2.
+
+**Only bounded single-voice trials are supported by this evidence.** Mixed voices
+lose real support: the -9 dB room voice retains 15/72 correct windows, versus
+47/72 for the unfiltered direct profile. Two-voice complete sets and weak-room
+onset/continuity remain insufficient. The
+[[experiments/consumer-audio-indoor-quality|indoor-quality evidence]] owns the
+frozen configuration, same-PCM historical/direct/WPE comparisons, worst episodes,
+validation and reproducible command. Arbitrary rooms/physical transfer, overlap
+recovery and loaded runtime readiness remain open. SDK 3.0.0 remains unreleased.
 
 ## Geometry qualification
 

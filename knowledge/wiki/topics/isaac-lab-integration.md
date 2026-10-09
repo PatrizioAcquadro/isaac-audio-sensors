@@ -39,8 +39,9 @@ this option. It changes localization only; the coherence statistic is not
 published as bearing confidence. Stereo retains its ambiguity policy.
 Overlapping speech can fail this single-plane-wave test, including weaker real
 voices, so this option is experimental for competing sources. Defaults remain
-unchanged. Quality evidence and the bounded single-voice profile are owned by
-the indoor-quality follow-up.
+unchanged. The
+[[experiments/consumer-audio-indoor-quality|indoor-quality follow-up]] owns the
+bounded single-voice profile and its explicit overlapping/weak-voice failures.
 
 ## Observation Contract
 

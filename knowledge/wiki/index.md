@@ -63,6 +63,7 @@ Read for a specific result/reference; these pages do not add requirements.
 - [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, WPE/peak numerical corrections and dated practical batch costs.
 - [[experiments/consumer-audio-operating-envelope|Consumer Audio Envelope]] — 18 natural-speech motion/room/competition episodes, paired CUDA preservation, received-onset responses and insufficient rotating-receiver quality.
 - [[experiments/consumer-audio-dynamic-quality|Dynamic Audio Quality]] — causal context and localization profiles, matched room/motion controls, independent episodes and remaining quality/runtime limits.
+- [[experiments/consumer-audio-indoor-quality|Indoor Audio Quality]] — opt-in spatial coherence, independent one-voice room confirmation, explicit weak/overlapping-voice failures and preliminary 7.2 handoff cost.
 - [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
 
 ## Sources and history

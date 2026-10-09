@@ -1,8 +1,9 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2 planned.
-The dynamic-quality follow-up delivers a bounded free-field profile; full
-dynamic readiness remains open.
+Status: 7.1 complete as a bounded compatibility and quality assessment;
+7.2 remains separate latency/throughput work in progress.
+Quality follow-ups deliver bounded single-voice free-field and indoor profiles;
+full dynamic and multisource readiness remains open.
 Phase 7 identifies the downstream SquadBot roadmap; the SDK's
 existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
 
@@ -132,6 +133,44 @@ satisfied by shifting estimates into the past. Host/Isaac gates pass; full
 readiness is not closed by measured replay completion. Loaded acquisition,
 rendering, delivery latency and multi-environment throughput remain in 7.2.
 
+## Follow-up to 7.1 — Indoor event quality
+
+#### Implementation
+
+From shared baseline `6c65a69`, implement opt-in mixture-only spatial coherence
+before the existing sparse fit. Core `spatial_coherence_threshold` and Lab
+`localization_spatial_coherence` support the scalar and both Lab bindings.
+Defaults preserve the prior path. Original band power/snapshot normalization,
+peak rules, activity, clocks, unavailable confidence, ambiguity, reset and
+capacity remain intact. Independent directions are discovered without a true
+source count or strongest-frame-event rule.
+
+#### Key Decisions
+
+Diagnose extra directions in static/moving room controls rather than reopening
+window-duration search. Freeze 200 ms, no WPE and coherence .98 after eight
+episode-zero selections. Confirm on the other 26 matched controls and 36 fresh
+episodes, including a real second source attenuated by 9 dB. Keep historical
+WPE 750 ms, direct 200 ms and WPE 250 ms references on identical PCM.
+[[experiments/consumer-audio-indoor-quality|Indoor quality evidence]] owns the
+protocol, every scenario/worst episode, temporal results, cost and reproduction.
+
+#### Problems / Limitations
+
+Fresh one-voice room complete sets reach 94.5–97.3%, with no episode below 92.4%;
+matched free-field scenarios reach 97.8%. First-correct audio-clock p95 is 200 ms,
+but diagnostic lag reaches 140 ms, so a universal 100 ms bound remains open.
+Single-array preliminary filtered compute p95 is about 15.3 ms; this is not a
+loaded 7.2 result.
+
+Competing speech fails the quality gate. The -9 dB room source retains 15/72
+correct direction windows, versus 47/72 for direct covariance; filtered complete
+sets remain 63.7%, with a 475 ms onset p95 and a missed segment. Plane-wave
+selection removes overlapping real support as well as reflections. Deliver this
+as a bounded single-voice trial configuration, not a generic multisource profile.
+Further overlap/weak-source perception work, physical/other-room qualification
+and loaded runtime measurement remain separate open gates.
+
 ## 7.2 — Latency and learning throughput
 
 Measure audio generation, buffering, perception and observation delivery in the
@@ -172,6 +211,11 @@ The [[experiments/consumer-audio-dynamic-quality|dynamic follow-up]] owns new
 measurements under `build/validation/sdk-dynamic-quality/`; inputs/scripts are
 retained separately under `local/sdk-dynamic-quality/` and
 `local/sdk-dynamic-confirmation/`.
+The [[experiments/consumer-audio-indoor-quality|indoor follow-up]] owns separate
+selection/confirmation/contract/timing reports under
+`build/validation/indoor-quality/`, with new PCM and retained scripts in
+`local/indoor-quality/` in its quality worktree. Main-checkout libraries/input
+were reused read only; all GPU executions held the shared exclusive lock.
 
 ## Files
 

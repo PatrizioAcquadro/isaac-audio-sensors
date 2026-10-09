@@ -465,3 +465,23 @@ cases; the actual-runtime suite passes 261 cases. Selected direct-profile replay
 and live gates pass, including fresh confirmation and scalar/reset controls.
 Whitespace/lint pass. Historical/raw inputs are preserved, with per-scenario
 quality failures, finite discrepancies and 7.2 scope retained explicitly.
+
+## 2026-10-09 — update: Deliver bounded indoor spatial-coherence profile
+
+Added opt-in scalar/CUDA and Lab spatial-coherence selection while preserving
+historical defaults and public contracts. Frozen 200 ms direct/.98 support passes
+single-voice room quality on 26 excluded controls and 36 fresh matched episodes;
+all supported fresh episodes exceed 90%. Documented full reference comparisons,
+first response/lag/continuity and isolated cost. Overlapping real voices remain
+insufficient, including 15/72 weak-room matches; no multisource or 7.2 completion
+is claimed. Main/parallel checkouts and historical/raw inputs are preserved.
+
+## 2026-10-09 — lint: Verify indoor quality and explicit open gates
+
+All wiki pages are indexed and internal links resolve; structure, lint, version
+and whitespace checks pass. Final host gates pass 689 unit/contract, 360
+integration and 56 release tests; GPU contracts pass 44, live Lab configuration,
+observation and lifecycle tests pass 46. Frozen replay/import/cost evidence is
+retained, including the single finite scalar/CUDA count discrepancy. Historical
+inputs and the parallel checkout remain intact; multisource preservation,
+physical transfer and loaded 7.2 qualification remain open.
