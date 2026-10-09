@@ -465,3 +465,11 @@ cases; the actual-runtime suite passes 261 cases. Selected direct-profile replay
 and live gates pass, including fresh confirmation and scalar/reset controls.
 Whitespace/lint pass. Historical/raw inputs are preserved, with per-scenario
 quality failures, finite discrepancies and 7.2 scope retained explicitly.
+
+## 2026-10-09 — experiment: Instrument loaded SDK audio performance
+
+Added an isolated live runner with exclusive GPU locking, worktree import checks,
+per-update latency/deadline rows, lifecycle/onset response, declared rendering
+load and environment scaling. A clean 30-second baseline meets the SDK p95
+budget but accumulates scheduling backlog under rendering. Geometry acquisition
+is a measured optimization target; no localizer or indoor quality change is made.
