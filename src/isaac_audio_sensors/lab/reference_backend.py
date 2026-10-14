@@ -35,6 +35,7 @@ class ReferenceBackend:
         doa_enabled: bool = False,
         localization_context_s: float = 0.75,
         localization_dereverberation: bool = True,
+        localization_spatial_coherence: float | None = None,
         effects: EffectsConfig,
         snapshots: Sequence[AudioSceneSnapshot],
         array_ids: Sequence[str],
@@ -81,6 +82,7 @@ class ReferenceBackend:
                 doa_enabled=doa_enabled,
                 localization_context_s=localization_context_s,
                 localization_dereverberation=localization_dereverberation,
+                localization_spatial_coherence=localization_spatial_coherence,
                 max_observations=None,
             )
             for _ in self.snapshots

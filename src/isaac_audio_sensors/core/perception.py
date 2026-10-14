@@ -633,6 +633,7 @@ def _build_standard_perception_pipeline(
     runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
     localization_context_s: float = 0.75,
     localization_dereverberation: bool = True,
+    localization_spatial_coherence: float | None = None,
 ) -> AudioPerceptionPipeline:
     """Compose the maintained scalar detector and optional DOA consumer."""
 
@@ -659,6 +660,7 @@ def _build_standard_perception_pipeline(
                 runtime_profile=runtime_profile,
                 context_duration_s=localization_context_s,
                 dereverberation_enabled=localization_dereverberation,
+                spatial_coherence_threshold=localization_spatial_coherence,
             )
             if doa_enabled
             else None

@@ -180,6 +180,7 @@ def initialize_perception(backend, binding, cfg):
         doa_enabled=cfg.doa_enabled,
         localization_context_s=cfg.localization_context_s,
         localization_dereverberation=cfg.localization_dereverberation,
+        localization_spatial_coherence=cfg.localization_spatial_coherence,
         max_observations=cfg.max_observations,
         max_doa_candidates=cfg.max_doa_candidates,
         device=backend.device,

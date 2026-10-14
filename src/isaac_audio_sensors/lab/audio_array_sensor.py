@@ -108,6 +108,7 @@ class AudioArraySensor(SensorBase):
             doa_enabled=bool(self.cfg.doa_enabled),
             localization_context_s=self.cfg.localization_context_s,
             localization_dereverberation=self.cfg.localization_dereverberation,
+            localization_spatial_coherence=self.cfg.localization_spatial_coherence,
             effects=self.cfg.effects,
             snapshots=snapshots,
             array_ids=array_ids,

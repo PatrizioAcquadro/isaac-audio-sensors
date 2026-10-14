@@ -110,6 +110,7 @@ def test_reference_backend_supports_standard_doa_opt_in() -> None:
         doa_enabled=True,
         localization_context_s=0.25,
         localization_dereverberation=False,
+        localization_spatial_coherence=0.98,
         effects=AudioArraySensorCfg(prim_path="/World/Audio").effects,
         snapshots=(_snapshot(array, ()),),
         array_ids=("array",),
@@ -117,6 +118,7 @@ def test_reference_backend_supports_standard_doa_opt_in() -> None:
 
     assert reference._perception[0]._event_localizer.consumer_context_duration_s == 0.25
     assert not reference._perception[0]._event_localizer.dereverberation_enabled
+    assert reference._perception[0]._event_localizer.spatial_coherence_threshold == 0.98
 
 
 def test_reference_backend_rejects_array_id_absent_from_snapshot() -> None:
@@ -221,6 +223,10 @@ def test_cfg_and_data_contract_are_minimal_and_fixed_shape():
         ).validate()
     with pytest.raises(TypeError, match="doa_enabled"):
         AudioArraySensorCfg(prim_path="/World/Audio", doa_enabled=1).validate()
+    with pytest.raises(ValueError, match="spatial coherence"):
+        AudioArraySensorCfg(
+            prim_path="/World/Audio", localization_spatial_coherence=1.01
+        ).validate()
 
 
 def test_lab_bindings_enforce_threshold_ownership() -> None:

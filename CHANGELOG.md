@@ -14,6 +14,7 @@
 
 ### Capabilities
 
+- Added optional mixture-only spatial-coherence selection before sparse localization, with scalar/CUDA and both Lab bindings. It reduces reflected events in bounded single-voice indoor trials; competing voices remain experimental and defaults are preserved.
 - Integrated causal Auditok activity and mixture-only geometry-routed DOA. Bounded 16 kHz planar/3D multisource localization uses WPE/group-sparse estimation; stereo preserves physical ambiguity. Other planar rates retain their single-event role.
 - Added continuous motion, retarded timing/orientation, phase-coherent direct/reflected propagation, and per-microphone direct-path occlusion. Surface-set propagation belongs to optional Geometry Acoustics.
 - Added composed-USD Geometry preparation, native Steam direct/transmission and PRA specular paths, optional selected-route NLOS/diffuse pressure, shared Kit operating controls, and separate simulation diagnostics.

@@ -75,12 +75,16 @@ class TorchEventLocalizer:
         device: str,
         context_duration_s: float = 0.75,
         dereverberation_enabled: bool = True,
+        spatial_coherence_threshold: float | None = None,
     ) -> None:
         from isaac_audio_sensors.core.plugins.multisource import (
             localization_context_samples,
+            validate_spatial_coherence_threshold,
         )
 
         self.context_samples = localization_context_samples(context_duration_s)
+        validate_spatial_coherence_threshold(spatial_coherence_threshold)
+        self.spatial_coherence_threshold = spatial_coherence_threshold
         if not isinstance(dereverberation_enabled, bool):
             raise TypeError("dereverberation_enabled must be a boolean.")
         self.dereverberation_enabled = dereverberation_enabled
@@ -104,6 +108,11 @@ class TorchEventLocalizer:
             * frequencies[:, None, None]
             * (positions @ vectors.T)[None]
             / 343
+        )
+        self.steering = (
+            torch.tensor(steering, device=device)
+            if spatial_coherence_threshold is not None
+            else None
         )
         m = len(positions)
         atoms = np.einsum("fmg,fng->fmng", steering, steering.conj())
@@ -177,6 +186,21 @@ class TorchEventLocalizer:
         ).reshape(b, m, 513, -1)[:, :, self.bins]
         power = spectrum.abs().square().mean(dim=(1, 3))
         active = power > (power.amax(dim=-1, keepdim=True) * 1e-4).clamp_min(1e-20)
+        if self.spatial_coherence_threshold is not None:
+            total = spectrum.abs().square().sum(dim=1)
+            projection = torch.zeros_like(total)
+            for steering in self.steering.split(64, dim=-1):
+                response = steering.conj().transpose(-1, -2)[None] @ spectrum.transpose(
+                    1, 2
+                )
+                projection = projection.maximum(response.abs().square().amax(dim=-2))
+            coherent = projection / (m * total).clamp_min(1e-20)
+            keep = (coherent >= self.spatial_coherence_threshold) & (
+                total > (total.amax(dim=(-2, -1), keepdim=True) * 1e-4).clamp_min(1e-20)
+            )
+            active &= keep.any(dim=-1)
+            # Preserve unmasked band power and the original snapshot divisor.
+            spectrum = spectrum * keep[:, None]
         count = active.sum(dim=-1)
         used = count.clamp(max=48)
         slots = torch.arange(48, device=samples.device)[None]

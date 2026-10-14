@@ -27,6 +27,22 @@ alternative without replacing the historical default. See
 quality/cost boundaries. Disabling WPE affects localization only, not retained
 PCM, propagation, detector activity or source-count semantics.
 
+`localization_spatial_coherence=None` preserves the historical covariance path.
+An explicit threshold in `(0, 1]` retains time-frequency snapshots whose squared,
+normalized projection onto any array steering vector exceeds that threshold.
+Core's equivalent is `MaintainedEventLocalizer(spatial_coherence_threshold=...)`.
+The band power and snapshot divisor remain those of the unfiltered mixture;
+renormalizing rare surviving snapshots would amplify reflected/noisy bands.
+The existing sparse solver discovers all supported directions before capacity
+is applied. No scene metadata, strongest-event rule or source-count prior enters
+this option. It changes localization only; the coherence statistic is not
+published as bearing confidence. Stereo retains its ambiguity policy.
+Overlapping speech can fail this single-plane-wave test, including weaker real
+voices, so this option is experimental for competing sources. Defaults remain
+unchanged. The
+[[experiments/consumer-audio-indoor-quality|indoor-quality follow-up]] owns the
+bounded single-voice profile and its explicit overlapping/weak-voice failures.
+
 ## Observation Contract
 
 `AudioArraySensorData.from_observations(observations, *, max_observations=1, max_doa_candidates=2, device=...)` accepts one ordered sequence of `AudioObservation` values per environment. It accepts no frames, snapshots, truth, source state, or free-form diagnostic maps. The scalar reference packs observations on the host and transfers each tensor to the requested device; this is not the scalable CUDA perception path.

@@ -7,6 +7,12 @@ reports remain intact. A faster single-voice free-field profile is delivered;
 **full dynamic readiness remains open** for room/competition, uniform accuracy,
 approximately 100 ms lag and loaded end-to-end performance.
 
+The separate 2026-10-09
+[[experiments/consumer-audio-indoor-quality|indoor-quality follow-up]] adds an
+opt-in coherence filter and independent single-voice room confirmation. Its
+competing/weak-voice failures remain explicit; the historical results below are
+preserved as the comparison baseline.
+
 ## Correction and causal diagnosis
 
 Matching now maximizes the number of one-to-one pairs within 20 degrees before

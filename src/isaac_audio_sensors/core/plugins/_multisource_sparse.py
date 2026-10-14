@@ -70,7 +70,20 @@ def select_peaks(vectors, scores, threshold, separation=20):
 
 
 class GroupSparseCovariance:
-    def __init__(self, threshold=0.025, regularization=0.03, energy_floor=0.0001):
+    def __init__(
+        self,
+        threshold=0.025,
+        regularization=0.03,
+        energy_floor=0.0001,
+        *,
+        spatial_coherence_threshold=None,
+    ):
+        from isaac_audio_sensors.core.plugins.multisource import (
+            validate_spatial_coherence_threshold,
+        )
+
+        validate_spatial_coherence_threshold(spatial_coherence_threshold)
+        self.spatial_coherence_threshold = spatial_coherence_threshold
         self.threshold = threshold
         self.nfft, self.hop = 1024, 128
         self.smoothing_deg = 10
@@ -111,9 +124,37 @@ class GroupSparseCovariance:
         x, (vectors, bins, near) = self.prepare(samples, positions, sample_rate)
         microphones, _, snapshots = x.shape
         power = np.mean(np.abs(x) ** 2, axis=(0, 2))
-        active = np.flatnonzero(power > max(power.max() * self.energy_floor, 1e-20))
+        active = power > max(power.max() * self.energy_floor, 1e-20)
+        diagnostic = {}
+        if self.spatial_coherence_threshold is not None:
+            frequencies = np.fft.rfftfreq(self.nfft, 1 / sample_rate)[bins]
+            steering = np.exp(
+                2j
+                * np.pi
+                * frequencies[:, None, None]
+                * (positions @ vectors.T)[None]
+                / 343
+            )
+            total = (np.abs(x) ** 2).sum(axis=0)
+            projection = np.zeros_like(total)
+            # Bound the temporary grid workspace for nonplanar arrays too.
+            for start in range(0, len(vectors), 64):
+                response = np.einsum(
+                    "fmg,mft->fgt", steering[:, :, start : start + 64].conj(), x
+                )
+                projection = np.maximum(projection, (np.abs(response) ** 2).max(axis=1))
+            coherent = projection / np.maximum(microphones * total, 1e-20)
+            keep = (coherent >= self.spatial_coherence_threshold) & (
+                total > max(total.max() * self.energy_floor, 1e-20)
+            )
+            active &= keep.any(axis=-1)
+            x = x * keep[None]
+            diagnostic["coherent_tf_fraction"] = float(keep.mean())
+            # Keep original power and snapshot normalization. Conditional
+            # renormalization amplifies rare reflected/noisy bins into events.
+        active = np.flatnonzero(active)
         if not len(active):
-            return self.events(vectors, np.zeros(len(vectors)), near, {})
+            return self.events(vectors, np.zeros(len(vectors)), near, diagnostic)
         active = active[
             np.unique(np.linspace(0, len(active) - 1, min(len(active), 48)).astype(int))
         ]
@@ -141,9 +182,10 @@ class GroupSparseCovariance:
         covariance = covariance.reshape(len(frequencies), microphones**2) / microphones
         dictionary = np.concatenate([atoms.real, atoms.imag], axis=1)
         observed = np.concatenate([covariance.real, covariance.imag], axis=1)
-        coefficients, diagnostic = fit_groups(
+        coefficients, solver_diagnostic = fit_groups(
             dictionary, observed, self.regularization * np.sqrt(len(frequencies))
         )
+        diagnostic.update(solver_diagnostic)
         diagnostic["frequency_bins"] = len(frequencies)
         return self.events(vectors, coefficients[:, :-2].mean(axis=0), near, diagnostic)
 
@@ -212,9 +254,20 @@ def _dereverberate(samples, sample_rate, taps=6):
 class WpeSparseCovariance:
     """Fit current supplied past audio without accumulating overlapping windows."""
 
-    def __init__(self, threshold=0.025, taps=6, regularization=0.03):
+    def __init__(
+        self,
+        threshold=0.025,
+        taps=6,
+        regularization=0.03,
+        *,
+        spatial_coherence_threshold=None,
+    ):
         self.taps = taps
-        self.spatial = GroupSparseCovariance(threshold, regularization)
+        self.spatial = GroupSparseCovariance(
+            threshold,
+            regularization,
+            spatial_coherence_threshold=spatial_coherence_threshold,
+        )
 
     def localize(self, samples, positions, sample_rate):
         processed = _dereverberate(samples, sample_rate, self.taps)[:, -12000:]

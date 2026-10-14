@@ -38,6 +38,18 @@ def test_dereverberation_flag_rejects_non_boolean():
         MaintainedEventLocalizer(dereverberation_enabled=0)
 
 
+@pytest.mark.parametrize("threshold", [0, -0.1, 1.01, float("nan"), float("inf")])
+def test_spatial_coherence_rejects_invalid_threshold(threshold):
+    with pytest.raises(ValueError, match="spatial coherence"):
+        MaintainedEventLocalizer(spatial_coherence_threshold=threshold)
+
+
+@pytest.mark.parametrize("threshold", [True, "0.98"])
+def test_spatial_coherence_rejects_coercion(threshold):
+    with pytest.raises(TypeError, match="spatial coherence"):
+        MaintainedEventLocalizer(spatial_coherence_threshold=threshold)
+
+
 @pytest.mark.parametrize(
     "samples,positions,rate,reason",
     [
@@ -96,7 +108,9 @@ def test_missing_optional_dependencies_are_actionable(monkeypatch):
 
 def test_stereo_remains_one_ambiguous_event_without_optional_stack():
     source = np.random.default_rng(31).normal(size=4000)
-    events, diagnostics = MaintainedEventLocalizer().localize(
+    events, diagnostics = MaintainedEventLocalizer(
+        spatial_coherence_threshold=0.98
+    ).localize(
         np.stack([source, np.roll(source, 2)]),
         np.array([[0, -0.05, 0], [0, 0.05, 0]]),
         16000,
