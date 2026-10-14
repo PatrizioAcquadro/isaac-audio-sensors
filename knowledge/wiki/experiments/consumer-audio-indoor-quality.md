@@ -283,7 +283,7 @@ selection, timing and test logs: `build/validation/indoor-quality/`. New executi
 directories are distinct; main-checkout inputs, libraries and historical evidence
 were read only, and `knowledge/raw/` was untouched.
 
-From this worktree, reproduce a **new** paired measurement:
+From the original quality worktree, reproduce a **new** paired measurement:
 
 ```bash
 IAS_MAIN=/home/pacquadr/Desktop/isaac-audio-sensors
@@ -301,6 +301,10 @@ flock -x /tmp/isaac-audio-sensors-gpu.lock \
 
 Use `--input-glob '*_{layout}_room_joint_*.npz'` for a small one-voice indoor
 handoff; all-input replay intentionally retains the unsupported competing cases.
+From integrated `main`, pass the original quality worktree's absolute received
+directory as `--inputs-dir` and save the new output under main's `build/validation/`.
+[[implementation_phases/squadbot-audio-runtime-readiness#Artifacts|Artifact locations]]
+identify the preserved worktrees; the PCM is read without changing it.
 Omit coherence to reproduce direct 200 ms; omit coherence and no-WPE and set `.25`
 for WPE 250 ms; omit all three settings for the historical 750 ms reference.
 `--rescore-report` preserves saved profile metadata and recomputes metrics without

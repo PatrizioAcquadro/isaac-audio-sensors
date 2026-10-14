@@ -1,9 +1,9 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: 7.1 complete as a bounded compatibility and quality assessment;
-7.2 remains separate latency/throughput work in progress.
+Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2
+measured and qualified for the initial CUDA free-field profile under its declared load.
 Quality follow-ups deliver bounded single-voice free-field and indoor profiles;
-full dynamic and multisource readiness remains open.
+full dynamic, multisource and loaded indoor readiness remain open.
 Phase 7 identifies the downstream SquadBot roadmap; the SDK's
 existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
 
@@ -173,11 +173,37 @@ and loaded runtime measurement remain separate open gates.
 
 ## 7.2 — Latency and learning throughput
 
-Measure audio generation, buffering, perception and observation delivery in the
-supported runtime, accounting for representative rendering and simulation load.
-Distinguish simulated time, observation age, wall-clock response and
-multi-environment learning throughput. Preserve signal timing and direction
-information while optimizing demonstrated SDK bottlenecks.
+#### Implementation
+
+Added a live, worktree-verified CUDA benchmark with exclusive GPU locking,
+external-load monitoring, per-update latency/deadline rows, onset response,
+startup/reset measurements and environment scaling. The first clean loaded
+baseline passes the 50 ms SDK p95 target but accumulates scheduling delay at
+9.56 observations per real second; this is not an interactive qualification.
+The [[experiments/consumer-audio-runtime-performance|performance experiment]] owns
+the workload, clock definitions, detailed evidence and reproduction procedure.
+
+The measured geometry cost motivates skipping zero mount translations and
+identity quaternion multiplication while retaining normalization. Cache the
+constant local microphone directivity axes on CUDA instead of recomputing and
+transferring constants every acquisition. Custom mounts and runtime orientations
+retain the complete transform; localizer, thresholds and observation contracts
+remain unchanged. Exact CUDA transform controls and 73 focused runtime,
+observation and batched-perception tests pass.
+
+Four clean 30-second runs sustain 9.983–9.988 observations per real second with
+60 Hz acquisition/physics, 64 moving rigid bodies and a shared 640x480 camera at
+30 Hz. SDK p95 is 32.86–33.68 ms, returned-active p95 34.98–36.86 ms, with no
+lost windows, discontinuities or persistent scheduling growth. First active
+calls cost 68.75–83.35 ms and are retained separately. The 60 Hz rendering stress
+case does not sustain the deadline. Exact PCM/all-field before/after comparison
+and 265 actual-runtime tests preserve contracts and quality content.
+
+Unpaced 1/4/16-environment runs measure 1.053 / 4.273 / 16.635 aggregate simulated
+seconds per real second under the 60 Hz shared-camera load. This is measured
+rollout cost, not policy/optimizer throughput or a promised training-scale gate.
+
+#### Key Decisions
 
 An interactive configuration need not use the most expensive acoustic path or
 the settings used for every training episode. Choose useful operating profiles
@@ -187,6 +213,50 @@ large-scale GPU rewrite; revisit training scale when the workload is concrete.
 Reusable changes belong in the SDK. Robot-specific configuration, application
 queues and scheduling, task behavior, partner-classifier latency and policy
 training remain downstream responsibilities.
+
+#### Problems / Limitations
+
+CUDA events and fenced wall timings remain available, but this Kit process owns
+a CUPTI subscriber and PyTorch's kernel/copy profiling can be unavailable. Missing
+device trace events are not zero transfer cost. Geometry native propagation stays
+CPU-side; a short retained indoor-stage run reaches only 6.45 observations per
+real second despite SDK p95 within 50 ms. It does not qualify. After integrating
+indoor changes, repeat the measurements with the
+selected localizer, native producer and scene; this profile does not qualify them.
+
+## Integration on main — 2026-10-14
+
+Merged `PatrizioAcquadro/audio-indoor-quality` and
+`PatrizioAcquadro/audio-runtime-performance` from common baseline `6c65a69`.
+Resolved wiki conflicts by retaining both experiments, their dated results and
+open gates. CUDA acquisition keeps the cached microphone axes and optimized
+mount composition alongside optional mixture coherence. The performance runner
+now accepts `--spatial-coherence .98` to exercise the selected indoor profile;
+its default remains `None`. SDK defaults remain 750 ms, WPE enabled, coherence
+disabled and DOA opt-in. No public schema, thresholds or capacity rules changed.
+
+Focused checks pass 32 scalar-localizer cases, 92 host perception/schema/scoring
+and performance cases, and 94 Isaac/CUDA batch, mount, observation and lifecycle
+cases. Two additional Core/Lab default guards pass. Replaying three preserved
+room-joint confirmation episodes produces 237 paired updates with identical
+activity/counts and direction-difference p95 .0000238 degrees. Activity, counts,
+scalar observations and quality summaries match the original branch report;
+CUDA direction/error values differ by at most .00000763 degrees, within float32
+precision. Replay compute/deadline timing is separate. Active complete sets
+remain 94.7–95.5%. Version sync, Ruff, whitespace and all 47 wiki pages' index/link
+checks pass.
+
+A short integrated 6x5x3 m native-room probe (absorption .4, scattering 0,
+third-order specular reflections, one voice, 30 Hz shared camera, 5 simulated
+seconds plus 1 second after reset) completes acquisition and perception on the
+actual RTX 4090. It is **not an interactive timing pass**: 50 observations arrive
+at 1.43 updates per wall second, steady SDK p95 is 140.26 ms, and backlog grows.
+There are no missed windows or measurement discontinuities; the reset phase
+reports one discontinuity, also present in the original native-room procedure.
+The fixture's render check and external-GPU-load check pass. This bounded probe
+does not establish broad acoustic or runtime qualification. Weak/overlapping
+voices, physical transfer, the universal 100 ms lag target and selected-consumer
+scene timing remain open; no favorable retry or gate relaxation was used.
 
 ## Outcome and handoff
 
@@ -217,6 +287,18 @@ selection/confirmation/contract/timing reports under
 `local/indoor-quality/` in its quality worktree. Main-checkout libraries/input
 were reused read only; all GPU executions held the shared exclusive lock.
 
+Separate 7.2 results and reproduction are in
+[[experiments/consumer-audio-runtime-performance|runtime performance evidence]],
+under the runtime worktree's ignored `build/validation/runtime-performance/`.
+The original quality and runtime worktrees remain at
+`/home/pacquadr/.codex/worktrees/fbf8/isaac-audio-sensors` and
+`/home/pacquadr/.codex/worktrees/4231/isaac-audio-sensors`, respectively.
+Their ignored inputs, reports and failed attempts are retained in place.
+Integrated checks and the new native-room failure are in main's ignored
+`build/validation/main-branch-integration-20261014-01/`, including the prior
+ignored checklist, focused test logs, paired replay, preserved-result comparison
+and loaded probe report. Historical evidence and `knowledge/raw/` were untouched.
+
 ## Files
 
 `tools/validation/lab_perception.py`,
@@ -224,4 +306,7 @@ were reused read only; all GPU executions held the shared exclusive lock.
 `src/isaac_audio_sensors/lab/_torch_localizer.py`,
 `src/isaac_audio_sensors/lab/audio_array_sensor_cfg.py`,
 `tests/integration/test_lab_perception_scoring.py`,
-`tools/smoke/live_isaac_lab_audio_smoke.py`.
+`tools/smoke/live_isaac_lab_audio_smoke.py`,
+`tools/validation/audio_runtime_performance.py`,
+`src/isaac_audio_sensors/lab/entity_binding.py`,
+`src/isaac_audio_sensors/lab/_entity_audio.py`.

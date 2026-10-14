@@ -9,6 +9,13 @@ from isaac_audio_sensors.core.exceptions import OptionalDependencyUnavailable
 from isaac_audio_sensors.core.plugins.multisource import MaintainedEventLocalizer
 
 
+def test_default_profile_keeps_historical_wpe_and_disables_coherence():
+    localizer = MaintainedEventLocalizer()
+    assert localizer.consumer_context_duration_s == 0.75
+    assert localizer.dereverberation_enabled is True
+    assert localizer.spatial_coherence_threshold is None
+
+
 @pytest.mark.parametrize("duration", [0, 0.149, 0.751, float("nan"), float("inf")])
 def test_context_duration_rejects_unsupported_values(duration):
     with pytest.raises(ValueError, match="context"):

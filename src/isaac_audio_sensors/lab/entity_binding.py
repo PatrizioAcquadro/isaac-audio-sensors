@@ -344,9 +344,14 @@ def _compose_pose(
     relative_position: Vector3,
     relative_quat: Quaternion,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    rel_position = position.new_tensor(relative_position).expand_as(position)
-    rel_quat = quat.new_tensor(relative_quat).expand_as(quat)
-    return position + _rotate(rel_position, quat), _normalize(_quat_mul(quat, rel_quat))
+    # Default mounts need neither constant transfers nor identity quaternion products.
+    if relative_position != (0.0, 0.0, 0.0):
+        rel_position = position.new_tensor(relative_position).expand_as(position)
+        position = position + _rotate(rel_position, quat)
+    if relative_quat != (0.0, 0.0, 0.0, 1.0):
+        rel_quat = quat.new_tensor(relative_quat).expand_as(quat)
+        quat = _quat_mul(quat, rel_quat)
+    return position, _normalize(quat)
 
 
 def _static_meta(

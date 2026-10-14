@@ -1,6 +1,15 @@
 # Current Status
 
-Updated: 2026-10-09. Package version: `3.0.0`.
+Updated: 2026-10-14. Package version: `3.0.0`.
+
+## Main integration
+
+Both audio-quality and runtime-performance branches are integrated locally into
+`main`. [[implementation_phases/squadbot-audio-runtime-readiness#Integration on main — 2026-10-14|Integration checks]]
+preserve default configuration, scalar/CUDA observations and both Lab bindings.
+The selected indoor profile remains optional. A short native-room loaded probe
+does not meet interactive timing; original branch evidence remains intact and
+the prior free-field qualification retains its declared scope. No push or release.
 
 ## Maintenance validation
 
@@ -34,7 +43,8 @@ no new acoustic accuracy, performance or physical qualification is claimed.
 ## Consumer audio readiness — 7.1
 
 [[implementation_phases/squadbot-audio-runtime-readiness|7.1 is complete as a bounded compatibility and quality assessment]];
-7.2 latency/throughput work is being implemented separately. SDK 3.0.0 remains unreleased.
+7.2 now qualifies the initial free-field profile under the declared load below.
+SDK 3.0.0 remains unreleased.
 The original assessment left perception, public APIs and schemas unchanged;
 downstream dependencies/adapters were not modified. The local Sim `6.0.1-rc.7` /
 Lab `3.0.0` (`2e44ddb2e1`) /
@@ -81,8 +91,8 @@ Host gates pass 682 unit/contract, 357 integration and 56 release cases;
 per-scenario results, finite numerical discrepancies, cold/warm replay costs
 and retained artifacts are in
 [[experiments/consumer-audio-dynamic-quality|dynamic-quality evidence]].
-**Full dynamic readiness remains open; 7.2 must measure loaded end-to-end latency,
-queues and throughput.** No replay/live smoke result establishes real-time use.
+**Full dynamic readiness remains open.** Replay/live smoke costs remain distinct
+from the loaded 7.2 qualification below.
 
 ### Indoor-quality follow-up
 
@@ -101,6 +111,32 @@ onset/continuity remain insufficient. The
 frozen configuration, same-PCM historical/direct/WPE comparisons, worst episodes,
 validation and reproducible command. Arbitrary rooms/physical transfer, overlap
 recovery and loaded runtime readiness remain open. SDK 3.0.0 remains unreleased.
+
+## Consumer audio performance — 7.2
+
+The [[experiments/consumer-audio-runtime-performance|measured initial 200 ms no-WPE
+free-field profile]] sustains 10 Hz SDK delivery on the RTX 4090 with 60 Hz
+physics/acquisition, 64 moving rigid bodies and a shared 640x480 RGB camera at
+30 Hz. Four clean 30-second runs deliver 1,200 updates without skipped windows,
+discontinuities or persistent scheduling growth. SDK p95 is 32.86–33.68 ms
+(returned-active 34.98–36.86 ms); first activation reaches 83.35 ms and remains
+explicit. Loaded delivery p95 stays below 47 ms relative to real deadlines.
+
+Identity mount/constant-axis optimization approximately halves geometric cost
+and preserves every PCM sample and all 18 public observation fields in a matched
+300-update comparison. Host checks pass 682 unit/contract, 367 integration and
+56 release cases; 265 actual-runtime tests pass with the borrowed native libraries.
+
+The 60 Hz camera stress case still accumulates backlog and is not qualified.
+Unpaced 1/4/16-environment rollout rates are 1.053 / 4.273 / 16.635 aggregate
+simulated seconds per real second; optimizer throughput and required training
+scale remain undefined. A retained indoor-stage control reaches only 6.45 updates
+per real second. Indoor/consumer integration needs its own longer timing and
+quality check with the selected configuration; no future-profile qualification
+is inferred. Results, failed/contaminated attempts and reproduction stay separate
+in the original runtime worktree's ignored `build/validation/runtime-performance/`;
+[[implementation_phases/squadbot-audio-runtime-readiness#Artifacts|artifact locations]]
+identify both preserved source worktrees.
 
 ## Geometry qualification
 

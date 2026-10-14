@@ -122,6 +122,12 @@ This scalar path does not inspect USD or turn scheduled source state into observ
 
 ## Consumer and Lifecycle
 
+Default mount composition avoids identity transfers/products while preserving
+quaternion normalization; CUDA free-field acquisition caches constant local
+microphone axes. Dynamic poses and custom mounts keep their full transforms.
+[[experiments/consumer-audio-runtime-performance|Runtime performance]] distinguishes
+audio/physics clocks, synchronous acquisition, real delivery deadlines and resets.
+
 `examples/isaac_lab/isaac_lab_audio_observation.py` requires an explicit threshold for either binding and an audio asset for entity binding. The entity example uses 100 ms observation updates and optional capacity independent of source count. Its `policy_inputs()` helper exposes every tensor, scales available bearing angles by 180 and elevation angles by 90, and explicitly zeros unavailable angles. Scaled fields and their masks replace `_deg` with `_scaled` in policy keys. Scores, Boolean masks, and integer counts pass through unchanged. No batch statistics, running normalization, clipping, or imputation are applied, including for empty batches.
 
 Downstream learners must keep statistical normalization and observation modifiers disabled for these audio terms. This example does not instantiate or configure an RL trainer. Truth for rewards, curricula, or evaluation must use separate task-owned privileged channels.

@@ -485,3 +485,57 @@ observation and lifecycle tests pass 46. Frozen replay/import/cost evidence is
 retained, including the single finite scalar/CUDA count discrepancy. Historical
 inputs and the parallel checkout remain intact; multisource preservation,
 physical transfer and loaded 7.2 qualification remain open.
+
+## 2026-10-09 — experiment: Instrument loaded SDK audio performance
+
+Added an isolated live runner with exclusive GPU locking, worktree import checks,
+per-update latency/deadline rows, lifecycle/onset response, declared rendering
+load and environment scaling. A clean 30-second baseline meets the SDK p95
+budget but accumulates scheduling backlog under rendering. Geometry acquisition
+is a measured optimization target; no localizer or indoor quality change is made.
+
+## 2026-10-09 — update: Reduce acquisition geometry overhead
+
+Removed default identity mount transfers/products while retaining normalization
+and cached constant microphone axes on CUDA. Four exact identity/custom mount
+controls and 73 focused Isaac tests pass. Algorithms, thresholds, capacity,
+source-independent observations, clocks and reset contracts are preserved.
+
+## 2026-10-09 — experiment: Qualify the initial loaded audio profile
+
+Four clean 30-second runs sustain 10 Hz with 60 Hz audio/physics and a 30 Hz
+shared RGB camera. Retained first activation, onset wall bounds, observation age,
+SDK/deadline tails, reset, memory and 1/4/16-environment rollout costs. The 60 Hz
+camera still accumulates backlog; loaded native indoor stages remain unqualified.
+Preserved failed/contaminated runs and exact before/after PCM/all-field evidence.
+Added read-only selected-stage reproduction for post-integration measurement.
+
+## 2026-10-09 — lint: Verify performance evidence and documentation
+
+All canonical pages remain indexed and internal links resolve. Version sync,
+lint/whitespace and host gates pass (682 unit/contract, 367 integration, 56 release).
+The actual-runtime gate passes 265 tests with read-only reused native binaries.
+Reconciled workload, cold activation, queue failures, transfer-profile limitations
+and post-integration indoor gates against the separate retained reports.
+
+## 2026-10-14 — update: Integrate optional indoor quality and runtime performance
+
+Merged both audio branches locally into main, retaining their source worktrees,
+ignored evidence and dated wiki entries. Resolved four wiki conflicts with both
+experimental scopes intact. Preserved 750 ms/WPE defaults and opt-in coherence;
+added the performance runner's optional coherence flag for selected-profile
+measurement. Focused Core/host/Isaac-CUDA checks and default guards pass. Three
+retained indoor episodes preserve activity, counts and quality summaries; tiny
+CUDA direction differences remain explicit. A clean short native-room run
+completes but fails interactive timing (1.43 updates/s, SDK p95 140.26 ms), with
+the pre-existing reset discontinuity retained. No push or release; physical,
+competing-voice and native-room timing gates remain open.
+
+## 2026-10-14 — lint: Verify integrated contracts and canonical evidence
+
+Ruff, version sync and whitespace pass; all 47 canonical pages are indexed and
+internal links resolve. Focused tests pass 32 scalar, 92 host and 94 Isaac/CUDA
+cases plus two default guards. Paired replay passes 237 updates; its direction
+differences stay within existing numerical gates. Original evidence and raw
+inputs remain untouched. The readiness phase owns integrated reports, original
+worktree locations and the failed native-room timing result.
