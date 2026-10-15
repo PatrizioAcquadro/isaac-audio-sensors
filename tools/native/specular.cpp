@@ -3,7 +3,6 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <numeric>
 #include <string>
 #include "common.hpp"
 #include "geometry.hpp"
@@ -40,8 +39,10 @@ void* ias_specular_create(int faces, const int* counts, const float* vertices,
             // USD surfaces obstruct from either side. Native ISM selects the reflecting side.
             walls.emplace_back(points.rowwise().reverse().eval(), a, s, std::to_string(i)+"b");
         }
-        std::vector<int> obstructing(walls.size());
-        std::iota(obstructing.begin(), obstructing.end(), 0);
+        // Segment/polygon intersection is two-sided; each reverse winding is
+        // needed for reflection selection, but not a second obstruction test.
+        std::vector<int> obstructing;
+        for (int i = 0; i < walls.size(); i += 2) obstructing.push_back(i);
         auto scene = std::make_unique<Scene>();
         scene->room = std::make_unique<Room<3>>(walls, obstructing,
             std::vector<Microphone<3>>{}, speed, order, 1e-7f, 1.f, .1f, .004f, true);

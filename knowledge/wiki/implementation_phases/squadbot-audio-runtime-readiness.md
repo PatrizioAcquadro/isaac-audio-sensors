@@ -258,6 +258,14 @@ does not establish broad acoustic or runtime qualification. Weak/overlapping
 voices, physical transfer, the universal 100 ms lag target and selected-consumer
 scene timing remain open; no favorable retry or gate relaxation was used.
 
+## Combined indoor optimization — 2026-10-14
+
+The [[experiments/consumer-audio-runtime-performance#Combined indoor work — 2026-10-14|combined native diagnosis]]
+identifies and removes redundant image-path obstruction work while preserving
+all meaningful path outputs and PCM across 180 moving poses. Native controls
+pass. Combined loaded qualification remains in progress; historical free-field
+or indoor branch results do not qualify this combination.
+
 ## Outcome and handoff
 
 Provide a measured audio configuration, any necessary reusable SDK improvements,

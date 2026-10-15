@@ -126,6 +126,26 @@ def main():
         path = target / "room.cpp"
         code = path.read_text()
         changes = {
+            # Most images miss a polygon in their reflection chain. Test that
+            # necessary condition before the expensive obstruction scans; keep
+            # the complete visibility test and native traversal/output order.
+            "template <size_t D>\nbool Room<D>::is_visible_dfs": """template <size_t D>
+bool ias_image_path_intersects(const std::vector<Wall<D>>& walls,
+                               const Vectorf<D>& p, const ImageSource<D>& image) {
+  if (image.parent == NULL) return true;
+  Vectorf<D> hit;
+  if (walls[image.gen_wall].intersection(p, image.loc, hit) < 0 ||
+      (hit - p).norm() <= libroom_eps)
+    return false;
+  return ias_image_path_intersects<D>(walls, hit, *image.parent);
+}
+
+template <size_t D>
+bool Room<D>::is_visible_dfs""",
+            "  if (is_obstructed_dfs(p, is)) return false;": (
+                "  if (!ias_image_path_intersects<D>(walls, p, is)) return false;\n"
+                "  if (is_obstructed_dfs(p, is)) return false;"
+            ),
             # Native traversal also supports bounded open polygon fixtures.
             "if (walls.size() > D) {": "if (!walls.empty()) {",
             # Opposite sides of one surface must not create a zero-length double bounce.

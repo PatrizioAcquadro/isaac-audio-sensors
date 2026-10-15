@@ -152,6 +152,30 @@ unavailable because Kit owns a CUPTI subscriber; missing device trace events are
 explicitly marked, not reported as measured zero cost. Fenced wall stages and
 CUDA endpoint events work and support the latency results.
 
+## Combined indoor work — 2026-10-14
+
+The integrated six-box room bottleneck is the native image-source visibility
+solve: approximately 101 ms per moving 60 Hz chunk in the isolated CPU diagnosis.
+The bridge now tests the necessary complete polygon-intersection chain before
+scanning obstructions. Reverse polygon windings still select both reflecting
+sides, but each polygon is tested only once as an obstruction. The complete
+visibility test, reflection order, paths, material response and DSP remain in use.
+
+Across 180 moving poses, all image positions, damping, orders, visibility and
+**visible-path** departure vectors match exactly; invisible departure vectors
+are undefined native workspace and are excluded. Full generated PCM is bitwise
+identical. Warm producer median/p95 falls from 99.61/101.38 to 8.45/8.95 ms.
+Fifty-five native specular, propagation, scene and diffuse transport controls pass
+against the rebuilt library. Original libraries and failed intermediate attempts
+remain in `build/validation/indoor-runtime-readiness/`.
+
+These are optimization/preservation results, not a combined interactive pass.
+The first live diagnostic also detects another CUDA client and is excluded from
+qualification. Loaded dynamic quality, clean delivery and the consumer workload
+must still be measured together. The compiled bridge must be rebuilt using the
+updated `tools/native/build_specular.py` and `specular.cpp`; changing Python alone
+does not install this optimization in an existing native library.
+
 ## Measurement protocol
 
 `tools/validation/audio_runtime_performance.py` launches the actual Isaac Lab

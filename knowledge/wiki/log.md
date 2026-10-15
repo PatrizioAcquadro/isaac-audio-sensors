@@ -539,3 +539,8 @@ cases plus two default guards. Paired replay passes 237 updates; its direction
 differences stay within existing numerical gates. Original evidence and raw
 inputs remain untouched. The readiness phase owns integrated reports, original
 worktree locations and the failed native-room timing result.
+
+## 2026-10-14 — update: Combined indoor native bottleneck
+
+Record the moving image-source solve optimization, exact 180-pose PCM/path
+preservation and 55 native controls. Keep combined loaded qualification open.
