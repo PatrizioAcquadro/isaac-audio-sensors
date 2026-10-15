@@ -120,6 +120,16 @@ observed-signal path; provider geometry never enters observation fields.
 
 ## Native build and reproduction
 
+The current specular bridge prechecks complete generating-polygon chains before
+obstruction scans and tests each two-sided polygon once as an obstruction.
+Rebuild the native library to obtain this behavior; updating Python alone leaves
+an old binary unchanged. Geometry loads/validates its required DSP at producer
+initialization. The opt-in
+[[experiments/consumer-audio-runtime-performance#Combined indoor qualification — 2026-10-14|first-scene runtime profile]]
+uses an explicit six-face closed-interior representation whose tested PCM matches
+the original solids exactly; this is not automatic removal of arbitrary scene
+faces. Rendered geometry and consumer-owned acoustic preparation stay explicit.
+
 The qualified Steam source is tag `v4.8.1`, commit
 `0da18255cca520771f363ee01f100572b39a308e`, Linux Release/Embree. The production
 binding checks its qualified binary because compatible API versioning does not

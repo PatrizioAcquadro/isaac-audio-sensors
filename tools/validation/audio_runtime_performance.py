@@ -83,6 +83,7 @@ def summarize(rows, envs, elapsed_s, *, paced=True):
         )
         if steady
         else None,
+        "window_work_ms": window_work(rows),
     }
     result["interactive_timing_pass"] = bool(
         paced
@@ -98,7 +99,34 @@ def summarize(rows, envs, elapsed_s, *, paced=True):
     return result
 
 
-def direction_lag(rows):
+def window_work(rows):
+    """All six acquisitions plus inference; final-chunk latency is separate."""
+    sdk, pipeline = [], []
+    for i, row in enumerate(rows):
+        if "sdk_ready_ms" not in row or row["phase"] != "steady":
+            continue
+        window = rows[max(0, i - 5) : i + 1]
+        work = sum(r["acquire_wall_ms"] for r in window[:-1]) + row["sdk_ready_ms"]
+        sdk.append(work)
+        pipeline.append(
+            work + sum(r["simulation_ms"] for r in window) + row["consumer_cpu_ms"]
+        )
+    return dict(sdk=distribution(sdk), simulation_sdk_consumer=distribution(pipeline))
+
+
+def bearing_at(audio_s, args):
+    """Private commanded direction for this benchmark's first environment."""
+    radius = args.distance_m or 2.25
+    angle = 35 * math.sin(audio_s * args.source_speed_m_s / (radius * math.radians(35)))
+    yaw = args.head_speed_deg_s * math.sin(audio_s)
+    if args.motion in ("static", "receiver"):
+        angle = 0.0
+    if args.motion in ("static", "source"):
+        yaw = 0.0
+    return angle - yaw
+
+
+def direction_lag(rows, args):
     """Past-direction fit is diagnostic; current-time errors remain unchanged."""
     import numpy as np
 
@@ -106,7 +134,11 @@ def direction_lag(rows):
         r
         for r in rows
         if r.get("events") == 1
-        and abs(35 / 2.25 * math.cos(r["audio_s"] / 2.25) - 60 * math.cos(r["audio_s"]))
+        and abs(
+            bearing_at(r["audio_s"] + 0.001, args)
+            - bearing_at(r["audio_s"] - 0.001, args)
+        )
+        / 0.002
         >= 20
     ]
     if len(selected) < 5:
@@ -116,7 +148,7 @@ def direction_lag(rows):
     scan = []
     for lag in np.arange(0, 0.401, 0.01):
         past = times - lag
-        expected = 35 * np.sin(past / 2.25) - 60 * np.sin(past)
+        expected = np.array([bearing_at(t, args) for t in past])
         error = np.abs((bearings - expected + 180) % 360 - 180)
         scan.append(
             dict(
@@ -319,9 +351,17 @@ def onsets(pcm, rows, origin, *, paced=True):
     return result
 
 
-def acoustic_rooms(envs, library, specular_library, order, stage_path=None):
+def acoustic_rooms(
+    envs,
+    library,
+    specular_library,
+    order,
+    stage_path=None,
+    *,
+    stage=None,
+    envelope=False,
+):
     """Isolated six-wall native fixture for remeasuring a selected indoor profile."""
-    import omni.usd
     from pxr import Sdf, Usd, UsdGeom
 
     from isaac_audio_sensors.isaac.acoustic_scene import (
@@ -329,7 +369,10 @@ def acoustic_rooms(envs, library, specular_library, order, stage_path=None):
         GeometryAcousticsConfig,
     )
 
-    stage = omni.usd.get_context().get_stage()
+    if stage is None:
+        import omni.usd
+
+        stage = omni.usd.get_context().get_stage()
     sessions = []
     for env in range(envs):
         if stage_path is not None:
@@ -359,7 +402,38 @@ def acoustic_rooms(envs, library, specular_library, order, stage_path=None):
             cube.GetPrim().CreateAttribute(
                 "ias:scattering", Sdf.ValueTypeNames.Float
             ).Set(0.0)
-        sessions.append(AcousticSceneSession(stage, roots=(root,)))
+            if envelope:
+                cube.GetPrim().CreateAttribute(
+                    "ias:acoustic_enabled", Sdf.ValueTypeNames.Bool
+                ).Set(False)
+        if envelope:
+            # Equivalent interior boundaries for endpoints inside this closed
+            # room. Keep the six rendered solid boxes and the physical load.
+            faces = (
+                ((-3, -2.5, 0), (3, -2.5, 0), (3, 2.5, 0), (-3, 2.5, 0)),
+                ((-3, -2.5, 3), (3, -2.5, 3), (3, 2.5, 3), (-3, 2.5, 3)),
+                ((-3, -2.5, 0), (-3, 2.5, 0), (-3, 2.5, 3), (-3, -2.5, 3)),
+                ((3, -2.5, 0), (3, 2.5, 0), (3, 2.5, 3), (3, -2.5, 3)),
+                ((-3, -2.5, 0), (3, -2.5, 0), (3, -2.5, 3), (-3, -2.5, 3)),
+                ((-3, 2.5, 0), (3, 2.5, 0), (3, 2.5, 3), (-3, 2.5, 3)),
+            )
+            for i, points in enumerate(faces):
+                mesh = UsdGeom.Mesh.Define(stage, f"{root}/Envelope/Face{i}")
+                mesh.CreatePointsAttr(points)
+                mesh.CreateFaceVertexCountsAttr([4])
+                mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+                mesh.CreateSubdivisionSchemeAttr("none")
+                mesh.CreatePurposeAttr("guide")
+                mesh.GetPrim().CreateAttribute(
+                    "ias:acoustic_enabled", Sdf.ValueTypeNames.Bool
+                ).Set(True)
+                for name, value in (("absorption", 0.4), ("scattering", 0.0)):
+                    mesh.GetPrim().CreateAttribute(
+                        f"ias:{name}", Sdf.ValueTypeNames.Float
+                    ).Set(value)
+            sessions.append(AcousticSceneSession(stage, roots=(f"{root}/Envelope",)))
+        else:
+            sessions.append(AcousticSceneSession(stage, roots=(root,)))
     config = GeometryAcousticsConfig(
         library_path=str(library),
         specular_library_path=str(specular_library or ""),
@@ -369,16 +443,27 @@ def acoustic_rooms(envs, library, specular_library, order, stage_path=None):
     return config, sessions
 
 
-def motion_driver(binding, envs):
+def motion_driver(binding, args):
     import torch
 
-    radii = torch.linspace(1.5, 3.0, envs, device="cuda:0")
+    radii = torch.linspace(1.5, 3.0, args.envs, device="cuda:0")
     radii[0] = 2.25
-    phases = torch.arange(envs, device="cuda:0") * 0.3
+    if args.distance_m is not None:
+        radii.fill_(args.distance_m)
+    phases = torch.arange(args.envs, device="cuda:0") * 0.3
 
     def move(audio_s):
-        yaws = torch.deg2rad(60 * torch.sin(audio_s + phases))
-        angles = torch.deg2rad(35 * torch.sin(audio_s / radii + phases))
+        yaws = torch.deg2rad(args.head_speed_deg_s * torch.sin(audio_s + phases))
+        angles = torch.deg2rad(
+            35
+            * torch.sin(
+                audio_s * args.source_speed_m_s / (radii * math.radians(35)) + phases
+            )
+        )
+        if args.motion in ("static", "receiver"):
+            angles.zero_()
+        if args.motion in ("static", "source"):
+            yaws.zero_()
         state = binding._robot.data.root_state_w
         state[:, 3] = torch.cos(yaws / 2)
         state[:, 6] = torch.sin(yaws / 2)
@@ -395,6 +480,7 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
 
     backend = sensor._entity_backend
     chunks = []
+    source_chunks = []
     observation_frames = []
     ingest = backend.perception.ingest
 
@@ -404,13 +490,23 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
         return ingest(ids, values, counts)
 
     backend.perception.ingest = capture
+    # One-voice native reference before noise/electronics, never inference input.
+    chain = backend.producers[0].chain if hasattr(backend, "producers") else None
+    if chain is not None:
+        apply_mixture = chain.apply_mixture
+
+        def capture_source(values, **kwargs):
+            source_chunks.append(values.copy())
+            return apply_mixture(values, **kwargs)
+
+        chain.apply_mixture = capture_source
     seconds = args.reset_seconds if reset else args.seconds
     rows = []
     camera_start = camera.frame.torch.cpu().tolist() if camera is not None else None
     torch.cuda.synchronize()
     origin = time.perf_counter()
     previous_sample = 0
-    move = motion_driver(backend.binding, args.envs)
+    move = motion_driver(backend.binding, args)
     for tick in range(round(seconds * 60)):
         deadline = origin + (tick + 1) / 60
         if args.paced:
@@ -418,14 +514,11 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
         before_sim = time.perf_counter()
         camera_due = camera is not None and (tick + 1) % (60 // args.camera_hz) == 0
         sim.step(render=camera_due)
-        if camera is not None:
-            camera.update(1 / 60)
-            if camera_due:
-                _ = camera.data.output["rgb"]
+        if camera_due:
+            camera.update(1 / args.camera_hz)
+            _ = camera.data.output["rgb"]
         # A moving source and rotating receiver expose stale direction information.
         audio_s = (tick + 1) / 60
-        yaw = math.radians(60 * math.sin(audio_s))
-        angle = math.radians(35 * math.sin(audio_s / 2.25))
         move(audio_s)
         torch.cuda.synchronize()
         window_end = time.perf_counter()
@@ -463,7 +556,7 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
             cpu_ready = time.perf_counter()
             mask = fields["bearing_deg_mask"][0]
             bearings = fields["bearing_deg"][0, mask].tolist()
-            truth = math.degrees(angle - yaw) % 360
+            truth = bearing_at(audio_s, args) % 360
             errors = [abs((b - truth + 180) % 360 - 180) for b in bearings]
             sample = int(backend.perception.last_processed[0])
             row.update(
@@ -496,6 +589,12 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
     torch.cuda.synchronize()
     end = time.perf_counter()
     backend.perception.ingest = ingest
+    if chain is not None:
+        chain.apply_mixture = apply_mixture
+        np.savez(
+            args.out / ("reset-source-pcm.npz" if reset else "source-pcm.npz"),
+            samples=np.concatenate(source_chunks, axis=-1),
+        )
     pcm = torch.cat(chunks, dim=-1)[0].cpu().numpy()
     np.savez(args.out / ("reset-pcm.npz" if reset else "received-pcm.npz"), samples=pcm)
     np.savez(
@@ -536,7 +635,7 @@ def run(sensor, sim, camera, args, monitor, *, reset=False):
     result.update(
         rows=rows,
         onsets=onsets(pcm, rows, origin, paced=args.paced),
-        directional_lag=direction_lag(rows),
+        directional_lag=direction_lag(rows, args),
         gpu_load=monitor.assessment(origin, end),
     )
     return result
@@ -630,16 +729,15 @@ def diagnostics(sensor, sim, camera, args):
                 torch.profiler.ProfilerActivity.CUDA,
             ]
         ) as profiler:
-            move = motion_driver(backend.binding, args.envs)
+            move = motion_driver(backend.binding, args)
             for tick in range(args.diagnostic_updates * 6):
                 camera_due = (
                     camera is not None and (tick + 1) % (60 // args.camera_hz) == 0
                 )
                 sim.step(render=camera_due)
-                if camera is not None:
-                    camera.update(1 / 60)
-                    if camera_due:
-                        _ = camera.data.output["rgb"]
+                if camera_due:
+                    camera.update(1 / args.camera_hz)
+                    _ = camera.data.output["rgb"]
                 move(2 + (tick + 1) / 60)
                 sensor.update(1 / 60)
                 _ = sensor.data
@@ -679,14 +777,26 @@ def main():
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--reset-seconds", type=float, default=3)
     parser.add_argument("--paced", action="store_true")
-    parser.add_argument("--camera-hz", type=int, choices=(30, 60), default=60)
+    parser.add_argument("--camera-hz", type=int, choices=(10, 15, 30, 60), default=60)
     parser.add_argument(
         "--workload", choices=("audio", "physics", "render"), default="render"
     )
     parser.add_argument("--context-s", type=float, default=0.2)
     parser.add_argument("--wpe", action="store_true")
     parser.add_argument("--spatial-coherence", type=float, default=None)
+    parser.add_argument(
+        "--motion", choices=("static", "source", "receiver", "joint"), default="joint"
+    )
+    parser.add_argument("--distance-m", type=float)
+    parser.add_argument("--head-speed-deg-s", type=float, default=60)
+    parser.add_argument("--source-speed-m-s", type=float, default=math.radians(35))
+    parser.add_argument("--camera-depth", action="store_true")
+    parser.add_argument("--camera-eye", type=float, nargs=3, default=(4.0, 4.0, 4.0))
+    parser.add_argument("--camera-target", type=float, nargs=3, default=(0.8, 0.8, 1.0))
+    parser.add_argument("--camera-aperture-mm", type=float, default=20.955)
+    parser.add_argument("--noise-dbfs", type=float)
     parser.add_argument("--geometry-library", type=Path)
+    parser.add_argument("--acoustic-envelope", action="store_true")
     parser.add_argument(
         "--acoustic-stage", type=Path, help="Read-only USD /World acoustic geometry"
     )
@@ -706,6 +816,23 @@ def main():
     )
 
     validate_spatial_coherence_threshold(args.spatial_coherence)
+    if args.acoustic_envelope and (not args.geometry_library or args.acoustic_stage):
+        parser.error("--acoustic-envelope requires the built-in Geometry room")
+    if args.noise_dbfs is not None and (
+        not math.isfinite(args.noise_dbfs) or not -120 <= args.noise_dbfs <= 0
+    ):
+        parser.error("Noise level must be finite in [-120, 0] dBFS")
+    if args.noise_dbfs is not None and not args.geometry_library:
+        parser.error("Entity effects require the native Geometry backend")
+    if any(
+        not math.isfinite(v) or v <= 0
+        for v in (
+            args.head_speed_deg_s,
+            args.source_speed_m_s,
+            (args.distance_m if args.distance_m is not None else 2.25),
+        )
+    ):
+        parser.error("Motion speeds and distance must be finite and positive")
     if args.acoustic_stage and not args.geometry_library:
         parser.error("--acoustic-stage requires --geometry-library")
     if args.envs < 1 or args.seconds < 3 or args.reset_seconds < 1:
@@ -750,6 +877,12 @@ def main():
 
             import isaac_audio_sensors
             from isaac_audio_sensors.core.acoustics import free_field_environment
+            from isaac_audio_sensors.core.effects import (
+                EffectsConfig,
+                NoiseConfig,
+                NoiseLevelSpecConfig,
+                SelfNoiseConfig,
+            )
             from isaac_audio_sensors.core.types import MicrophoneSpec
             from isaac_audio_sensors.lab import AudioArraySensor, AudioArraySensorCfg
             from isaac_audio_sensors.lab.entity_binding import (
@@ -781,7 +914,10 @@ def main():
                     physics_hz=60,
                     observation_hz=10,
                     rigid_bodies=64 * args.envs if args.workload != "audio" else 0,
-                    camera=f"one shared 640x480 RGB at {args.camera_hz} Hz"
+                    camera=(
+                        f"shared 640x480 RGB{'/depth' if args.camera_depth else ''} "
+                        f"at {args.camera_hz} Hz"
+                    )
                     if args.workload == "render"
                     else None,
                     backend="CUDA free-field analytic; mixture perception CUDA",
@@ -802,6 +938,7 @@ def main():
                     args.specular_library,
                     args.reflection_order,
                     args.acoustic_stage,
+                    envelope=args.acoustic_envelope,
                 )
                 evidence["workload"]["backend"] = (
                     "CPU native geometry generation; H2D PCM; CUDA perception"
@@ -820,9 +957,15 @@ def main():
                         prim_path="/World/Camera",
                         width=640,
                         height=480,
-                        data_types=["rgb"],
-                        update_period=1 / args.camera_hz,
-                        spawn=sim_utils.PinholeCameraCfg(),
+                        data_types=["rgb", "distance_to_image_plane"]
+                        if args.camera_depth
+                        else ["rgb"],
+                        # Integer tick scheduling owns cadence. A float32
+                        # SensorBase period can skip frames as time grows.
+                        update_period=0,
+                        spawn=sim_utils.PinholeCameraCfg(
+                            horizontal_aperture=args.camera_aperture_mm
+                        ),
                     )
                 )
             sensor = AudioArraySensor(
@@ -840,6 +983,17 @@ def main():
                     if geometry_config
                     else "analytic_acoustics",
                     geometry_config=geometry_config,
+                    effects=EffectsConfig(
+                        noise=NoiseConfig(
+                            enabled=True,
+                            seed=11700,
+                            self_noise=SelfNoiseConfig(
+                                default=NoiseLevelSpecConfig(level_db=args.noise_dbfs)
+                            ),
+                        )
+                    )
+                    if args.noise_dbfs is not None
+                    else EffectsConfig(),
                 )
             ).bind_entities(
                 entities,
@@ -926,8 +1080,8 @@ def main():
             ) * 1000
             if camera is not None:
                 camera.set_world_poses_from_view(
-                    eyes=torch.tensor([[4.0, 4.0, 4.0]], device="cuda:0"),
-                    targets=torch.tensor([[0.8, 0.8, 1.0]], device="cuda:0"),
+                    eyes=torch.tensor([args.camera_eye], device="cuda:0"),
+                    targets=torch.tensor([args.camera_target], device="cuda:0"),
                 )
             for _ in range(180):
                 sim.step(render=camera is not None)
@@ -939,6 +1093,21 @@ def main():
                     mean=float(image[..., :3].mean()),
                     variance=float(image[..., :3].var()),
                 )
+                from PIL import Image
+
+                Image.fromarray(image[0, ..., :3].byte().cpu().numpy()).save(
+                    args.out / "render.png"
+                )
+                if args.camera_depth:
+                    depth = camera.data.output["distance_to_image_plane"].torch
+                    evidence["depth_check"] = dict(
+                        shape=list(depth.shape),
+                        finite_positive_fraction=float(
+                            (torch.isfinite(depth) & (depth > 0)).float().mean()
+                        ),
+                    )
+                    if evidence["depth_check"]["finite_positive_fraction"] < 0.1:
+                        raise RuntimeError("Depth rendering produced no useful surface")
                 if (
                     evidence["render_check"]["mean"] < 30
                     or evidence["render_check"]["variance"] < 15

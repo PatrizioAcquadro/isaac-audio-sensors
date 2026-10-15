@@ -563,3 +563,18 @@ Document eager Geometry dependency initialization, stateless CUDA initialization
 and captured single-array sparse fitting. Preserve per-row convergence, precision,
 clock/history semantics and eager batches. Actual runtime checks and exact
 signal/silence/level comparisons pass.
+
+## 2026-10-14 — update: Qualify the combined first-scene indoor profile
+
+Record two fresh simultaneous quality/timing passes with interior RGB/depth,
+actual Alex plus rigid-body load, bounded clocks/backlog, source-independent
+CUDA/Scalar preservation and one-environment rollout cost. Deliver optional
+nominal configuration and acoustic-envelope asset. Preserve all failed/excluded
+runs and distinguish downstream, physical, overlap and training-scale limits.
+
+## 2026-10-14 — lint: Check combined indoor readiness handoff
+
+All 47 wiki pages resolve through the index, internal paths and heading fragments.
+Check qualification claims against retained live outputs, metrics, failed cases,
+configuration and source. Whitespace, focused host checks and Ruff pass;
+raw material and ignored historical evidence remain unchanged.

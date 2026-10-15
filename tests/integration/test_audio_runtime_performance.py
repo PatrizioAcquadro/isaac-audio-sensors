@@ -10,6 +10,7 @@ from tools.validation.audio_runtime_performance import (
     distribution,
     onsets,
     summarize,
+    window_work,
 )
 
 
@@ -46,6 +47,12 @@ def test_cold_cost_and_distribution_tails_are_retained():
     assert result["aggregate_simulated_s_per_wall_s"] == pytest.approx(10 / 10.03)
     assert distribution([1, 2, 3, 100])["maximum"] == 100
     assert distribution([]) == {"n": 0}
+
+
+def test_whole_window_includes_previous_five_acquisitions_and_simulation():
+    result = window_work(rows())
+    assert result["sdk"]["p95"] == 55
+    assert result["simulation_sdk_consumer"]["p95"] == pytest.approx(73.2)
 
 
 @pytest.mark.parametrize(

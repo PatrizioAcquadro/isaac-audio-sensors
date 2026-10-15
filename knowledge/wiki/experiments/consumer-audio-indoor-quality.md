@@ -10,7 +10,10 @@ sets in every declared static/source-motion/receiver-rotation/joint condition an
 every tested confirmation episode. Multisource indoor readiness remains open:
 the filter can remove real overlapping voices, particularly weaker ones.
 It is opt-in; historical defaults and the free-field direct profile remain available.
-Neither physical transfer nor 7.2 runtime qualification is established here.
+Physical transfer is not established here. The later
+[[experiments/consumer-audio-runtime-performance#Combined indoor qualification — 2026-10-14|combined first-scene runtime qualification]]
+uses live quality and delivery together; it does not extend this campaign to
+arbitrary rooms or overlapping voices.
 
 ## Diagnosis and targeted alternatives
 

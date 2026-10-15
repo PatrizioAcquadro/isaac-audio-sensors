@@ -29,7 +29,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
 - [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
 
-- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — integrated optional indoor quality and loaded free-field timing; competing voices, 60 Hz rendering and native indoor timing remain open.
+- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — bounded combined one-voice indoor quality and 10 Hz delivery, optional handoff and remaining consumer/physical/scale limits.
 
 ## Topics
 
@@ -65,7 +65,7 @@ Read for a specific result/reference; these pages do not add requirements.
 - [[experiments/consumer-audio-dynamic-quality|Dynamic Audio Quality]] — causal context and localization profiles, matched room/motion controls, independent episodes and remaining quality/runtime limits.
 - [[experiments/consumer-audio-indoor-quality|Indoor Audio Quality]] — opt-in spatial coherence, independent one-voice room confirmation, explicit weak/overlapping-voice failures and preliminary 7.2 handoff cost.
 
-- [[experiments/consumer-audio-runtime-performance|Audio Runtime Performance]] — loaded SDK latency, real-clock onset response, lifecycle costs, environment throughput and indoor requalification protocol.
+- [[experiments/consumer-audio-runtime-performance|Audio Runtime Performance]] — combined indoor live quality/delivery, clock distinctions, preservation, failed candidates and bounded rollout throughput.
 - [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
 
 ## Sources and history

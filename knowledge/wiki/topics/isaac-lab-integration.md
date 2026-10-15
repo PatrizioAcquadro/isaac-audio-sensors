@@ -181,6 +181,12 @@ The live smoke defaults to 16 active environments on a supported CUDA GPU; large
 
 ## Version Notes
 
+2026-10-14: Native Geometry effects and execution diagnostics, stateless startup,
+single-array captured solver dispatch and reference centroid boundaries. Public
+tensors, clocks and default localization configuration remain unchanged; the
+[[experiments/consumer-audio-runtime-performance|combined runtime report]] owns
+qualification and cost.
+
 2026-10-08: Added explicit context and optional localization WPE in both bindings;
 750 ms WPE defaults and serialized observations are preserved. The bounded
 [[experiments/consumer-audio-dynamic-quality|dynamic-profile evidence]] owns

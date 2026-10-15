@@ -1,9 +1,11 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: 7.1 complete as a bounded compatibility and quality assessment; 7.2
-measured and qualified for the initial CUDA free-field profile under its declared load.
-Quality follow-ups deliver bounded single-voice free-field and indoor profiles;
-full dynamic, multisource and loaded indoor readiness remain open.
+Status: 7.1 complete as a bounded compatibility and quality assessment. 7.2
+qualifies the initial free-field profile and the optional first-scene single-voice
+indoor profile under their declared loads. The indoor combination now passes live
+quality, sustained delivery and bounded rollout measurement together. Broader
+dynamic/room coverage, consumer adoption, multi-environment training and physical
+transfer remain open; multisource work is outside this intervention.
 Phase 7 identifies the downstream SquadBot roadmap; the SDK's
 existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
 
@@ -168,8 +170,8 @@ correct direction windows, versus 47/72 for direct covariance; filtered complete
 sets remain 63.7%, with a 475 ms onset p95 and a missed segment. Plane-wave
 selection removes overlapping real support as well as reflections. Deliver this
 as a bounded single-voice trial configuration, not a generic multisource profile.
-Further overlap/weak-source perception work, physical/other-room qualification
-and loaded runtime measurement remain separate open gates.
+Further overlap/weak-source perception work and physical/other-room qualification
+remain open. Loaded first-scene qualification is recorded separately below.
 
 ## 7.2 — Latency and learning throughput
 
@@ -220,9 +222,9 @@ CUDA events and fenced wall timings remain available, but this Kit process owns
 a CUPTI subscriber and PyTorch's kernel/copy profiling can be unavailable. Missing
 device trace events are not zero transfer cost. Geometry native propagation stays
 CPU-side; a short retained indoor-stage run reaches only 6.45 observations per
-real second despite SDK p95 within 50 ms. It does not qualify. After integrating
-indoor changes, repeat the measurements with the
-selected localizer, native producer and scene; this profile does not qualify them.
+real second despite SDK p95 within 50 ms. It does not qualify. These earlier measurements did not qualify the selected indoor combination.
+The first-scene profile below has its own combined measurements; other Geometry
+scenes remain outside that qualification.
 
 ## Integration on main — 2026-10-14
 
@@ -258,13 +260,69 @@ does not establish broad acoustic or runtime qualification. Weak/overlapping
 voices, physical transfer, the universal 100 ms lag target and selected-consumer
 scene timing remain open; no favorable retry or gate relaxation was used.
 
-## Combined indoor optimization — 2026-10-14
+## 7.2 follow-up — Combined first-scene indoor readiness
 
-The [[experiments/consumer-audio-runtime-performance#Combined indoor work — 2026-10-14|combined native diagnosis]]
-identifies and removes redundant image-path obstruction work while preserving
-all meaningful path outputs and PCM across 180 moving poses. Native controls
-pass. Combined loaded qualification remains in progress; historical free-field
-or indoor branch results do not qualify this combination.
+#### Implementation
+
+The selected 16 kHz / 200 ms / no-WPE / .98 coherence configuration now runs with
+moving native Geometry, source motion up to 1 m/s, receiver yaw up to 90 degrees/s
+and an actual Alex articulation/PD plus 64 moving bodies and 640x480 RGB/depth
+load. The qualified camera cadence is **15 Hz**, while physics/acquisition remain
+60 Hz and observations use the original 10 Hz schedule. Audio uses observed
+controlled pose tensors; actual downstream mounting/feedback is not claimed.
+
+Remove redundant native visibility scans without changing paths, then select an
+explicit six-face representation of the same closed interior. Pressure is bitwise
+identical across 480 moving poses; exterior slab/cap faces are unnecessary only
+within this declared interior. Keep the rendered solids and physical load.
+Initialize required DSP before audio starts, capture the unchanged single-array
+ADMM dispatch, and use integer camera scheduling to avoid skipped frames.
+Correct two centroid boundary masks by using Core's exact reduction. Geometry
+Lab effects now use the already-implemented native chain; Analytic restrictions,
+SDK defaults, masks, capacity and clocks remain intact.
+
+#### Key Decisions
+
+Qualify **simultaneous live quality and delivery**, including misses/extras and
+current-time directions, rather than combining branch averages. Two fresh
+30-second interior-view runs with different phrases sustain 9.98999–9.99028
+observations per real second, have no skipped windows/discontinuities or growing
+backlog, and reach 97.71% / 94.87% active complete sets. No active incorrect run
+reaches .5 s. Scalar/CUDA activity/counts agree on all 600 updates; residual
+direction differences are <.00005 degrees in these runs.
+
+Keep audio-clock response (100/200 ms p95), real received-onset-to-SDK bounds,
+deadline delay, last-chunk cost and complete-window work separate. All steady
+delivery remains below 100 ms; deadline p95 is 34.28–42.03 ms. The same loaded
+profile reaches 1.0879 simulated seconds per real second unpaced with one
+environment. This is rollout cost, not optimizer or multi-Alex throughput.
+The [[experiments/consumer-audio-runtime-performance#Combined indoor qualification — 2026-10-14|combined report]]
+owns protocol, every failed candidate, numerical diagnosis, startup/reset,
+throughput, reproduction and supported limits.
+
+#### Problems / Limitations
+
+The original 72-triangle room at 30 Hz RGB/depth remains a documented failure
+before dispatch optimization. Smaller mean cost alone was insufficient: eager
+15/10 Hz camera candidates still accumulated delay during speech. The final
+15 Hz camera plus equivalent 12-triangle acoustic envelope and captured solver
+passes the unchanged delivery and quality gates. Other camera/scene/controller
+or vision-network loads do not inherit that result.
+
+This closes **SDK readiness for the bounded first one-voice interior trial**.
+The nominal planar geometry, 2.25 m source trajectory, -65 dBFS synthetic noise,
+LoS room and declared single-environment load define the qualification. Other
+materials/rooms, robot-body acoustics, receiver translation/pitch/elevation,
+weak/overlapping voices, physical transfer, immediate-start speech and a universal
+<=100 ms lag bound remain unqualified. Multisource is outside this work. The old
+fresh-branch count discrepancy is not declared repaired without its own replay.
+
+Deliver `examples/isaac_lab/indoor_single_voice.py` and
+`examples/isaac_lab/indoor_single_voice_room.usda`; use rebuilt native libraries.
+The profile remains opt-in. SquadBot must adopt the selected source revision,
+verify its actual head mount/channel order and preserve clocks/masks, camera
+cadence and application freshness. Its actual camera/head integration, queues,
+partner classifier and policy remain downstream work.
 
 ## Outcome and handoff
 
@@ -298,10 +356,12 @@ were reused read only; all GPU executions held the shared exclusive lock.
 Separate 7.2 results and reproduction are in
 [[experiments/consumer-audio-runtime-performance|runtime performance evidence]],
 under the runtime worktree's ignored `build/validation/runtime-performance/`.
-The original quality and runtime worktrees remain at
+The original quality and runtime worktree locations recorded at integration were
 `/home/pacquadr/.codex/worktrees/fbf8/isaac-audio-sensors` and
 `/home/pacquadr/.codex/worktrees/4231/isaac-audio-sensors`, respectively.
-Their ignored inputs, reports and failed attempts are retained in place.
+The fresh quality PCM was not available at its recorded worktree path in this
+session, so the historical receiver-count discrepancy was not replayed or
+declared fixed. Current qualification uses newly retained live PCM and outputs.
 Integrated checks and the new native-room failure are in main's ignored
 `build/validation/main-branch-integration-20261014-01/`, including the prior
 ignored checklist, focused test logs, paired replay, preserved-result comparison
@@ -317,4 +377,9 @@ and loaded probe report. Historical evidence and `knowledge/raw/` were untouched
 `tools/smoke/live_isaac_lab_audio_smoke.py`,
 `tools/validation/audio_runtime_performance.py`,
 `src/isaac_audio_sensors/lab/entity_binding.py`,
-`src/isaac_audio_sensors/lab/_entity_audio.py`.
+`src/isaac_audio_sensors/lab/_entity_audio.py`,
+`src/isaac_audio_sensors/isaac/acoustic_scene/_specular.py`,
+`tools/native/build_specular.py`, `tools/native/specular.cpp`,
+`tools/validation/indoor_runtime_quality.py`,
+`examples/isaac_lab/indoor_single_voice.py`,
+`examples/isaac_lab/indoor_single_voice_room.usda`.
