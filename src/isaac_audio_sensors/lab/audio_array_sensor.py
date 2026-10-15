@@ -205,7 +205,13 @@ class AudioArraySensor(SensorBase):
         result = {
             "elapsed_s": self._audio_time.clone(),
             "last_processed_s": self._audio_last_update.clone(),
-            "path": "cuda_free_field" if self._entity_backend is not None else "scalar",
+            "path": (
+                "native_geometry_cuda_perception"
+                if self.cfg.backend == "geometry_acoustics"
+                else "cuda_free_field"
+            )
+            if self._entity_backend is not None
+            else "scalar",
         }
         if self._entity_backend is not None:
             p = self._entity_backend.perception
@@ -265,7 +271,10 @@ class AudioArraySensor(SensorBase):
                     "Entity-bound analytic_acoustics supports only an explicit "
                     "free_field environment."
                 )
-            if self.cfg.effects != EffectsConfig():
+            if (
+                self.cfg.backend == "analytic_acoustics"
+                and self.cfg.effects != EffectsConfig()
+            ):
                 raise ValueError("Entity binding requires effects to be disabled.")
             if (
                 self.cfg.analytic_max_order != 0

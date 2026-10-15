@@ -85,7 +85,12 @@ environment must own an independent prepared session; overlapping geometry in
 the same stage is rejected. Geometry produces per-environment CPU PCM and
 transfers only the received mixture into the same CUDA perception. Counts govern
 padding; per-environment reset and producer discontinuities reset the matching
-perceptual context. Current entity effects remain disabled. This is the
+perceptual context. Geometry entity mode accepts the existing CPU producer's
+validated effects configuration; Analytic entity mode still requires identity
+effects. A two-environment native/CUDA control verifies seeded -65 dBFS self-noise
+against Core PCM exactly and preserves the neighbor on partial reset.
+`processing_status.path` identifies this route as
+`native_geometry_cuda_perception`, rather than `cuda_free_field`. This is the
 [[experiments/geometry-acoustics-admission#Operational intermediate|08.2 intermediate domain]],
 not completion of general geometric acoustic coverage.
 

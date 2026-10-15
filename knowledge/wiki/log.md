@@ -550,3 +550,9 @@ preservation and 55 native controls. Keep combined loaded qualification open.
 Record identical-histogram isolation of two planar centroid boundary masks,
 the reference-reduction correction and 65 actual runtime checks. Historical
 branch count discrepancies remain separate from this demonstrated defect.
+
+## 2026-10-14 — update: Native effects through Lab Geometry
+
+Allow the existing native effects chain through the Geometry entity binding,
+retain Analytic restrictions and distinguish the native producer/CUDA perception
+status path. Record the exact Core PCM and partial-reset control.
