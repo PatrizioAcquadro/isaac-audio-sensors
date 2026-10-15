@@ -100,6 +100,17 @@ CUDA perception accepts only mixtures and microphone geometry. Its bounded PCM h
 
 The default localizer adapts NARA-WPE primitives and the maintained group-sparse equations with Torch; the explicit direct-covariance option skips WPE. WPE retains float64 after float32 produced extra events in correlated raised-array mixtures; spatial transforms retain reference precision, fitting remains float32, and geometry-only grids/dictionaries are shared. Power floors and convergence are environment-local. Reference neighborhood boundaries and event order are preserved. Processing chunks of up to 128 environments bound working memory without a source-count cap. No private stems, poses, schedules, identifiers, or expected count enter perception. Score/confidence remain unavailable when the reference provides none. Stereo and other scalar sample rates retain their existing reference roles; CUDA localization requires non-collinear XY-planar or rank-3 geometry, with qualification limited to the maintained four geometries.
 
+Single-array CUDA fitting now replays a captured ADMM dispatch sequence. The
+same float32 equations run for at most 100 effective iterations: converged rows
+freeze under the original criterion and remaining graph iterations leave their
+output unchanged. Larger batches retain eager dispatch. The graph owns fixed
+input/output buffers for one localizer and ordered calls; this is not a training
+or arbitrary concurrent-stream API. Signal, silence and level changes reproduce
+eager histograms bit for bit. FFT/solver initialization uses a stateless zero
+context before live acquisition; it does not fill history or advance clocks.
+Geometry's required DSP imports likewise belong to producer initialization.
+Startup cost is reported separately, not removed from total application cost.
+
 The 2026-09-16 measurement correction solves WPE's weighted least squares on the
 original delayed-signal matrix: reduced QR followed by a small pseudoinverse,
 with a cutoff derived from float64 precision and the original matrix dimensions.

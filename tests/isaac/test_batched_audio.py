@@ -582,3 +582,25 @@ def test_centroid_grid_boundaries_match_scalar_reduction(cuda, peak):
     actual = directions[0, mask[0]].cpu().numpy()
     assert len(actual) == len(expected)
     np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=0)
+
+
+def test_captured_single_array_solver_preserves_eager_result_and_replaces_input(cuda):
+    from isaac_audio_sensors.lab._torch_localizer import TorchEventLocalizer
+
+    localizer = TorchEventLocalizer(
+        LAYOUTS[1],
+        device=cuda,
+        context_duration_s=0.2,
+        dereverberation_enabled=False,
+        spatial_coherence_threshold=0.98,
+    )
+    signal = separated_band_voices(LAYOUTS[1])[..., -3200:]
+    assert localizer._solver_graph is not None
+    graph = localizer._solver_graph
+    for values in (signal, np.zeros_like(signal), signal * 0.01):
+        samples = torch.tensor(values[None], device=cuda, dtype=torch.float64)
+        actual = localizer._fit(samples).clone()
+        localizer._solver_graph = None
+        expected = localizer._fit(samples)
+        localizer._solver_graph = graph
+        torch.testing.assert_close(actual, expected, rtol=0, atol=0)

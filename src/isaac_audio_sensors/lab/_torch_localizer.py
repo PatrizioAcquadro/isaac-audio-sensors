@@ -162,6 +162,34 @@ class TorchEventLocalizer:
         self.window = torch.hann_window(
             1024, periodic=False, dtype=torch.float64, device=device
         )
+        self._solver_graph = None
+        if self.window.is_cuda:
+            self._initialize_solver_graph()
+        # Initialize FFT/solver kernels before the first live utterance. This
+        # stateless zero-context call does not enter acquisition/history or move
+        # any clock; its cost belongs to sensor initialization.
+        with torch.no_grad(), torch.profiler.record_function("audio.initialize"):
+            self.localize(torch.zeros((1, m, self.context_samples), device=device))
+
+    def _initialize_solver_graph(self):
+        """Cache single-array solver dispatch; other batch sizes remain eager."""
+        self._solver_inputs = (
+            self.dictionary[:48][None].clone(),
+            self.correction[:48][None].clone(),
+            self.dictionary.new_zeros((1, 48, self.dictionary.shape[-2])),
+            torch.ones((1, 48), dtype=torch.bool, device=self.window.device),
+            torch.full((1,), 48, device=self.window.device),
+        )
+        stream = torch.cuda.Stream(device=self.window.device)
+        stream.wait_stream(torch.cuda.current_stream(self.window.device))
+        with torch.cuda.stream(stream):
+            for _ in range(3):
+                self._solve(*self._solver_inputs, capture=True)
+        torch.cuda.current_stream(self.window.device).wait_stream(stream)
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph, stream=stream):
+            self._solver_output = self._solve(*self._solver_inputs, capture=True)
+        self._solver_graph = graph
 
     def localize(self, samples: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if samples.shape[-1] < self.context_samples:
@@ -232,7 +260,22 @@ class TorchEventLocalizer:
         covariance = covariance.reshape(b, 48, m * m) / m
         observed = torch.cat([covariance.real, covariance.imag], dim=-1).float()
         dictionary, correction = self.dictionary[indices], self.correction[indices]
-        z = torch.zeros((b, 48, dictionary.shape[-1]), device=samples.device)
+        if b == 1 and self._solver_graph is not None:
+            for target, value in zip(
+                self._solver_inputs,
+                (dictionary, correction, observed, valid, used),
+                strict=True,
+            ):
+                target.copy_(value)
+            self._solver_graph.replay()
+            z = self._solver_output
+        else:
+            z = self._solve(dictionary, correction, observed, valid, used)
+        return z[:, :, :-2].sum(dim=1) / used.clamp_min(1)[:, None]
+
+    @staticmethod
+    def _solve(dictionary, correction, observed, valid, used, *, capture=False):
+        z = dictionary.new_zeros((len(dictionary), 48, dictionary.shape[-1]))
         dual = torch.zeros_like(z)
         penalty = 0.03 * used.float().sqrt()[:, None, None]
         finished = used == 0
@@ -252,9 +295,11 @@ class TorchEventLocalizer:
             z = torch.where(finished[:, None, None], z, candidate)
             if iteration > 20:
                 finished |= primal.maximum(change) < tolerance
-                if finished.all():
+                # Captured execution freezes each converged row, then runs the
+                # same no-ops to iteration 100 without a host synchronization.
+                if not capture and finished.all():
                     break
-        return z[:, :, :-2].sum(dim=1) / used.clamp_min(1)[:, None]
+        return z
 
     def _events(self, histogram: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         histogram = histogram.double()

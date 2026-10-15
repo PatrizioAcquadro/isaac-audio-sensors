@@ -21,7 +21,7 @@ from isaac_audio_sensors.core.types import MicrophoneSignalBlock
 from ._convolution import ConvolutionStream
 from ._diffuse import PRADiffuseConfig, SurfaceField
 from ._nlos import NLOSScene, NLOSStream, SteamNLOSConfig
-from ._specular import SpecularScene
+from ._specular import SpecularScene, load_dependencies
 from ._steam_audio import Receiver
 
 
@@ -89,6 +89,7 @@ class GeometryAcoustics:
             raise ValueError("speed_of_sound_mps must be finite and positive.")
         if runtime_profile != "waveform_fidelity":
             raise ValueError("Geometry requires waveform_fidelity.")
+        load_dependencies()
         self.session, self.config = acoustic_scene, geometry_config
         self.speed = speed_of_sound_mps
         self.effects = effects or EffectsConfig()

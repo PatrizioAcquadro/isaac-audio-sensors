@@ -66,21 +66,27 @@ def polar(pattern, orientation, directions):
     )
 
 
+def load_dependencies():
+    """Load/validate required DSP during Geometry initialization, before audio."""
+    try:
+        import pyroomacoustics as pra
+    except ImportError as exc:
+        raise RuntimeError(
+            "Geometry requires optional Pyroomacoustics 0.10.1 and scipy."
+        ) from exc
+
+    if pra.__version__ != "0.10.1":
+        raise RuntimeError(
+            "Geometry specular rendering requires qualified Pyroomacoustics 0.10.1."
+        )
+    return pra
+
+
 class SpecularScene:
     def __init__(
         self, session, library_path, sample_rate, order, speed, max_candidates
     ):
-        try:
-            import pyroomacoustics as pra
-        except ImportError as exc:
-            raise RuntimeError(
-                "Geometry requires optional Pyroomacoustics 0.10.1 and scipy."
-            ) from exc
-
-        if pra.__version__ != "0.10.1":
-            raise RuntimeError(
-                "Geometry specular rendering requires qualified Pyroomacoustics 0.10.1."
-            )
+        pra = load_dependencies()
         self.pra, self.session = pra, session
         self.rate, self.order, self.speed = sample_rate, order, speed
         self.max_candidates = max_candidates
