@@ -544,3 +544,9 @@ worktree locations and the failed native-room timing result.
 
 Record the moving image-source solve optimization, exact 180-pose PCM/path
 preservation and 55 native controls. Keep combined loaded qualification open.
+
+## 2026-10-14 — update: Explain scalar CUDA centroid differences
+
+Record identical-histogram isolation of two planar centroid boundary masks,
+the reference-reduction correction and 65 actual runtime checks. Historical
+branch count discrepancies remain separate from this demonstrated defect.

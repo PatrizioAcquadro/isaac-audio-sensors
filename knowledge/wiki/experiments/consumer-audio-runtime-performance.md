@@ -176,6 +176,25 @@ must still be measured together. The compiled bridge must be rebuilt using the
 updated `tools/native/build_specular.py` and `specular.cpp`; changing Python alone
 does not install this optimization in an existing native library.
 
+### Scalar/CUDA centroid diagnosis
+
+The first new 30-second combined run preserves all 300 activity/count updates,
+but four windows (11.0, 11.1, 11.3 and 18.2 s) differ by 1.34–2.03 degrees.
+This is a reproducible event-extraction defect, not merely an unspecified CUDA
+precision allowance. Feeding **the identical scalar histogram** into CUDA event
+extraction reproduces every difference. CUDA's precomputed matrix/matrix BLAS
+product includes two exact 10-degree planar grid boundaries differently from
+Core's matrix/vector product. Building centroid masks with Core's reduction
+restores identical directions for that diagnostic histogram. Actual fitted
+histograms differ by at most 3.24e-7 in those controls.
+
+The correction changes neither the 10-degree neighborhood nor peak thresholds,
+solver precision/iterations, context or timestamps. Dedicated synthetic boundary
+controls and all 65 relevant actual CUDA/runtime checks pass. A new loaded run
+will measure the corrected implementation; the earlier four differences remain
+in the original run. Historical branch discrepancies have not all been replayed
+and must not be declared repaired by this diagnosis.
+
 ## Measurement protocol
 
 `tools/validation/audio_runtime_performance.py` launches the actual Isaac Lab

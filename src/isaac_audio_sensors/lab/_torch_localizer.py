@@ -148,7 +148,12 @@ class TorchEventLocalizer:
         self.smoothing = torch.tensor(smoothing, dtype=torch.float64, device=device)
         self.near = torch.tensor(near, device=device)
         self.centroid = torch.tensor(
-            (vectors @ vectors.T >= np.cos(np.radians(10))).astype(np.float32),
+            # Match Core's matrix/vector reduction at exact 10-degree grid
+            # boundaries. Matrix/matrix BLAS rounding changes two planar masks
+            # and can move a centroid by degrees even with an identical fit.
+            np.stack(
+                [vectors @ vector >= np.cos(np.radians(10)) for vector in vectors]
+            ).astype(np.float32),
             device=device,
         )
         self.exclusion = torch.tensor(

@@ -550,3 +550,35 @@ def test_activity_extreme_finite_thresholds_match_reference(cuda, threshold):
         values, 16000
     )
     assert bool(actual[0]) == expected.active
+
+
+@pytest.mark.parametrize("peak", [25, 63])
+def test_centroid_grid_boundaries_match_scalar_reduction(cuda, peak):
+    from isaac_audio_sensors.core.plugins._multisource_sparse import (
+        GroupSparseCovariance,
+    )
+    from isaac_audio_sensors.lab._torch_localizer import TorchEventLocalizer
+
+    positions = LAYOUTS[1]
+    scalar = GroupSparseCovariance()
+    _, (vectors, _, near) = scalar.prepare(np.zeros((4, 3200)), positions, 16000)
+    histogram = np.zeros(len(vectors))
+    histogram[(np.arange(peak - 2, peak + 3) % len(vectors))] = [
+        0.03,
+        0.04,
+        0.1,
+        0.04,
+        0.03,
+    ]
+    expected, _ = scalar.events(vectors, histogram, near, {})
+    localizer = TorchEventLocalizer(
+        positions,
+        device=cuda,
+        context_duration_s=0.2,
+        dereverberation_enabled=False,
+        spatial_coherence_threshold=0.98,
+    )
+    directions, mask = localizer._events(torch.tensor(histogram[None], device=cuda))
+    actual = directions[0, mask[0]].cpu().numpy()
+    assert len(actual) == len(expected)
+    np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=0)
