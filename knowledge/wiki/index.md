@@ -42,7 +42,7 @@ Reusable current contracts and workflows; phase pages retain only introductions/
 - [[topics/geometry-acoustics|Geometry Acoustics]] — prepared USD/materials, native ownership, build and configuration.
 - [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — live sensor, authoring, instrumentation and lifecycle.
 - [[topics/isaac-lab-integration|Isaac Lab Integration]] — current tensor/binding/clock contract.
-- [[topics/validation-and-release|Validation and Release]] — maintained commands, runtime gates and artifact audits.
+- [[topics/validation-and-release|Validation and Release]] — maintained commands, optional-dependency CI ownership, runtime gates and artifact audits.
 - [[topics/onr-video-production|ONR Video Production]] — delivered 1–6, warehouse multisource and Garage material-comparison evidence, material/listening cues and shared instruments/FOV/direct-path styling and remaining scene/media gates.
 
 ## Key Decisions

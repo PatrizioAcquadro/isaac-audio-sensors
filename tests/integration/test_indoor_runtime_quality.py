@@ -1,6 +1,9 @@
 """Loaded quality must count absent estimates, extras and current directions."""
 
 import numpy as np
+import pytest
+
+pytest.importorskip("scipy")
 
 from tools.validation.indoor_runtime_quality import score_live
 

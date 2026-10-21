@@ -578,3 +578,21 @@ All 47 wiki pages resolve through the index, internal paths and heading fragment
 Check qualification claims against retained live outputs, metrics, failed cases,
 configuration and source. Whitespace, focused host checks and Ruff pass;
 raw material and ignored historical evidence remain unchanged.
+
+
+## 2026-10-21 — update: Align optional SciPy CI ownership
+
+Declare the indoor live-quality regression's SciPy dependency like the existing
+Lab-perception scoring tests. Run both modules explicitly in the `room` CI lane,
+while base gates remain usable without SciPy. Preserve the original missing-
+dependency CI failure, scoring assertions, runtime source and scientific criteria.
+
+
+## 2026-10-21 — lint: Validate optional SciPy CI alignment
+
+The clean base host gate passes without SciPy; the full room host gate passes,
+including all 11 indoor/scoring cases. Wiki index and links resolve, Ruff and
+whitespace checks pass. Logs remain in
+`build/validation/optional-scipy-ci-20261021-01/`, including the first room command
+that selected system Python by resolving the virtualenv executable symlink.
+The corrected command retains the virtualenv interpreter; runtime source is unchanged.
