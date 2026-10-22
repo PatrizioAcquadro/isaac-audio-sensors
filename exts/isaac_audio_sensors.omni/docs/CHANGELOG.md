@@ -1,6 +1,6 @@
 # Extension Changelog
 
-## 3.0.0 - Unreleased
+## 3.0.0 - 2026-10-22
 
 - Added shared Geometry scene/sensor ownership, prepared-scene controls, saved native settings and separate actionable diagnostics.
 - Migrated all sensor consumers to frame v4 observations; integrated Auditok with an explicit activity threshold and default-off causal DOA. Missing estimates and valid silent PCM remain explicit.

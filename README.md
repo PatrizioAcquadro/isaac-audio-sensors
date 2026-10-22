@@ -2,7 +2,7 @@
 
 An open-source robot-audition SDK for Python, Isaac Sim, Isaac Lab, and NVIDIA Kit. It models standalone or robot-mounted microphone arrays and produces multichannel waveforms, observed audio features, recordings, datasets, and fixed-shape learning observations.
 
-Current source version: `3.0.0`. **Unreleased.** The latest published release is **2.0.0**; the examples below target this checkout.
+Current source version: `3.0.0`. Stable v3 compatibility line. See the [3.0.0 release](https://github.com/PatrizioAcquadro/isaac-audio-sensors/releases/tag/v3.0.0) and [migration guidance](knowledge/wiki/decisions/product-boundary-and-compatibility.md) before upgrading from 2.0.
 
 [Project showcase](https://isaac-audio-showcase-site.vercel.app) · [Verified status](knowledge/wiki/status.md) · [Technical wiki](knowledge/wiki/index.md)
 
@@ -14,7 +14,18 @@ Current source version: `3.0.0`. **Unreleased.** The latest published release is
 - Aligned multichannel recording, bounded-memory shards, recovery, validation, splits, FLAC export, and replay.
 - Live Isaac Sim sensors, CUDA Isaac Lab observations, and a Kit authoring/monitoring interface. Simulator dependencies remain optional.
 
-## Install and try the checkout
+## Install
+
+Install the stable Python package, with optional room acoustics when needed:
+
+```bash
+python -m pip install "isaac-audio-sensors==3.0.0"
+python -m pip install "isaac-audio-sensors[room]==3.0.0"
+```
+
+Isaac Sim, Isaac Lab, Kit, CUDA and Torch are user-managed runtime dependencies. The release also provides a self-contained Linux x86_64 Kit archive for Kit 110.1 / Python 3.12; optional native Geometry providers require separate setup.
+
+## Try the checkout
 
 Python 3.10 or newer:
 
@@ -28,7 +39,7 @@ isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --ba
 
 This free-field example needs neither Isaac nor a GPU. The threshold is specific to the example; applications must choose their own. Add `--enable-doa` for direction estimation. Room propagation and planar DOA additionally need `python -m pip install --editable ".[room]"`.
 
-For the published **2.0.0** package, use `python -m pip install "isaac-audio-sensors==2.0.0"` and its matching release documentation. See [Getting started](knowledge/wiki/topics/getting-started.md) for runtime setup and [migration guidance](knowledge/wiki/decisions/product-boundary-and-compatibility.md) for 3.0 API changes.
+See [Getting started](knowledge/wiki/topics/getting-started.md) for runtime setup. The CLI examples require the configuration files from the matching source checkout. Older 2.0 installations require their matching release documentation.
 
 ## Scope and limits
 

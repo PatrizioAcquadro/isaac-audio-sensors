@@ -33,11 +33,11 @@ Current serialized versions and their ownership are listed in [[topics/public-co
 
 The 7.1 assessment adds validation tooling and evidence; it changes no public
 API, tensor shape or serialized version. Consumers upgrading from an older
-revision must adopt the existing unreleased v3 contracts:
+revision must adopt the v3 contracts:
 
 | Consumer assumption | Required adoption |
 | --- | --- |
-| Published package equals this checkout | Select a compatible source revision; 3.0.0 remains unreleased. The local verified Sim/Lab combination is recorded in [[experiments/consumer-audio-operating-envelope|7.1 evidence]], not a blanket version promise. |
+| Published package equals this checkout | Select the matching 3.0.0 package/source revision. The local verified Sim/Lab combination is recorded in [[experiments/consumer-audio-operating-envelope|7.1 evidence]], not a blanket version promise. |
 | Frame v3 or unavailable confidence encoded as zero | Read/write `ias.audio_sensor_frame.v4`; preserve null confidence. Manifest v4, frame-record v2 and calibration v1 remain independent. Older frame versions are rejected; preserve archived originals rather than relabeling their schemas. |
 | Source-conditioned detections or stable source IDs | Consume `AudioObservation`. Signal-derived observation IDs are frame-local event identities, not persistent tracks, source identities or class labels. Association stays downstream. |
 | Six legacy Lab tensors, event RMS or zero meaning unavailable | Consume the current observed tensors with every corresponding mask and truncation count. Null confidence maps to zero with a false confidence mask; a measured zero keeps a true mask. Do not choose ambiguity candidates as selected directions. |
@@ -84,7 +84,7 @@ Version 3 intentionally removes `audio.effects.directivity`, its pattern/frequen
 
 Experimental or private names may change with clear release notes, but downstream project-specific surfaces are not preserved through permanent shims.
 
-## Maintenance removals in unreleased 3.0
+## Maintenance removals in 3.0
 
 Unused lower-level conveniences are removed without aliases: `gcc_phat_delay`,
 `estimate_tdoa_matrix`, `rms_by_channel`, `validate_tdoa_array`, `layout_rank_xy`,

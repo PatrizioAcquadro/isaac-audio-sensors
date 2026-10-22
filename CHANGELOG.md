@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 - Unreleased
+## 3.0.0 - 2026-10-22
 
 ### Contracts and migration
 
@@ -15,6 +15,7 @@
 ### Capabilities
 
 - Added optional mixture-only spatial-coherence selection before sparse localization, with scalar/CUDA and both Lab bindings. It reduces reflected events in bounded single-voice indoor trials; competing voices remain experimental and defaults are preserved.
+- Added explicit localization context and optional WPE preprocessing. The opt-in 16 kHz, 200 ms, no-WPE, .98-coherence profile passes bounded single-voice indoor quality and loaded 10 Hz delivery; multisource recovery, arbitrary rooms and physical transfer remain unqualified.
 - Integrated causal Auditok activity and mixture-only geometry-routed DOA. Bounded 16 kHz planar/3D multisource localization uses WPE/group-sparse estimation; stereo preserves physical ambiguity. Other planar rates retain their single-event role.
 - Added continuous motion, retarded timing/orientation, phase-coherent direct/reflected propagation, and per-microphone direct-path occlusion. Surface-set propagation belongs to optional Geometry Acoustics.
 - Added composed-USD Geometry preparation, native Steam direct/transmission and PRA specular paths, optional selected-route NLOS/diffuse pressure, shared Kit operating controls, and separate simulation diagnostics.
@@ -25,12 +26,13 @@
 ### Maintenance and fixes
 
 - Extended received-PCM validation with dynamic input selection, causal onset responses and active-only quality scoring. Public contracts and runtime perception remain unchanged; compatibility and measured limits are documented in the consumer readiness assessment.
-
+- Reduced native visibility-path and CUDA dispatch overhead, initialized DSP before acquisition, and aligned scalar/CUDA centroid boundaries while preserving the tested signals and observations.
+- Aligned optional SciPy regression coverage with the base and room CI environments.
 - Guided recordings retain the captured microphone order. Replicator enables dispatch only after Start succeeds and disables it before Stop.
 - Kit configuration parses completely before applying state; invalid input preserves the live session. Scalar import/export fields share one definition.
 - Production USD adapters use standard USD methods; test-specific object branches and duplicated attribute readers/writers are removed. Recorder configuration and durable episode state are separate from shard/session orchestration.
 - Kit smoke scenarios are separated by responsibility under one command. Host fixtures retain behavior/callback checks; real rendering and wiring are checked in Kit. Documentation checks scan maintained paths only.
-- Clarified the unreleased checkout versus published 2.0.0 and consolidated current documentation. No acoustic thresholds or localization algorithms changed in this maintenance pass.
+- Updated stable installation and v2-to-v3 migration guidance while preserving the documented acoustic and runtime qualification limits.
 
 ## 2.0.0 - 2026-08-21
 

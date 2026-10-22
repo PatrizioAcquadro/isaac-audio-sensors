@@ -1,6 +1,15 @@
 # Current Status
 
-Updated: 2026-10-14. Package version: `3.0.0`.
+Updated: 2026-10-22. Package version: `3.0.0`.
+
+## 3.0.0 release
+
+Stable release preparation is in progress. The baseline `dedf9e5` passes all four
+GitHub CI lanes. The release documentation passes lint, version synchronization,
+690 unit/contract, 372 integration and 56 release tests. Publication and
+clean-source artifact/runtime checks remain pending. [[topics/validation-and-release|Validation and Release]] owns the gates.
+The v3 release retains the qualification limits below; it does not complete the
+deferred physical, multisource, large-batch or downstream policy work.
 
 ## First-scene combined indoor readiness
 
@@ -28,7 +37,8 @@ The unpaced full profile reaches 1.0879 simulated seconds per real second;
 optimizer/multi-Alex scale, other rooms/materials/body acoustics, elevation,
 receiver translation, arbitrary source levels, physical transfer, actual
 SquadBot head/camera/queue adoption and universal 100 ms lag are not qualified.
-Multisource remains outside this intervention. SDK 3.0.0 is unreleased; no push.
+Multisource remains outside this intervention. These qualification runs predate
+the 3.0.0 release.
 
 Current targeted validation passes 62 host cases, 65 actual CUDA/Isaac cases plus
 an exact captured/eager control, 55 native controls and the combined live gates.
@@ -37,12 +47,11 @@ This pass does not modify historical branch evidence or the failed main-integrat
 
 ## Maintenance validation
 
-The checkout remains **3.0.0 — Unreleased**; the published release remains 2.0.0.
-This pass keeps the existing subsystem layout and removes unused helpers,
+This maintenance pass predates the 3.0.0 release. It keeps the existing subsystem layout and removes unused helpers,
 test-only production branches, duplicate validators and redundant checks.
 Kit configuration is parsed before application; recorder configuration and
 episode serialization have separate ownership. See
-[[decisions/product-boundary-and-compatibility#Maintenance removals in unreleased 3.0|migration details]].
+[[decisions/product-boundary-and-compatibility#Maintenance removals in 3.0|migration details]].
 
 - Host: 672 unit/contract, 348 integration and 56 release tests pass, with lint,
   version synchronization and whitespace checks. Optional room/FLAC execution and
@@ -69,7 +78,6 @@ no new acoustic accuracy, performance or physical qualification is claimed.
 [[implementation_phases/squadbot-audio-runtime-readiness|7.1 is complete as a bounded compatibility and quality assessment]];
 7.2 qualifies the initial free-field profile and the bounded indoor combination
 above under their respective declared loads.
-SDK 3.0.0 remains unreleased.
 The original assessment left perception, public APIs and schemas unchanged;
 downstream dependencies/adapters were not modified. The local Sim `6.0.1-rc.7` /
 Lab `3.0.0` (`2e44ddb2e1`) /
@@ -135,7 +143,7 @@ onset/continuity remain insufficient. The
 [[experiments/consumer-audio-indoor-quality|indoor-quality evidence]] owns the
 frozen configuration, same-PCM historical/direct/WPE comparisons, worst episodes,
 validation and reproducible command. Arbitrary rooms/physical transfer and overlap
-recovery remain open; the first-scene combined runtime is qualified above. SDK 3.0.0 remains unreleased.
+recovery remain open; the first-scene combined runtime is qualified above.
 
 ## Consumer audio performance — 7.2
 

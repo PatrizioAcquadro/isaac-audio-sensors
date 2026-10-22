@@ -8,9 +8,21 @@ Use the pure environment for contracts, configuration, deterministic backends, r
 
 Use the official Isaac Lab launcher for Isaac Sim, Isaac Lab, Kit, GPU, and live-stage validation because those packages are user-managed NVIDIA runtime dependencies rather than PyPI dependencies of this project.
 
+## Install the Stable Package
+
+Install version 3.0.0 from PyPI:
+
+```bash
+python -m pip install "isaac-audio-sensors==3.0.0"
+```
+
+Use `python -m pip install "isaac-audio-sensors[room]==3.0.0"` when room acoustics or planar DOA is required. Isaac runtimes and optional native Geometry providers remain separate installations.
+
+Version 3 breaks the 2.0 contracts; follow [[decisions/product-boundary-and-compatibility|migration guidance]] before upgrading. Older installations need the documentation at their release tag.
+
 ## Install the Checkout
 
-These commands and examples target the unreleased 3.0 checkout. Create an environment from the repository root:
+The examples target the matching 3.0 source checkout. Create an environment from the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -24,8 +36,6 @@ Install approximate room-acoustics support only when needed:
 ```bash
 python -m pip install --editable ".[room]"
 ```
-
-The published package remains 2.0.0. Install it with `python -m pip install "isaac-audio-sensors==2.0.0"` and use the documentation at that release tag; current 3.0 contracts and examples are not interchangeable with 2.0.
 
 Install an audited local wheel with:
 

@@ -596,3 +596,17 @@ whitespace checks pass. Logs remain in
 `build/validation/optional-scipy-ci-20261021-01/`, including the first room command
 that selected system Python by resolving the virtualenv executable symlink.
 The corrected command retains the virtualenv interpreter; runtime source is unchanged.
+
+
+## 2026-10-22 — update: Prepare stable 3.0.0 release
+
+Date both changelogs, document stable PyPI installation and matching checkout
+examples, and update v2-to-v3 migration/status guidance. Preserve historical
+qualification results and all acoustic, physical and downstream boundaries.
+Publication remains pending the clean-source build and packaged Kit gate.
+
+## 2026-10-22 — lint: Validate stable release documentation
+
+Version synchronization, Ruff, whitespace and all documentation-boundary checks
+pass within the complete host gate: 690 unit/contract, 372 integration and 56
+release cases. Wiki index and internal links resolve; raw material is untouched.

@@ -35,7 +35,7 @@ and past experiments are linked from those pages, not required background for ev
 
 Reusable current contracts and workflows; phase pages retain only introductions/outcomes.
 
-- [[topics/getting-started|Getting Started]] — unreleased checkout versus published package, CLI and examples.
+- [[topics/getting-started|Getting Started]] — stable package and matching checkout, CLI and examples.
 - [[topics/system-architecture|System Architecture]] — dependency and responsibility boundaries.
 - [[topics/public-contracts-and-recording|Public Contracts and Recording]] — PCM, frames, truth, schemas, datasets and splits.
 - [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, analytic propagation, effects and perception semantics.
