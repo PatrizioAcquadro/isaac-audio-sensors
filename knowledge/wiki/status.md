@@ -4,10 +4,25 @@ Updated: 2026-10-22. Package version: `3.0.0`.
 
 ## 3.0.0 release
 
-Stable release preparation is in progress. The baseline `dedf9e5` passes all four
-GitHub CI lanes. The release documentation passes lint, version synchronization,
-690 unit/contract, 372 integration and 56 release tests. Publication and
-clean-source artifact/runtime checks remain pending. [[topics/validation-and-release|Validation and Release]] owns the gates.
+Stable 3.0.0 source and artifacts are prepared locally; GitHub/PyPI publication
+is pending. The latest published release is still 2.0.0.
+
+- Baseline `dedf9e5` passes all four GitHub CI lanes.
+- The release host gate passes lint, version synchronization, 690 unit/contract,
+  372 integration and 56 release tests, including documentation boundaries.
+- Clean-source sdist, its derived wheel and the locked-dependency Kit archive
+  pass all artifact audits; both Python distributions pass `twine check`.
+- The exact extracted Kit payload passes all 39 live workflow steps on the
+  RTX 4090, with required screenshots, native Geometry controls, offline bundled
+  dependency origins, Extension Manager enable/disable and clean shutdown.
+  Existing GPU workloads were preserved; this is a functional release check,
+  not a new performance measurement.
+
+Local logs and preserved prior artifacts are in
+`build/validation/release-3.0.0-20261022/`.
+[[topics/validation-and-release|Validation and Release]] owns the remaining
+publication, public-index installation and provenance checks. Community Registry
+discovery/install remains a separate external gate.
 The v3 release retains the qualification limits below; it does not complete the
 deferred physical, multisource, large-batch or downstream policy work.
 

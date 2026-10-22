@@ -610,3 +610,17 @@ Publication remains pending the clean-source build and packaged Kit gate.
 Version synchronization, Ruff, whitespace and all documentation-boundary checks
 pass within the complete host gate: 690 unit/contract, 372 integration and 56
 release cases. Wiki index and internal links resolve; raw material is untouched.
+
+
+## 2026-10-22 — update: Validate stable 3.0.0 distribution
+
+The clean-source sdist, derived wheel and locked Kit archive pass all audits and
+Python metadata checks. The extracted archive passes 39 real RTX 4090 Kit steps,
+including screenshots, offline bundled origins, native Geometry, enable/disable
+and shutdown. Publication remains pending; no registry or physical claim is added.
+
+## 2026-10-22 — lint: Verify release evidence and boundaries
+
+Current release status matches the host/build logs and packaged Kit report.
+Wiki inventory, links, version synchronization and Markdown whitespace pass.
+Historical outcomes and immutable raw inputs remain preserved.
