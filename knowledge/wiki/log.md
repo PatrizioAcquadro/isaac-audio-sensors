@@ -624,3 +624,20 @@ and shutdown. Publication remains pending; no registry or physical claim is adde
 Current release status matches the host/build logs and packaged Kit report.
 Wiki inventory, links, version synchronization and Markdown whitespace pass.
 Historical outcomes and immutable raw inputs remain preserved.
+
+
+## 2026-10-22 — update: Publish stable v3.0.0 GitHub release
+
+Pushed the authorized release commits and published latest immutable `v3.0.0` at
+`9aeaea4`. The Kit asset matches its local SHA-256 and the release source passes
+all four CI lanes. Trusted Publishing passes build/audit, but the PyPI upload
+remains queued without a runner or exposed deployment approval. PyPI 3.0.0 is
+not yet available; public-index install/provenance and registry checks remain
+unverified. Keep the existing workflow active rather than creating another run.
+
+## 2026-10-22 — lint: Validate GitHub publication checkpoint
+
+The seven documentation/version checks, version synchronization and whitespace
+checks pass. Status distinguishes the published GitHub release from the queued
+PyPI upload and unverified public-index/registry gates; existing pages stay in
+the index and raw material remains untouched.

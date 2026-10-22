@@ -124,13 +124,18 @@ Historical empty-entity timing did not establish active perception throughput.
 
 Built sdist then wheel, isolated installation and protected OIDC release workflow; published v2.0.0 at `583d66e` with the validated Kit asset.
 
+On 2026-10-22, published the stable, latest, immutable GitHub `v3.0.0` release at
+`9aeaea4` with the audited Linux Kit asset. The release-source CI and automated
+clean-source build pass. The protected PyPI upload is queued for a runner;
+[[status#3.0.0 release|Current Status]] owns the publication checkpoint and gates.
+
 #### Key Decisions
 
 Production publication requires a matching non-prerelease GitHub Release/protected environment. Later maintenance removed manual TestPyPI publication.
 
 #### Problems / Limitations
 
-Current package is 3.0.0; this historical release is not evidence of later publication. Community Registry discovery was still pending at that closeout.
+The v2 publication is historical evidence only. The v3 PyPI upload and public-index verification are pending at the checkpoint above. Community Registry discovery/install remains unverified.
 
 ## Artifacts
 

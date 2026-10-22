@@ -4,8 +4,10 @@ Updated: 2026-10-22. Package version: `3.0.0`.
 
 ## 3.0.0 release
 
-Stable 3.0.0 source and artifacts are prepared locally; GitHub/PyPI publication
-is pending. The latest published release is still 2.0.0.
+The [stable GitHub release v3.0.0](https://github.com/PatrizioAcquadro/isaac-audio-sensors/releases/tag/v3.0.0)
+is published, latest and immutable at `9aeaea4579be285c189aa43ff37d68a5d936c513`.
+Its Kit asset digest matches the locally audited archive. All four release-source
+CI lanes pass.
 
 - Baseline `dedf9e5` passes all four GitHub CI lanes.
 - The release host gate passes lint, version synchronization, 690 unit/contract,
@@ -20,9 +22,14 @@ is pending. The latest published release is still 2.0.0.
 
 Local logs and preserved prior artifacts are in
 `build/validation/release-3.0.0-20261022/`.
-[[topics/validation-and-release|Validation and Release]] owns the remaining
-publication, public-index installation and provenance checks. Community Registry
-discovery/install remains a separate external gate.
+The [Trusted Publishing workflow](https://github.com/PatrizioAcquadro/isaac-audio-sensors/actions/runs/39832955999)
+passes its clean-source build/audit job. At the 2026-10-22 publication checkpoint,
+the PyPI upload job is queued without a GitHub-hosted runner; no deployment
+approval is exposed. PyPI 3.0.0 is not yet available. The workflow remains active
+and includes base Python 3.10–3.12 plus Python 3.12 room/FLAC installation checks.
+Public-index installation and Integrity API provenance remain unverified.
+[[topics/validation-and-release|Validation and Release]] owns these remaining
+checks. Community Registry discovery/install remains a separate external gate.
 The v3 release retains the qualification limits below; it does not complete the
 deferred physical, multisource, large-batch or downstream policy work.
 

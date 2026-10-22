@@ -23,7 +23,7 @@ and past experiments are linked from those pages, not required background for ev
 - [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary]] — campaign/source/distribution separation.
 - [[implementation_phases/r4-documentation-consolidation|R4 Knowledge Organization]] — canonical ownership and efficient reading.
 - [[implementation_phases/r5-semantic-component-refactor|R5 Runtime Ownership]] — historical subsystem refactor.
-- [[implementation_phases/r6-packaging-and-release|R6 Release]] — clean-source delivery and historical publication.
+- [[implementation_phases/r6-packaging-and-release|R6 Release]] — clean-source delivery, historical publication and v3 release checkpoint.
 - [[implementation_phases/r7-acoustic-environment-contract|R7 Environments]] — explicit topology and fail-closed resolution.
 - [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic]] — routing, continuous timing and bounded direct occlusion.
 - [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
