@@ -61,7 +61,7 @@ room = [
 isaac-audio-sensors = "isaac_audio_sensors.cli:main"
 
 [project.urls]
-Homepage = "https://isaac-audio-showcase-site.vercel.app"
+Homepage = "https://isaac-audio.vercel.app"
 Documentation = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/blob/main/knowledge/wiki/index.md"
 Source = "https://github.com/PatrizioAcquadro/isaac-audio-sensors"
 Issues = "https://github.com/PatrizioAcquadro/isaac-audio-sensors/issues"
