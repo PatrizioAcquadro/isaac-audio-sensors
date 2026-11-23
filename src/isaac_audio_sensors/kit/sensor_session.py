@@ -439,12 +439,29 @@ class SensorSession(ControllerService):
     def _build_sensor(self, stage: Any) -> IsaacAudioArraySensor:
         state = self.state
         self._validate_runtime_state()
-        geometry_inputs = (
+        backend_options = (
             self._host._geometry.sensor_inputs(stage)
             if state.backend == "geometry_acoustics"
-            else {}
+            else dict(
+                occlusion_enabled=state.occlusion_enabled,
+                analytic_max_order=state.analytic_max_order,
+                analytic_air_absorption=state.analytic_air_absorption,
+                analytic_ray_tracing=state.analytic_ray_tracing,
+            )
         )
         environment_resolution_cfg, environment = self._environment_inputs()
+        options = dict(
+            stage=stage,
+            backend=state.backend,
+            update_period_s=state.update_period_s,
+            max_observations=state.max_observations,
+            energy_threshold_dbfs=state.energy_threshold_dbfs,
+            doa_enabled=state.doa_enabled,
+            debug_draw=state.debug_overlay_enabled,
+            environment=environment,
+            environment_resolution_cfg=environment_resolution_cfg,
+            **backend_options,
+        )
         explicit_array_available = bool(
             state.array_prim_path.strip()
         ) and _stage_has_prim(stage, state.array_prim_path)
@@ -455,27 +472,10 @@ class SensorSession(ControllerService):
                 else None
             )
             sensor = IsaacAudioArraySensor.from_stage(
-                stage=stage,
                 array_prim_path=state.array_prim_path,
                 source_prim_path=explicit_source,
                 robot_base_prim_path=state.robot_base_prim_path or None,
-                backend=state.backend,
-                update_period_s=state.update_period_s,
-                max_observations=state.max_observations,
-                energy_threshold_dbfs=state.energy_threshold_dbfs,
-                doa_enabled=state.doa_enabled,
-                debug_draw=state.debug_overlay_enabled,
-                **(
-                    geometry_inputs
-                    or dict(
-                        occlusion_enabled=state.occlusion_enabled,
-                        analytic_max_order=state.analytic_max_order,
-                        analytic_air_absorption=state.analytic_air_absorption,
-                        analytic_ray_tracing=state.analytic_ray_tracing,
-                    )
-                ),
-                environment=environment,
-                environment_resolution_cfg=environment_resolution_cfg,
+                **options,
             )
         else:
             binding_cfg = IsaacAudioSceneBindingCfg(
@@ -487,25 +487,8 @@ class SensorSession(ControllerService):
                 preferred_source=None,
             )
             sensor = IsaacAudioArraySensor.from_discovered_stage(
-                stage=stage,
                 binding_cfg=binding_cfg,
-                backend=state.backend,
-                update_period_s=state.update_period_s,
-                max_observations=state.max_observations,
-                energy_threshold_dbfs=state.energy_threshold_dbfs,
-                doa_enabled=state.doa_enabled,
-                debug_draw=state.debug_overlay_enabled,
-                **(
-                    geometry_inputs
-                    or dict(
-                        occlusion_enabled=state.occlusion_enabled,
-                        analytic_max_order=state.analytic_max_order,
-                        analytic_air_absorption=state.analytic_air_absorption,
-                        analytic_ray_tracing=state.analytic_ray_tracing,
-                    )
-                ),
-                environment=environment,
-                environment_resolution_cfg=environment_resolution_cfg,
+                **options,
             )
         sensor.waveform_sink = self._waveform_sink_or_none(sensor.array_id)
         if sensor.array_prim_path:

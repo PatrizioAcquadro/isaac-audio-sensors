@@ -719,14 +719,6 @@ class GuidedWorkflow:
             return finding.check_id.startswith(rule.match_value)
         return rule.match_kind == "default"
 
-    @staticmethod
-    def _field_for_finding(finding: ValidationFinding) -> str:
-        if finding.field:
-            return finding.field
-        if finding.check_id == "stage_present":
-            return "stage"
-        return "guided_stage"
-
     def _mirror_stage(self) -> None:
         self.state.guided_stage = self.current_stage.value
 

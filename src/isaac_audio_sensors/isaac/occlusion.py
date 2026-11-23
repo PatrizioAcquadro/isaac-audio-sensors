@@ -471,7 +471,7 @@ class UsdTransmissionLossResolver:
                 "transmission_db",
                 application=f"occluder {prim_path!r} attribute {attr_name}",
             )
-            return _loss_from_resolution(resolution, legacy_material=False)
+            return _loss_from_resolution(resolution)
         bound_path, bound_prim = _bound_material(prim)
         if bound_prim is None:
             return None
@@ -486,7 +486,7 @@ class UsdTransmissionLossResolver:
                     f"bound material {bound_path!r} for occluder {prim_path!r}"
                 ),
             )
-            return _loss_from_resolution(resolution, legacy_material=False)
+            return _loss_from_resolution(resolution)
         return None
 
     def _preset_loss(
@@ -989,20 +989,11 @@ def _validated_transmission_vector(
     return resolved
 
 
-def _loss_from_resolution(
-    resolution: MaterialResolution,
-    *,
-    legacy_material: bool,
-) -> TransmissionLoss:
-    material = (
-        resolution.material_id.removeprefix("nominal.")
-        if legacy_material
-        else resolution.material_id
-    )
+def _loss_from_resolution(resolution: MaterialResolution) -> TransmissionLoss:
     return TransmissionLoss(
         broadband_db=sum(resolution.values) / len(resolution.values),
         band_db=resolution.values,
-        material=material,
+        material=resolution.material_id,
         material_id=resolution.material_id,
         evidence=resolution.evidence,
         citation=resolution.citation,

@@ -5,9 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from isaac_audio_sensors.isaac.pose_resolver import (
-    prim_path,
-)
+from isaac_audio_sensors.isaac.pose_resolver import prim_path, usd_path
 
 
 def _step(evidence: dict[str, Any], name: str, callback: Any) -> Any:
@@ -72,23 +70,12 @@ def _stage_has_prim(stage: Any, path: str) -> bool:
 def _stage_get_prim_at_path(stage: Any, path: str) -> Any | None:
     if not hasattr(stage, "GetPrimAtPath"):
         return None
-    for candidate_path in (_usd_path(path), path):
+    for candidate_path in (usd_path(path), path):
         try:
             return stage.GetPrimAtPath(candidate_path)
         except TypeError:
             continue
     return None
-
-
-def _usd_path(path: str) -> Any:
-    try:
-        from pxr import Sdf  # type: ignore
-    except ImportError:
-        return path
-    try:
-        return Sdf.Path(path)
-    except Exception:
-        return path
 
 
 def _pump_kit_app(app: Any, *, updates: int = 4) -> dict[str, Any]:
