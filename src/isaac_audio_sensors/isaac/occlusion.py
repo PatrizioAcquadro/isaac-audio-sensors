@@ -21,7 +21,6 @@ from typing import Any, Protocol
 
 from isaac_audio_sensors.core.acoustics.materials import (
     LEGACY_MATERIAL_ALIASES,
-    MaterialResolution,
     resolve_material,
     resolve_material_coefficients,
 )
@@ -332,12 +331,11 @@ class IsaacPhysxRaycaster:
 
 
 class UsdTransmissionLossResolver:
-    """Default per-hit loss lookup: USD attrs, presets, then nominal fallback.
+    """Resolve explicit loss, material IDs, path presets, then the nominal fallback.
 
-    Precedence per blocking prim: explicit ``ias:transmission_loss_db`` /
-    ``ias:transmission_loss_db_bands`` attributes on the hit prim (when a
-    stage is available), then a preset matched case-insensitively against the
-    bound-material name or prim-path tokens, then ``unknown_material_loss_db``.
+    A collider's explicit loss takes precedence over its bound material's loss.
+    For material IDs the collider also takes precedence. Name-based presets
+    prefer the bound material path over the collider path.
     """
 
     def __init__(
@@ -380,20 +378,23 @@ class UsdTransmissionLossResolver:
             )
             if bound_explicit is not None:
                 return bound_explicit
-        referenced = self._referenced_material_loss(prim, prim_path=prim_path)
-        if referenced is not None:
-            return referenced
-        preset = self._preset_loss(prim, prim_path)
+        for owner, label in (
+            (prim, f"occluder {prim_path!r}"),
+            (bound_prim, f"bound material {bound_path!r} for occluder {prim_path!r}"),
+        ):
+            referenced = _referenced_material_loss(owner, label)
+            if referenced is not None:
+                return referenced
+        preset = self._preset_loss(bound_path, prim_path)
         if preset is not None:
             return preset
-        fallback = TransmissionLoss(
+        return TransmissionLoss(
             broadband_db=self.unknown_material_loss_db,
             material_id=(
                 f"configured_unknown_material:{self.unknown_material_loss_db:g}-db"
             ),
             unknown_material_fallback=True,
         )
-        return fallback
 
     def partition_id_for(self, prim_path: str) -> str:
         """Resolve one authored acoustic partition or use the collider path."""
@@ -454,50 +455,14 @@ class UsdTransmissionLossResolver:
             )
         return None
 
-    def _referenced_material_loss(
-        self,
-        prim: Any | None,
-        *,
-        prim_path: str,
-    ) -> TransmissionLoss | None:
-        if prim is None:
-            return None
-        for attr_name in (ACOUSTIC_MATERIAL_ID_ATTR, "ias:material"):
-            value = _prim_attr(prim, attr_name)
-            if value is None or not str(value).strip():
-                continue
-            resolution = resolve_material_coefficients(
-                str(value),
-                "transmission_db",
-                application=f"occluder {prim_path!r} attribute {attr_name}",
-            )
-            return _loss_from_resolution(resolution)
-        bound_path, bound_prim = _bound_material(prim)
-        if bound_prim is None:
-            return None
-        for attr_name in (ACOUSTIC_MATERIAL_ID_ATTR, "ias:material"):
-            value = _prim_attr(bound_prim, attr_name)
-            if value is None or not str(value).strip():
-                continue
-            resolution = resolve_material_coefficients(
-                str(value),
-                "transmission_db",
-                application=(
-                    f"bound material {bound_path!r} for occluder {prim_path!r}"
-                ),
-            )
-            return _loss_from_resolution(resolution)
-        return None
-
     def _preset_loss(
         self,
-        prim: Any | None,
+        bound_path: str | None,
         prim_path: str,
     ) -> TransmissionLoss | None:
         candidates = [prim_path.lower()]
-        material_name = _bound_material_name(prim)
-        if material_name:
-            candidates.insert(0, material_name.lower())
+        if bound_path:
+            candidates.insert(0, bound_path.lower())
         for candidate in candidates:
             for token, bands in self.presets.items():
                 if token.lower() in candidate:
@@ -925,13 +890,6 @@ def _prim_attr(prim: Any, name: str) -> Any | None:
     return None
 
 
-def _bound_material_name(prim: Any) -> str | None:
-    """Best-effort bound-material name for preset matching."""
-
-    path, _material_prim = _bound_material(prim)
-    return path
-
-
 def _bound_material(prim: Any) -> tuple[str | None, Any | None]:
     """Best-effort bound material path and prim for exact-id resolution."""
 
@@ -989,15 +947,25 @@ def _validated_transmission_vector(
     return resolved
 
 
-def _loss_from_resolution(resolution: MaterialResolution) -> TransmissionLoss:
-    return TransmissionLoss(
-        broadband_db=sum(resolution.values) / len(resolution.values),
-        band_db=resolution.values,
-        material=resolution.material_id,
-        material_id=resolution.material_id,
-        evidence=resolution.evidence,
-        citation=resolution.citation,
-    )
+def _referenced_material_loss(prim: Any | None, label: str) -> TransmissionLoss | None:
+    if prim is None:
+        return None
+    for attr_name in (ACOUSTIC_MATERIAL_ID_ATTR, "ias:material"):
+        value = _prim_attr(prim, attr_name)
+        if value is None or not str(value).strip():
+            continue
+        resolution = resolve_material_coefficients(
+            str(value), "transmission_db", application=f"{label} attribute {attr_name}"
+        )
+        return TransmissionLoss(
+            broadband_db=sum(resolution.values) / len(resolution.values),
+            band_db=resolution.values,
+            material=resolution.material_id,
+            material_id=resolution.material_id,
+            evidence=resolution.evidence,
+            citation=resolution.citation,
+        )
+    return None
 
 
 def _carb_vec3(value: Vector3) -> Any:

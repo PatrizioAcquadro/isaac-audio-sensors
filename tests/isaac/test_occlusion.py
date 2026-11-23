@@ -598,6 +598,33 @@ def test_compute_scene_occlusion_resolves_material_bands_from_path():
     assert diagnostics["unknown_material_fallbacks"] == []
 
 
+def test_usd_bound_material_and_collider_loss_precedence():
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    stage = Usd.Stage.CreateInMemory()
+    wall = UsdGeom.Cube.Define(stage, "/Concrete").GetPrim()
+    material = UsdShade.Material.Define(stage, "/Glass")
+    UsdShade.MaterialBindingAPI.Apply(wall).Bind(material)
+    resolver = UsdTransmissionLossResolver(stage)
+    path = str(wall.GetPath())
+
+    assert resolver.loss_for(path).material_id == "nominal.glass"
+    material.GetPrim().CreateAttribute("ias:material", Sdf.ValueTypeNames.String).Set(
+        "wood"
+    )
+    assert resolver.loss_for(path).material_id == "nominal.wood"
+    wall.CreateAttribute("ias:acoustic_material_id", Sdf.ValueTypeNames.String).Set(
+        "nominal.brick"
+    )
+    assert resolver.loss_for(path).material_id == "nominal.brick"
+
+    attr = "ias:transmission_loss_db"
+    material.GetPrim().CreateAttribute(attr, Sdf.ValueTypeNames.Double).Set(9.0)
+    assert resolver.loss_for(path).broadband_db == 9.0
+    wall.CreateAttribute(attr, Sdf.ValueTypeNames.Double).Set(16.0)
+    assert resolver.loss_for(path).broadband_db == 16.0
+
+
 def _per_mic_record(
     *,
     source_id: str = "speaker_a",
