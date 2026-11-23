@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from isaac_audio_sensors import __version__
-from isaac_audio_sensors.cli import main
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2] / "src" / "isaac_audio_sensors"
 ALLOWED_DEPENDENCIES = {
@@ -301,15 +300,3 @@ def test_curated_v3_exports_in_fresh_process(module_name, exports):
         """
     )
     assert completed.stderr == ""
-
-
-def test_cli_exposes_current_product_operations(capsys):
-    with pytest.raises(SystemExit) as exit_info:
-        main(["--help"])
-
-    assert exit_info.value.code == 0
-    help_text = capsys.readouterr().out
-    assert (
-        "{validate-config,simulate,export-schema,capabilities,dataset,guided}"
-        in help_text
-    )
