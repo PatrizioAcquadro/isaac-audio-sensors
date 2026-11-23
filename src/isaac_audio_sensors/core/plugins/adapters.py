@@ -62,9 +62,7 @@ class GccPhatLeastSquaresEstimator:
                 reliability=0.0,
                 threshold=self.minimum_reliability,
             )
-        from isaac_audio_sensors.core.backends._analytic.doa import (
-            estimate_doa_from_delays,
-        )
+        from isaac_audio_sensors.core.doa._tdoa import estimate_doa_from_delays
         from isaac_audio_sensors.core.doa.gcc_phat import (
             estimate_tdoa_diagnostics,
             relative_delays_from_tdoa_matrix,

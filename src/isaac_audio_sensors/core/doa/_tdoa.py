@@ -1,4 +1,4 @@
-"""Direct-path TDOA localization used internally by AnalyticAcoustics."""
+"""Direction estimates from observed inter-microphone delays."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def estimate_doa_from_delays(
     per_mic_delay_s: dict[str, float],
     speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS,
 ) -> DoaEstimate:
-    """Estimate direction from direct-path per-microphone delays."""
+    """Estimate direction from per-microphone arrival delays."""
 
     if len(sensor.microphones) == 2:
         return _estimate_two_mic(

@@ -4,9 +4,7 @@ import math
 
 import pytest
 
-from isaac_audio_sensors.core.backends._analytic.doa import (
-    estimate_doa_from_delays,
-)
+from isaac_audio_sensors.core.doa._tdoa import estimate_doa_from_delays
 from isaac_audio_sensors.core.types import MicrophoneArraySpec, MicrophoneSpec
 
 SPEED_OF_SOUND_MPS = 343.0
