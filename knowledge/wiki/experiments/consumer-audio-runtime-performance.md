@@ -503,12 +503,13 @@ Ten-millisecond reference bins and 100 ms observation quantization limit precisi
 `nvidia-smi pmon` samples external compute and graphics activity throughout. A
 sample with another compute client or >=5% external SM activity makes that run
 contaminated and unsuitable for qualification. Unknown/failed monitoring also
-prevents qualification. Desktop clients and raw samples are retained. The lock
-coordinates these two chats; it cannot reserve the machine from other users.
+prevents qualification. Desktop clients and raw samples are retained. The advisory lock coordinates benchmark processes that use it. External GPU work is monitored independently.
 
-Integrated-main checks and the new native-room timing failure are recorded in
-[[implementation_phases/squadbot-audio-runtime-readiness#Integration on main — 2026-10-14|integration validation]].
-The original runtime worktree retains all historical artifacts listed below.
+## Integrated native-room probe — 2026-10-14
+
+Replaying three preserved indoor joint-motion episodes on the integrated revision gave 237 paired updates with identical activity and counts. Scalar outputs and quality summaries matched the branch report. The largest change in CUDA direction or angular error was 0.00000763 degrees. The original fresh-branch count discrepancy could not be replayed.
+
+In a separate loaded probe, a 6 × 5 × 3 m native room used absorption 0.4, zero scattering, third-order specular reflections, one voice, and a shared 30 Hz camera. In five simulated seconds it produced 50 scheduled observations at 1.43 updates per real second. Steady SDK time was 140.26 ms at p95 and backlog grew. The post-reset second recorded one discontinuity, also observed in the original procedure. This failure preceded the combined indoor qualification. The integrated probe is retained under `build/validation/main-branch-integration-20261014-01/`.
 
 ## Reproduction and indoor handoff
 
@@ -548,12 +549,6 @@ source trajectories and camera cadence. Repeat the selected indoor quality compa
 identical received PCM and retain current-time quality, errors and misses.
 These branch results cannot qualify a future localizer/configuration by transfer.
 
-Artifacts are separate under this worktree's ignored
-`build/validation/runtime-performance/`: baseline/optimized 60 Hz render reports,
-four clean `interactive30-*` qualifications, scale reports and clean repeats,
-received PCM and all public observation tensors, lifecycle rows/onsets,
-`observation-preservation.json`, native-stage controls, profiled scopes/traces,
-GPU monitor samples and validation logs. Failed `dev-*` and contaminated runs
-remain intact. Originals in the main checkout and `knowledge/raw/` are untouched.
+The original runtime worktree stored baseline and optimized runs, the four clean interactive trials, scale repeats, received PCM, observations, traces, and failed or contaminated attempts under its ignored `build/validation/runtime-performance/`. The recorded worktree path is no longer present on the audit machine. The tables above preserve the results. [[implementation_phases/squadbot-audio-runtime-readiness#Artifacts|Artifact locations]]
 
 [[index|Wiki index]]

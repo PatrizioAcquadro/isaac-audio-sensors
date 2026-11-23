@@ -67,7 +67,7 @@ isaac-audio-sensors simulate examples/configs/isaac_audio_sensors_demo.toml --ba
 isaac-audio-sensors export-schema --out build/validation/isaac_audio_sensors/audio_sensor_frame.v4.schema.json
 ```
 
-Each configured array owns its `sample_rate_hz`; the selected array determines the frame rate and sample count. `simulate` requires `--energy-threshold-dbfs` and resolves the registered Auditok detector at runtime. The value does not belong to TOML, and `-60` is specific to the maintained generated-signal example rather than a universal default. Auditok's initial 100 ms minimum activity means a first 50 ms block may legitimately have no observation. Use `--max-observations` to limit only the observed output after perception. Omitting it is unlimited, and `--max-observations 0` still runs detection and renders the complete soundscape and aggregate RMS while suppressing final observations. The removed `[audio].sample_rate_hz`, `--max-events`, `--max-detections`, and `--timestamp-ms` inputs are rejected rather than translated.
+The selected array sets the sample rate. Choose an activity threshold for your signal level. Here `-60` dBFS works for the generated example. Auditok requires 100 ms of activity, so an initial 50 ms block can be empty. Use `--enable-doa` for direction estimates. The optional `--max-observations` limits reported events after perception.
 
 The CLI also exposes capability reporting, dataset validation/statistics/splitting, and the guided headless workflow; run `isaac-audio-sensors --help` and the relevant subcommand help for the current arguments.
 
@@ -95,22 +95,6 @@ The Core examples use generated audio identifiers, write no persistent output, a
 
 Isaac examples under `examples/isaac_sim/` and `examples/isaac_lab/` are concise recipes for initialized compatible runtimes. The end-to-end GPU workflows remain under `tools/smoke/` and are invoked through the maintained commands below.
 
-## Isaac Runtime Commands
+## Isaac runtime and development
 
-The supported default launcher is `~/IsaacLab/isaaclab.sh -p`, selected by `ISAAC_LAB_PYTHON` when a different installation is required.
-
-Run live gates from a shell without an activated venv or Conda environment so the launcher does not select an interpreter that lacks the Isaac packages.
-
-```bash
-make smoke-isaac-sim
-make smoke-isaac-lab
-make smoke-kit
-```
-
-The Isaac Lab smoke explicitly requires CUDA and fails instead of silently using CPU.
-
-## Development Workflow
-
-Use [[topics/validation-and-release|Validation and Release]] for the maintained test, lint, build, and archive gates.
-
-Keep the pure core import-safe, keep optional dependencies lazy, update the canonical wiki for material public behavior changes, and do not add generated media, private recordings, absolute workstation paths, or downstream task policy to tracked product documentation.
+The live Sim, Lab, and Kit workflows run through the Isaac Lab launcher. Follow [validation and release](validation-and-release.md#live-runtime-gates) for commands, GPU checks and required working directories. For API changes, consult the [architecture](system-architecture.md) and [compatibility guide](../decisions/product-boundary-and-compatibility.md).

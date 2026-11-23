@@ -1,75 +1,72 @@
 # Technical Wiki
 
-Start with [[status|Current Status]]. Read other pages only for the task at hand.
-For Phase 08 implementation: [[implementation_phases/08-geometry-acoustics-integration|sequence]]
-→ [[implementation_phases/r10-geometry-acoustics-integration|work/exit gates]] →
-[[decisions/robot-audition-fidelity|approved domain, budgets and diagnostic criteria]]. Native details
-and past experiments are linked from those pages, not required background for every task.
+[Current status](status.md) summarizes what is available, the conditions in which it was validated, and the open issues. [Getting started](topics/getting-started.md) covers installation and the first runnable example.
 
-## Implementation Phases
-
-- [[implementation_phases/01-geometry-provider-qualification|01 Provider Qualification]] — completed R9 sequencing.
-- [[implementation_phases/02-signal-and-perception-architecture|02 Signal/Perception]] — completed observed-only separation.
-- [[implementation_phases/03-audio-activity-detection|03 Activity]] — fixed-threshold Auditok and explicit limits.
-- [[implementation_phases/04-observed-direction-estimation|04 Direction]] — nominal roles and bounded multisource; temporal gaps remain.
-- [[implementation_phases/05-ground-truth-and-learning-datasets|05 Datasets]] — independent truth, learning inputs and splits.
-- [[implementation_phases/06-simulated-and-real-signal-parity|06 Signal Parity]] — common semantics, physical integration and comparison.
-- [[implementation_phases/07-isaac-lab-observation-integration|07 Lab/GUI]] — observed tensors, CUDA reference preservation and consumer closeout.
-- [[implementation_phases/08-geometry-acoustics-integration|08 Geometry Sequence]] — 08.1–08.3 complete within declared bounds, including actual RTX operation and audited distribution.
-- [[implementation_phases/09-practical-realism-and-randomization|09 Realism]] — planned consumer-justified variation.
-- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 Product Closeout]] — planned complete supported-system validation.
-- [[implementation_phases/11-future-semantic-perception|11 Specialized Perception]] — deferred classification/tracking/separation.
-- [[implementation_phases/r2-fast-test-architecture|R2 Test Lanes]] — semantic validation ownership.
-- [[implementation_phases/r3-product-boundary-cleanup|R3 Product Boundary]] — campaign/source/distribution separation.
-- [[implementation_phases/r4-documentation-consolidation|R4 Knowledge Organization]] — canonical ownership and efficient reading.
-- [[implementation_phases/r5-semantic-component-refactor|R5 Runtime Ownership]] — historical subsystem refactor.
-- [[implementation_phases/r6-packaging-and-release|R6 Release]] — clean-source delivery, historical publication and v3 release checkpoint.
-- [[implementation_phases/r7-acoustic-environment-contract|R7 Environments]] — explicit topology and fail-closed resolution.
-- [[implementation_phases/r8-analytic-acoustics-backend|R8 Analytic]] — routing, continuous timing and bounded direct occlusion.
-- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 Selection]] — retained provider roles and corrected admission claims.
-- [[implementation_phases/r10-geometry-acoustics-integration|R10 Implementation]] — current Geometry work and completion gates.
-
-- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer Audio Runtime Readiness]] — bounded combined one-voice indoor quality and 10 Hz delivery, optional handoff and remaining consumer/physical/scale limits.
+| I want to… | Start here |
+| --- | --- |
+| Simulate an array from Python or the CLI | [First CLI workflow](topics/getting-started.md#first-cli-workflow) · [Acoustic modeling](topics/acoustic-modeling.md) |
+| Record, replay, or prepare a dataset | [Public contracts and recording](topics/public-contracts-and-recording.md) |
+| Attach a sensor in Isaac Sim or author a scene in Kit | [Sim and Kit](topics/isaac-sim-and-kit.md) · [Native Geometry setup](topics/geometry-acoustics.md) |
+| Use audio observations in Isaac Lab | [Lab integration](topics/isaac-lab-integration.md) |
+| Develop or validate a change | [System architecture](topics/system-architecture.md) · [Validation and release](topics/validation-and-release.md) |
 
 ## Topics
 
-Reusable current contracts and workflows; phase pages retain only introductions/outcomes.
-
-- [[topics/getting-started|Getting Started]] — stable package and matching checkout, CLI and examples.
-- [[topics/system-architecture|System Architecture]] — dependency and responsibility boundaries.
-- [[topics/public-contracts-and-recording|Public Contracts and Recording]] — PCM, frames, truth, schemas, datasets and splits.
-- [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, analytic propagation, effects and perception semantics.
-- [[topics/geometry-acoustics|Geometry Acoustics]] — prepared USD/materials, native ownership, build and configuration.
-- [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — live sensor, authoring, instrumentation and lifecycle.
-- [[topics/isaac-lab-integration|Isaac Lab Integration]] — current tensor/binding/clock contract.
-- [[topics/validation-and-release|Validation and Release]] — maintained commands, optional-dependency CI ownership, runtime gates and artifact audits.
-- [[topics/onr-video-production|ONR Video Production]] — delivered 1–6, warehouse multisource and Garage material-comparison evidence, material/listening cues and shared instruments/FOV/direct-path styling and remaining scene/media gates.
-
-## Key Decisions
-
-- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — approved scope/budgets, binding invariants, accepted cube/mirror and unvalidated full-room limits, Step 3 admission and provider stop rule.
-- [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival model, libraries and motion/lifecycle approximations.
-- [[decisions/minimal-maintained-repository-surface|Minimal Maintained Surface]] — consumer-proven implementation/cleanup principle.
-- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces, 3.0 migrations and maintenance removals.
+- [[status|Current Status]] — supported workflows, measured performance, open issues, and distribution.
+- [[topics/getting-started|Getting Started]] — runtime choice, installation, CLI, and examples.
+- [[topics/system-architecture|System Architecture]] — component responsibilities, data flow, and dependencies.
+- [[topics/acoustic-modeling|Acoustic Modeling]] — arrays, analytic propagation, effects, and perception.
+- [[topics/geometry-acoustics|Geometry Acoustics]] — USD preparation, materials, native providers, and configuration.
+- [[topics/public-contracts-and-recording|Public Contracts and Recording]] — signals, frames, truth, datasets, and splits.
+- [[topics/isaac-sim-and-kit|Isaac Sim and Kit]] — live sensors, authoring, instruments, and lifecycle.
+- [[topics/isaac-lab-integration|Isaac Lab Integration]] — bindings, tensors, masks, and clocks.
+- [[topics/validation-and-release|Validation and Release]] — host checks, GPU checks, builds, and artifact audits.
+- [[topics/onr-video-production|ONR Video Production]] — delivered demonstrations, evidence, and remaining reviews.
 
 ## Experiments
 
-Read for a specific result/reference; these pages do not add requirements.
+- [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — selection evidence and alternatives inspected.
+- [[experiments/geometry-acoustics-trial-protocol|Geometry Trial Protocol]] — fixtures, controlled references, and preparation limits.
+- [[experiments/geometry-acoustics-admission|Geometry Admission]] — native and RTX results, motion controls, and unresolved room equivalence.
+- [[experiments/04-4-multisource-localization|Multisource Localization]] — stable-source reference and failed temporal candidates.
+- [[experiments/lab-perception-runtime|Lab Perception Runtime]] — scalar/CUDA parity, numerical corrections, and batch cost.
+- [[experiments/consumer-audio-operating-envelope|Operating Envelope]] — baseline natural-speech quality under motion and competition.
+- [[experiments/consumer-audio-dynamic-quality|Dynamic Audio Quality]] — context selection, independent confirmations, and lag.
+- [[experiments/consumer-audio-indoor-quality|Indoor Audio Quality]] — spatial coherence, single-voice gains, and weak-voice failures.
+- [[experiments/consumer-audio-runtime-performance|Runtime Performance]] — combined quality and delivery under load, clocks, and scaling.
+- [[experiments/physical-signal-comparison|Physical Signal Comparison]] — real/simulated signal parity and level mismatch.
 
-- [[experiments/geometry-acoustics-admission|Geometry Admission]] — 08.2 completion evidence, combined native/RTX stream checks, retained motion/room controls and full-room moving equivalence explicitly NOT VALIDATED.
-- [[experiments/geometry-acoustics-trial-protocol|Geometry Simulation Fixtures]] — prepared simulation inputs, controlled references and measured preparation limits.
-- [[experiments/acoustic-provider-evaluation|Provider Evaluation]] — executed versus inspected alternatives and selection limits.
-- [[experiments/04-4-multisource-localization|Multisource Localization]] — accepted stable-source reference and rejected temporal candidates.
-- [[experiments/lab-perception-runtime|Lab Runtime]] — scalar/CUDA preservation, WPE/peak numerical corrections and dated practical batch costs.
-- [[experiments/consumer-audio-operating-envelope|Consumer Audio Envelope]] — 18 natural-speech motion/room/competition episodes, paired CUDA preservation, received-onset responses and insufficient rotating-receiver quality.
-- [[experiments/consumer-audio-dynamic-quality|Dynamic Audio Quality]] — causal context and localization profiles, matched room/motion controls, independent episodes and remaining quality/runtime limits.
-- [[experiments/consumer-audio-indoor-quality|Indoor Audio Quality]] — opt-in spatial coherence, independent one-voice room confirmation, explicit weak/overlapping-voice failures and preliminary 7.2 handoff cost.
+## Key Decisions
 
-- [[experiments/consumer-audio-runtime-performance|Audio Runtime Performance]] — combined indoor live quality/delivery, clock distinctions, preservation, failed candidates and bounded rollout throughput.
-- [[experiments/physical-signal-comparison|Physical Comparison]] — 25-take parity, level/activity gaps and rejected gains.
+- [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] — supported interfaces and v3 migration.
+- [[decisions/robot-audition-fidelity|Robot-Audition Fidelity]] — supported domain, acceptance budgets, and provider limits.
+- [[decisions/continuous-acoustic-clock|Continuous Acoustic Clock]] — arrival timing, motion, and lifecycle assumptions.
+- [[decisions/minimal-maintained-repository-surface|Maintained Repository Surface]] — criteria for retaining code and tools.
+
+## Implementation Phases
+
+- [[implementation_phases/01-geometry-provider-qualification|01 · Provider qualification]] — provider evaluation sequence.
+- [[implementation_phases/02-signal-and-perception-architecture|02 · Signal and perception]] — separation of acquisition and observation.
+- [[implementation_phases/03-audio-activity-detection|03 · Activity detection]] — fixed-threshold Auditok integration.
+- [[implementation_phases/04-observed-direction-estimation|04 · Direction estimation]] — estimator roles and bounded multisource results.
+- [[implementation_phases/05-ground-truth-and-learning-datasets|05 · Learning datasets]] — independent truth and learning splits.
+- [[implementation_phases/06-simulated-and-real-signal-parity|06 · Signal parity]] — common processing for captured and simulated signals.
+- [[implementation_phases/07-isaac-lab-observation-integration|07 · Lab observations]] — tensors, CUDA reference checks, and Kit presentation.
+- [[implementation_phases/08-geometry-acoustics-integration|08 · Geometry acoustics]] — bounded native integration and runtime qualification.
+- [[implementation_phases/09-practical-realism-and-randomization|09 · Practical realism]] — planned consumer-driven variation.
+- [[implementation_phases/10-end-to-end-validation-and-product-closeout|10 · Product closeout]] — planned product-wide validation.
+- [[implementation_phases/11-future-semantic-perception|11 · Semantic perception]] — deferred classification, tracking, and separation.
+- [[implementation_phases/r2-fast-test-architecture|R2 · Test lanes]] — responsibility of each validation environment.
+- [[implementation_phases/r3-product-boundary-cleanup|R3 · Product boundary]] — separation of SDK and campaigns.
+- [[implementation_phases/r4-documentation-consolidation|R4 · Documentation]] — wiki ownership and structure.
+- [[implementation_phases/r5-semantic-component-refactor|R5 · Runtime ownership]] — subsystem refactor.
+- [[implementation_phases/r6-packaging-and-release|R6 · Packaging and release]] — clean-source distributions and publication.
+- [[implementation_phases/r7-acoustic-environment-contract|R7 · Environments]] — topology and environment resolution.
+- [[implementation_phases/r8-analytic-acoustics-backend|R8 · Analytic propagation]] — solvers, timing, and direct occlusion.
+- [[implementation_phases/r9-geometry-acoustics-provider-selection|R9 · Provider selection]] — retained provider roles.
+- [[implementation_phases/r10-geometry-acoustics-integration|R10 · Geometry implementation]] — native components and integration criteria.
+- [[implementation_phases/squadbot-audio-runtime-readiness|Consumer audio readiness]] — SDK changes and handoff for bounded listening trials.
 
 ## Sources and history
 
-No raw external sources have been ingested into canonical source pages.
-[[log|Knowledge Log]] records compact milestones; detailed prior prose is recoverable
-from Git at `5cfe48d`. Raw sources remain immutable; selective local cleanup follows the maintained-surface decision.
+The wiki currently has no source pages derived from raw research material. The [knowledge log](log.md) records milestones.

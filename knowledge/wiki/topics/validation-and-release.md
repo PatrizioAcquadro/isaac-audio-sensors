@@ -1,40 +1,35 @@
 # Validation and Release
 
-## Test Lanes
+## Test lanes
 
-`make` requires an explicit target and fails without one, so validation, release, and cleanup work is never implicit.
+| Command | What it checks |
+| --- | --- |
+| `make check` | Version synchronization, Ruff, diff whitespace, then unit/contract, integration, and release tests. Runs in the host development environment. |
+| `make test` | Core behavior and public contracts. |
+| `make test-integration` | CLI, recording, codecs, analytic acoustics, and host-side Kit workflows. |
+| `make test-release` | Python and Kit artifact contracts, versioning, documentation links, and content policy. |
+| `make test-isaac` | USD, native-provider, and CUDA parity and isolation tests through the configured Isaac launcher. |
+| `make smoke-optional` | Execution with installed room-acoustics and audio codec dependencies. |
 
-`make check` is the deterministic host gate. It runs version synchronization, Ruff, `git diff --check`, and the unit/contract, integration, and release lanes without requiring a GPU or clean worktree.
+The GitHub host matrix covers Python 3.10–3.12. Its Python 3.12 room/FLAC job also exercises the optional SciPy-backed scoring, convolution, and transport regressions.
 
-`make test` remains the focused pure unit and contract lane. `make test-integration` runs the focused cross-component lane for room acoustics, motion, waveform and codec I/O, recording/replay/splits/validation, CLI, headless workflows, and Kit services.
+## Focused checks
 
-`make test-release` remains the focused release content, versioning, Python sdist/wheel, Kit, and repository-boundary lane.
+Use `make validate-config` for the example TOML and `make validate-fixture` for the committed recording. `make export-schema` writes the three public schemas to `build/schemas/` by default. `make lint` runs Ruff.
 
-`make test-isaac` runs the deterministic Isaac lane through the configured Isaac Lab interpreter. The complete lane includes CUDA parity/isolation cases and requires GPU access; USD/native-only cases can run on CPU.
+`make clean` removes the entire build directory, including installed native libraries and validation evidence. Use a clean separate checkout for release builds when existing outputs need to be preserved.
 
-## Focused Checks
+## Live runtime gates
 
-`make validate-config` validates the maintained TOML example; `make validate-fixture` validates the deterministic recording fixture; `make export-schema` regenerates all three public schemas.
+Run from the checkout root using the supported Isaac launcher. Set `ISAAC_LAB_ROOT` or `ISAAC_LAB_PYTHON` for a different installation. Exit an unrelated activated environment before launching.
 
-`make lint` runs Ruff. The complete `make check` gate also rejects whitespace and conflict-marker damage.
+| Command | What it exercises |
+| --- | --- |
+| `make smoke-isaac-sim` | Stage discovery, transforms, sensors, diagnostics, and frame output. |
+| `make smoke-isaac-lab` | Real Lab bindings, fixed-shape observations, per-environment reset, and CUDA placement. |
+| `make smoke-kit` | Extension Manager, configuration and attachment, instruments, OmniGraph, recording, screenshots, and shutdown. |
 
-`make clean` removes `build/`, including locally installed native Geometry providers and validation outputs. Do not use it when preserving those inputs. `make release` clears only packaging outputs (`dist/`, `build/lib`, `build/bdist.*` and package metadata), preserving the native builds.
-
-Use focused tests during iteration, then run the complete relevant lane before committing a coherent milestone.
-
-## Live Runtime Gates
-
-`make smoke-isaac-sim` exercises live stage discovery, transforms, sensor updates, diagnostics, and output through the Isaac runtime.
-
-`make smoke-isaac-lab` exercises real Lab inheritance, multi-environment bindings, fixed-shape tensors, selected reset/update, and CUDA placement; it fails when the GPU path is unavailable.
-
-`make smoke-kit` is the authority for real Kit rendering and wiring. It exercises the extension manager, window, instruments, OmniGraph, USD operations, frame and audio output, qualitative device-mix capture, cleanup, and shutdown on the supported runtime and GPU. One entrypoint aggregates scenario modules for distribution, UI, attachment/configuration, audio outputs, and capture. Host fakes check state/callback logic; the live gate must finish with `passed` and every workflow step passing.
-
-Documentation checks traverse only maintained Markdown roots, excluding environments, raw material, and generated outputs.
-
-Automatic smoke and diagnostic artifacts use temporary paths under `build/validation/isaac_audio_sensors/`. `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT` remains the explicit Kit override.
-
-Runtime blockers must report the exact command and failure; sandbox restrictions are not evidence that the host lacks a GPU or Isaac installation.
+For a custom `--out` with generated audio, put the report **inside the working directory** or one of its subdirectories. The smoke writes its signal files beside the report and records their paths relative to the working directory. The Kit application output root is a separate setting, `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. For packaged validation use the extracted extension as the import source.
 
 ## Version Authority
 
@@ -64,20 +59,11 @@ Run `make check` and `make release WHEELHOUSE=<path>`. Add the runtime gates app
 
 Builds must originate from one clean committed tree; do not publish, tag, or push based on uncommitted artifacts or skipped required lanes.
 
-R6.2 originally deferred the source archive. R6.8 supersedes that temporary wheel-only decision for PyPI, adds the exact sdist contract, and keeps the GitHub repository as the public source tree. R6.3–R6.7 continue to own the Kit archive and validated runtime gates.
-
-GitHub Actions runs the deterministic host gate on Python 3.10, 3.11, and 3.12 plus one Python 3.12 `room`/FLAC lane.
-
-SciPy-backed evaluation tests declare SciPy optional in base installations. The
-`room` lane explicitly executes indoor live-quality and Lab-perception scoring
-regressions with the declared dependencies installed; their misses, extras, clocks
-and acceptance criteria remain unchanged.
-
 Publishing a matching non-prerelease GitHub release builds and audits all three artifacts, runs `twine check` once, and transfers only the immutable sdist and wheel artifact to a protected PyPI upload job with `id-token: write`. One post-publication matrix verifies base installations on Python 3.10–3.12 and the Python 3.12 `room`/FLAC path.
 
 After publication, verify the remote tag and immutable GitHub asset against the release commit and digest. Verify the PyPI JSON and Integrity APIs expose only the expected sdist and wheel with provenance, then repeat base and optional-extra installation checks from the public index. Community Registry closeout additionally requires discovery, installation, enable/disable, and launch from the registry; a valid GitHub release is only the crawler input, not proof of registry publication.
 
-Before closeout, extract the ZIP into an `isaac_audio_sensors.omni` directory so Extension Manager resolves its identifier. Run the packaged Kit smoke with offline pip settings, no checkout package path, and a precreated `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. Run from a directory containing the generated audio assets, as required by the public asset-path contract. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, fixed-threshold Auditok detection, room waveform, FLAC, and shutdown.
+Before closeout, extract the ZIP into an `isaac_audio_sensors.omni` directory so Extension Manager resolves its identifier. Run the packaged Kit smoke with offline pip settings, no checkout package path, and a precreated `ISAAC_AUDIO_SENSORS_OUTPUT_ROOT`. Use the working-directory layout in the live runtime instructions above. Verify Extension Manager enable/disable, first-party and bundled origins, Kit-owned NumPy and `typing_extensions`, fixed-threshold Auditok detection, room waveform, FLAC, and shutdown.
 
 ## Interpretation
 

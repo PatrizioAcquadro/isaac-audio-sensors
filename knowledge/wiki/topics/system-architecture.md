@@ -1,100 +1,35 @@
 # System Architecture
 
-## Product Shape
+## Data flow
 
-`isaac-audio-sensors` converts audio-scene and microphone-array state into standardized sensor frames, waveform-derived features, recordings, replays, and fixed-shape Isaac Lab observations.
+A source configuration, a live USD stage, or Lab entities supply source and microphone-array state. Propagation renders multichannel pressure samples for a selected array and time window. Perception consumes that mixture and array geometry to produce observations. Recording can store both stages of the computation.
 
-The design keeps simulator-independent contracts below optional simulator adapters so the same frame and recording semantics work in pure Python, Isaac Sim, Isaac Lab, and Kit.
+```text
+scene + array + time window → propagation → microphone signal block
+                                                  ↓
+                                     activity and optional direction
+                                                  ↓
+                                            observed frame
+```
 
-## Core Layer
+`core.simulation.simulate_frame()` calls the backend once and hands the same signal block to perception and any waveform sink. A recorder can pair the resulting frame with that block. An explicit supervision path can attach truth to a recording for evaluation or learning. Source identities, schedules and isolated stems stay outside observed perception. [Signals, frames and datasets](public-contracts-and-recording.md)
 
-`isaac_audio_sensors.core` owns typed scene, source, pose, array, acoustic-surface/environment, time-window, signal-block, activity-decision, observation, DOA, occlusion, and frame models; canonical directivity and gain utilities; configuration; microphone geometry; deterministic DSP and effects; acoustic backends; observed-only perception; plugins; calibration; trace IO; and waveform helpers. Its package root exports the fundamental models plus `DirectivityPattern`; environment builders and transforms are public from `core.acoustics`.
+## Component responsibilities
 
-All propagation backends implement `propagate(scene, array_id, time_window) -> MicrophoneSignalBlock`. `AudioSceneSnapshot` owns the complete canonical state of every microphone array and its mandatory `environment`; `array_id` only selects which array observes that scene. Each backend resolves it through `scene.array_by_id(array_id)` and fails if it is absent. Plugin declarations own backend inventory and capability metadata. `AudioSourceSpec` and `MicrophoneSpec` are the directivity and nominal-gain authorities; `core.directivity` owns the one enum/coefficient model and `core.gain` owns fail-closed scalar dB conversion. Effects keep their immutable records at `core.effects.config`, while domain modules own channel-response, noise, electronics, and motion parsing and validation.
+| Component | Responsibility |
+| --- | --- |
+| Core | Defines the scene, geometry, timing and signal types, parses configuration, models propagation and sensor effects, and runs causal activity and optional direction estimation. The default Analytic backend selects its solver by environment topology. Direction-of-arrival code resolves observed delays and ambiguity independently of the producer. [Acoustic modeling](acoustic-modeling.md) |
+| Recording | `SessionRecorder` owns shards, durable writes, recovery and manifest construction. `SessionDataset` provides streaming reads for validation, replay, FLAC conversion, and learning splits. [Recording contracts](public-contracts-and-recording.md) |
+| Schemas | Generates the public frame, dataset-manifest and calibration-profile schemas. The Python generators own the definitions and the wheel ships their JSON representations. [Public contracts](public-contracts-and-recording.md) |
+| Isaac Sim | Discovers stage entities and transforms, resolves environments, builds snapshots, drives the sensor lifecycle, and publishes frames to Replicator or visualization. An Analytic sensor can attach PhysX direct-path occlusion. The optional Geometry backend uses a prepared scene and owns its transmission, reflection and optional propagation components. [Geometry ownership and setup](geometry-acoustics.md) |
+| Isaac Lab | The entity binding reads robot and source pose tensors. It uses CUDA analytic acquisition or per-environment native Geometry acquisition and CUDA perception. The reference binding runs scalar pipelines. Both project results into the same masked observation contract and support selected-environment reset. [Lab integration](isaac-lab-integration.md) |
+| Kit | `ExtensionController` owns application state and composes authoring, sensor, recording, validation, and lifecycle services. The window renders state and invokes controller actions. Headless workflows use the same controller. The extension entry point manages startup, shutdown and optional OmniGraph registration. [Isaac Sim and Kit](isaac-sim-and-kit.md) |
+| CLI | The parser selects an operation. Command handlers delegate to Core, recording, schema or guided services. [Getting started](getting-started.md) |
 
-`AnalyticAcoustics` remains the default runtime propagation backend. It routes from the environment kind to Core direct or half-space propagation, or to lazy PyRoom shoebox or polygon-prism construction. Direct and indirect pair stems remain internal, `SourceOcclusion` applies only to the direct stem, and the public signal block is the recombined multichannel result. Analytic internals own scheduling, rendering, effects, and concise signal diagnostics, but not observed perception, frame assembly, or persistence. Removed geometry, synthetic-TDOA, and room backend behavior survives only as internal logic or historical v1 replay data, never as runtime aliases.
+## Runtime dependencies
 
-The registry also lazily constructs optional `geometry_acoustics` from an explicit
-prepared USD session and provider configuration. Its intermediate hybrid owns
-native direct/transmission and specular reflection PCM; source state remains
-upstream of common perception. Lab selects the producer through the Core registry,
-without importing the Isaac subsystem at module load. The same CUDA perception,
-context and projection are reused. See
-[[experiments/geometry-acoustics-admission#Operational intermediate|R10]]
-for the bounded domain and unresolved final coverage.
+Core types and package imports work in the base Python environment. Optional solvers and simulator integrations load when selected. Selecting Geometry explicitly resolves the Isaac adapter and its configured native libraries. A missing dependency or invalid configuration produces an error at that boundary.
 
-Motion owns Doppler and pose/window state; acoustics owns environment builders and transforms, materials, and occlusion interpretation; activity-detector plugins own streaming activity and event state; DOA owns the numerical least-squares solver, GCC-PHAT, PyRoom SRP-PHAT adaptation, physical ambiguity, and sector mapping. The DOA plugin boundary receives only valid rows of the final mixture, matching array-local geometry, and sample rate; it receives no scene or source-conditioned state. Standard activation is default-off with no silent fallback. At 16 kHz, planar/rank-3 arrays use the maintained multisource localizer; stereo and other planar rates retain their qualified single-event roles. [[topics/acoustic-modeling|Acoustic Modeling]] owns exact routing and limits. Internal SRP is removed. `ActivityDecision` fixes an optional `[0, 1]` acoustic-activity probability while detector-specific energy values remain diagnostics. `AuditokActivityDetector` is the qualified generic implementation and the maintained consumer separately owns the trailing DOA context and temporal abstention state. Fundamental data contracts remain centralized in `core.types`.
+The installed Kit archive provides the SDK and locked audio dependencies. Kit supplies NumPy and its own runtime. The universal Python wheel uses the dependencies declared in package metadata. [Validation and release](validation-and-release.md)
 
-Core contracts and DSP import no simulator subsystem; the explicitly selected Geometry factory lazily resolves its optional Isaac adapter. Importing the core package root loads no NumPy, recording, concrete backend/effect, Isaac, Omniverse, Isaac Lab, Kit, CUDA, Torch, or downstream module.
-
-## Recording Layer
-
-`isaac_audio_sensors.recording` owns the generic session layout, manifests, shard lifecycle, atomic writes, audio codecs, loading, validation, statistics, deterministic splits, and read-only replay.
-
-Recording consumes `AudioSensorFrame` plus its exact `MicrophoneSignalBlock`, or `None` for metadata-only sessions, and emits versioned generic dataset artifacts. It validates their shared producer/window/channel contract without requiring equal provenance; it does not own a task-specific acquisition campaign or scientific acceptance policy.
-
-Dataset-manifest constants, models, supervision contracts, and canonical JSON serializers are recording APIs rather than core APIs. `recording.simulate_dataset_frame()` projects one private analytic render into the same observed frame/block composition plus separate `FrameTruth`. Core imports no recording types; private stems never reach perception. Truth and annotations travel atomically beside the frame through recorder, loader, replay, and FLAC.
-
-`SessionDataset` is the lifecycle and streaming-read authority shared by validation, replay, FLAC, and recovery. `SessionRecorder` composes internal shard/audio writing, recovery state, and pure manifest construction. Record serialization, shard planning/completion, time-gap accounting, and durable file replacement remain focused internal components rather than public user workflow.
-
-## Schema Layer
-
-`isaac_audio_sensors.schemas` owns deterministic generation. `schemas.generate` is the public facade over one private module per contract and shared schema fragments; its three Python generators are authoritative, and packaged JSON schemas are byte-identical generated release artifacts. Generation depends only on core and recording contracts.
-
-## Isaac Sim Layer
-
-`isaac_audio_sensors.isaac` owns lazy stage discovery, metadata authoring, pose resolution, stage snapshots, live sensor lifecycle, occlusion queries, frame publication, Replicator integration, and visualization records.
-
-The layer turns live USD state into pure core dataclasses before backend computation. `IsaacEnvironmentResolutionCfg` keeps simulator inputs separate from `AcousticEnvironmentSpec` and resolves manual environments, explicit anchors, or marked USD shoebox/half-space candidates before snapshot construction. The cache re-resolves on array motion or relevant marker, bounds, pose, material, and acoustic-partition changes. The sensor uses `analytic_acoustics`, forwards analytic solver options, supplies minimal per-pair raycast attenuation, and owns one persistent perception pipeline plus the latest signal block through its lifecycle. Reset and close clear the block and reset perception. Isaac owns partition/material provenance and optional transient `DebugPrimitive` ray/hit traces; neither enters stable snapshots, frames, or datasets. The layer has no offline config path or application persistence: consumers inject an optional core waveform sink, and required Isaac APIs resolve lazily with explicit errors.
-
-## Isaac Lab Layer
-
-`isaac_audio_sensors.lab` is import-safe at its package root and resolves direct Isaac Lab `SensorBaseCfg` and `SensorBase` subclasses only after `AppLauncher` initialization.
-
-Its entity path resolves official root/body pose tensors, produces CUDA free-field microphone mixtures and processes them with independent temporal context per environment. The mixture-only detector/localizer never receives source state. The separate reference binding executes scalar Core snapshots with independent standard pipelines. Both require an explicit activity threshold, use elapsed sample clocks and reset only selected environments; entity acquisition additionally requires explicit audio assets. Subphase 07.1's finite observation tensors, masks and truncation semantics remain unchanged. The exact interfaces, CUDA approximation and measured limits belong to [[topics/isaac-lab-integration|Isaac Lab Integration]]. USD discovery and environment anchoring remain in the Isaac Sim layer; Lab has no implicit device fallback.
-
-## Kit and Extension Layers
-
-`isaac_audio_sensors.kit` exports only `ExtensionController`; profiles, validation, state, workflow, instruments, presentation adapters, and internal application services remain in their canonical Kit modules.
-
-`ExtensionController` composes those services, owns the flat `ExtensionUiState`, reports status/errors, and exposes the maintained GUI/headless actions. `window.py` and `sections.py` only render state and invoke actions. Pure validation checks remain dependency-free; the stateful validation controller owns capability discovery, backend/device facts, calibration reads, explicit activity-threshold and DOA-opt-in validation, and fail-closed environment-mode checks. Kit configuration uses exact `ias.omni_extension_binding.v7` with required Auditok activity settings and `direction_estimation.enabled`; v6 and older inputs are rejected. Maintained presets keep DOA off unless the caller opts in.
-
-The guided headless service receives an `ExtensionController` explicitly. `exts/isaac_audio_sensors.omni` only constructs that controller and runs startup, shutdown, and optional OmniGraph registration; Kit lifecycle service owns window, menu, action, hotkey, and subscriptions.
-
-## Data Flow
-
-Configuration or live stage/entity state produces an authoritative `AudioSceneSnapshot`; an array identifier selects the observer and a propagation backend emits `MicrophoneSignalBlock`. `core.simulation.simulate_frame()` calls propagation once and combines that same block with exact array geometry, persistent `AudioPerceptionPipeline` state, optional typed external observations, and an optional waveform sink to produce `AudioSensorFrame`. Maintained scalar Core, CLI, Isaac, Kit, and Lab reference entry points compose qualified Auditok and optionally the standard geometry-routed DOA consumer. Every standard DOA pipeline owns its rolling causal context; low-level and custom composition remains explicit. The common pipeline checks signal-to-array local geometry and owns automatic continuity resets for both activity and DOA; Isaac retains lifecycle resets without a duplicate geometry-signature implementation. Clock domains, declared faults, channel validity, and geometry describe the signal boundary, while producer acquisition evidence remains data-only. The same block may feed session recording directly. Isaac Lab reference mode converts only the resulting observations into the 07.1 fixed-capacity tensor contract; the 07.2 entity path produces CUDA PCM and projects mixture-derived perception directly into the same tensors.
-
-Privileged source pose, geometry, isolated-signal, or simulator state must remain distinguishable from observed waveform and estimator outputs so training supervision does not become an unlabelled runtime dependency.
-
-## Dependency Boundary
-
-The enforced internal imports are `recording -> core`, `isaac -> core`, `lab -> core`, `kit -> core + recording + isaac`, and `schemas -> core + recording`. `cli.py` owns the entrypoint and parser topology; private `_cli` modules adapt standard, dataset, and guided commands and import owning public services only after a leaf command is selected. Lower components do not import Kit, UI, or CLI.
-
-The package root exports only `__version__`. Public types and services are imported from their semantic subsystem.
-
-Core runtime dependencies are NumPy, Auditok 0.5.x, and TOML support for Python versions that need it. Auditok is imported only when its detector executes; JSON Schema validation is development-only.
-
-The `room` extra provides `pyroomacoustics>=0.10.1,<0.11`, SciPy, and SoundFile; Isaac, Kit, CUDA, Torch, and Replicator remain environment capabilities resolved lazily.
-
-The Kit archive build extracts locked Auditok, `pyroomacoustics`, SciPy, SoundFile, CFFI, and pycparser wheels into `isaac_audio_sensors/_bundled`. The extension uses that tree without downloading packages and leaves NumPy and `typing_extensions` owned by Kit. The universal Python wheel never contains `_bundled`.
-
-Optional absence is a supported state for pure functionality, but a requested optional capability must fail with a precise error rather than degrade silently.
-
-## Downstream Boundary
-
-Robot-specific mounts, assets, policies, task orchestration, acceptance criteria, research campaigns, and consumer adapters belong to downstream repositories.
-
-See [[decisions/product-boundary-and-compatibility|Product Boundary and Compatibility]] for the maintained promises and exclusions.
-
-
-## USD acoustic preparation boundary
-
-`isaac.acoustic_scene.AcousticSceneSession` owns composed-USD geometry selection,
-material resolution, partition identity and selective pose updates. Its private
-Steam scene adapter owns native geometry resources only; the Kit preparation
-panel calls the same service and authors the same USD properties as Python.
-This layer is optional and does not register a propagation backend or change
-Core signal, observation, frame or dataset contracts. See
-[[implementation_phases/r10-geometry-acoustics-integration|R10.1]] for supported
-geometry, material provenance and native qualification limits.
+Robot-specific mounting, task policies, training campaigns, and their acceptance criteria belong to downstream projects. The SDK owns reusable acquisition, observation, and recording interfaces. [Compatibility and migration](../decisions/product-boundary-and-compatibility.md)

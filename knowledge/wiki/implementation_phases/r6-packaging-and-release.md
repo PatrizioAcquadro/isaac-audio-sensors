@@ -124,10 +124,7 @@ Historical empty-entity timing did not establish active perception throughput.
 
 Built sdist then wheel, isolated installation and protected OIDC release workflow; published v2.0.0 at `583d66e` with the validated Kit asset.
 
-On 2026-10-22, published the stable, latest, immutable GitHub `v3.0.0` release at
-`9aeaea4` with the audited Linux Kit asset. The release-source CI and automated
-clean-source build pass. The protected PyPI upload is queued for a runner;
-[[status#3.0.0 release|Current Status]] owns the publication checkpoint and gates.
+On October 22, 2026, the same workflow built and published the v3.0.0 Python distributions from the tagged revision. The GitHub release carries the audited Linux Kit archive. [[status#Distribution|Distribution status]] links the public artifacts, provenance and installation results.
 
 #### Key Decisions
 
@@ -135,7 +132,7 @@ Production publication requires a matching non-prerelease GitHub Release/protect
 
 #### Problems / Limitations
 
-The v2 publication is historical evidence only. The v3 PyPI upload and public-index verification are pending at the checkpoint above. Community Registry discovery/install remains unverified.
+Publishing the Kit archive supplies the input to the Community Registry crawler. Discovery, installation, and startup from that registry require independent verification.
 
 ## Artifacts
 

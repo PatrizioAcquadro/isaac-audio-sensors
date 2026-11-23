@@ -1,385 +1,89 @@
 # SquadBot Phase 7 — SDK Audio Runtime Readiness
 
-Status: 7.1 complete as a bounded compatibility and quality assessment. 7.2
-qualifies the initial free-field profile and the optional first-scene single-voice
-indoor profile under their declared loads. The indoor combination now passes live
-quality, sustained delivery and bounded rollout measurement together. Broader
-dynamic/room coverage, consumer adoption, multi-environment training and physical
-transfer remain open; multisource work is outside this intervention.
-Phase 7 identifies the downstream SquadBot roadmap; the SDK's
-existing Phase 07 — Isaac Lab Observation Integration retains its own scope.
-
 ## Objective
 
-Establish a usable audio configuration for closed-loop attention and learning
-before downstream robot integration. Build on the existing SDK through focused
-readiness assessment and optimization. SquadBot motivates this work; improvements
-must remain reusable across consumers, robots and microphone arrays.
+Establish a reusable listening configuration for a downstream robot trial. This phase follows the consumer's Phase 7 roadmap. The SDK's [[implementation_phases/07-isaac-lab-observation-integration|Phase 07]] separately introduced the Lab observation interface.
 
-## Subphase 7.1 — SDK compatibility and operating envelope
+## Subphase 7.1 — Compatibility and operating envelope
 
 #### Implementation
 
-Verified SDK 3.0.0 on the local Isaac Sim `6.0.1-rc.7` / Isaac Lab `3.0.0`
-checkout (`2e44ddb2e1`) and RTX 4090. The host gate passes 672 unit/contract,
-352 integration and 56 release tests; the supported Isaac lane passes 251 tests.
-Actual Sim with Geometry providers and Lab square-array acquisition at 60 Hz /
-10 Hz observations pass their live gates. This identifies one verified local
-runtime, not compatibility with every Sim/Lab release.
-
-Extended the maintained received-PCM comparator with explicit layout/input
-selection, finite aligned input checks, per-window rows, received-onset responses,
-audibility sensitivity and active-only quality summaries. Stationary defaults
-remain unchanged. The retained 36-input comparison preserves all activity/count
-updates; direction-difference p95 remains below 0.000175 degrees.
-
-The new screen contains 18 eight-second natural-speech episodes: static source,
-moving source, rotating receiver, joint motion, joint motion in a simple Geometry
-room, and joint motion with a stationary competing voice. The nominal planar
-array uses XY offsets at +/-33 mm, 16 kHz, 60 Hz acquisition, 100 ms observations,
-an explicit -60 dBFS Auditok threshold, 750 ms localization context, 32 observation
-slots and two candidate slots on CUDA; the scalar reference remains uncapped. Source speed reaches 1 m/s and receiver yaw speed
-90 degrees/s; distances are 1.5, 2.25 and 3 m. Evaluation uses identical received
-mixtures for scalar and CUDA perception; private poses/stems enter scoring only.
-
-[[experiments/consumer-audio-operating-envelope|Operating-envelope evidence]] owns
-the detailed protocol, results and reproduction commands. Migration guidance is
-in [[decisions/product-boundary-and-compatibility#Consumer readiness migration|the compatibility decision]].
-Dependency adoption and adapter changes remain downstream.
+Exercised the supported Isaac Sim 6.0.1-rc.7, Isaac Lab 3.0.0 and RTX 4090 combination. Extended the received-PCM evaluator to compare scalar and CUDA activity, event counts, and directions on the same mixtures. Compared stationary, moving-source, rotating-receiver, reverberant, and competing-voice cases. [[experiments/consumer-audio-operating-envelope|Protocol and baseline results]]
 
 #### Key Decisions
 
-Keep the current localizer, precision, thresholds and public contracts. This
-assessment introduces no tracker, smoothing, source-conditioned observation or
-new acoustic engine. Capacity remains independent of expected source count.
-Evaluate complete event sets and missing/extra events; silence, a correct onset
-or numerical agreement cannot substitute for continuous directional quality.
-
-Use the measured free-field, fixed-receiver profile as a provisional listening
-configuration. Its active complete-set rates are 97.9% for static speech and
-96.8% for the moving-source screen. These finite cases support further bounded
-consumer trials; they do not establish population reliability or real-time use.
+Scored complete sets of active directions, including missed and extra events. Used source poses and isolated signals only for independent scoring. Kept the activity threshold, estimator, and observation capacity independent of the expected number of sources.
 
 #### Problems / Limitations
 
-Rotating-receiver quality remains insufficient: active complete sets are 49.7%,
-59.9% with joint motion, 34.2% in the room screen and 49.3% with a competing voice.
-The room screen has incorrect-set sequences up to 2.2 s. No dynamically reliable
-closed-loop listening configuration is delivered for the full requested domain.
-The unchanged localizer's temporal problem remains open; research is not
-automatically reopened by this assessment.
-
-The dynamic scalar/CUDA gate passes: activity agreement 100%, count agreement
-1439/1440 (99.93%) and retained-direction difference p95 0.000018 degrees.
-One room-window count difference remains documented within the existing 97%
-preservation gate; it is not exact numerical identity. No production defect
-requiring a correction was established in this subphase. The initial missing
-Auditok runtime path was corrected through the existing isolated dependency
-setup, without changing the package or Isaac installation.
-
-Warm-up, uncertainty and received reverberant tails remain explicit. The room
-screen measures the existing base Geometry renderer at 60 Hz, not an independent
-moving-room pressure reference or physical transfer. Wall-clock latency, rendering
-load and learning throughput belong to 7.2; smoke/replay timing is not that result.
+The original 750 ms WPE profile followed a moving source better than a rotating receiver. A room window also showed a scalar/CUDA count discrepancy. This assessment established an operating envelope and motivated shorter context. It left live delivery under load open.
 
 ## Follow-up to 7.1 — Dynamic audio quality
 
 #### Implementation
 
-Corrected received-direction matching to maximize valid pair cardinality before
-total angular error; the original 7.1 artifacts remain intact. The retained
-750 ms context has a diagnostic past-direction fit of 360–420 ms in rotating
-single-voice episodes, distinct from compute and delivery cost. Quality continues
-to use current directions and original timestamps.
-
-The SDK now accepts an explicit `MaintainedEventLocalizer(context_duration_s=...,
-dereverberation_enabled=...)`, and Lab `localization_context_s` plus
-`localization_dereverberation` in both bindings. Defaults remain 750 ms WPE and
-stereo/other-rate single-event roles remain 250 ms. Mixture history/readiness and
-CUDA slicing use the configured duration, preserving clocks, masks, resets and
-source-independent event discovery. The received-PCM evaluator reports active
-error-run durations/frequency, initial versus already-acquiring onset responses,
-diagnostic direction lag, context readiness and accumulated serial replay cost.
+Corrected direction matching to maximize the number of valid pairs before minimizing angular error. Exposed localization context and WPE selection in the scalar pipeline and both Lab bindings. Defaults retained the original 750 ms WPE path. [[experiments/consumer-audio-dynamic-quality|Matched controls and independent confirmations]]
 
 #### Key Decisions
 
-Initially select 250 ms WPE/group-sparse context on six episode-zero selection cases.
-Compare short contexts (150/200/250 ms), recent covariance after longer WPE, and
-a no-WPE ablation. 150 ms and recent-covariance variants reduce lag but lose
-static/room robustness; the no-WPE variant fails room quality. The selected
-250 ms variant exceeds 90% active complete sets in each selection condition;
-independent validation and supported-profile disposition are recorded separately.
-The isolated live check exposes WPE's approximately 118 ms update cost. Retain
-250 ms WPE as an experimental room alternative and select a faster 200 ms
-direct-covariance free-field profile from the same selection cases. A 150 ms
-direct profile loses robustness on independent phrases. Confirm the frozen
-200 ms choice on 15 additional episodes, separately from the 39 room/motion
-controls already inspected. No threshold or solver shortcut is adopted.
-No source identities, private poses, motion input, tracking or time correction
-enter observations. The existing WPE, fitting and ambiguity rules are retained.
+Selected 200 ms direct covariance for single-voice free-field trials. Retained 250 ms WPE as an experimental room alternative. Measured response using the original timestamps and scored current directions.
 
 #### Problems / Limitations
 
-The [[experiments/consumer-audio-dynamic-quality|separate follow-up evidence]]
-retains the original 18 episodes, 39 matched controls and 15 fresh confirmations.
-The direct 200 ms profile reaches 92.5–95.7% complete sets per confirmation
-scenario, 200 ms source-correct onset p95 and no active error runs >=.5 s.
-Two 3 m episodes remain below 90%; no uniform or population guarantee follows.
-Static quality remains strong. Room/competition remain unqualified; WPE 250 ms
-helps room quality but costs about 118 ms per live update. Direct 200 ms costs
-about 32 ms p95 in the small live check, with scalar/CUDA preservation and reset.
-
-Directional lag approaches 100 ms but reaches 130–140 ms in some fits. The
-approximately 100 ms target is separate from correct-set rates and cannot be
-satisfied by shifting estimates into the past. Host/Isaac gates pass; full
-readiness is not closed by measured replay completion. Loaded acquisition,
-rendering, delivery latency and multi-environment throughput remain in 7.2.
+Shorter context improved rotating-receiver results. Two 3 m confirmations remained below 90% complete sets. Some direction fits lagged by 130–140 ms, and WPE was expensive at live update rates.
 
 ## Follow-up to 7.1 — Indoor event quality
 
 #### Implementation
 
-From shared baseline `6c65a69`, implement opt-in mixture-only spatial coherence
-before the existing sparse fit. Core `spatial_coherence_threshold` and Lab
-`localization_spatial_coherence` support the scalar and both Lab bindings.
-Defaults preserve the prior path. Original band power/snapshot normalization,
-peak rules, activity, clocks, unavailable confidence, ambiguity, reset and
-capacity remain intact. Independent directions are discovered without a true
-source count or strongest-frame-event rule.
+Added optional spatial-coherence filtering before the sparse direction fit in scalar and CUDA perception. Froze a 200 ms, no-WPE profile with a 0.98 coherence threshold, then evaluated it on different episodes. [[experiments/consumer-audio-indoor-quality|Indoor selection, confirmation, and failure cases]]
 
 #### Key Decisions
 
-Diagnose extra directions in static/moving room controls rather than reopening
-window-duration search. Freeze 200 ms, no WPE and coherence .98 after eight
-episode-zero selections. Confirm on the other 26 matched controls and 36 fresh
-episodes, including a real second source attenuated by 9 dB. Keep historical
-WPE 750 ms, direct 200 ms and WPE 250 ms references on identical PCM.
-[[experiments/consumer-audio-indoor-quality|Indoor quality evidence]] owns the
-protocol, every scenario/worst episode, temporal results, cost and reproduction.
+Kept coherence filtering opt-in and preserved observation clocks, masks, ambiguity, and capacity. Included a weaker second speaker in evaluation so attenuation of real sources remained visible.
 
 #### Problems / Limitations
 
-Fresh one-voice room complete sets reach 94.5–97.3%, with no episode below 92.4%;
-matched free-field scenarios reach 97.8%. First-correct audio-clock p95 is 200 ms,
-but diagnostic lag reaches 140 ms, so a universal 100 ms bound remains open.
-Single-array preliminary filtered compute p95 is about 15.3 ms; this is not a
-loaded 7.2 result.
+The filter removed room reflections and improved single-voice quality. It also suppressed valid overlapping speech. Its use is qualified only for the documented single-voice conditions.
 
-Competing speech fails the quality gate. The -9 dB room source retains 15/72
-correct direction windows, versus 47/72 for direct covariance; filtered complete
-sets remain 63.7%, with a 475 ms onset p95 and a missed segment. Plane-wave
-selection removes overlapping real support as well as reflections. Deliver this
-as a bounded single-voice trial configuration, not a generic multisource profile.
-Further overlap/weak-source perception work and physical/other-room qualification
-remain open. Loaded first-scene qualification is recorded separately below.
-
-## 7.2 — Latency and learning throughput
+## Subphase 7.2 — Delivery latency and throughput
 
 #### Implementation
 
-Added a live, worktree-verified CUDA benchmark with exclusive GPU locking,
-external-load monitoring, per-update latency/deadline rows, onset response,
-startup/reset measurements and environment scaling. The first clean loaded
-baseline passes the 50 ms SDK p95 target but accumulates scheduling delay at
-9.56 observations per real second; this is not an interactive qualification.
-The [[experiments/consumer-audio-runtime-performance|performance experiment]] owns
-the workload, clock definitions, detailed evidence and reproduction procedure.
-
-The measured geometry cost motivates skipping zero mount translations and
-identity quaternion multiplication while retaining normalization. Cache the
-constant local microphone directivity axes on CUDA instead of recomputing and
-transferring constants every acquisition. Custom mounts and runtime orientations
-retain the complete transform; localizer, thresholds and observation contracts
-remain unchanged. Exact CUDA transform controls and 73 focused runtime,
-observation and batched-perception tests pass.
-
-Four clean 30-second runs sustain 9.983–9.988 observations per real second with
-60 Hz acquisition/physics, 64 moving rigid bodies and a shared 640x480 camera at
-30 Hz. SDK p95 is 32.86–33.68 ms, returned-active p95 34.98–36.86 ms, with no
-lost windows, discontinuities or persistent scheduling growth. First active
-calls cost 68.75–83.35 ms and are retained separately. The 60 Hz rendering stress
-case does not sustain the deadline. Exact PCM/all-field before/after comparison
-and 265 actual-runtime tests preserve contracts and quality content.
-
-Unpaced 1/4/16-environment runs measure 1.053 / 4.273 / 16.635 aggregate simulated
-seconds per real second under the 60 Hz shared-camera load. This is measured
-rollout cost, not policy/optimizer throughput or a promised training-scale gate.
+Added a CUDA benchmark that measures acquisition, observation delivery, startup, reset, and environment scaling under a declared camera and physics workload. Reused fixed microphone axes and simplified identity mounts. Compared the optimized and reference paths on the same inputs. [[experiments/consumer-audio-runtime-performance|Workload, clocks, and scaling measurements]]
 
 #### Key Decisions
 
-An interactive configuration need not use the most expensive acoustic path or
-the settings used for every training episode. Choose useful operating profiles
-from measured quality and cost. Do not presume that this work requires a
-large-scale GPU rewrite; revisit training scale when the workload is concrete.
-
-Reusable changes belong in the SDK. Robot-specific configuration, application
-queues and scheduling, task behavior, partner-classifier latency and policy
-training remain downstream responsibilities.
+Measured sustained delivery against wall-clock deadlines in addition to SDK compute time. Assessed rendered rollout and interactive use separately.
 
 #### Problems / Limitations
 
-CUDA events and fenced wall timings remain available, but this Kit process owns
-a CUPTI subscriber and PyTorch's kernel/copy profiling can be unavailable. Missing
-device trace events are not zero transfer cost. Geometry native propagation stays
-CPU-side; a short retained indoor-stage run reaches only 6.45 observations per
-real second despite SDK p95 within 50 ms. It does not qualify. These earlier measurements did not qualify the selected indoor combination.
-The first-scene profile below has its own combined measurements; other Geometry
-scenes remain outside that qualification.
+The initial free-field profile met the 10 Hz delivery target under the qualified 30 Hz camera load. The 60 Hz camera stress case accumulated delay. Rollout scaling leaves optimizer throughput and multi-robot training open.
 
 ## Integration on main — 2026-10-14
 
-Merged `PatrizioAcquadro/audio-indoor-quality` and
-`PatrizioAcquadro/audio-runtime-performance` from common baseline `6c65a69`.
-Resolved wiki conflicts by retaining both experiments, their dated results and
-open gates. CUDA acquisition keeps the cached microphone axes and optimized
-mount composition alongside optional mixture coherence. The performance runner
-now accepts `--spatial-coherence .98` to exercise the selected indoor profile;
-its default remains `None`. SDK defaults remain 750 ms, WPE enabled, coherence
-disabled and DOA opt-in. No public schema, thresholds or capacity rules changed.
+Combining indoor quality and runtime improvements preserved the observed outputs on three replayed room episodes. The integrated native-room probe still failed the delivery criterion. The original fresh-branch count discrepancy could not be replayed from the retained inputs. [[experiments/consumer-audio-runtime-performance#Integrated native-room probe — 2026-10-14|Replay and failed probe]]
 
-Focused checks pass 32 scalar-localizer cases, 92 host perception/schema/scoring
-and performance cases, and 94 Isaac/CUDA batch, mount, observation and lifecycle
-cases. Two additional Core/Lab default guards pass. Replaying three preserved
-room-joint confirmation episodes produces 237 paired updates with identical
-activity/counts and direction-difference p95 .0000238 degrees. Activity, counts,
-scalar observations and quality summaries match the original branch report;
-CUDA direction/error values differ by at most .00000763 degrees, within float32
-precision. Replay compute/deadline timing is separate. Active complete sets
-remain 94.7–95.5%. Version sync, Ruff, whitespace and all 47 wiki pages' index/link
-checks pass.
-
-A short integrated 6x5x3 m native-room probe (absorption .4, scattering 0,
-third-order specular reflections, one voice, 30 Hz shared camera, 5 simulated
-seconds plus 1 second after reset) completes acquisition and perception on the
-actual RTX 4090. It is **not an interactive timing pass**: 50 observations arrive
-at 1.43 updates per wall second, steady SDK p95 is 140.26 ms, and backlog grows.
-There are no missed windows or measurement discontinuities; the reset phase
-reports one discontinuity, also present in the original native-room procedure.
-The fixture's render check and external-GPU-load check pass. This bounded probe
-does not establish broad acoustic or runtime qualification. Weak/overlapping
-voices, physical transfer, the universal 100 ms lag target and selected-consumer
-scene timing remain open; no favorable retry or gate relaxation was used.
-
-## 7.2 follow-up — Combined first-scene indoor readiness
+## Follow-up to 7.2 — Combined first-scene indoor readiness
 
 #### Implementation
 
-The selected 16 kHz / 200 ms / no-WPE / .98 coherence configuration now runs with
-moving native Geometry, source motion up to 1 m/s, receiver yaw up to 90 degrees/s
-and an actual Alex articulation/PD plus 64 moving bodies and 640x480 RGB/depth
-load. The qualified camera cadence is **15 Hz**, while physics/acquisition remain
-60 Hz and observations use the original 10 Hz schedule. Audio uses observed
-controlled pose tensors; actual downstream mounting/feedback is not claimed.
-
-Remove redundant native visibility scans without changing paths, then select an
-explicit six-face representation of the same closed interior. Pressure is bitwise
-identical across 480 moving poses; exterior slab/cap faces are unnecessary only
-within this declared interior. Keep the rendered solids and physical load.
-Initialize required DSP before audio starts, capture the unchanged single-array
-ADMM dispatch, and use integer camera scheduling to avoid skipped frames.
-Correct two centroid boundary masks by using Core's exact reduction. Geometry
-Lab effects now use the already-implemented native chain; Analytic restrictions,
-SDK defaults, masks, capacity and clocks remain intact.
+Pruned redundant native visibility queries, initialized DSP before acquisition, captured the single-array solver dispatch, and aligned centroid boundary reductions with Core. Enabled the existing native effects chain on the Lab Geometry path. A six-face acoustic envelope preserved the tested pressure samples while the solid room continued to render.
 
 #### Key Decisions
 
-Qualify **simultaneous live quality and delivery**, including misses/extras and
-current-time directions, rather than combining branch averages. Two fresh
-30-second interior-view runs with different phrases sustain 9.98999–9.99028
-observations per real second, have no skipped windows/discontinuities or growing
-backlog, and reach 97.71% / 94.87% active complete sets. No active incorrect run
-reaches .5 s. Scalar/CUDA activity/counts agree on all 600 updates; residual
-direction differences are <.00005 degrees in these runs.
-
-Keep audio-clock response (100/200 ms p95), real received-onset-to-SDK bounds,
-deadline delay, last-chunk cost and complete-window work separate. All steady
-delivery remains below 100 ms; deadline p95 is 34.28–42.03 ms. The same loaded
-profile reaches 1.0879 simulated seconds per real second unpaced with one
-environment. This is rollout cost, not optimizer or multi-Alex throughput.
-The [[experiments/consumer-audio-runtime-performance#Combined indoor qualification — 2026-10-14|combined report]]
-owns protocol, every failed candidate, numerical diagnosis, startup/reset,
-throughput, reproduction and supported limits.
+Qualified delivery and directional quality in the same loaded trial. Used moving Geometry, one voice, one planar array, an Alex articulation, 64 moving rigid bodies and 15 Hz RGB/depth. The source, camera rate and acoustic room representation are part of the qualification. [[experiments/consumer-audio-runtime-performance#Combined indoor qualification — 2026-10-14|Combined indoor results]]
 
 #### Problems / Limitations
 
-The original 72-triangle room at 30 Hz RGB/depth remains a documented failure
-before dispatch optimization. Smaller mean cost alone was insufficient: eager
-15/10 Hz camera candidates still accumulated delay during speech. The final
-15 Hz camera plus equivalent 12-triangle acoustic envelope and captured solver
-passes the unchanged delivery and quality gates. Other camera/scene/controller
-or vision-network loads do not inherit that result.
-
-This closes **SDK readiness for the bounded first one-voice interior trial**.
-The nominal planar geometry, 2.25 m source trajectory, -65 dBFS synthetic noise,
-LoS room and declared single-environment load define the qualification. Other
-materials/rooms, robot-body acoustics, receiver translation/pitch/elevation,
-weak/overlapping voices, physical transfer, immediate-start speech and a universal
-<=100 ms lag bound remain unqualified. Multisource is outside this work. The old
-fresh-branch count discrepancy is not declared repaired without its own replay.
-
-Deliver `examples/isaac_lab/indoor_single_voice.py` and
-`examples/isaac_lab/indoor_single_voice_room.usda`; use rebuilt native libraries.
-The profile remains opt-in. SquadBot must adopt the selected source revision,
-verify its actual head mount/channel order and preserve clocks/masks, camera
-cadence and application freshness. Its actual camera/head integration, queues,
-partner classifier and policy remain downstream work.
-
-## Outcome and handoff
-
-Provide a measured audio configuration, any necessary reusable SDK improvements,
-and documented compatibility, quality and performance limits. The consumer then
-adopts the selected revision/configuration and verifies its own observation path
-before robot simulation integration.
-
-Downstream scope and adoption work:
-[SquadBot Phase 7](https://github.com/PatrizioAcquadro/squadbot-av/blob/main/knowledge/wiki/implementation_phases/phase-7-audio-runtime-readiness.md).
-
-[[decisions/product-boundary-and-compatibility|SDK ownership and compatibility]] ·
-[[index|Wiki index]]
+The earlier 30 Hz indoor workload failed the timing criterion. The optimized 15 Hz workload passed both gates. Other rooms, body acoustics, weak or overlapping voices, and physical transfer require independent evidence. Downstream users own the actual head mount, channel order, queue, and policy. [Consumer roadmap](https://github.com/PatrizioAcquadro/squadbot-av/blob/main/knowledge/wiki/implementation_phases/phase-7-audio-runtime-readiness.md)
 
 ## Artifacts
 
-The [[experiments/consumer-audio-operating-envelope|7.1 assessment]] owns measured
-results and reproduction. Ignored PCM/preparation is in
-`local/sdk-runtime-readiness/`; reports and runtime gates are in
-`build/validation/sdk-readiness-7.1/`.
-The [[experiments/consumer-audio-dynamic-quality|dynamic follow-up]] owns new
-measurements under `build/validation/sdk-dynamic-quality/`; inputs/scripts are
-retained separately under `local/sdk-dynamic-quality/` and
-`local/sdk-dynamic-confirmation/`.
-The [[experiments/consumer-audio-indoor-quality|indoor follow-up]] owns separate
-selection/confirmation/contract/timing reports under
-`build/validation/indoor-quality/`, with new PCM and retained scripts in
-`local/indoor-quality/` in its quality worktree. Main-checkout libraries/input
-were reused read only; all GPU executions held the shared exclusive lock.
-
-Separate 7.2 results and reproduction are in
-[[experiments/consumer-audio-runtime-performance|runtime performance evidence]],
-under the runtime worktree's ignored `build/validation/runtime-performance/`.
-The original quality and runtime worktree locations recorded at integration were
-`/home/pacquadr/.codex/worktrees/fbf8/isaac-audio-sensors` and
-`/home/pacquadr/.codex/worktrees/4231/isaac-audio-sensors`, respectively.
-The fresh quality PCM was not available at its recorded worktree path in this
-session, so the historical receiver-count discrepancy was not replayed or
-declared fixed. Current qualification uses newly retained live PCM and outputs.
-Integrated checks and the new native-room failure are in main's ignored
-`build/validation/main-branch-integration-20261014-01/`, including the prior
-ignored checklist, focused test logs, paired replay, preserved-result comparison
-and loaded probe report. Historical evidence and `knowledge/raw/` were untouched.
+- The optional indoor trial recipe and its room are maintained under `examples/isaac_lab/`. The [[topics/isaac-lab-integration|Lab guide]] owns the interface.
+- Baseline and dynamic-quality inputs live under `local/sdk-runtime-readiness/`, `local/sdk-dynamic-quality/`, and `local/sdk-dynamic-confirmation/`. The linked experiments give commands and identify which captures remain available.
+- The original indoor and runtime experiments used ignored outputs in separate worktrees, identified at integration by `fbf8` and `4231`. See the historical version of this page at `dc7ed2b` for their exact locations. Main's integrated probe is recorded under `build/validation/main-branch-integration-20261014-01/`. Later qualification used fresh live PCM.
 
 ## Files
 
-`tools/validation/lab_perception.py`,
-`src/isaac_audio_sensors/core/plugins/multisource.py`,
-`src/isaac_audio_sensors/lab/_torch_localizer.py`,
-`src/isaac_audio_sensors/lab/audio_array_sensor_cfg.py`,
-`tests/integration/test_lab_perception_scoring.py`,
-`tools/smoke/live_isaac_lab_audio_smoke.py`,
-`tools/validation/audio_runtime_performance.py`,
-`src/isaac_audio_sensors/lab/entity_binding.py`,
-`src/isaac_audio_sensors/lab/_entity_audio.py`,
-`src/isaac_audio_sensors/isaac/acoustic_scene/_specular.py`,
-`tools/native/build_specular.py`, `tools/native/specular.cpp`,
-`tools/validation/indoor_runtime_quality.py`,
-`examples/isaac_lab/indoor_single_voice.py`,
-`examples/isaac_lab/indoor_single_voice_room.usda`.
+The main implementation areas are `src/isaac_audio_sensors/core/plugins/`, `src/isaac_audio_sensors/lab/`, and the native specular provider. The reusable scoring and performance tools live under `tools/validation/`.
